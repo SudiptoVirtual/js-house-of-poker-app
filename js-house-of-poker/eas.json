@@ -1,0 +1,33 @@
+{
+  "cli": {
+    "version": ">= 18.8.0",
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "development": {
+      "env": {
+        "APP_ENV": "development"
+      },
+      "developmentClient": true,
+      "distribution": "internal"
+    },
+    "preview": {
+      "distribution": "internal",
+      "env": {
+        "APP_ENV": "preview"
+      },
+      "android": {
+        "buildType": "apk"
+      }
+    },
+    "production": {
+      "env": {
+        "APP_ENV": "production"
+      },
+      "autoIncrement": true
+    }
+  },
+  "submit": {
+    "production": {}
+  }
+}

@@ -1,0 +1,38 @@
+{
+  "expo": {
+    "name": "House of Poker",
+    "slug": "js-house-of-poker",
+    "version": "1.0.0",
+    "orientation": "default",
+    "scheme": "houseofpoker",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#f7f2e8"
+    },
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "package": "com.sudiptoroy.houseofpoker",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#f7f2e8"
+      },
+      "edgeToEdgeEnabled": true,
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "37f7ec25-81f1-4315-abe2-70bddd6952f0"
+      }
+    },
+    "owner": "sudiptovirtual"
+  }
+}

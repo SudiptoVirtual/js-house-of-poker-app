@@ -1,0 +1,11 @@
+node_modules/
+.env
+coverage/
+dist/
+build/
+*.log
+.vscode/
+.idea/
+.DS_Store
+postman/*
+.postman
