@@ -26,15 +26,15 @@ export function GameplayLayout({
   topBar,
 }: Props) {
   const { height, width } = useWindowDimensions();
-  const footerHeight = isLandscape ? 38 : 50;
+  const footerHeight = isLandscape ? 30 : 42;
   const topInset = Math.max(2, insets.top ? 0 : 4);
   const sideGap = clamp(width * 0.008, 8, 16);
   const topBarHeight = isLandscape
-    ? clamp(height * 0.074, 58, 78)
-    : clamp(height * 0.16, 94, 144);
+    ? clamp(height * 0.052, 42, 56)
+    : clamp(height * 0.12, 72, 108);
   const actionHeight = isLandscape
-    ? clamp(height * 0.112, 88, 118)
-    : clamp(height * 0.19, 126, 174);
+    ? clamp(height * 0.09, 68, 94)
+    : clamp(height * 0.15, 104, 146);
   const actionBottom = footerHeight + Math.max(4, insets.bottom ? 0 : 4);
 
   return (
@@ -44,11 +44,11 @@ export function GameplayLayout({
           styles.tableStage,
           {
             bottom: isLandscape
-              ? actionBottom + actionHeight + 4
-              : actionBottom + actionHeight * 0.62,
+              ? actionBottom + actionHeight + 2
+              : actionBottom + actionHeight * 0.58,
             left: sideGap + insets.left,
             right: sideGap + insets.right,
-            top: isLandscape ? topInset + topBarHeight + 4 : topBarHeight * 0.84,
+            top: isLandscape ? topInset + topBarHeight + 2 : topBarHeight * 0.78,
           },
         ]}
       >

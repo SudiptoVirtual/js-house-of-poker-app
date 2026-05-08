@@ -79,7 +79,7 @@ export function createSocketManager(options: CreateSocketManagerOptions) {
         }
 
         patchConnectionState({
-          latencyMs: Math.max(0, Date.now() - sentAt),
+          latencyMs: Math.max(1, Date.now() - sentAt),
         });
         resolve(true);
       });
@@ -100,7 +100,7 @@ export function createSocketManager(options: CreateSocketManagerOptions) {
       }
 
       patchConnectionState({
-        latencyMs: Math.max(0, Date.now() - sentAt),
+        latencyMs: Math.max(1, Date.now() - sentAt),
       });
       return true;
     } catch {
