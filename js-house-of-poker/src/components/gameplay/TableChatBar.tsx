@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Image,
   Pressable,
@@ -52,19 +52,21 @@ function getSignalColor(status: Props['transportStatus']) {
 function NotificationIcon({
   badgeCount = 0,
   icon,
+  onPress,
 }: {
   badgeCount?: number;
   icon: keyof typeof MaterialCommunityIcons.glyphMap;
+  onPress: () => void;
 }) {
   return (
-    <View style={styles.utilityIcon}>
-      <MaterialCommunityIcons color="#F7F4FF" name={icon} size={20} />
+    <Pressable accessibilityRole="button" onPress={onPress} style={styles.utilityIcon}>
+      <MaterialCommunityIcons color="#F7F4FF" name={icon} size={18} />
       {badgeCount > 0 ? (
         <View style={styles.notificationBadge}>
           <Text style={styles.notificationBadgeText}>{Math.min(badgeCount, 9)}</Text>
         </View>
       ) : null}
-    </View>
+    </Pressable>
   );
 }
 
@@ -82,9 +84,37 @@ export function TableChatBar({
 }: Props) {
   const { height, width } = useWindowDimensions();
   const [draft, setDraft] = useState('');
+  const [openPanel, setOpenPanel] = useState<'messages' | 'notifications' | null>(null);
+  const pendingSentRef = useRef<string | null>(null);
   const isCompact = width < 620 && height > width;
   const canSend = normalizeTableChatText(draft).length > 0;
   const tickerMessages = useMemo(() => messages.slice(-3), [messages]);
+  const notificationHeadlines = useMemo(() => {
+    const pendingInvites = inviteNotificationCount > 0
+      ? [`${inviteNotificationCount} pending table invite${inviteNotificationCount === 1 ? '' : 's'}.`]
+      : [];
+
+    return [
+      ...pendingInvites,
+      transportStatus === 'connected'
+        ? `${connectedCount} player${connectedCount === 1 ? '' : 's'} connected to ${tableName}.`
+        : `${transportLabel} is ${transportStatus}.`,
+      `Room ${roomId} is active.`,
+    ];
+  }, [connectedCount, inviteNotificationCount, roomId, tableName, transportLabel, transportStatus]);
+
+  useEffect(() => {
+    const pendingText = pendingSentRef.current;
+    if (!pendingText) {
+      return;
+    }
+
+    const delivered = messages.some((message) => message.text === pendingText);
+    if (delivered) {
+      pendingSentRef.current = null;
+      setDraft((current) => (normalizeTableChatText(current) === pendingText ? '' : current));
+    }
+  }, [messages]);
 
   function handleSend() {
     const normalized = normalizeTableChatText(draft);
@@ -92,8 +122,8 @@ export function TableChatBar({
       return;
     }
 
+    pendingSentRef.current = normalized;
     onSendMessage(normalized);
-    setDraft('');
   }
 
   function handleAddEmoji(emoji: string) {
@@ -122,7 +152,7 @@ export function TableChatBar({
             <MaterialCommunityIcons
               color={getSignalColor(transportStatus)}
               name="signal-cellular-3"
-              size={22}
+              size={20}
             />
             <Text style={styles.signalText}>{connectedCount}</Text>
           </View>
@@ -138,7 +168,7 @@ export function TableChatBar({
 
         <View style={styles.composeShell}>
           <View style={styles.composeRail}>
-            <MaterialCommunityIcons color="#B35CFF" name="message-processing-outline" size={20} />
+            <MaterialCommunityIcons color="#B35CFF" name="message-processing-outline" size={18} />
 
             <TextInput
               maxLength={TABLE_CHAT_MESSAGE_CHAR_LIMIT}
@@ -198,14 +228,55 @@ export function TableChatBar({
             onPress={onInvitePress}
             style={styles.inviteButton}
           >
-            <MaterialCommunityIcons color="#67F3BB" name="account-plus-outline" size={20} />
+            <MaterialCommunityIcons color="#67F3BB" name="account-plus-outline" size={18} />
             <Text style={styles.inviteButtonText}>INVITE</Text>
           </Pressable>
 
-          <NotificationIcon badgeCount={inviteNotificationCount} icon="bell-outline" />
-          <NotificationIcon badgeCount={chatNotificationCount} icon="message-text-outline" />
+          <NotificationIcon
+            badgeCount={inviteNotificationCount}
+            icon="bell-outline"
+            onPress={() => setOpenPanel((current) => (current === 'notifications' ? null : 'notifications'))}
+          />
+          <NotificationIcon
+            badgeCount={chatNotificationCount}
+            icon="message-text-outline"
+            onPress={() => setOpenPanel((current) => (current === 'messages' ? null : 'messages'))}
+          />
         </View>
       </View>
+
+
+      {openPanel ? (
+        <View style={styles.popover}>
+          <View style={styles.popoverHeader}>
+            <Text style={styles.popoverTitle}>
+              {openPanel === 'messages' ? 'Table messages' : 'Notifications'}
+            </Text>
+            <Pressable accessibilityRole="button" onPress={() => setOpenPanel(null)}>
+              <MaterialCommunityIcons color="rgba(247,244,255,0.76)" name="close" size={16} />
+            </Pressable>
+          </View>
+
+          {openPanel === 'messages' ? (
+            tickerMessages.length > 0 ? (
+              tickerMessages.map((message) => (
+                <View key={message.id} style={styles.popoverItem}>
+                  <Text numberOfLines={1} style={styles.popoverItemTitle}>{message.playerName}</Text>
+                  <Text numberOfLines={2} style={styles.popoverItemText}>{message.text}</Text>
+                </View>
+              ))
+            ) : (
+              <Text style={styles.popoverEmpty}>No chat messages yet.</Text>
+            )
+          ) : (
+            notificationHeadlines.map((headline) => (
+              <View key={headline} style={styles.popoverItem}>
+                <Text numberOfLines={2} style={styles.popoverItemText}>{headline}</Text>
+              </View>
+            ))
+          )}
+        </View>
+      ) : null}
 
       {isCompact ? (
         <View style={styles.footerMeta}>
@@ -224,52 +295,52 @@ const styles = StyleSheet.create({
   actionsRail: {
     alignItems: 'center',
     flexDirection: 'row',
-    gap: 8,
+    gap: 6,
   },
   brandRail: {
     alignItems: 'center',
     flexDirection: 'row',
-    gap: 10,
+    gap: 8,
   },
   composeInput: {
     color: '#F7F4FF',
     flex: 1,
-    fontSize: 14,
+    fontSize: 13,
     paddingVertical: 0,
   },
   composeRail: {
     alignItems: 'center',
     borderColor: 'rgba(180, 84, 255, 0.38)',
-    borderRadius: 14,
+    borderRadius: 12,
     borderWidth: 1,
     flexDirection: 'row',
-    gap: 8,
-    minHeight: 48,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
+    gap: 6,
+    minHeight: 36,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
   },
   composeShell: {
     flex: 1,
-    gap: 8,
+    gap: 6,
     minWidth: 0,
   },
   emojiButton: {
     alignItems: 'center',
-    height: 34,
+    height: 30,
     justifyContent: 'center',
-    width: 34,
+    width: 30,
   },
   emojiRail: {
     flexDirection: 'row',
     gap: 2,
   },
   emojiText: {
-    fontSize: 20,
+    fontSize: 18,
   },
   footerMeta: {
     alignItems: 'center',
     flexDirection: 'row',
-    gap: 8,
+    gap: 6,
     justifyContent: 'center',
   },
   footerMetaDivider: {
@@ -286,31 +357,31 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: 'rgba(12, 29, 14, 0.98)',
     borderColor: 'rgba(103, 243, 187, 0.38)',
-    borderRadius: 14,
+    borderRadius: 12,
     borderWidth: 1,
     flexDirection: 'row',
-    gap: 8,
-    minHeight: 48,
-    paddingHorizontal: 14,
+    gap: 6,
+    minHeight: 36,
+    paddingHorizontal: 10,
   },
   inviteButtonText: {
     color: '#67F3BB',
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '900',
-    letterSpacing: 0.8,
+    letterSpacing: 0.6,
   },
   logoFrame: {
-    height: 48,
+    height: 38,
     overflow: 'hidden',
     position: 'relative',
-    width: 96,
+    width: 76,
   },
   logoImage: {
-    height: 48,
+    height: 38,
     position: 'absolute',
     right: 0,
     top: 0,
-    width: 190,
+    width: 150,
   },
   notificationBadge: {
     alignItems: 'center',
@@ -344,8 +415,8 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1,
     justifyContent: 'center',
-    minHeight: 38,
-    minWidth: 78,
+    minHeight: 32,
+    minWidth: 64,
     paddingHorizontal: 12,
   },
   sendButtonEnabled: {
@@ -353,20 +424,20 @@ const styles = StyleSheet.create({
   },
   sendButtonText: {
     color: 'rgba(235, 231, 255, 0.56)',
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '900',
-    letterSpacing: 0.8,
+    letterSpacing: 0.6,
   },
   sendButtonTextEnabled: {
     color: '#F7F4FF',
   },
   shell: {
     borderColor: 'rgba(180, 84, 255, 0.18)',
-    borderRadius: 20,
+    borderRadius: 16,
     borderWidth: 1,
-    gap: 10,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
+    gap: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
   },
   shellCompact: {
     gap: 12,
@@ -405,20 +476,68 @@ const styles = StyleSheet.create({
     color: 'rgba(235, 231, 255, 0.56)',
     fontSize: 12,
   },
+  popover: {
+    backgroundColor: 'rgba(9, 6, 18, 0.98)',
+    borderColor: 'rgba(180, 84, 255, 0.38)',
+    borderRadius: 14,
+    borderWidth: 1,
+    maxWidth: 330,
+    padding: 10,
+    position: 'absolute',
+    right: 10,
+    top: 46,
+    width: '34%',
+    zIndex: 90,
+  },
+  popoverEmpty: {
+    color: 'rgba(235, 231, 255, 0.64)',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  popoverHeader: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 6,
+  },
+  popoverItem: {
+    borderTopColor: 'rgba(255,255,255,0.08)',
+    borderTopWidth: 1,
+    paddingVertical: 6,
+  },
+  popoverItemText: {
+    color: '#F7F4FF',
+    fontSize: 12,
+    fontWeight: '700',
+    lineHeight: 16,
+  },
+  popoverItemTitle: {
+    color: '#D780FF',
+    fontSize: 11,
+    fontWeight: '900',
+    marginBottom: 2,
+  },
+  popoverTitle: {
+    color: '#F7F4FF',
+    fontSize: 12,
+    fontWeight: '900',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+  },
   touchTarget: {
     alignItems: 'center',
-    height: 44,
+    height: 36,
     justifyContent: 'center',
-    width: 44,
+    width: 36,
   },
   utilityIcon: {
     alignItems: 'center',
     borderColor: 'rgba(255,255,255,0.12)',
     borderRadius: 14,
     borderWidth: 1,
-    height: 48,
+    height: 38,
     justifyContent: 'center',
     position: 'relative',
-    width: 48,
+    width: 38,
   },
 });

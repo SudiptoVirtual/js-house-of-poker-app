@@ -165,7 +165,7 @@ export const GameControls = memo(function GameControls({
             label="GO"
             loading={pendingAction === 'go'}
             onPress={() => onAction('go')}
-            subtitle="ENTER THE ROUND"
+            subtitle="ENTER"
             tone="blue"
           />
           <ControlButton
@@ -173,8 +173,16 @@ export const GameControls = memo(function GameControls({
             label="STAY"
             loading={pendingAction === 'stay'}
             onPress={() => onAction('stay')}
-            subtitle="SIT OUT THIS ROUND"
+            subtitle="SIT OUT"
             tone="pink"
+          />
+          <ControlButton
+            disabled={!availableActions.includes('fold')}
+            label="FOLD"
+            loading={pendingAction === 'fold'}
+            onPress={() => onAction('fold')}
+            subtitle="LEAVE ROUND"
+            tone="red"
           />
         </View>
       ) : null}
@@ -295,7 +303,7 @@ const styles = StyleSheet.create({
     opacity: 0.42,
   },
   buttonLabel: {
-    fontSize: 26,
+    fontSize: 21,
     fontWeight: '900',
     letterSpacing: 0,
     textAlign: 'center',
@@ -310,7 +318,7 @@ const styles = StyleSheet.create({
   buttonRow: {
     alignItems: 'stretch',
     flexDirection: 'row',
-    gap: 18,
+    gap: 10,
     justifyContent: 'center',
     width: '100%',
   },
@@ -327,10 +335,10 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     borderWidth: 1.5,
     justifyContent: 'center',
-    minHeight: 74,
+    minHeight: 54,
     overflow: 'hidden',
-    paddingHorizontal: 14,
-    paddingVertical: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.78,
     shadowRadius: 12,
@@ -434,7 +442,7 @@ const styles = StyleSheet.create({
   root: {
     alignSelf: 'center',
     gap: 8,
-    maxWidth: 760,
+    maxWidth: 680,
     paddingHorizontal: 6,
     width: '100%',
   },
@@ -478,7 +486,7 @@ const styles = StyleSheet.create({
   utilityRow: {
     alignSelf: 'center',
     flexDirection: 'row',
-    gap: 18,
+    gap: 10,
     maxWidth: 520,
     width: '64%',
   },

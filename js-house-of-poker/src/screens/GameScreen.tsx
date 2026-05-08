@@ -337,18 +337,18 @@ export function GameScreen({ navigation }: Props) {
     ? gameplayLayoutConfig.table.aspectRatioLandscape
     : gameplayLayoutConfig.table.aspectRatio;
   const layoutSideGap = clamp(windowWidth * 0.008, 8, 16);
-  const estimatedFooterHeight = isLandscape ? 38 : 50;
+  const estimatedFooterHeight = isLandscape ? 30 : 42;
   const estimatedTopInset = Math.max(2, insets.top ? 0 : 4);
   const estimatedTopBarHeight = isLandscape
-    ? clamp(windowHeight * 0.074, 58, 78)
-    : clamp(windowHeight * 0.16, 94, 144);
+    ? clamp(windowHeight * 0.052, 42, 56)
+    : clamp(windowHeight * 0.12, 72, 108);
   const estimatedActionHeight = isLandscape
-    ? clamp(windowHeight * 0.112, 88, 118)
-    : clamp(windowHeight * 0.19, 126, 174);
+    ? clamp(windowHeight * 0.09, 68, 94)
+    : clamp(windowHeight * 0.15, 104, 146);
   const estimatedActionBottom = estimatedFooterHeight + Math.max(4, insets.bottom ? 0 : 4);
   const reservedVerticalSpace = isLandscape
-    ? estimatedTopInset + estimatedTopBarHeight + 4 + estimatedActionBottom + estimatedActionHeight + 4
-    : estimatedTopBarHeight * 0.84 + estimatedActionBottom + estimatedActionHeight * 0.62;
+    ? estimatedTopInset + estimatedTopBarHeight + 2 + estimatedActionBottom + estimatedActionHeight + 2
+    : estimatedTopBarHeight * 0.78 + estimatedActionBottom + estimatedActionHeight * 0.58;
   const reservedHorizontalSpace = isLandscape
     ? layoutSideGap * 2 + insets.left + insets.right
     : Math.max(18, insets.left + insets.right + 18);

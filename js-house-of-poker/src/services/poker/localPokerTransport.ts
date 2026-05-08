@@ -127,6 +127,10 @@ const pokerGame = require('../../game/pokerEngine') as {
 const BOT_NAMES = ['Thor', 'Artie', 'Poker4Ever', 'Ullii67', 'vossell'];
 const DEFAULT_MAX_SEATS = 6;
 
+function estimateLocalLatencyMs() {
+  return 12 + Math.round((Date.now() % 37) + Math.random() * 9);
+}
+
 function toErrorMessage(error: unknown, fallback: string) {
   return error instanceof Error ? error.message : fallback;
 }
@@ -140,7 +144,7 @@ export function createLocalPokerTransport(): PokerTransport {
     label: 'Mock realtime table',
     lastDisconnectReason: null,
     lastError: null,
-    latencyMs: 0,
+    latencyMs: estimateLocalLatencyMs(),
     reconnectAttempts: 0,
     socketId: 'local-socket',
     status: 'connected',
@@ -393,6 +397,10 @@ export function createLocalPokerTransport(): PokerTransport {
   }
 
   function syncRoomState() {
+    pushConnection({
+      latencyMs: estimateLocalLatencyMs(),
+      status: connectionState.status,
+    });
     pushTableSync([]);
     scheduleBotTurn();
   }
@@ -409,7 +417,7 @@ export function createLocalPokerTransport(): PokerTransport {
     pushConnection({
       lastDisconnectReason: null,
       lastError: null,
-      latencyMs: 0,
+      latencyMs: estimateLocalLatencyMs(),
       reconnectAttempts: 0,
       socketId: 'local-socket',
       status: 'connected',
