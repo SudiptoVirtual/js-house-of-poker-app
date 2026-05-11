@@ -33,13 +33,15 @@ export function ThreeFiveSevenActionPanel({
       style={[
         styles.wrapper,
         {
-          paddingBottom: Math.max(10, safeAreaBottom + 8),
-          paddingHorizontal: Math.max(10, safeAreaHorizontal + 6),
+          paddingBottom: safeAreaBottom > 0 ? safeAreaBottom + 6 : 4,
+          paddingHorizontal: Math.max(8, safeAreaHorizontal + 6),
+          paddingTop: 4,
         },
       ]}
     >
       <GameControls
         controls={controls}
+        layout="leftPanel"
         mode="357"
         onAction={onAction}
         onRebuy={onRebuy}
@@ -58,7 +60,12 @@ export function ThreeFiveSevenActionPanel({
 
 const styles = StyleSheet.create({
   wrapper: {
-    alignItems: 'center',
+    alignItems: 'flex-start',
+    alignSelf: 'flex-start',
+    flex: 1,
+    justifyContent: 'center',
+    maxWidth: 440,
+    minWidth: 300,
     width: '100%',
   },
 });
