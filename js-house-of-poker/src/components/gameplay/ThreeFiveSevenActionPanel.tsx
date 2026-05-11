@@ -64,8 +64,8 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
     flex: 1,
     justifyContent: 'center',
-    maxWidth: 440,
-    minWidth: 300,
+    maxWidth: 420,
+    minWidth: 240,
     width: '100%',
   },
 });

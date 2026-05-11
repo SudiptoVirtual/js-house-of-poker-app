@@ -17,7 +17,7 @@ type Props = {
   bottomRightNode?: React.ReactNode;
   errorMessage?: string | null;
   footerNode?: React.ReactNode;
-  heroSection: React.ReactNode;
+  heroSection?: React.ReactNode;
   insets: { bottom: number; left: number; right: number; top: number };
   isLandscape: boolean;
   isTopBarExpanded?: boolean;
@@ -37,6 +37,7 @@ export function GameplayLayout({
   topBar,
 }: Props) {
   const { height, width } = useWindowDimensions();
+  const hasHeroSection = Boolean(heroSection);
   const footerHeight = isLandscape ? 30 : 42;
   const topInset = Math.max(2, insets.top ? 0 : 4);
   const sideGap = clamp(width * 0.008, 8, 16);
@@ -50,9 +51,11 @@ export function GameplayLayout({
       ? topInset + topBarHeight + 2
       : topBarHeight * 0.78
     : topInset + collapsedTopBarHeight + 4;
-  const actionHeight = isLandscape
-    ? clamp(height * 0.09, 68, 94)
-    : clamp(height * 0.15, 104, 146);
+  const actionHeight = hasHeroSection
+    ? isLandscape
+      ? clamp(height * 0.09, 68, 94)
+      : clamp(height * 0.15, 104, 146)
+    : 0;
   const actionBottom = footerHeight + Math.max(4, insets.bottom ? 0 : 4);
   const bottomRightHeight = clamp(
     height * bottomRightStageSizing.heightRatio,
@@ -72,8 +75,8 @@ export function GameplayLayout({
           styles.tableStage,
           {
             bottom: isLandscape
-              ? actionBottom + actionHeight + 2
-              : actionBottom + actionHeight * 0.58,
+              ? actionBottom + actionHeight + (hasHeroSection ? 2 : 0)
+              : actionBottom + (hasHeroSection ? actionHeight * 0.58 : 0),
             left: sideGap + insets.left,
             right: sideGap + insets.right,
             top: tableTopOffset,
@@ -98,19 +101,21 @@ export function GameplayLayout({
         {topBar}
       </View>
 
-      <View
-        style={[
-          styles.heroStage,
-          {
-            bottom: actionBottom,
-            height: actionHeight,
-            left: sideGap + insets.left,
-            right: sideGap + insets.right,
-          },
-        ]}
-      >
-        {heroSection}
-      </View>
+      {hasHeroSection ? (
+        <View
+          style={[
+            styles.heroStage,
+            {
+              bottom: actionBottom,
+              height: actionHeight,
+              left: sideGap + insets.left,
+              right: sideGap + insets.right,
+            },
+          ]}
+        >
+          {heroSection}
+        </View>
+      ) : null}
 
       {bottomRightNode && isLandscape && width >= 900 ? (
         <View

@@ -386,6 +386,19 @@ export function GameScreen({ navigation }: Props) {
   const activeState = roomState ?? null;
   const tableState = activeState;
   const is357Table = tableState?.gameSettings.game === '357';
+  const hasEmbedded357Panel =
+    isLandscape && is357Table && Boolean(tableState?.threeFiveSeven);
+  const hasBottomHeroSection = !hasEmbedded357Panel;
+  const embedded357PanelWidth = hasEmbedded357Panel
+    ? clamp(
+        windowWidth * gameplayLayoutConfig.panel.widthRatio,
+        gameplayLayoutConfig.panel.minWidth,
+        gameplayLayoutConfig.panel.maxWidth,
+      )
+    : 0;
+  const embedded357PanelGap = hasEmbedded357Panel
+    ? clamp(windowWidth * 0.012, 12, 24)
+    : 0;
   const tableAspectRatio = isLandscape
     ? gameplayLayoutConfig.table.aspectRatioLandscape
     : gameplayLayoutConfig.table.aspectRatio;
@@ -406,10 +419,18 @@ export function GameScreen({ navigation }: Props) {
     : clamp(windowHeight * 0.15, 104, 146);
   const estimatedActionBottom = estimatedFooterHeight + Math.max(4, insets.bottom ? 0 : 4);
   const reservedVerticalSpace = isLandscape
-    ? estimatedTableTopSpace + estimatedActionBottom + estimatedActionHeight + 2
-    : estimatedTableTopSpace + estimatedActionBottom + estimatedActionHeight * 0.58;
+    ? estimatedTableTopSpace +
+      estimatedActionBottom +
+      (hasBottomHeroSection ? estimatedActionHeight + 2 : 0)
+    : estimatedTableTopSpace +
+      estimatedActionBottom +
+      (hasBottomHeroSection ? estimatedActionHeight * 0.58 : 0);
   const reservedHorizontalSpace = isLandscape
-    ? layoutSideGap * 2 + insets.left + insets.right
+    ? layoutSideGap * 2 +
+      insets.left +
+      insets.right +
+      embedded357PanelWidth +
+      embedded357PanelGap
     : Math.max(18, insets.left + insets.right + 18);
   const maxTableWidth = isLandscape
     ? Math.max(gameplayLayoutConfig.table.maxWidthLandscape, windowWidth - reservedHorizontalSpace)
@@ -988,6 +1009,7 @@ export function GameScreen({ navigation }: Props) {
     (currentTableState.phase === 'decide_3' ||
       currentTableState.phase === 'decide_5' ||
       currentTableState.phase === 'decide_7');
+  const shouldEmbed357Panel = isLandscape && is357Current;
   const phaseTitle = getPhaseTitle(currentTableState.phase);
   const selfPlayer =
     currentTableState.players.find(
@@ -1056,6 +1078,22 @@ export function GameScreen({ navigation }: Props) {
       : typeof connection.latencyMs === 'number'
         ? `${Math.round(connection.latencyMs)}ms`
         : '--ms';
+  const threeFiveSevenActionPanel = is357Current ? (
+    <ThreeFiveSevenActionPanel
+      controls={currentTableState.controls}
+      onAction={(action) => handleGameAction(action)}
+      onRebuy={handleRebuy}
+      onStartHand={handleStartHand}
+      pendingAction={pendingAction}
+      player={selfPlayer}
+      safeAreaBottom={shouldEmbed357Panel || isLandscape ? 0 : insets.bottom}
+      safeAreaHorizontal={
+        shouldEmbed357Panel || isLandscape ? 0 : Math.max(insets.left, insets.right)
+      }
+      showDecisionPrompt={showDecisionLayout}
+      statusMessage={headlineText}
+    />
+  ) : null;
   const tableNode = (
     <TableSurface
       ambientA={ambientA}
@@ -1069,6 +1107,9 @@ export function GameScreen({ navigation }: Props) {
       dealtCards={dealtCards}
       focusMode={isLandscape}
       headlineText={headlineText}
+      leftPanelGap={embedded357PanelGap}
+      leftPanelNode={shouldEmbed357Panel ? threeFiveSevenActionPanel : null}
+      leftPanelWidth={embedded357PanelWidth}
       onLayout={handleTableLayout}
       onPressTable={() => undefined}
       phaseTitle={phaseTitle}
@@ -1106,18 +1147,7 @@ export function GameScreen({ navigation }: Props) {
   );
 
   const heroSection = is357Current ? (
-    <ThreeFiveSevenActionPanel
-      controls={currentTableState.controls}
-      onAction={(action) => handleGameAction(action)}
-      onRebuy={handleRebuy}
-      onStartHand={handleStartHand}
-      pendingAction={pendingAction}
-      player={selfPlayer}
-      safeAreaBottom={isLandscape ? 0 : insets.bottom}
-      safeAreaHorizontal={isLandscape ? 0 : Math.max(insets.left, insets.right)}
-      showDecisionPrompt={showDecisionLayout}
-      statusMessage={headlineText}
-    />
+    shouldEmbed357Panel ? null : threeFiveSevenActionPanel
   ) : (
     <HeroActionSection
       barMode={false}
