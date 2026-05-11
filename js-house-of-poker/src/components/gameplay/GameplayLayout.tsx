@@ -46,9 +46,10 @@ export function GameplayLayout({
     : clamp(height * 0.12, 72, 108);
   const collapsedTopBarHeight = clamp(height * 0.052, 42, 56);
   const activeTopBarHeight = isTopBarExpanded ? topBarHeight : collapsedTopBarHeight;
+  const tableLift = isLandscape ? clamp(height * 0.04, 24, 36) : 0;
   const tableTopOffset = isTopBarExpanded
     ? isLandscape
-      ? topInset + topBarHeight + 2
+      ? topInset + topBarHeight + 2 - tableLift
       : topBarHeight * 0.78
     : topInset + collapsedTopBarHeight + 4;
   const actionHeight = hasHeroSection
@@ -75,7 +76,7 @@ export function GameplayLayout({
           styles.tableStage,
           {
             bottom: isLandscape
-              ? actionBottom + actionHeight + (hasHeroSection ? 2 : 0)
+              ? actionBottom + actionHeight + (hasHeroSection ? 2 : 0) + tableLift
               : actionBottom + (hasHeroSection ? actionHeight * 0.58 : 0),
             left: sideGap + insets.left,
             right: sideGap + insets.right,

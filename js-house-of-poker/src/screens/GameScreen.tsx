@@ -435,9 +435,14 @@ export function GameScreen({ navigation }: Props) {
   const maxTableWidth = isLandscape
     ? Math.max(gameplayLayoutConfig.table.maxWidthLandscape, windowWidth - reservedHorizontalSpace)
     : gameplayLayoutConfig.table.maxWidthPortrait;
+  const landscapeTableFitScale = isLandscape
+    ? hasEmbedded357Panel
+      ? 0.955
+      : 0.97
+    : 1;
   const tableBox = fitAspectBox(
-    Math.min(maxTableWidth, windowWidth - reservedHorizontalSpace),
-    windowHeight - insets.top - insets.bottom - reservedVerticalSpace,
+    Math.min(maxTableWidth, windowWidth - reservedHorizontalSpace) * landscapeTableFitScale,
+    (windowHeight - insets.top - insets.bottom - reservedVerticalSpace) * landscapeTableFitScale,
     tableAspectRatio,
   );
   const tableWidth = Math.max(
