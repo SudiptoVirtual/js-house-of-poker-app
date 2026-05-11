@@ -51,6 +51,7 @@ function ControlButton({
       onPress={onPress}
       style={({ pressed }) => [
         styles.buttonPressable,
+        compact ? styles.buttonPressableCompact : null,
         pressed && !disabled ? styles.buttonPressed : null,
         disabled ? styles.buttonDisabled : null,
       ]}
@@ -336,6 +337,11 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 0,
   },
+  buttonPressableCompact: {
+    alignSelf: 'stretch',
+    flex: 0,
+    width: '100%',
+  },
   buttonPressed: {
     transform: [{ scale: 0.98 }],
   },
@@ -348,8 +354,9 @@ const styles = StyleSheet.create({
     width: '80%',
   },
   buttonRowLeftPanel: {
-    alignSelf: 'flex-start',
-    gap: 7,
+    alignSelf: 'stretch',
+    flexDirection: 'column',
+    gap: 12,
     justifyContent: 'flex-start',
     maxWidth: 410,
     width: '100%',
@@ -381,9 +388,10 @@ const styles = StyleSheet.create({
   },
   controlButtonCompact: {
     borderRadius: 9,
-    minHeight: 42,
+    minHeight: 54,
     paddingHorizontal: 7,
-    paddingVertical: 5,
+    paddingVertical: 7,
+    width: '100%',
   },
   goldButton: {
     borderColor: 'rgba(255, 184, 46, 0.95)',
@@ -407,6 +415,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 2,
   },
   metaRowLeftPanel: {
+    alignItems: 'flex-start',
+    flexDirection: 'column',
+    gap: 4,
     maxWidth: 410,
     width: '100%',
   },
@@ -493,8 +504,8 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   rootLeftPanel: {
-    alignSelf: 'flex-start',
-    gap: 5,
+    alignSelf: 'stretch',
+    gap: 12,
     maxWidth: 420,
     paddingHorizontal: 0,
   },
