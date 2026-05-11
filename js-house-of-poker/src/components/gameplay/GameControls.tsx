@@ -5,11 +5,13 @@ import { LinearGradient } from 'expo-linear-gradient';
 import type { PokerAction, PokerControls, PokerPlayerState } from '../../types/poker';
 
 type ControlMode = '357' | 'standard';
+type ControlLayout = 'default' | 'leftPanel';
 
 type Props = {
   controls: PokerControls;
   currentBet?: number;
   mode: ControlMode;
+  layout?: ControlLayout;
   onAction: (action: PokerAction) => void;
   onRaiseChange?: (value: string) => void;
   onRaiseSubmit?: () => void;
@@ -26,6 +28,7 @@ function clamp(value: number, min: number, max: number) {
 }
 
 function ControlButton({
+  compact,
   disabled,
   label,
   loading,
@@ -33,6 +36,7 @@ function ControlButton({
   subtitle,
   tone,
 }: {
+  compact?: boolean;
   disabled?: boolean;
   label: string;
   loading?: boolean;
@@ -55,18 +59,29 @@ function ControlButton({
         colors={buttonColors[tone]}
         end={{ x: 1, y: 1 }}
         start={{ x: 0, y: 0 }}
-        style={[styles.controlButton, styles[`${tone}Button`]]}
+        style={[
+          styles.controlButton,
+          compact ? styles.controlButtonCompact : null,
+          styles[`${tone}Button`],
+        ]}
       >
         <Text
           adjustsFontSizeToFit
           minimumFontScale={0.72}
           numberOfLines={1}
-          style={[styles.buttonLabel, styles[`${tone}Text`]]}
+          style={[
+            styles.buttonLabel,
+            compact ? styles.buttonLabelCompact : null,
+            styles[`${tone}Text`],
+          ]}
         >
           {loading ? '...' : label}
         </Text>
         {subtitle ? (
-          <Text numberOfLines={1} style={styles.buttonSubtitle}>
+          <Text
+            numberOfLines={1}
+            style={[styles.buttonSubtitle, compact ? styles.buttonSubtitleCompact : null]}
+          >
             {subtitle}
           </Text>
         ) : null}
@@ -88,6 +103,7 @@ export const GameControls = memo(function GameControls({
   controls,
   currentBet = 0,
   mode,
+  layout = 'default',
   onAction,
   onRaiseChange,
   onRaiseSubmit,
@@ -99,6 +115,7 @@ export const GameControls = memo(function GameControls({
   statusMessage,
 }: Props) {
   const [raiseOpen, setRaiseOpen] = useState(false);
+  const isLeftPanel = layout === 'leftPanel';
   const availableActions = controls.availableActions;
   const canRaise =
     mode === 'standard' &&
@@ -148,8 +165,8 @@ export const GameControls = memo(function GameControls({
     controls.canAct || controls.canStartHand || controls.canRebuy || canAllIn;
 
   return (
-    <View style={styles.root}>
-      <View style={styles.metaRow}>
+    <View style={[styles.root, isLeftPanel ? styles.rootLeftPanel : null]}>
+      <View style={[styles.metaRow, isLeftPanel ? styles.metaRowLeftPanel : null]}>
         <Text numberOfLines={1} style={styles.playerText}>
           {infoText}
         </Text>
@@ -159,8 +176,9 @@ export const GameControls = memo(function GameControls({
       </View>
 
       {mode === '357' && controls.canAct ? (
-        <View style={styles.buttonRow}>
+        <View style={[styles.buttonRow, isLeftPanel ? styles.buttonRowLeftPanel : null]}>
           <ControlButton
+            compact={isLeftPanel}
             disabled={!availableActions.includes('go')}
             label="GO"
             loading={pendingAction === 'go'}
@@ -169,6 +187,7 @@ export const GameControls = memo(function GameControls({
             tone="blue"
           />
           <ControlButton
+            compact={isLeftPanel}
             disabled={!availableActions.includes('stay')}
             label="STAY"
             loading={pendingAction === 'stay'}
@@ -177,6 +196,7 @@ export const GameControls = memo(function GameControls({
             tone="pink"
           />
           <ControlButton
+            compact={isLeftPanel}
             disabled={!availableActions.includes('fold')}
             label="FOLD"
             loading={pendingAction === 'fold'}
@@ -308,6 +328,10 @@ const styles = StyleSheet.create({
     letterSpacing: 0,
     textAlign: 'center',
   },
+  buttonLabelCompact: {
+    fontSize: 16,
+    letterSpacing: 0.2,
+  },
   buttonPressable: {
     flex: 1,
     minWidth: 0,
@@ -323,6 +347,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     width: '80%',
   },
+  buttonRowLeftPanel: {
+    alignSelf: 'flex-start',
+    gap: 7,
+    justifyContent: 'flex-start',
+    maxWidth: 410,
+    width: '100%',
+  },
   buttonSubtitle: {
     color: '#FFFFFF',
     fontSize: 11,
@@ -330,6 +361,10 @@ const styles = StyleSheet.create({
     marginTop: 2,
     opacity: 0.86,
     textAlign: 'center',
+  },
+  buttonSubtitleCompact: {
+    fontSize: 8,
+    marginTop: 1,
   },
   controlButton: {
     alignItems: 'center',
@@ -343,6 +378,12 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.78,
     shadowRadius: 12,
+  },
+  controlButtonCompact: {
+    borderRadius: 9,
+    minHeight: 42,
+    paddingHorizontal: 7,
+    paddingVertical: 5,
   },
   goldButton: {
     borderColor: 'rgba(255, 184, 46, 0.95)',
@@ -364,6 +405,10 @@ const styles = StyleSheet.create({
     gap: 12,
     justifyContent: 'space-between',
     paddingHorizontal: 2,
+  },
+  metaRowLeftPanel: {
+    maxWidth: 410,
+    width: '100%',
   },
   pinkButton: {
     borderColor: 'rgba(255, 54, 167, 0.95)',
@@ -446,6 +491,12 @@ const styles = StyleSheet.create({
     maxWidth: 680,
     paddingHorizontal: 6,
     width: '100%',
+  },
+  rootLeftPanel: {
+    alignSelf: 'flex-start',
+    gap: 5,
+    maxWidth: 420,
+    paddingHorizontal: 0,
   },
   statusText: {
     color: 'rgba(239, 235, 255, 0.66)',
