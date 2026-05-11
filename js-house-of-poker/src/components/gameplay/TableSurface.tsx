@@ -127,6 +127,12 @@ export function TableSurface({
     ? leftPanelGap || clamp(width * 0.012, 12, 24)
     : 0;
   const viewportWidth = width + resolvedLeftPanelWidth + resolvedLeftPanelGap;
+  const leftPanelHorizontalNudge = leftPanelNode
+    ? clamp(width * 0.045, 36, 82)
+    : 0;
+  const leftPanelVerticalNudge = leftPanelNode
+    ? clamp(height * 0.06, 18, 42)
+    : 0;
 
   return (
     <View style={[styles.tableViewport, { height, width: viewportWidth }]}>
@@ -137,6 +143,10 @@ export function TableSurface({
             styles.leftPanelSlot,
             {
               marginRight: resolvedLeftPanelGap,
+              transform: [
+                { translateX: -leftPanelHorizontalNudge },
+                { translateY: -leftPanelVerticalNudge },
+              ],
               width: resolvedLeftPanelWidth,
             },
           ]}
