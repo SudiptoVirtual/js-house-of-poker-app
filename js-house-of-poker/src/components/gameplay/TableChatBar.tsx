@@ -24,9 +24,11 @@ type Props = {
   chatNotificationCount?: number;
   connectedCount: number;
   inviteNotificationCount?: number;
+  isTopBarExpanded?: boolean;
   messages: PokerTableChatMessage[];
   onInvitePress?: () => void;
   onSendMessage: (message: string) => void;
+  onToggleTopBar?: () => void;
   roomId: string;
   tableName: string;
   transportLabel?: string;
@@ -74,9 +76,11 @@ export function TableChatBar({
   chatNotificationCount = 0,
   connectedCount,
   inviteNotificationCount = 0,
+  isTopBarExpanded = true,
   messages,
   onInvitePress,
   onSendMessage,
+  onToggleTopBar,
   roomId,
   tableName,
   transportLabel = 'Realtime',
@@ -116,6 +120,12 @@ export function TableChatBar({
     }
   }, [messages]);
 
+  useEffect(() => {
+    if (!isTopBarExpanded) {
+      setOpenPanel(null);
+    }
+  }, [isTopBarExpanded]);
+
   function handleSend() {
     const normalized = normalizeTableChatText(draft);
     if (!normalized) {
@@ -135,6 +145,33 @@ export function TableChatBar({
     );
   }
 
+  function renderTopBarToggle() {
+    return (
+      <Pressable
+        accessibilityLabel={isTopBarExpanded ? 'Collapse top bar' : 'Expand top bar'}
+        accessibilityRole="button"
+        disabled={!onToggleTopBar}
+        onPress={onToggleTopBar}
+        style={styles.touchTarget}
+      >
+        <MaterialCommunityIcons color="#FFFFFF" name="menu" size={30} />
+      </Pressable>
+    );
+  }
+
+  if (!isTopBarExpanded) {
+    return (
+      <LinearGradient
+        colors={['rgba(9, 6, 18, 0.98)', 'rgba(5, 4, 13, 0.99)']}
+        end={{ x: 1, y: 1 }}
+        start={{ x: 0, y: 0 }}
+        style={[styles.shell, styles.shellCollapsed]}
+      >
+        {renderTopBarToggle()}
+      </LinearGradient>
+    );
+  }
+
   return (
     <LinearGradient
       colors={['rgba(9, 6, 18, 0.98)', 'rgba(5, 4, 13, 0.99)']}
@@ -144,9 +181,7 @@ export function TableChatBar({
     >
       <View style={[styles.row, isCompact ? styles.rowCompact : null]}>
         <View style={styles.brandRail}>
-          <View style={styles.touchTarget}>
-            <MaterialCommunityIcons color="#FFFFFF" name="menu" size={30} />
-          </View>
+          {renderTopBarToggle()}
 
           <View style={styles.signalWrap}>
             <MaterialCommunityIcons
@@ -441,6 +476,13 @@ const styles = StyleSheet.create({
   },
   shellCompact: {
     gap: 12,
+  },
+  shellCollapsed: {
+    alignSelf: 'flex-start',
+    borderRadius: 14,
+    gap: 0,
+    paddingHorizontal: 3,
+    paddingVertical: 3,
   },
   signalText: {
     color: '#F7F4FF',

@@ -4,6 +4,15 @@ function clamp(value: number, min: number, max: number) {
   return Math.max(min, Math.min(max, value));
 }
 
+export const bottomRightStageSizing = {
+  heightRatio: 0.0350,
+  maxHeight: 60,
+  maxWidth: 180,
+  minHeight: 45,
+  minWidth: 80,
+  widthRatio: 0.15,
+} as const;
+
 type Props = {
   bottomRightNode?: React.ReactNode;
   errorMessage?: string | null;
@@ -11,6 +20,7 @@ type Props = {
   heroSection: React.ReactNode;
   insets: { bottom: number; left: number; right: number; top: number };
   isLandscape: boolean;
+  isTopBarExpanded?: boolean;
   tableNode: React.ReactNode;
   topBar: React.ReactNode;
 };
@@ -22,6 +32,7 @@ export function GameplayLayout({
   heroSection,
   insets,
   isLandscape,
+  isTopBarExpanded = true,
   tableNode,
   topBar,
 }: Props) {
@@ -32,10 +43,27 @@ export function GameplayLayout({
   const topBarHeight = isLandscape
     ? clamp(height * 0.052, 42, 56)
     : clamp(height * 0.12, 72, 108);
+  const collapsedTopBarHeight = clamp(height * 0.052, 42, 56);
+  const activeTopBarHeight = isTopBarExpanded ? topBarHeight : collapsedTopBarHeight;
+  const tableTopOffset = isTopBarExpanded
+    ? isLandscape
+      ? topInset + topBarHeight + 2
+      : topBarHeight * 0.78
+    : topInset + collapsedTopBarHeight + 4;
   const actionHeight = isLandscape
     ? clamp(height * 0.09, 68, 94)
     : clamp(height * 0.15, 104, 146);
   const actionBottom = footerHeight + Math.max(4, insets.bottom ? 0 : 4);
+  const bottomRightHeight = clamp(
+    height * bottomRightStageSizing.heightRatio,
+    bottomRightStageSizing.minHeight,
+    bottomRightStageSizing.maxHeight,
+  );
+  const bottomRightWidth = clamp(
+    width * bottomRightStageSizing.widthRatio,
+    bottomRightStageSizing.minWidth,
+    bottomRightStageSizing.maxWidth,
+  );
 
   return (
     <View style={styles.screen}>
@@ -48,7 +76,7 @@ export function GameplayLayout({
               : actionBottom + actionHeight * 0.58,
             left: sideGap + insets.left,
             right: sideGap + insets.right,
-            top: isLandscape ? topInset + topBarHeight + 2 : topBarHeight * 0.78,
+            top: tableTopOffset,
           },
         ]}
       >
@@ -59,7 +87,8 @@ export function GameplayLayout({
         style={[
           styles.topBarStage,
           {
-            height: topBarHeight,
+            alignItems: isTopBarExpanded ? 'stretch' : 'flex-start',
+            height: activeTopBarHeight,
             left: sideGap,
             right: sideGap,
             top: topInset,
@@ -88,9 +117,10 @@ export function GameplayLayout({
           style={[
             styles.bottomRightStage,
             {
-              bottom: actionBottom + 10,
+              bottom: actionBottom + 80,
               right: sideGap + insets.right,
-              width: clamp(width * 0.19, 190, 280),
+              width: bottomRightWidth,
+              height: bottomRightHeight,
             },
           ]}
         >
@@ -121,7 +151,7 @@ export function GameplayLayout({
           {
               left: sideGap + insets.left,
               right: sideGap + insets.right,
-              top: topInset + topBarHeight + 6,
+              top: topInset + activeTopBarHeight + 6,
             },
           ]}
         >

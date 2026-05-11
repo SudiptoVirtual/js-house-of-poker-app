@@ -317,10 +317,11 @@ const styles = StyleSheet.create({
   },
   buttonRow: {
     alignItems: 'stretch',
+    alignSelf: 'center',
     flexDirection: 'row',
     gap: 10,
     justifyContent: 'center',
-    width: '100%',
+    width: '80%',
   },
   buttonSubtitle: {
     color: '#FFFFFF',
@@ -335,7 +336,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     borderWidth: 1.5,
     justifyContent: 'center',
-    minHeight: 54,
+    minHeight: 50,
     overflow: 'hidden',
     paddingHorizontal: 10,
     paddingVertical: 7,
@@ -488,7 +489,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 10,
     maxWidth: 520,
-    width: '64%',
+    width: '51.2%',
   },
   waitingPanel: {
     alignSelf: 'center',

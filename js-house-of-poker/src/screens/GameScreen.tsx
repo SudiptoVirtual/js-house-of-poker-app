@@ -13,7 +13,10 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { ActionButton } from '../components/ActionButton';
 import type { CardSize } from '../components/AnimatedCard';
-import { GameplayLayout } from '../components/gameplay/GameplayLayout';
+import {
+  GameplayLayout,
+  bottomRightStageSizing,
+} from '../components/gameplay/GameplayLayout';
 import { GameplayFooter } from '../components/gameplay/GameplayFooter';
 import { HeroActionSection } from '../components/gameplay/HeroActionSection';
 import { gameplayLayoutConfig } from '../components/gameplay/layoutConfig';
@@ -109,10 +112,59 @@ function fitAspectBox(maxWidth: number, maxHeight: number, aspectRatio: number) 
 }
 
 function RoundWildsBadge({ label }: { label: string }) {
+  const { height, width } = useWindowDimensions();
+  const badgeHeight = clamp(
+    height * bottomRightStageSizing.heightRatio,
+    bottomRightStageSizing.minHeight,
+    bottomRightStageSizing.maxHeight,
+  );
+  const badgeWidth = clamp(
+    width * bottomRightStageSizing.widthRatio,
+    bottomRightStageSizing.minWidth,
+    bottomRightStageSizing.maxWidth,
+  );
+  const kickerFontSize = clamp(badgeHeight * 0.23, 6, 8);
+  const labelFontSize = clamp(
+    Math.min(badgeHeight * 0.38, badgeWidth * 0.085),
+    9,
+    13,
+  );
+
   return (
-    <View style={styles.roundWildsBadge}>
-      <Text style={styles.roundWildsKicker}>ROUND WILDS</Text>
-      <Text numberOfLines={1} style={styles.roundWildsText}>
+    <View
+      style={[
+        styles.roundWildsBadge,
+        {
+          borderRadius: clamp(badgeHeight * 0.22, 6, 8),
+          gap: badgeHeight <= 28 ? 0 : 1,
+          paddingHorizontal: clamp(badgeWidth * 0.05, 4, 9),
+          paddingVertical: clamp(badgeHeight * 0.04, 1, 2),
+        },
+      ]}
+    >
+      <Text
+        style={[
+          styles.roundWildsKicker,
+          {
+            fontSize: kickerFontSize,
+            lineHeight: Math.ceil(kickerFontSize + 1),
+          },
+        ]}
+      >
+        ROUND WILDS
+      </Text>
+      <Text
+        adjustsFontSizeToFit
+        minimumFontScale={0.72}
+        numberOfLines={1}
+        style={[
+          styles.roundWildsText,
+          {
+            fontSize: labelFontSize,
+            lineHeight: Math.ceil(labelFontSize + 1),
+          },
+        ]}
+      >
         {label.toUpperCase()}
       </Text>
     </View>
@@ -278,6 +330,7 @@ export function GameScreen({ navigation }: Props) {
   const [threeFiveSevenRevealPreview, setThreeFiveSevenRevealPreview] =
     useState<ThreeFiveSevenRevealPreview | null>(null);
   const [clockNow, setClockNow] = useState(Date.now());
+  const [isTopBarExpanded, setIsTopBarExpanded] = useState(true);
   const previousRoomRef = useRef<PokerRoomState | null>(null);
   const animationQueueRef = useRef(Promise.resolve());
   const latest357ResolutionKeyRef = useRef<string | null>(null);
@@ -342,13 +395,19 @@ export function GameScreen({ navigation }: Props) {
   const estimatedTopBarHeight = isLandscape
     ? clamp(windowHeight * 0.052, 42, 56)
     : clamp(windowHeight * 0.12, 72, 108);
+  const estimatedCollapsedTopBarHeight = clamp(windowHeight * 0.052, 42, 56);
+  const estimatedTableTopSpace = isTopBarExpanded
+    ? isLandscape
+      ? estimatedTopInset + estimatedTopBarHeight + 2
+      : estimatedTopBarHeight * 0.78
+    : estimatedTopInset + estimatedCollapsedTopBarHeight + 4;
   const estimatedActionHeight = isLandscape
     ? clamp(windowHeight * 0.09, 68, 94)
     : clamp(windowHeight * 0.15, 104, 146);
   const estimatedActionBottom = estimatedFooterHeight + Math.max(4, insets.bottom ? 0 : 4);
   const reservedVerticalSpace = isLandscape
-    ? estimatedTopInset + estimatedTopBarHeight + 2 + estimatedActionBottom + estimatedActionHeight + 2
-    : estimatedTopBarHeight * 0.78 + estimatedActionBottom + estimatedActionHeight * 0.58;
+    ? estimatedTableTopSpace + estimatedActionBottom + estimatedActionHeight + 2
+    : estimatedTableTopSpace + estimatedActionBottom + estimatedActionHeight * 0.58;
   const reservedHorizontalSpace = isLandscape
     ? layoutSideGap * 2 + insets.left + insets.right
     : Math.max(18, insets.left + insets.right + 18);
@@ -1034,9 +1093,11 @@ export function GameScreen({ navigation }: Props) {
       chatNotificationCount={chatNotificationCount}
       connectedCount={connectedCount}
       inviteNotificationCount={inviteNotificationCount}
+      isTopBarExpanded={isTopBarExpanded}
       messages={currentTableState.chatMessages}
       onInvitePress={() => navigation.navigate(routes.PlayerDirectory)}
       onSendMessage={sendTableChatMessage}
+      onToggleTopBar={() => setIsTopBarExpanded((current) => !current)}
       roomId={currentTableState.roomId ?? 'Table'}
       tableName={currentTableState.tableName}
       transportLabel={transportLabel}
@@ -1144,6 +1205,7 @@ export function GameScreen({ navigation }: Props) {
         heroSection={heroSection}
         insets={insets}
         isLandscape={isLandscape}
+        isTopBarExpanded={isTopBarExpanded}
         tableNode={tableNode}
         topBar={topBar}
       />
@@ -1310,27 +1372,24 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: 'rgba(5, 4, 13, 0.88)',
     borderColor: 'rgba(180, 84, 255, 0.48)',
-    borderRadius: 10,
     borderWidth: 1,
-    gap: 4,
+    height: '100%',
     justifyContent: 'center',
-    minHeight: 74,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
     shadowColor: '#B35CFF',
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.42,
     shadowRadius: 12,
+    width: '100%',
   },
   roundWildsKicker: {
     color: '#8B5CFF',
-    fontSize: 11,
+    fontSize: 8,
     fontWeight: '900',
     letterSpacing: 0,
   },
   roundWildsText: {
     color: '#F7F4FF',
-    fontSize: 18,
+    fontSize: 13,
     fontWeight: '900',
     letterSpacing: 0,
     textAlign: 'center',
