@@ -168,12 +168,17 @@ export const GameControls = memo(function GameControls({
   return (
     <View style={[styles.root, isLeftPanel ? styles.rootLeftPanel : null]}>
       <View style={[styles.metaRow, isLeftPanel ? styles.metaRowLeftPanel : null]}>
-        <Text numberOfLines={1} style={styles.playerText}>
+        <Text
+          numberOfLines={1}
+          style={[styles.playerText, isLeftPanel ? styles.playerTextLeftPanel : null]}
+        >
           {infoText}
         </Text>
-        <Text numberOfLines={1} style={styles.statusText}>
-          {pendingAction ? 'Waiting for server...' : statusMessage}
-        </Text>
+        {!isLeftPanel ? (
+          <Text numberOfLines={1} style={styles.statusText}>
+            {pendingAction ? 'Waiting for server...' : statusMessage}
+          </Text>
+        ) : null}
       </View>
 
       {mode === '357' && controls.canAct ? (
@@ -330,7 +335,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   buttonLabelCompact: {
-    fontSize: 16,
+    fontSize: 15,
     letterSpacing: 0.2,
   },
   buttonPressable: {
@@ -356,9 +361,9 @@ const styles = StyleSheet.create({
   buttonRowLeftPanel: {
     alignSelf: 'stretch',
     flexDirection: 'column',
-    gap: 12,
+    gap: 9,
     justifyContent: 'flex-start',
-    maxWidth: 410,
+    maxWidth: 236,
     width: '100%',
   },
   buttonSubtitle: {
@@ -388,9 +393,9 @@ const styles = StyleSheet.create({
   },
   controlButtonCompact: {
     borderRadius: 9,
-    minHeight: 54,
+    minHeight: 46,
     paddingHorizontal: 7,
-    paddingVertical: 7,
+    paddingVertical: 6,
     width: '100%',
   },
   goldButton: {
@@ -417,8 +422,7 @@ const styles = StyleSheet.create({
   metaRowLeftPanel: {
     alignItems: 'flex-start',
     flexDirection: 'column',
-    gap: 4,
-    maxWidth: 410,
+    maxWidth: 236,
     width: '100%',
   },
   pinkButton: {
@@ -434,6 +438,11 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '900',
     maxWidth: '42%',
+  },
+  playerTextLeftPanel: {
+    color: '#F4ECFF',
+    fontSize: 14,
+    maxWidth: '100%',
   },
   purpleButton: {
     borderColor: 'rgba(186, 53, 255, 0.95)',
@@ -505,8 +514,8 @@ const styles = StyleSheet.create({
   },
   rootLeftPanel: {
     alignSelf: 'stretch',
-    gap: 12,
-    maxWidth: 420,
+    gap: 10,
+    maxWidth: 236,
     paddingHorizontal: 0,
   },
   statusText: {

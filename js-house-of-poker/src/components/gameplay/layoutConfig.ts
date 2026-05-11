@@ -24,8 +24,8 @@ export const gameplayLayoutConfig = {
     heightRatio: 0.5,
   },
   panel: {
-    minWidth: 220,
-    maxWidth: 320,
-    widthRatio: 0.24,
+    minWidth: 190,
+    maxWidth: 260,
+    widthRatio: 0.16,
   },
 } as const;
