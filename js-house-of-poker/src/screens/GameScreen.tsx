@@ -1086,6 +1086,7 @@ export function GameScreen({ navigation }: Props) {
   const threeFiveSevenActionPanel = is357Current ? (
     <ThreeFiveSevenActionPanel
       controls={currentTableState.controls}
+      fitContent={shouldEmbed357Panel}
       onAction={(action) => handleGameAction(action)}
       onRebuy={handleRebuy}
       onStartHand={handleStartHand}
@@ -1099,10 +1100,32 @@ export function GameScreen({ navigation }: Props) {
       statusMessage={headlineText}
     />
   ) : null;
+  const activeWildLabel =
+    currentTableState.threeFiveSeven?.activeWildDefinition.label ??
+    currentTableState.threeFiveSeven?.activeWildDefinition.wildRanks.join(', ') ??
+    'No wilds';
+  const bottomRightNode = is357Current ? (
+    <RoundWildsBadge label={activeWildLabel} />
+  ) : null;
+  const embeddedBottomRightNode =
+    shouldEmbed357Panel && windowWidth >= 900 ? bottomRightNode : null;
+  const bottomRightNodeHeight = clamp(
+    windowHeight * bottomRightStageSizing.heightRatio,
+    bottomRightStageSizing.minHeight,
+    bottomRightStageSizing.maxHeight,
+  );
+  const bottomRightNodeWidth = clamp(
+    windowWidth * bottomRightStageSizing.widthRatio,
+    bottomRightStageSizing.minWidth,
+    bottomRightStageSizing.maxWidth,
+  );
   const tableNode = (
     <TableSurface
       ambientA={ambientA}
       ambientB={ambientB}
+      bottomRightNode={embeddedBottomRightNode}
+      bottomRightNodeHeight={bottomRightNodeHeight}
+      bottomRightNodeWidth={bottomRightNodeWidth}
       boardCardSize={boardCardSize}
       boardHeight={boardHeight}
       boardTop={boardTop}
@@ -1183,13 +1206,6 @@ export function GameScreen({ navigation }: Props) {
       transportStatus={transportStatus}
     />
   );
-  const activeWildLabel =
-    currentTableState.threeFiveSeven?.activeWildDefinition.label ??
-    currentTableState.threeFiveSeven?.activeWildDefinition.wildRanks.join(', ') ??
-    'No wilds';
-  const bottomRightNode = is357Current ? (
-    <RoundWildsBadge label={activeWildLabel} />
-  ) : null;
 
   return (
     <SafeAreaView edges={['bottom', 'left', 'right', 'top']} style={styles.safeArea}>
@@ -1234,7 +1250,6 @@ export function GameScreen({ navigation }: Props) {
       />
 
       <GameplayLayout
-        bottomRightNode={bottomRightNode}
         errorMessage={errorMessage}
         footerNode={footerNode}
         heroSection={heroSection}

@@ -6,6 +6,7 @@ import type { PokerAction, PokerControls, PokerPlayerState } from '../../types/p
 
 type Props = {
   controls: PokerControls;
+  fitContent?: boolean;
   onAction: (action: PokerAction) => void;
   onRebuy: () => void;
   onStartHand: () => void;
@@ -19,6 +20,7 @@ type Props = {
 
 export function ThreeFiveSevenActionPanel({
   controls,
+  fitContent = false,
   onAction,
   onRebuy,
   onStartHand,
@@ -37,6 +39,7 @@ export function ThreeFiveSevenActionPanel({
     <View
       style={[
         styles.wrapper,
+        fitContent ? null : styles.wrapperFill,
         {
           paddingBottom: safeAreaBottom > 0 ? safeAreaBottom + 6 : 4,
           paddingHorizontal: Math.max(8, safeAreaHorizontal + 6),
@@ -92,10 +95,12 @@ const styles = StyleSheet.create({
   wrapper: {
     alignItems: 'flex-start',
     alignSelf: 'stretch',
-    flex: 1,
     justifyContent: 'center',
     maxWidth: 260,
     minWidth: 190,
     width: '100%',
+  },
+  wrapperFill: {
+    flex: 1,
   },
 });

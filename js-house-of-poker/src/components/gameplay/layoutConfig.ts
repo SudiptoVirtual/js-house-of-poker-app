@@ -12,6 +12,11 @@ export const gameplayLayoutConfig = {
     portraitFocusBottomOffset: 116,
     landscapeFocusBottomOffset: 30,
   },
+  topBar: {
+    menuIconSize: 30,
+    shellPaddingHorizontal: 8,
+    touchTargetSize: 36,
+  },
   table: {
     aspectRatio: 1.72,
     aspectRatioLandscape: 2.16,

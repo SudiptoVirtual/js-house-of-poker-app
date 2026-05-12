@@ -11,6 +11,7 @@ import type { Poker357Decision, PokerRoomState } from '../../types/poker';
 import type { Point, SeatDescriptor } from '../../utils/pokerTable';
 import type { CardSize } from '../AnimatedCard';
 import { GameTableSeat } from './GameTableSeat';
+import { gameplayLayoutConfig } from './layoutConfig';
 import { ThreeFiveSevenCenterBoard } from './ThreeFiveSevenCenterBoard';
 
 type SeatBurstSpec = {
@@ -42,6 +43,9 @@ type ChipFlightSpec = {
 type Props = {
   ambientA: Animated.Value;
   ambientB: Animated.Value;
+  bottomRightNode?: ReactNode;
+  bottomRightNodeHeight?: number;
+  bottomRightNodeWidth?: number;
   boardCardSize: CardSize;
   boardHeight: number;
   boardTop: number;
@@ -79,9 +83,18 @@ function clamp(value: number, min: number, max: number) {
   return Math.max(min, Math.min(max, value));
 }
 
+const tableChatBarMenuIconStartOffset =
+  gameplayLayoutConfig.topBar.shellPaddingHorizontal +
+  (gameplayLayoutConfig.topBar.touchTargetSize - gameplayLayoutConfig.topBar.menuIconSize) / 2;
+const tableSurfaceOffsetX = -35;
+const tableSurfaceOffsetY = -25;
+
 export function TableSurface({
   ambientA,
   ambientB,
+  bottomRightNode = null,
+  bottomRightNodeHeight,
+  bottomRightNodeWidth,
   boardCardSize,
   boardHeight,
   boardTop,
@@ -120,23 +133,48 @@ export function TableSurface({
   const showDecisionMode =
     is357 &&
     (state.phase === 'decide_3' || state.phase === 'decide_5' || state.phase === 'decide_7');
-  const resolvedLeftPanelWidth = leftPanelNode
+  const hasLeftRailNode = Boolean(leftPanelNode || bottomRightNode);
+  const resolvedLeftPanelWidth = hasLeftRailNode
     ? leftPanelWidth ?? clamp(width * 0.24, 220, 320)
     : 0;
-  const resolvedLeftPanelGap = leftPanelNode
+  const resolvedLeftPanelGap = hasLeftRailNode
     ? leftPanelGap || clamp(width * 0.012, 12, 24)
     : 0;
   const viewportWidth = width + resolvedLeftPanelWidth + resolvedLeftPanelGap;
-  const leftPanelHorizontalNudge = leftPanelNode
+  const leftPanelHorizontalNudge = hasLeftRailNode
     ? clamp(width * 0.045, 36, 82)
     : 0;
-  const leftPanelVerticalNudge = leftPanelNode
+  const leftPanelAdditionalLeftShift = hasLeftRailNode
+    ? clamp(width * 0.04, 48, 72)
+    : 0;
+  const leftPanelHorizontalOffset = hasLeftRailNode
+    ? tableChatBarMenuIconStartOffset -
+      leftPanelHorizontalNudge -
+      leftPanelAdditionalLeftShift
+    : 0;
+  const leftPanelVerticalNudge = hasLeftRailNode
     ? clamp(height * 0.06, 18, 42)
+    : 0;
+  const leftPanelVerticalBalanceOffset = hasLeftRailNode ? 15 : 0;
+  const resolvedBottomRightNodeHeight = bottomRightNode
+    ? bottomRightNodeHeight ?? clamp(height * 0.12, 45, 60)
+    : 0;
+  const resolvedBottomRightNodeWidth = bottomRightNode
+    ? bottomRightNodeWidth ?? Math.min(resolvedLeftPanelWidth, 180)
+    : 0;
+  const leftPanelStackGap = leftPanelNode && bottomRightNode
+    ? clamp(height * 0.018, 8, 14)
     : 0;
 
   return (
-    <View style={[styles.tableViewport, { height, width: viewportWidth }]}>
-      {leftPanelNode ? (
+    <View
+      style={[
+        styles.tableViewport,
+        hasLeftRailNode ? styles.tableViewportLeftRailAligned : null,
+        { height, width: viewportWidth },
+      ]}
+    >
+      {hasLeftRailNode ? (
         <View
           pointerEvents="box-none"
           style={[
@@ -144,18 +182,52 @@ export function TableSurface({
             {
               marginRight: resolvedLeftPanelGap,
               transform: [
-                { translateX: -leftPanelHorizontalNudge },
-                { translateY: -leftPanelVerticalNudge },
+                { translateX: leftPanelHorizontalOffset + 15 },
+                { translateY: -leftPanelVerticalNudge + leftPanelVerticalBalanceOffset + 5 },
               ],
               width: resolvedLeftPanelWidth,
             },
           ]}
         >
-          {leftPanelNode}
+          <View style={styles.leftPanelStack}>
+            {leftPanelNode ? (
+              <View style={styles.leftPanelPrimarySlot}>{leftPanelNode}</View>
+            ) : null}
+            {bottomRightNode ? (
+              <View
+                style={[
+                  styles.leftPanelBottomRightSlot,
+                  {
+                    height: resolvedBottomRightNodeHeight,
+                    marginTop: leftPanelStackGap,
+                    width: Math.min(
+                      resolvedBottomRightNodeWidth,
+                      resolvedLeftPanelWidth,
+                    ),
+                  },
+                ]}
+              >
+                {bottomRightNode}
+              </View>
+            ) : null}
+          </View>
         </View>
       ) : null}
 
-      <Pressable onPress={onPressTable} style={[styles.tablePressable, { width }]}>
+      {/* Table Layout Start */}
+      <Pressable
+        onPress={onPressTable}
+        style={[
+          styles.tablePressable,
+          {
+            transform: [
+              { translateX: tableSurfaceOffsetX },
+              { translateY: tableSurfaceOffsetY },
+            ],
+            width,
+          },
+        ]}
+      >
         <View onLayout={onLayout} style={[styles.tableSurface, { height }]}>
           <Animated.View
             pointerEvents="none"
@@ -353,6 +425,7 @@ export function TableSurface({
           </View>
         </View>
       </Pressable>
+      {/* Table Layout End */}
 
     </View>
   );
@@ -409,6 +482,20 @@ const styles = StyleSheet.create({
     flexShrink: 0,
     justifyContent: 'center',
     zIndex: 34,
+  },
+  leftPanelBottomRightSlot: {
+    flexShrink: 0,
+  },
+  leftPanelPrimarySlot: {
+    alignSelf: 'stretch',
+    flexShrink: 1,
+    width: '100%',
+  },
+  leftPanelStack: {
+    alignItems: 'center',
+    alignSelf: 'stretch',
+    justifyContent: 'center',
+    width: '100%',
   },
   feltGlowA: {
     backgroundColor: 'rgba(209, 88, 255, 0.15)',
@@ -503,6 +590,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     overflow: 'visible',
     position: 'relative',
+  },
+  tableViewportLeftRailAligned: {
+    alignSelf: 'flex-start',
   },
   tableViewportFocused: {
     shadowColor: '#B44DFF',

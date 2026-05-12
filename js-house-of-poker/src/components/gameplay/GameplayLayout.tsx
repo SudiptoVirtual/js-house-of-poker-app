@@ -14,7 +14,6 @@ export const bottomRightStageSizing = {
 } as const;
 
 type Props = {
-  bottomRightNode?: React.ReactNode;
   errorMessage?: string | null;
   footerNode?: React.ReactNode;
   heroSection?: React.ReactNode;
@@ -26,7 +25,6 @@ type Props = {
 };
 
 export function GameplayLayout({
-  bottomRightNode,
   errorMessage,
   footerNode,
   heroSection,
@@ -58,16 +56,6 @@ export function GameplayLayout({
       : clamp(height * 0.15, 104, 146)
     : 0;
   const actionBottom = footerHeight + Math.max(4, insets.bottom ? 0 : 4);
-  const bottomRightHeight = clamp(
-    height * bottomRightStageSizing.heightRatio,
-    bottomRightStageSizing.minHeight,
-    bottomRightStageSizing.maxHeight,
-  );
-  const bottomRightWidth = clamp(
-    width * bottomRightStageSizing.widthRatio,
-    bottomRightStageSizing.minWidth,
-    bottomRightStageSizing.maxWidth,
-  );
 
   return (
     <View style={styles.screen}>
@@ -118,22 +106,6 @@ export function GameplayLayout({
         </View>
       ) : null}
 
-      {bottomRightNode && isLandscape && width >= 900 ? (
-        <View
-          style={[
-            styles.bottomRightStage,
-            {
-              bottom: actionBottom + 80,
-              right: sideGap + insets.right,
-              width: bottomRightWidth,
-              height: bottomRightHeight,
-            },
-          ]}
-        >
-          {bottomRightNode}
-        </View>
-      ) : null}
-
       {footerNode ? (
         <View
           style={[
@@ -169,11 +141,6 @@ export function GameplayLayout({
 }
 
 const styles = StyleSheet.create({
-  bottomRightStage: {
-    justifyContent: 'center',
-    position: 'absolute',
-    zIndex: 46,
-  },
   errorBanner: {
     backgroundColor: 'rgba(96,30,49,0.94)',
     borderColor: 'rgba(239,134,164,0.28)',

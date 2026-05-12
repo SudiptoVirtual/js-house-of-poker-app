@@ -11,6 +11,7 @@ import {
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 
+import { gameplayLayoutConfig } from './layoutConfig';
 import type { PokerTableChatMessage } from '../../types/poker';
 import {
   normalizeTableChatText,
@@ -154,7 +155,11 @@ export function TableChatBar({
         onPress={onToggleTopBar}
         style={styles.touchTarget}
       >
-        <MaterialCommunityIcons color="#FFFFFF" name="menu" size={30} />
+        <MaterialCommunityIcons
+          color="#FFFFFF"
+          name="menu"
+          size={gameplayLayoutConfig.topBar.menuIconSize}
+        />
       </Pressable>
     );
   }
@@ -471,7 +476,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     borderWidth: 1,
     gap: 8,
-    paddingHorizontal: 8,
+    paddingHorizontal: gameplayLayoutConfig.topBar.shellPaddingHorizontal,
     paddingVertical: 5,
   },
   shellCompact: {
@@ -568,9 +573,9 @@ const styles = StyleSheet.create({
   },
   touchTarget: {
     alignItems: 'center',
-    height: 36,
+    height: gameplayLayoutConfig.topBar.touchTargetSize,
     justifyContent: 'center',
-    width: 36,
+    width: gameplayLayoutConfig.topBar.touchTargetSize,
   },
   utilityIcon: {
     alignItems: 'center',
