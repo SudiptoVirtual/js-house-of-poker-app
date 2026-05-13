@@ -408,12 +408,9 @@ export function GameScreen({ navigation }: Props) {
   const estimatedTopBarHeight = isLandscape
     ? clamp(windowHeight * 0.052, 42, 56)
     : clamp(windowHeight * 0.12, 72, 108);
-  const estimatedCollapsedTopBarHeight = clamp(windowHeight * 0.052, 42, 56);
-  const estimatedTableTopSpace = isTopBarExpanded
-    ? isLandscape
-      ? estimatedTopInset + estimatedTopBarHeight + 2
-      : estimatedTopBarHeight * 0.78
-    : estimatedTopInset + estimatedCollapsedTopBarHeight + 4;
+  const estimatedTableTopSpace = isLandscape
+    ? estimatedTopInset + estimatedTopBarHeight + 2
+    : estimatedTopBarHeight * 0.78;
   const estimatedActionHeight = isLandscape
     ? clamp(windowHeight * 0.09, 68, 94)
     : clamp(windowHeight * 0.15, 104, 146);
@@ -454,20 +451,20 @@ export function GameScreen({ navigation }: Props) {
     tableBox.height,
   );
   const heroZoneCompact = windowWidth < gameplayLayoutConfig.breakpoints.heroZoneCompact;
-  const tableViewZoom = 1;
   const {
     ambientA,
     ambientB,
     animateShowdownBanner,
     handleTableLayout,
+    resetTableView,
     showdownProgress,
     tableLayout,
     tablePan,
     tablePanResponder,
+    tableViewZoom,
   } = useGameplayAnimations({
     isLandscape,
     onShowdownBannerEnd: () => setShowdownBanner(null),
-    tableViewZoom,
   });
   const displayTableWidth = tableWidth;
   const displayTableHeight = tableHeight;
@@ -512,23 +509,25 @@ export function GameScreen({ navigation }: Props) {
     boardCardSize === 'sm' ? 66 : boardCardSize === 'lg' ? 94 : 80;
   const boardGap = 6;
   const boardWidth = is357Table
-    ? clamp(Math.floor(resolvedLayout.width * 0.44), 272, 360)
+    ? clamp(Math.floor(resolvedLayout.width * 0.38), 260, 340)
     : boardCardWidth * 5 + boardGap * 4;
   const boardCardTop =
     boardCardSize === 'sm' ? 46 : boardCardSize === 'lg' ? 54 : 50;
   const boardHeight = is357Table
     ? boardCardSize === 'lg'
-      ? 244
+      ? 132
       : boardCardSize === 'sm'
-        ? 214
-        : 228
+        ? 112
+        : 122
     : boardCardTop + boardCardHeight + 32;
   const boardLeft = resolvedLayout.width / 2 - boardWidth / 2;
-  const boardTop = clamp(
-    resolvedLayout.height * (is357Table ? 0.18 : boardCardSize === 'lg' ? 0.2 : 0.22),
-    is357Table ? 34 : 44,
-    resolvedLayout.height * (is357Table ? 0.24 : 0.28),
-  );
+  const boardTop = is357Table
+    ? Math.max(24, resolvedLayout.height / 2 - boardHeight / 2)
+    : clamp(
+        resolvedLayout.height * (boardCardSize === 'lg' ? 0.2 : 0.22),
+        44,
+        resolvedLayout.height * 0.28,
+      );
 
   const communityPoints = useMemo(() => {
     const firstCenterX = boardLeft + boardCardWidth / 2;
@@ -1140,6 +1139,7 @@ export function GameScreen({ navigation }: Props) {
       leftPanelWidth={embedded357PanelWidth}
       onLayout={handleTableLayout}
       onPressTable={() => undefined}
+      onResetTableView={resetTableView}
       phaseTitle={phaseTitle}
       seatBursts={seatBursts}
       seatDescriptors={seatDescriptors}

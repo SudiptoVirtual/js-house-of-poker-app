@@ -88,52 +88,56 @@ export const ThreeFiveSevenCenterBoard = memo(function ThreeFiveSevenCenterBoard
   if (isActive357Round) {
     return (
       <View style={styles.wrapper}>
-        <LinearGradient
-          colors={['rgba(25, 11, 40, 0.97)', 'rgba(8, 7, 18, 0.99)']}
-          end={{ x: 1, y: 1 }}
-          start={{ x: 0, y: 0 }}
-          style={styles.roundShell}
-        >
-          <Text style={styles.roundTitle}>ROUND {getRoundIndex(currentRound)} OF 3</Text>
-          <Text style={styles.roundSubtitle}>{roundSubtitle}</Text>
-          <Text style={styles.roundWilds}>
-            {wildRanks.length > 0 ? `${wildRanksLabel.toUpperCase()} ARE WILD` : 'NO BOARD'}
-          </Text>
+        <View style={styles.roundInfoRow}>
+          <LinearGradient
+            colors={['rgba(25, 11, 40, 0.97)', 'rgba(8, 7, 18, 0.99)']}
+            end={{ x: 1, y: 1 }}
+            start={{ x: 0, y: 0 }}
+            style={[styles.roundShell, styles.roundShellInRow]}
+          >
+            <Text style={styles.roundTitle}>ROUND {getRoundIndex(currentRound)} OF 3</Text>
+            <Text style={styles.roundSubtitle}>{roundSubtitle}</Text>
+            <Text style={styles.roundWilds}>
+              {wildRanks.length > 0 ? `${wildRanksLabel.toUpperCase()} ARE WILD` : 'NO BOARD'}
+            </Text>
 
-          <View style={styles.stepRail}>
-            {ROUND_STEPS.map((step, index) => {
-              const active = step === currentRound;
-              const reached = step <= currentRound;
+            <View style={styles.stepRail}>
+              {ROUND_STEPS.map((step, index) => {
+                const active = step === currentRound;
+                const reached = step <= currentRound;
 
-              return (
-                <View key={`357-step-${step}`} style={styles.stepSlot}>
-                  <View
-                    style={[
-                      styles.stepDot,
-                      reached ? styles.stepDotReached : null,
-                      active ? styles.stepDotActive : null,
-                    ]}
-                  >
-                    <Text style={styles.stepText}>{index + 1}</Text>
+                return (
+                  <View key={`357-step-${step}`} style={styles.stepSlot}>
+                    <View
+                      style={[
+                        styles.stepDot,
+                        reached ? styles.stepDotReached : null,
+                        active ? styles.stepDotActive : null,
+                      ]}
+                    >
+                      <Text style={styles.stepText}>{index + 1}</Text>
+                    </View>
+                    {index < ROUND_STEPS.length - 1 ? <View style={styles.stepLine} /> : null}
                   </View>
-                  {index < ROUND_STEPS.length - 1 ? <View style={styles.stepLine} /> : null}
-                </View>
-              );
-            })}
-          </View>
-        </LinearGradient>
+                );
+              })}
+            </View>
+          </LinearGradient>
 
-        <LinearGradient
-          colors={['rgba(14, 10, 28, 0.98)', 'rgba(7, 6, 16, 0.99)']}
-          end={{ x: 1, y: 1 }}
-          start={{ x: 0, y: 0 }}
-          style={styles.potShell}
-        >
-          <Text style={styles.potLabel}>POT</Text>
-          <Text style={styles.potAmount}>${formatChipAmount(state.pot)}</Text>
-        </LinearGradient>
+          <LinearGradient
+            colors={['rgba(14, 10, 28, 0.98)', 'rgba(7, 6, 16, 0.99)']}
+            end={{ x: 1, y: 1 }}
+            start={{ x: 0, y: 0 }}
+            style={[styles.potShell, styles.potShellInRow]}
+          >
+            <Text style={styles.potLabel}>POT</Text>
+            <Text style={styles.potAmount}>${formatChipAmount(state.pot)}</Text>
+          </LinearGradient>
+        </View>
 
-        <Text style={styles.instruction}>{instruction}</Text>
+        <Text numberOfLines={1} style={styles.instruction}>
+          {instruction}
+        </Text>
       </View>
     );
   }
@@ -185,8 +189,8 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.28)',
     borderRadius: 999,
     borderWidth: 2,
-    height: 28,
-    width: 28,
+    height: 22,
+    width: 22,
   },
   chipGold: {
     backgroundColor: '#E0A72B',
@@ -196,7 +200,7 @@ const styles = StyleSheet.create({
   },
   chipRail: {
     flexDirection: 'row',
-    gap: 10,
+    gap: 8,
   },
   chipRed: {
     backgroundColor: '#BF465E',
@@ -217,8 +221,8 @@ const styles = StyleSheet.create({
   },
   instruction: {
     color: '#F7F4FF',
-    fontSize: 13,
-    lineHeight: 18,
+    fontSize: 10,
+    lineHeight: 13,
     textAlign: 'center',
   },
   messageShell: {
@@ -238,51 +242,69 @@ const styles = StyleSheet.create({
   },
   potAmount: {
     color: '#FFFFFF',
-    fontSize: 28,
+    fontSize: 15,
     fontWeight: '900',
-    letterSpacing: 0.8,
+    letterSpacing: 0.2,
   },
   potLabel: {
     color: '#B35CFF',
-    fontSize: 12,
+    fontSize: 8,
     fontWeight: '900',
-    letterSpacing: 1.2,
+    letterSpacing: 0.6,
   },
   potShell: {
     alignItems: 'center',
     borderColor: 'rgba(191, 86, 255, 0.24)',
-    borderRadius: 18,
+    borderRadius: 12,
     borderWidth: 1,
-    gap: 3,
-    minWidth: 160,
-    paddingHorizontal: 18,
-    paddingVertical: 14,
+    gap: 1,
+    minWidth: 82,
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+  },
+  potShellInRow: {
+    alignSelf: 'stretch',
+    justifyContent: 'center',
+    minWidth: 74,
+  },
+  roundInfoRow: {
+    alignItems: 'center',
+    alignSelf: 'center',
+    flexDirection: 'row',
+    gap: 7,
+    justifyContent: 'center',
+    width: '100%',
   },
   roundShell: {
     borderColor: 'rgba(255, 131, 203, 0.24)',
-    borderRadius: 20,
+    borderRadius: 14,
     borderWidth: 1,
-    gap: 8,
-    paddingHorizontal: 18,
-    paddingVertical: 16,
+    gap: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
     width: '100%',
+  },
+  roundShellInRow: {
+    flex: 1,
+    minWidth: 0,
+    width: undefined,
   },
   roundSubtitle: {
     color: '#FFFFFF',
-    fontSize: 18,
+    fontSize: 13,
     fontWeight: '800',
     textAlign: 'center',
   },
   roundTitle: {
     color: '#FF5ABF',
-    fontSize: 18,
+    fontSize: 13,
     fontWeight: '900',
-    letterSpacing: 1.2,
+    letterSpacing: 0.8,
     textAlign: 'center',
   },
   roundWilds: {
     color: '#C87BFF',
-    fontSize: 15,
+    fontSize: 11,
     fontWeight: '900',
     textAlign: 'center',
   },
@@ -292,9 +314,9 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.12)',
     borderRadius: 999,
     borderWidth: 1,
-    height: 28,
+    height: 20,
     justifyContent: 'center',
-    width: 28,
+    width: 20,
     zIndex: 1,
   },
   stepDotActive: {
@@ -308,13 +330,13 @@ const styles = StyleSheet.create({
   stepLine: {
     backgroundColor: 'rgba(255, 166, 218, 0.26)',
     flex: 1,
-    height: 2,
+    height: 1,
     marginHorizontal: -2,
   },
   stepRail: {
     alignItems: 'center',
     flexDirection: 'row',
-    marginTop: 4,
+    marginTop: 2,
   },
   stepSlot: {
     alignItems: 'center',
@@ -323,12 +345,12 @@ const styles = StyleSheet.create({
   },
   stepText: {
     color: '#FFFFFF',
-    fontSize: 12,
+    fontSize: 9,
     fontWeight: '900',
   },
   wrapper: {
     alignItems: 'center',
-    gap: 14,
+    gap: 8,
     width: '100%',
   },
 });

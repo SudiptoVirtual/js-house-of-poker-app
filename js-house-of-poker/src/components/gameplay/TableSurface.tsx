@@ -60,6 +60,7 @@ type Props = {
   leftPanelWidth?: number;
   onLayout: (event: any) => void;
   onPressTable: () => void;
+  onResetTableView: () => void;
   phaseTitle: string;
   seatBursts: SeatBurstSpec[];
   seatDescriptors: SeatDescriptor[];
@@ -68,7 +69,7 @@ type Props = {
   state: PokerRoomState;
   tablePan: Animated.ValueXY;
   tablePanHandlers: object;
-  tableViewZoom: number;
+  tableViewZoom: Animated.Value;
   threeFiveSevenPreview?: {
     revealedDecisions: Record<string, Poker357Decision>;
     revealState: 'revealed' | 'resolved';
@@ -108,6 +109,7 @@ export function TableSurface({
   leftPanelWidth,
   onLayout,
   onPressTable,
+  onResetTableView,
   phaseTitle,
   seatBursts,
   seatDescriptors,
@@ -191,7 +193,20 @@ export function TableSurface({
         >
           <View style={styles.leftPanelStack}>
             {leftPanelNode ? (
-              <View style={styles.leftPanelPrimarySlot}>{leftPanelNode}</View>
+              <View style={styles.leftPanelPrimarySlot}>
+                <Pressable
+                  accessibilityLabel="Reset table view"
+                  accessibilityRole="button"
+                  onPress={onResetTableView}
+                  style={({ pressed }) => [
+                    styles.leftPanelResetButton,
+                    pressed ? styles.leftPanelResetButtonPressed : null,
+                  ]}
+                >
+                  <Text style={styles.leftPanelResetText}>RESET VIEW</Text>
+                </Pressable>
+                {leftPanelNode}
+              </View>
             ) : null}
             {bottomRightNode ? (
               <View
@@ -215,216 +230,226 @@ export function TableSurface({
       ) : null}
 
       {/* Table Layout Start */}
-      <Pressable
-        onPress={onPressTable}
+      <Animated.View
         style={[
-          styles.tablePressable,
+          styles.tableGestureLayer,
           {
             transform: [
               { translateX: tableSurfaceOffsetX },
               { translateY: tableSurfaceOffsetY },
+              { translateX: tablePan.x },
+              { translateY: tablePan.y },
             ],
             width,
           },
         ]}
+        {...tablePanHandlers}
       >
-        <View onLayout={onLayout} style={[styles.tableSurface, { height }]}>
-          <Animated.View
-            pointerEvents="none"
-            style={[
-              styles.tableHalo,
-              {
-                opacity: ambientA.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [0.4, 0.9],
-                }),
-              },
-            ]}
-          />
-          <LinearGradient
-            colors={['rgba(99,24,176,0.98)', 'rgba(54,13,103,0.98)', 'rgba(22,8,43,0.99)']}
-            end={{ x: 1, y: 1 }}
-            start={{ x: 0, y: 0 }}
-            style={[styles.tableOuter, focusMode ? styles.tableViewportFocused : null]}
+        <Animated.View
+          style={[
+            styles.tableZoomLayer,
+            {
+              transform: [{ scale: tableViewZoom }],
+            },
+          ]}
+        >
+          <Pressable
+            onPress={onPressTable}
+            style={styles.tablePressable}
           >
-            <View style={styles.tableRail}>
+            <View onLayout={onLayout} style={[styles.tableSurface, { height }]}>
+              <Animated.View
+                pointerEvents="none"
+                style={[
+                  styles.tableHalo,
+                  {
+                    opacity: ambientA.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [0.4, 0.9],
+                    }),
+                  },
+                ]}
+              />
               <LinearGradient
-                colors={['#14051F', '#0A0415', '#05030B']}
+                colors={['rgba(99,24,176,0.98)', 'rgba(54,13,103,0.98)', 'rgba(22,8,43,0.99)']}
                 end={{ x: 1, y: 1 }}
                 start={{ x: 0, y: 0 }}
-                style={styles.tableFelt}
+                style={[styles.tableOuter, focusMode ? styles.tableViewportFocused : null]}
               >
-                <Animated.View
-                  style={{
-                    flex: 1,
-                    transform: [{ translateX: tablePan.x }, { translateY: tablePan.y }, { scale: tableViewZoom }],
-                  }}
-                  {...tablePanHandlers}
-                >
-                  <Animated.View pointerEvents="none" style={[styles.feltGlowA, { opacity: ambientA }]} />
-                  <Animated.View pointerEvents="none" style={[styles.feltGlowB, { opacity: ambientB }]} />
-                  <View style={styles.tableInnerCore} />
-                  <View style={styles.innerRingOuter} />
-                  <View style={styles.innerRingInner} />
-                  <View style={styles.centerAura} />
-
-                  <View pointerEvents="none" style={styles.brandWatermark}>
-                    <Text style={styles.brandWatermarkText}>HOUSE OF POKER</Text>
-                  </View>
-
-                  <View
-                    style={[
-                      styles.centerBoardZone,
-                      {
-                        left: width / 2 - boardWidth / 2,
-                        minHeight: boardHeight,
-                        top: boardTop,
-                        width: boardWidth,
-                      },
-                    ]}
+                <View style={styles.tableRail}>
+                  <LinearGradient
+                    colors={['#14051F', '#0A0415', '#05030B']}
+                    end={{ x: 1, y: 1 }}
+                    start={{ x: 0, y: 0 }}
+                    style={styles.tableFelt}
                   >
-                    {is357 ? (
-                      <ThreeFiveSevenCenterBoard state={state} statusText={headlineText} />
-                    ) : (
-                      <TableCenterBoard
-                        cardSize={boardCardSize}
-                        cards={state.communityCards}
-                        currentBet={state.currentBet}
-                        handNumber={state.handNumber}
-                        phase={state.phase}
-                        phaseTitle={phaseTitle}
-                        pot={state.pot}
-                        statusMessage={state.statusMessage}
-                        visibleCount={visibleCommunityCount}
-                        winnerSummary={state.phase === 'completed' ? state.lastWinnerSummary : null}
-                      />
-                    )}
-                  </View>
-                </Animated.View>
-              </LinearGradient>
-            </View>
-          </LinearGradient>
+                    <Animated.View style={styles.tableContentLayer}>
+                      <Animated.View pointerEvents="none" style={[styles.feltGlowA, { opacity: ambientA }]} />
+                      <Animated.View pointerEvents="none" style={[styles.feltGlowB, { opacity: ambientB }]} />
+                      <View style={styles.tableInnerCore} />
+                      <View style={styles.innerRingOuter} />
+                      <View style={styles.innerRingInner} />
+                      <View style={styles.centerAura} />
 
-          <View pointerEvents="box-none" style={styles.overlayLayer}>
-            {seatDescriptors.map((descriptor) => {
-              const isSelf = descriptor.player.id === selfId;
-              const isWinner = winnerIds.includes(descriptor.player.id);
-              const decision =
-                is357 && revealState !== 'hidden'
-                  ? revealedDecisions[descriptor.player.id] ?? descriptor.player.revealedDecision
-                  : null;
-              const seatZIndex = isSelf ? 16 : descriptor.isBottomSeat ? 12 : 8;
-              const decisionModeHeroNudge = showDecisionMode && isSelf ? -8 : 0;
+                      <View pointerEvents="none" style={styles.brandWatermark}>
+                        <Text style={styles.brandWatermarkText}>HOUSE OF POKER</Text>
+                      </View>
 
-              return (
-                <View
-                  key={descriptor.player.id}
-                  pointerEvents="box-none"
-                  style={[
-                    styles.seatAnchor,
-                    descriptor.isBottomSeat ? styles.bottomSeatAnchor : null,
-                    showDecisionMode && !isSelf ? styles.compactDecisionSeatAnchor : null,
-                    {
-                      height: descriptor.height,
-                      left: descriptor.center.x - descriptor.width / 2,
-                      top: descriptor.center.y - descriptor.height / 2 + decisionModeHeroNudge,
-                      width: descriptor.width,
-                      zIndex: seatZIndex,
-                    },
-                  ]}
-                >
-                  {is357 ? (
-                    <GameTableSeat
-                      align={descriptor.align}
-                      anteAmount={state.threeFiveSeven?.anteAmount ?? 0}
-                      decision={decision}
-                      displayCardCount={descriptor.player.cardCount}
-                      game={state.gameSettings.game}
-                      isBottomSeat={descriptor.isBottomSeat}
-                      isSelf={isSelf}
-                      isWinner={isWinner}
-                      phase={state.phase}
-                      player={descriptor.player}
-                      showDecisionMode={showDecisionMode}
-                    />
-                  ) : (
-                    <GameTableSeat
-                      align={descriptor.align}
-                      displayCardCount={descriptor.player.cardCount}
-                      game={state.gameSettings.game}
-                      isBottomSeat={descriptor.isBottomSeat}
-                      isSelf={isSelf}
-                      isWinner={isWinner}
-                      phase={state.phase}
-                      player={descriptor.player}
-                    />
-                  )}
+                      <View
+                        style={[
+                          styles.centerBoardZone,
+                          {
+                            left: width / 2 - boardWidth / 2,
+                            minHeight: boardHeight,
+                            top: boardTop,
+                            width: boardWidth,
+                          },
+                        ]}
+                      >
+                        {is357 ? (
+                          <ThreeFiveSevenCenterBoard state={state} statusText={headlineText} />
+                        ) : (
+                          <TableCenterBoard
+                            cardSize={boardCardSize}
+                            cards={state.communityCards}
+                            currentBet={state.currentBet}
+                            handNumber={state.handNumber}
+                            phase={state.phase}
+                            phaseTitle={phaseTitle}
+                            pot={state.pot}
+                            statusMessage={state.statusMessage}
+                            visibleCount={visibleCommunityCount}
+                            winnerSummary={state.phase === 'completed' ? state.lastWinnerSummary : null}
+                          />
+                        )}
+                      </View>
+                    </Animated.View>
+                  </LinearGradient>
                 </View>
-              );
-            })}
+              </LinearGradient>
 
-            {!showDecisionMode
-              ? seatDescriptors.map((descriptor) => {
-                  if (descriptor.player.betThisRound <= 0) {
+              <View pointerEvents="box-none" style={styles.overlayLayer}>
+                {seatDescriptors.map((descriptor) => {
+                  const isSelf = descriptor.player.id === selfId;
+                  const isWinner = winnerIds.includes(descriptor.player.id);
+                  const decision =
+                    is357 && revealState !== 'hidden'
+                      ? revealedDecisions[descriptor.player.id] ?? descriptor.player.revealedDecision
+                      : null;
+                  const seatZIndex = isSelf ? 16 : descriptor.isBottomSeat ? 12 : 8;
+                  const decisionModeHeroNudge = showDecisionMode && isSelf ? -8 : 0;
+
+                  return (
+                    <View
+                      key={descriptor.player.id}
+                      pointerEvents="box-none"
+                      style={[
+                        styles.seatAnchor,
+                        descriptor.isBottomSeat ? styles.bottomSeatAnchor : null,
+                        showDecisionMode && !isSelf ? styles.compactDecisionSeatAnchor : null,
+                        {
+                          height: descriptor.height,
+                          left: descriptor.center.x - descriptor.width / 2,
+                          top: descriptor.center.y - descriptor.height / 2 + decisionModeHeroNudge,
+                          width: descriptor.width,
+                          zIndex: seatZIndex,
+                        },
+                      ]}
+                    >
+                      {is357 ? (
+                        <GameTableSeat
+                          align={descriptor.align}
+                          anteAmount={state.threeFiveSeven?.anteAmount ?? 0}
+                          decision={decision}
+                          displayCardCount={descriptor.player.cardCount}
+                          game={state.gameSettings.game}
+                          isBottomSeat={descriptor.isBottomSeat}
+                          isSelf={isSelf}
+                          isWinner={isWinner}
+                          phase={state.phase}
+                          player={descriptor.player}
+                          showDecisionMode={showDecisionMode}
+                        />
+                      ) : (
+                        <GameTableSeat
+                          align={descriptor.align}
+                          displayCardCount={descriptor.player.cardCount}
+                          game={state.gameSettings.game}
+                          isBottomSeat={descriptor.isBottomSeat}
+                          isSelf={isSelf}
+                          isWinner={isWinner}
+                          phase={state.phase}
+                          player={descriptor.player}
+                        />
+                      )}
+                    </View>
+                  );
+                })}
+
+                {!showDecisionMode
+                  ? seatDescriptors.map((descriptor) => {
+                      if (descriptor.player.betThisRound <= 0) {
+                        return null;
+                      }
+
+                      return (
+                        <View
+                          key={`bet-${descriptor.player.id}`}
+                          pointerEvents="none"
+                          style={[
+                            styles.betSpot,
+                            {
+                              left: descriptor.betCenter.x - 36,
+                              top: descriptor.betCenter.y - 18,
+                            },
+                          ]}
+                        >
+                          <AnimatedChipStack
+                            amount={descriptor.player.betThisRound}
+                            highlighted={descriptor.player.isTurn}
+                            size="sm"
+                            tone="bet"
+                          />
+                        </View>
+                      );
+                    })
+                  : null}
+
+                {seatBursts.map((burst) => {
+                  const descriptor = seatMap.get(burst.playerId);
+                  if (!descriptor) {
                     return null;
                   }
 
                   return (
                     <View
-                      key={`bet-${descriptor.player.id}`}
+                      key={burst.id}
                       pointerEvents="none"
                       style={[
-                        styles.betSpot,
+                        styles.burstSlot,
                         {
-                          left: descriptor.betCenter.x - 36,
-                          top: descriptor.betCenter.y - 18,
+                          left: descriptor.center.x - 58,
+                          top: descriptor.center.y - descriptor.height / 2 - (descriptor.isBottomSeat ? 34 : 28),
                         },
                       ]}
                     >
-                      <AnimatedChipStack
-                        amount={descriptor.player.betThisRound}
-                        highlighted={descriptor.player.isTurn}
-                        size="sm"
-                        tone="bet"
-                      />
+                      <PlayerActionBurst label={burst.label} tone={burst.tone} />
                     </View>
                   );
-                })
-              : null}
+                })}
 
-            {seatBursts.map((burst) => {
-              const descriptor = seatMap.get(burst.playerId);
-              if (!descriptor) {
-                return null;
-              }
+                {cardFlights.map((flight) => (
+                  <CardFlight key={flight.id} {...flight} />
+                ))}
 
-              return (
-                <View
-                  key={burst.id}
-                  pointerEvents="none"
-                  style={[
-                    styles.burstSlot,
-                    {
-                      left: descriptor.center.x - 58,
-                      top: descriptor.center.y - descriptor.height / 2 - (descriptor.isBottomSeat ? 34 : 28),
-                    },
-                  ]}
-                >
-                  <PlayerActionBurst label={burst.label} tone={burst.tone} />
-                </View>
-              );
-            })}
-
-            {cardFlights.map((flight) => (
-              <CardFlight key={flight.id} {...flight} />
-            ))}
-
-            {chipFlights.map((flight) => (
-              <ChipFlight key={flight.id} {...flight} />
-            ))}
-          </View>
-        </View>
-      </Pressable>
+                {chipFlights.map((flight) => (
+                  <ChipFlight key={flight.id} {...flight} />
+                ))}
+              </View>
+            </View>
+          </Pressable>
+        </Animated.View>
+      </Animated.View>
       {/* Table Layout End */}
 
     </View>
@@ -489,7 +514,31 @@ const styles = StyleSheet.create({
   leftPanelPrimarySlot: {
     alignSelf: 'stretch',
     flexShrink: 1,
+    gap: 8,
     width: '100%',
+  },
+  leftPanelResetButton: {
+    alignItems: 'center',
+    alignSelf: 'stretch',
+    backgroundColor: 'rgba(7, 3, 14, 0.92)',
+    borderColor: 'rgba(186, 53, 255, 0.48)',
+    borderRadius: 10,
+    borderWidth: 1,
+    justifyContent: 'center',
+    marginHorizontal: 8,
+    minHeight: 30,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  leftPanelResetButtonPressed: {
+    opacity: 0.78,
+    transform: [{ scale: 0.98 }],
+  },
+  leftPanelResetText: {
+    color: '#F4ECFF',
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 0.8,
   },
   leftPanelStack: {
     alignItems: 'center',
@@ -539,11 +588,17 @@ const styles = StyleSheet.create({
     position: 'absolute',
     zIndex: 8,
   },
+  tableContentLayer: {
+    flex: 1,
+  },
   tableFelt: {
     borderRadius: 999,
     flex: 1,
     overflow: 'hidden',
     position: 'relative',
+  },
+  tableGestureLayer: {
+    flexShrink: 0,
   },
   tableHalo: {
     backgroundColor: 'rgba(154, 58, 255, 0.18)',
@@ -583,6 +638,7 @@ const styles = StyleSheet.create({
   },
   tablePressable: {
     flexShrink: 0,
+    width: '100%',
   },
   tableViewport: {
     alignItems: 'center',
@@ -599,6 +655,10 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.28,
     shadowRadius: 22,
+  },
+  tableZoomLayer: {
+    flexShrink: 0,
+    width: '100%',
   },
   centerAura: {
     backgroundColor: 'rgba(114, 26, 177, 0.06)',

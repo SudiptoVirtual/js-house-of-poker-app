@@ -201,15 +201,6 @@ export const GameControls = memo(function GameControls({
             subtitle="SIT OUT"
             tone="pink"
           />
-          <ControlButton
-            compact={isLeftPanel}
-            disabled={!availableActions.includes('fold')}
-            label="FOLD"
-            loading={pendingAction === 'fold'}
-            onPress={() => onAction('fold')}
-            subtitle="LEAVE ROUND"
-            tone="red"
-          />
         </View>
       ) : null}
 

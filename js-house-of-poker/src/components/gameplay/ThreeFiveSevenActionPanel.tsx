@@ -4,6 +4,9 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { GameControls } from './GameControls';
 import type { PokerAction, PokerControls, PokerPlayerState } from '../../types/poker';
 
+const PANEL_SHELL_MIN_HEIGHT = 224;
+const FIT_CONTENT_PANEL_HEIGHT_RATIO = 0.85;
+
 type Props = {
   controls: PokerControls;
   fitContent?: boolean;
@@ -51,7 +54,7 @@ export function ThreeFiveSevenActionPanel({
         colors={['rgba(31, 8, 49, 0.96)', 'rgba(15, 5, 27, 0.98)', 'rgba(7, 3, 14, 0.96)']}
         end={{ x: 1, y: 1 }}
         start={{ x: 0, y: 0 }}
-        style={styles.panelShell}
+        style={[styles.panelShell, fitContent ? styles.panelShellFitContent : null]}
       >
         <View style={styles.controlsSlot}>
           <GameControls
@@ -83,7 +86,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     borderWidth: 1.5,
     justifyContent: 'center',
-    minHeight: 224,
+    minHeight: PANEL_SHELL_MIN_HEIGHT,
     paddingHorizontal: 12,
     paddingVertical: 14,
     shadowColor: '#B934FF',
@@ -91,6 +94,9 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.28,
     shadowRadius: 18,
     width: '100%',
+  },
+  panelShellFitContent: {
+    minHeight: PANEL_SHELL_MIN_HEIGHT * FIT_CONTENT_PANEL_HEIGHT_RATIO,
   },
   wrapper: {
     alignItems: 'flex-start',

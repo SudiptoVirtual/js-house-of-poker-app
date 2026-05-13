@@ -30,6 +30,11 @@ export type SeatDescriptor = {
 const TABLE_EDGE_OVERHANG_X = 40;
 const TABLE_EDGE_OVERHANG_Y = 34;
 const SEAT_HEIGHT_SCALE = 0.92;
+const HERO_SEAT_HEIGHT_SCALE = 0.68;
+const HERO_SEAT_HEIGHT_ADJUSTMENT = -2;
+const HERO_SEAT_VERTICAL_ADJUSTMENT = 5;
+const HERO_SEAT_WIDTH_SCALE = 0.89376;
+const HERO_SEAT_WIDTH_ADJUSTMENT = -4;
 const BET_TO_BOARD_GAP = 28;
 const HERO_ANCHOR = {
   x: 0.5,
@@ -288,6 +293,12 @@ export function buildSeatDescriptors(
   const center = { x: tableWidth / 2, y: tableHeight / 2 };
   const seatWidth = Math.min(162, Math.max(118, tableWidth * 0.158));
   const seatHeight = Math.min(118, Math.max(88, tableHeight * 0.145)) * SEAT_HEIGHT_SCALE;
+  const heroSeatWidth =
+    (Math.min(340, Math.max(280, tableWidth * 0.32)) + HERO_SEAT_WIDTH_ADJUSTMENT) *
+    HERO_SEAT_WIDTH_SCALE;
+  const heroSeatHeight =
+    Math.min(86, Math.max(66, tableHeight * 0.105)) * HERO_SEAT_HEIGHT_SCALE +
+    HERO_SEAT_HEIGHT_ADJUSTMENT;
   const horizontalSeatInset = Math.max(TABLE_EDGE_OVERHANG_X, tableWidth * 0.058);
   const verticalSeatInset = Math.max(TABLE_EDGE_OVERHANG_Y, tableHeight * 0.11);
   const cappedPlayers = players.slice(0, OPPONENT_ANCHORS.length + 1);
@@ -311,11 +322,15 @@ export function buildSeatDescriptors(
           ] ??
           OPPONENT_ANCHORS[OPPONENT_ANCHORS.length - 1];
     const rawCenterX = point.x * tableWidth;
-    const rawCenterY = point.y * tableHeight;
-    const minX = -horizontalSeatInset + seatWidth / 2;
-    const maxX = tableWidth + horizontalSeatInset - seatWidth / 2;
-    const minY = -verticalSeatInset + seatHeight / 2;
-    const maxY = tableHeight + verticalSeatInset - seatHeight / 2;
+    const isHeroSeat = index === 0;
+    const rawCenterY =
+      point.y * tableHeight + (isHeroSeat ? HERO_SEAT_VERTICAL_ADJUSTMENT : 0);
+    const resolvedSeatWidth = isHeroSeat ? heroSeatWidth : seatWidth;
+    const resolvedSeatHeight = isHeroSeat ? heroSeatHeight : seatHeight;
+    const minX = -horizontalSeatInset + resolvedSeatWidth / 2;
+    const maxX = tableWidth + horizontalSeatInset - resolvedSeatWidth / 2;
+    const minY = -verticalSeatInset + resolvedSeatHeight / 2;
+    const maxY = tableHeight + verticalSeatInset - resolvedSeatHeight / 2;
     const centerX = Math.max(minX, Math.min(maxX, rawCenterX));
     const centerY = Math.max(minY, Math.min(maxY, rawCenterY));
     const zone: SeatZone = point.zone;
@@ -323,11 +338,11 @@ export function buildSeatDescriptors(
     return {
       centerX,
       centerY,
-      height: seatHeight,
+      height: resolvedSeatHeight,
       index,
       isBottomSeat: zone === 'bottom',
       player,
-      width: seatWidth,
+      width: resolvedSeatWidth,
       zone,
     };
   });

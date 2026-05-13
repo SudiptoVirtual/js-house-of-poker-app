@@ -89,10 +89,13 @@ export function TableChatBar({
 }: Props) {
   const { height, width } = useWindowDimensions();
   const [draft, setDraft] = useState('');
+  const [isComposeFocused, setIsComposeFocused] = useState(false);
   const [openPanel, setOpenPanel] = useState<'messages' | 'notifications' | null>(null);
   const pendingSentRef = useRef<string | null>(null);
   const isCompact = width < 620 && height > width;
-  const canSend = normalizeTableChatText(draft).length > 0;
+  const normalizedDraft = normalizeTableChatText(draft);
+  const canSend = normalizedDraft.length > 0;
+  const shouldPrioritizeCompose = isCompact && (isComposeFocused || canSend);
   const tickerMessages = useMemo(() => messages.slice(-3), [messages]);
   const notificationHeadlines = useMemo(() => {
     const pendingInvites = inviteNotificationCount > 0
@@ -128,13 +131,12 @@ export function TableChatBar({
   }, [isTopBarExpanded]);
 
   function handleSend() {
-    const normalized = normalizeTableChatText(draft);
-    if (!normalized) {
+    if (!normalizedDraft) {
       return;
     }
 
-    pendingSentRef.current = normalized;
-    onSendMessage(normalized);
+    pendingSentRef.current = normalizedDraft;
+    onSendMessage(normalizedDraft);
   }
 
   function handleAddEmoji(emoji: string) {
@@ -164,6 +166,50 @@ export function TableChatBar({
     );
   }
 
+  function renderComposeRail() {
+    return (
+      <View style={styles.composeRail}>
+        <MaterialCommunityIcons color="#B35CFF" name="message-processing-outline" size={18} />
+
+        <TextInput
+          maxLength={TABLE_CHAT_MESSAGE_CHAR_LIMIT}
+          onBlur={() => setIsComposeFocused(false)}
+          onChangeText={setDraft}
+          onFocus={() => setIsComposeFocused(true)}
+          placeholder="Type your message..."
+          placeholderTextColor="rgba(235, 231, 255, 0.4)"
+          returnKeyType="done"
+          style={styles.composeInput}
+          value={draft}
+        />
+
+        <View style={styles.emojiRail}>
+          {TABLE_CHAT_EMOJI_OPTIONS.slice(0, 1).map((emoji) => (
+            <Pressable
+              key={emoji}
+              accessibilityRole="button"
+              onPress={() => handleAddEmoji(emoji)}
+              style={styles.emojiButton}
+            >
+              <Text style={styles.emojiText}>{emoji}</Text>
+            </Pressable>
+          ))}
+        </View>
+
+        <Pressable
+          accessibilityRole="button"
+          disabled={!canSend}
+          onPress={handleSend}
+          style={[styles.sendButton, canSend ? styles.sendButtonEnabled : null]}
+        >
+          <Text style={[styles.sendButtonText, canSend ? styles.sendButtonTextEnabled : null]}>
+            SEND
+          </Text>
+        </Pressable>
+      </View>
+    );
+  }
+
   if (!isTopBarExpanded) {
     return (
       <LinearGradient
@@ -173,6 +219,22 @@ export function TableChatBar({
         style={[styles.shell, styles.shellCollapsed]}
       >
         {renderTopBarToggle()}
+      </LinearGradient>
+    );
+  }
+
+  if (shouldPrioritizeCompose) {
+    return (
+      <LinearGradient
+        colors={['rgba(9, 6, 18, 0.98)', 'rgba(5, 4, 13, 0.99)']}
+        end={{ x: 1, y: 1 }}
+        start={{ x: 0, y: 0 }}
+        style={[styles.shell, styles.shellComposePriority]}
+      >
+        <View style={styles.composePriorityRow}>
+          {renderTopBarToggle()}
+          <View style={styles.composePriorityShell}>{renderComposeRail()}</View>
+        </View>
       </LinearGradient>
     );
   }
@@ -207,43 +269,7 @@ export function TableChatBar({
         </View>
 
         <View style={styles.composeShell}>
-          <View style={styles.composeRail}>
-            <MaterialCommunityIcons color="#B35CFF" name="message-processing-outline" size={18} />
-
-            <TextInput
-              maxLength={TABLE_CHAT_MESSAGE_CHAR_LIMIT}
-              onChangeText={setDraft}
-              onSubmitEditing={handleSend}
-              placeholder="Type your message..."
-              placeholderTextColor="rgba(235, 231, 255, 0.4)"
-              style={styles.composeInput}
-              value={draft}
-            />
-
-            <View style={styles.emojiRail}>
-              {TABLE_CHAT_EMOJI_OPTIONS.slice(0, 1).map((emoji) => (
-                <Pressable
-                  key={emoji}
-                  accessibilityRole="button"
-                  onPress={() => handleAddEmoji(emoji)}
-                  style={styles.emojiButton}
-                >
-                  <Text style={styles.emojiText}>{emoji}</Text>
-                </Pressable>
-              ))}
-            </View>
-
-            <Pressable
-              accessibilityRole="button"
-              disabled={!canSend}
-              onPress={handleSend}
-              style={[styles.sendButton, canSend ? styles.sendButtonEnabled : null]}
-            >
-              <Text style={[styles.sendButtonText, canSend ? styles.sendButtonTextEnabled : null]}>
-                SEND
-              </Text>
-            </Pressable>
-          </View>
+          {renderComposeRail()}
 
           {isCompact ? (
             <View style={styles.tickerRail}>
@@ -358,6 +384,15 @@ const styles = StyleSheet.create({
     minHeight: 36,
     paddingHorizontal: 8,
     paddingVertical: 3,
+  },
+  composePriorityRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 8,
+  },
+  composePriorityShell: {
+    flex: 1,
+    minWidth: 0,
   },
   composeShell: {
     flex: 1,
@@ -481,6 +516,11 @@ const styles = StyleSheet.create({
   },
   shellCompact: {
     gap: 12,
+  },
+  shellComposePriority: {
+    borderRadius: 14,
+    paddingHorizontal: 6,
+    paddingVertical: 4,
   },
   shellCollapsed: {
     alignSelf: 'flex-start',

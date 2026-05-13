@@ -35,6 +35,7 @@ type Props = {
 };
 
 const MAX_LEG_SLOTS = 4;
+const SEAT_META_BADGE_SIZE = 36;
 
 function formatChipAmount(value: number) {
   if (value >= 1000000) {
@@ -229,20 +230,26 @@ function CardFan({
   );
 }
 
-function LegsTrack({ legs }: { legs: number }) {
+function LegsTrack({ compact = false, legs }: { compact?: boolean; legs: number }) {
   return (
-    <View style={styles.legsShell}>
-      <Text style={styles.legsLabel}>LEGS</Text>
-      <View style={styles.legsRow}>
+    <View style={[styles.legsShell, compact ? styles.legsShellCompact : null]}>
+      <Text style={[styles.legsLabel, compact ? styles.legsLabelCompact : null]}>LEGS</Text>
+      <View style={[styles.legsRow, compact ? styles.legsRowCompact : null]}>
         {Array.from({ length: MAX_LEG_SLOTS }).map((_, index) => {
           const filled = index < Math.min(legs, MAX_LEG_SLOTS);
 
           return (
             <View
               key={`leg-${index}`}
-              style={[styles.legOrb, filled ? styles.legOrbFilled : null]}
+              style={[
+                styles.legOrb,
+                compact ? styles.legOrbCompact : null,
+                filled ? styles.legOrbFilled : null,
+              ]}
             >
-              {filled ? <View style={styles.legOrbCore} /> : null}
+              {filled ? (
+                <View style={[styles.legOrbCore, compact ? styles.legOrbCoreCompact : null]} />
+              ) : null}
             </View>
           );
         })}
@@ -303,6 +310,9 @@ export const GameTableSeat = memo(function GameTableSeat({
   const playerName = player.name;
   const selfTag = isSelf ? 'YOU' : null;
   const showQuestionBadge = showDecisionMode && !revealCards && !isSelf && !decision;
+  const useCompactSelfSeat = isBottomSeat && isSelf;
+  const showSelfSideCards = isBottomSeat && isSelf && cardCount > 0;
+  const bottomCardSize = useCompactSelfSeat ? 'sm' : 'md';
 
   const sideLayout = useMemo(() => {
     if (isBottomSeat) {
@@ -360,6 +370,54 @@ export const GameTableSeat = memo(function GameTableSeat({
     }).start();
   }, [isWinner, winnerGlow]);
 
+  const renderAvatarStack = (avatarSize: 'md' | 'sm') => (
+    <View
+      style={[
+        styles.seatAvatarStack,
+        avatarSize === 'sm' ? styles.seatAvatarStackCompact : null,
+      ]}
+    >
+      <PlayerAvatar
+        connected={player.isConnected}
+        name={player.name}
+        seed={player.id}
+        size={avatarSize}
+      />
+      <View style={styles.seatAvatarMetaRow}>
+        <PlayerStatusBadge
+          compact
+          showLabel={false}
+          size={SEAT_META_BADGE_SIZE}
+          statusTier={statusTier}
+        />
+        {player.isDealer ? (
+          <DealerButton
+            compact
+            showPulse={false}
+            size={SEAT_META_BADGE_SIZE}
+            style={styles.seatMetaButton}
+          />
+        ) : null}
+      </View>
+    </View>
+  );
+
+  const bottomIdentityNode = (
+    <View style={styles.bottomIdentityWrap}>
+      {renderAvatarStack(useCompactSelfSeat ? 'sm' : 'md')}
+      {!showDecisionMode ? (
+        <View style={[styles.stackPlate, useCompactSelfSeat ? styles.stackPlateCompact : null]}>
+          <Text
+            numberOfLines={1}
+            style={[styles.stackText, useCompactSelfSeat ? styles.stackTextCompact : null]}
+          >
+            {formatChipAmount(player.chips)}
+          </Text>
+        </View>
+      ) : null}
+    </View>
+  );
+
   return (
     <Animated.View
       style={[
@@ -408,18 +466,24 @@ export const GameTableSeat = memo(function GameTableSeat({
           styles.shell,
           showDecisionMode ? styles.shellDecision : styles.shellLive,
           isBottomSeat ? styles.shellBottom : null,
+          useCompactSelfSeat ? styles.shellBottomCompact : null,
         ]}
       >
         <View style={styles.shellBorder} />
 
         {!useCompactDecisionSeat && (showDecisionMode || isBottomSeat) ? (
-          <View style={styles.nameRail}>
-            <Text numberOfLines={1} style={styles.playerName}>
+          <View style={[styles.nameRail, useCompactSelfSeat ? styles.nameRailCompact : null]}>
+            <Text
+              numberOfLines={1}
+              style={[styles.playerName, useCompactSelfSeat ? styles.playerNameCompact : null]}
+            >
               {playerName}
             </Text>
             {selfTag ? (
-              <View style={styles.selfTag}>
-                <Text style={styles.selfTagText}>{selfTag}</Text>
+              <View style={[styles.selfTag, useCompactSelfSeat ? styles.selfTagCompact : null]}>
+                <Text style={[styles.selfTagText, useCompactSelfSeat ? styles.selfTagTextCompact : null]}>
+                  {selfTag}
+                </Text>
               </View>
             ) : null}
           </View>
@@ -428,16 +492,7 @@ export const GameTableSeat = memo(function GameTableSeat({
         {useCompactDecisionSeat ? (
           <View style={[styles.compactDecisionSeat, align === 'right' ? styles.compactDecisionSeatRight : null]}>
             <View style={[styles.compactIdentityRow, align === 'right' ? styles.compactIdentityRowRight : null]}>
-              <View style={styles.avatarWrap}>
-                <PlayerAvatar
-                  connected={player.isConnected}
-                  name={player.name}
-                  seed={player.id}
-                  size="sm"
-                  status={player.playerStatus}
-                />
-                {player.isDealer ? <DealerButton compact style={styles.compactDealerButton} /> : null}
-              </View>
+              {renderAvatarStack('sm')}
               <View style={[styles.compactNameStack, align === 'right' ? styles.compactNameStackRight : null]}>
                 <Text numberOfLines={1} style={styles.compactName}>
                   {player.name}
@@ -471,37 +526,33 @@ export const GameTableSeat = memo(function GameTableSeat({
             </View>
           </View>
         ) : (
-          <View style={[styles.cluster, sideLayout]}>
+          <View style={[styles.cluster, sideLayout, useCompactSelfSeat ? styles.clusterCompact : null]}>
             {isBottomSeat ? (
-              <>
-                {cardCount > 0 ? (
-                  <CardFan
-                    cards={player.holeCards}
-                    count={cardCount}
-                    hidden={cardsHidden}
-                    size="md"
-                  />
-                ) : null}
-                <View style={styles.bottomIdentityWrap}>
-                  <PlayerStatusBadge statusTier={statusTier} />
-                  <View style={styles.avatarWrap}>
-                    <PlayerAvatar
-                      connected={player.isConnected}
-                      name={player.name}
-                      seed={player.id}
-                      size="md"
+              showSelfSideCards ? (
+                <View style={styles.bottomSelfAnchorCluster}>
+                  {bottomIdentityNode}
+                  <View pointerEvents="none" style={styles.bottomSelfCardsRight}>
+                    <CardFan
+                      cards={player.holeCards}
+                      count={cardCount}
+                      hidden={cardsHidden}
+                      size={bottomCardSize}
                     />
-                    {player.isDealer ? <DealerButton compact style={styles.dealerButton} /> : null}
                   </View>
-                  {!showDecisionMode ? (
-                    <View style={styles.stackPlate}>
-                      <Text numberOfLines={1} style={styles.stackText}>
-                        {formatChipAmount(player.chips)}
-                      </Text>
-                    </View>
-                  ) : null}
                 </View>
-              </>
+              ) : (
+                <>
+                  {cardCount > 0 ? (
+                    <CardFan
+                      cards={player.holeCards}
+                      count={cardCount}
+                      hidden={cardsHidden}
+                      size={bottomCardSize}
+                    />
+                  ) : null}
+                  {bottomIdentityNode}
+                </>
+              )
             ) : (
               <>
                 {align === 'right' && cardCount > 0 ? (
@@ -514,16 +565,7 @@ export const GameTableSeat = memo(function GameTableSeat({
                 ) : null}
 
                 <View style={styles.sideIdentityWrap}>
-                  <PlayerStatusBadge compact showLabel={false} statusTier={statusTier} />
-                  <View style={styles.avatarWrap}>
-                    <PlayerAvatar
-                      connected={player.isConnected}
-                      name={player.name}
-                      seed={player.id}
-                      size="md"
-                    />
-                    {player.isDealer ? <DealerButton compact style={styles.dealerButton} /> : null}
-                  </View>
+                  {renderAvatarStack('md')}
 
                   {!showDecisionMode ? (
                     <View style={styles.nameBox}>
@@ -551,24 +593,38 @@ export const GameTableSeat = memo(function GameTableSeat({
         )}
 
         {useCompactDecisionSeat ? null : showDecisionMode ? (
-          <View style={styles.decisionRail}>
-            <LegsTrack legs={player.legs} />
-            <View style={styles.amountBubble}>
-              <Text style={styles.amountBubbleText}>${formatChipAmount(labelAmount)}</Text>
+          <View style={[styles.decisionRail, useCompactSelfSeat ? styles.decisionRailSelfCompact : null]}>
+            <LegsTrack compact={useCompactSelfSeat} legs={player.legs} />
+            <View style={[styles.amountBubble, useCompactSelfSeat ? styles.amountBubbleSelfCompact : null]}>
+              <Text
+                style={[
+                  styles.amountBubbleText,
+                  useCompactSelfSeat ? styles.amountBubbleTextSelfCompact : null,
+                ]}
+              >
+                ${formatChipAmount(labelAmount)}
+              </Text>
             </View>
           </View>
         ) : (
-          <View style={styles.liveFooter}>
+          <View style={[styles.liveFooter, useCompactSelfSeat ? styles.liveFooterCompact : null]}>
             <View
               style={[
                 styles.actionBadge,
+                useCompactSelfSeat ? styles.actionBadgeCompact : null,
                 {
                   backgroundColor: actionBadge.backgroundColor,
                   borderColor: actionBadge.borderColor,
                 },
               ]}
             >
-              <Text style={[styles.actionBadgeText, { color: actionBadge.color }]}>
+              <Text
+                style={[
+                  styles.actionBadgeText,
+                  useCompactSelfSeat ? styles.actionBadgeTextCompact : null,
+                  { color: actionBadge.color },
+                ]}
+              >
                 {actionBadge.label}
               </Text>
             </View>
@@ -578,7 +634,11 @@ export const GameTableSeat = memo(function GameTableSeat({
                 {Array.from({ length: MAX_LEG_SLOTS }).map((_, index) => (
                   <View
                     key={`inline-leg-${index}`}
-                    style={[styles.inlineLegDot, index < player.legs ? styles.inlineLegDotFilled : null]}
+                    style={[
+                      styles.inlineLegDot,
+                      useCompactSelfSeat ? styles.inlineLegDotCompact : null,
+                      index < player.legs ? styles.inlineLegDotFilled : null,
+                    ]}
                   />
                 ))}
               </View>
@@ -603,10 +663,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 5,
   },
+  actionBadgeCompact: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
   actionBadgeText: {
     fontSize: 10,
     fontWeight: '900',
     letterSpacing: 0.8,
+  },
+  actionBadgeTextCompact: {
+    fontSize: 9,
   },
   alignCenter: {
     alignItems: 'center',
@@ -628,17 +695,56 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 5,
   },
+  amountBubbleSelfCompact: {
+    borderRadius: 999,
+    minWidth: 44,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
   amountBubbleText: {
     color: '#FFF6FB',
     fontSize: 12,
     fontWeight: '800',
   },
-  avatarWrap: {
-    position: 'relative',
+  amountBubbleTextSelfCompact: {
+    fontSize: 10,
+  },
+  seatAvatarMetaRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 3,
+    height: SEAT_META_BADGE_SIZE,
+    justifyContent: 'center',
+    marginTop: 1,
+  },
+  seatAvatarStack: {
+    alignItems: 'center',
+    height: 91,
+    justifyContent: 'flex-start',
+  },
+  seatAvatarStackCompact: {
+    height: 77,
+  },
+  seatMetaButton: {
+    flexShrink: 0,
   },
   bottomIdentityWrap: {
     alignItems: 'center',
-    gap: 8,
+    flexDirection: 'row',
+    gap: 6,
+    justifyContent: 'center',
+  },
+  bottomSelfAnchorCluster: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    minHeight: 58,
+    position: 'relative',
+    width: '100%',
+  },
+  bottomSelfCardsRight: {
+    marginLeft: 6,
+    zIndex: 4,
   },
   cardFan: {
     alignItems: 'center',
@@ -655,10 +761,17 @@ const styles = StyleSheet.create({
   },
   centerCluster: {
     alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    width: '100%',
   },
   cluster: {
     gap: 8,
     minHeight: 72,
+  },
+  clusterCompact: {
+    gap: 5,
+    minHeight: 58,
   },
   compactAmountBubble: {
     alignItems: 'center',
@@ -674,11 +787,6 @@ const styles = StyleSheet.create({
     color: '#FFF6FB',
     fontSize: 10,
     fontWeight: '900',
-  },
-  compactDealerButton: {
-    position: 'absolute',
-    right: -7,
-    top: -9,
   },
   compactDecisionRail: {
     alignItems: 'center',
@@ -770,10 +878,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 6,
   },
-  dealerButton: {
-    position: 'absolute',
-    right: -6,
-    top: -8,
+  decisionRailSelfCompact: {
+    alignSelf: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
   },
   inlineLegDot: {
     backgroundColor: 'rgba(255, 118, 190, 0.18)',
@@ -782,6 +890,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     height: 10,
     width: 10,
+  },
+  inlineLegDotCompact: {
+    height: 8,
+    width: 8,
   },
   inlineLegDotFilled: {
     backgroundColor: '#FF70B7',
@@ -801,11 +913,19 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     width: 18,
   },
+  legOrbCompact: {
+    height: 14,
+    width: 14,
+  },
   legOrbCore: {
     backgroundColor: '#FFF5FA',
     borderRadius: 999,
     height: 7,
     width: 7,
+  },
+  legOrbCoreCompact: {
+    height: 5,
+    width: 5,
   },
   legOrbFilled: {
     backgroundColor: '#FF70B7',
@@ -817,9 +937,16 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     letterSpacing: 1,
   },
+  legsLabelCompact: {
+    fontSize: 9,
+    letterSpacing: 0.7,
+  },
   legsRow: {
     flexDirection: 'row',
     gap: 6,
+  },
+  legsRowCompact: {
+    gap: 4,
   },
   legsShell: {
     alignItems: 'center',
@@ -832,6 +959,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 7,
   },
+  legsShellCompact: {
+    borderRadius: 999,
+    gap: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
   leftCluster: {
     alignItems: 'center',
     flexDirection: 'row',
@@ -841,6 +974,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flexDirection: 'row',
     justifyContent: 'space-between',
+  },
+  liveFooterCompact: {
+    minHeight: 20,
   },
   nameBox: {
     alignItems: 'center',
@@ -870,10 +1006,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     minHeight: 16,
   },
+  nameRailCompact: {
+    minHeight: 12,
+  },
   playerName: {
     color: '#F7F4FF',
     fontSize: 12,
     fontWeight: '700',
+  },
+  playerNameCompact: {
+    fontSize: 10,
   },
   questionBadge: {
     alignItems: 'center',
@@ -905,11 +1047,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: 7,
     paddingVertical: 3,
   },
+  selfTagCompact: {
+    paddingHorizontal: 5,
+    paddingVertical: 2,
+  },
   selfTagText: {
     color: '#C9FCFF',
     fontSize: 9,
     fontWeight: '900',
     letterSpacing: 0.8,
+  },
+  selfTagTextCompact: {
+    fontSize: 8,
+    letterSpacing: 0.5,
   },
   shell: {
     borderRadius: 18,
@@ -929,6 +1079,11 @@ const styles = StyleSheet.create({
   shellBottom: {
     paddingHorizontal: 10,
     paddingVertical: 10,
+  },
+  shellBottomCompact: {
+    gap: 5,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
   },
   shellDecision: {
     backgroundColor: 'rgba(0,0,0,0.18)',
@@ -951,10 +1106,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 9,
   },
+  stackPlateCompact: {
+    borderRadius: 12,
+    minWidth: 74,
+    paddingHorizontal: 9,
+    paddingVertical: 6,
+  },
   stackText: {
     color: '#F4F1FF',
     fontSize: 14,
     fontWeight: '800',
+  },
+  stackTextCompact: {
+    fontSize: 11,
   },
   statusRibbon: {
     alignItems: 'center',

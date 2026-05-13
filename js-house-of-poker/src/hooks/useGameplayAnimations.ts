@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
   Easing,
@@ -15,32 +15,94 @@ type PanLimits = {
 
 type Options = {
   isLandscape: boolean;
-  tableViewZoom: number;
   onShowdownBannerEnd: () => void;
 };
+
+type TableLayout = {
+  height: number;
+  width: number;
+};
+
+type TableGestureState = {
+  panStart: Point;
+  pinchStartDistance: number;
+  pinchStartZoom: number;
+};
+
+type TouchPoint = {
+  pageX: number;
+  pageY: number;
+};
+
+const maxTableViewZoom = 1.55;
+const minTableViewZoom = 0.72;
 
 function clamp(value: number, min: number, max: number) {
   return Math.max(min, Math.min(max, value));
 }
 
+function getTouchDistance(touches: ArrayLike<TouchPoint>) {
+  if (touches.length < 2) {
+    return 0;
+  }
+
+  const first = touches[0];
+  const second = touches[1];
+  const deltaX = first.pageX - second.pageX;
+  const deltaY = first.pageY - second.pageY;
+
+  return Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+}
+
+function getTablePanLimits(layout: TableLayout, zoom: number): PanLimits {
+  const fallbackMaxX = 160;
+  const fallbackMaxY = 110;
+
+  if (layout.width <= 0 || layout.height <= 0) {
+    return { maxX: fallbackMaxX, maxY: fallbackMaxY };
+  }
+
+  const zoomOverflowX = Math.max(0, (layout.width * zoom - layout.width) / 2);
+  const zoomOverflowY = Math.max(0, (layout.height * zoom - layout.height) / 2);
+
+  return {
+    maxX: layout.width * 0.45 + zoomOverflowX,
+    maxY: layout.height * 0.5 + zoomOverflowY,
+  };
+}
+
+function clampTablePan(value: Point, layout: TableLayout, zoom: number): Point {
+  const { maxX, maxY } = getTablePanLimits(layout, zoom);
+
+  return {
+    x: clamp(value.x, -maxX, maxX),
+    y: clamp(value.y, -maxY, maxY),
+  };
+}
+
 export function useGameplayAnimations({
   isLandscape,
   onShowdownBannerEnd,
-  tableViewZoom,
 }: Options) {
   const [isTableFocused, setIsTableFocused] = useState(false);
   const [isLeftPanelOpen, setIsLeftPanelOpen] = useState(false);
   const [tableLayout, setTableLayout] = useState({ height: 0, width: 0 });
-  const [tablePanLimits, setTablePanLimits] = useState<PanLimits>({ maxX: 0, maxY: 0 });
 
   const ambientA = useRef(new Animated.Value(0.42)).current;
   const ambientB = useRef(new Animated.Value(0.72)).current;
   const focusProgress = useRef(new Animated.Value(0)).current;
   const showdownProgress = useRef(new Animated.Value(0)).current;
   const tablePan = useRef(new Animated.ValueXY({ x: 0, y: 0 })).current;
+  const tableViewZoom = useRef(new Animated.Value(1)).current;
 
+  const tableLayoutRef = useRef<TableLayout>({ height: 0, width: 0 });
   const tablePanOffsetRef = useRef<Point>({ x: 0, y: 0 });
-  const tablePanLimitsRef = useRef<PanLimits>({ maxX: 0, maxY: 0 });
+  const tableViewZoomRef = useRef(1);
+  const tableGestureRef = useRef<TableGestureState>({
+    panStart: { x: 0, y: 0 },
+    pinchStartDistance: 0,
+    pinchStartZoom: 1,
+  });
 
   useEffect(() => {
     const loopA = Animated.loop(
@@ -100,53 +162,159 @@ export function useGameplayAnimations({
     }).start();
   }, [focusProgress, isTableFocused]);
 
-  useEffect(() => {
-    tablePanLimitsRef.current = tablePanLimits;
-  }, [tablePanLimits]);
-
   const shouldMaximizeTable = isLandscape || isTableFocused;
 
   useEffect(() => {
     tablePan.stopAnimation();
+    tableViewZoom.stopAnimation();
     tablePan.setValue({ x: 0, y: 0 });
+    tableViewZoom.setValue(1);
     tablePanOffsetRef.current = { x: 0, y: 0 };
+    tableViewZoomRef.current = 1;
+    tableGestureRef.current = {
+      panStart: { x: 0, y: 0 },
+      pinchStartDistance: 0,
+      pinchStartZoom: 1,
+    };
   }, [shouldMaximizeTable, tablePan, tableViewZoom]);
+
+  const resetTableView = useCallback(() => {
+    tablePan.stopAnimation();
+    tableViewZoom.stopAnimation();
+    tablePanOffsetRef.current = { x: 0, y: 0 };
+    tableViewZoomRef.current = 1;
+    tableGestureRef.current = {
+      panStart: { x: 0, y: 0 },
+      pinchStartDistance: 0,
+      pinchStartZoom: 1,
+    };
+
+    Animated.parallel([
+      Animated.spring(tablePan, {
+        bounciness: 7,
+        speed: 18,
+        toValue: { x: 0, y: 0 },
+        useNativeDriver: true,
+      }),
+      Animated.spring(tableViewZoom, {
+        bounciness: 7,
+        speed: 18,
+        toValue: 1,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [tablePan, tableViewZoom]);
 
   const tablePanResponder = useMemo(
     () =>
       PanResponder.create({
+        onStartShouldSetPanResponderCapture: (event) =>
+          event.nativeEvent.touches.length >= 2,
         onMoveShouldSetPanResponder: (_, gestureState) =>
           Math.abs(gestureState.dx) > 4 || Math.abs(gestureState.dy) > 4,
-        onPanResponderGrant: () => {
+        onMoveShouldSetPanResponderCapture: (event, gestureState) =>
+          event.nativeEvent.touches.length >= 2 ||
+          Math.abs(gestureState.dx) > 4 ||
+          Math.abs(gestureState.dy) > 4,
+        onPanResponderGrant: (event) => {
+          const gesture = tableGestureRef.current;
+          const touchDistance = getTouchDistance(event.nativeEvent.touches);
+
           tablePan.stopAnimation((value) => {
-            tablePanOffsetRef.current = { x: value.x, y: value.y };
+            const clampedPan = clampTablePan(
+              value,
+              tableLayoutRef.current,
+              tableViewZoomRef.current,
+            );
+            tablePanOffsetRef.current = clampedPan;
+            gesture.panStart = clampedPan;
+            tablePan.setValue(clampedPan);
+          });
+          tableViewZoom.stopAnimation((value) => {
+            const clampedZoom = clamp(value, minTableViewZoom, maxTableViewZoom);
+            tableViewZoomRef.current = clampedZoom;
+            gesture.pinchStartDistance = touchDistance;
+            gesture.pinchStartZoom = clampedZoom;
+            tableViewZoom.setValue(clampedZoom);
           });
         },
-        onPanResponderMove: (_, gestureState) => {
-          const maxX = tablePanLimitsRef.current.maxX;
-          const maxY = tablePanLimitsRef.current.maxY;
-          const nextX = clamp(tablePanOffsetRef.current.x + gestureState.dx, -maxX, maxX);
-          const nextY = clamp(tablePanOffsetRef.current.y + gestureState.dy, -maxY, maxY);
-          tablePan.setValue({ x: nextX, y: nextY });
+        onPanResponderMove: (event, gestureState) => {
+          const gesture = tableGestureRef.current;
+          const touchDistance = getTouchDistance(event.nativeEvent.touches);
+          let nextZoom = tableViewZoomRef.current;
+
+          if (touchDistance > 0) {
+            if (gesture.pinchStartDistance <= 0) {
+              gesture.pinchStartDistance = touchDistance;
+              gesture.pinchStartZoom = tableViewZoomRef.current;
+            }
+
+            nextZoom = clamp(
+              gesture.pinchStartZoom * (touchDistance / gesture.pinchStartDistance),
+              minTableViewZoom,
+              maxTableViewZoom,
+            );
+            tableViewZoomRef.current = nextZoom;
+            tableViewZoom.setValue(nextZoom);
+          } else {
+            gesture.pinchStartDistance = 0;
+            gesture.pinchStartZoom = tableViewZoomRef.current;
+          }
+
+          const nextPan = clampTablePan(
+            {
+              x: gesture.panStart.x + gestureState.dx,
+              y: gesture.panStart.y + gestureState.dy,
+            },
+            tableLayoutRef.current,
+            nextZoom,
+          );
+
+          tablePanOffsetRef.current = nextPan;
+          tablePan.setValue(nextPan);
         },
         onPanResponderRelease: () => {
-          tablePan.flattenOffset();
-          tablePan.stopAnimation((value) => {
-            const maxX = tablePanLimitsRef.current.maxX;
-            const maxY = tablePanLimitsRef.current.maxY;
-            const clampedX = clamp(value.x, -maxX, maxX);
-            const clampedY = clamp(value.y, -maxY, maxY);
-            tablePanOffsetRef.current = { x: clampedX, y: clampedY };
-            Animated.spring(tablePan, {
-              bounciness: 8,
-              speed: 18,
-              toValue: { x: clampedX, y: clampedY },
-              useNativeDriver: true,
-            }).start();
+          tableViewZoom.stopAnimation((zoomValue) => {
+            const clampedZoom = clamp(zoomValue, minTableViewZoom, maxTableViewZoom);
+            tableViewZoomRef.current = clampedZoom;
+
+            tablePan.stopAnimation((panValue) => {
+              const clampedPan = clampTablePan(panValue, tableLayoutRef.current, clampedZoom);
+              tablePanOffsetRef.current = clampedPan;
+              tableGestureRef.current.panStart = clampedPan;
+
+              Animated.parallel([
+                Animated.spring(tablePan, {
+                  bounciness: 8,
+                  speed: 18,
+                  toValue: clampedPan,
+                  useNativeDriver: true,
+                }),
+                Animated.spring(tableViewZoom, {
+                  bounciness: 8,
+                  speed: 18,
+                  toValue: clampedZoom,
+                  useNativeDriver: true,
+                }),
+              ]).start();
+            });
           });
         },
+        onPanResponderTerminate: () => {
+          tablePan.stopAnimation((value) => {
+            const clampedPan = clampTablePan(
+              value,
+              tableLayoutRef.current,
+              tableViewZoomRef.current,
+            );
+            tablePanOffsetRef.current = clampedPan;
+            tableGestureRef.current.panStart = clampedPan;
+            tablePan.setValue(clampedPan);
+          });
+        },
+        onPanResponderTerminationRequest: () => true,
       }),
-    [tablePan],
+    [tablePan, tableViewZoom],
   );
 
   function handleTableLayout(event: LayoutChangeEvent) {
@@ -157,15 +325,17 @@ export function useGameplayAnimations({
     }
 
     setTableLayout({ height, width });
-    const maxX = Math.max(0, (width * tableViewZoom - width) / 2);
-    const maxY = Math.max(0, (height * tableViewZoom - height) / 2);
-    setTablePanLimits({ maxX, maxY });
+    tableLayoutRef.current = { height, width };
 
     tablePan.stopAnimation((value) => {
-      const clampedX = clamp(value.x, -maxX, maxX);
-      const clampedY = clamp(value.y, -maxY, maxY);
-      tablePan.setValue({ x: clampedX, y: clampedY });
-      tablePanOffsetRef.current = { x: clampedX, y: clampedY };
+      const clampedPan = clampTablePan(
+        value,
+        tableLayoutRef.current,
+        tableViewZoomRef.current,
+      );
+      tablePan.setValue(clampedPan);
+      tablePanOffsetRef.current = clampedPan;
+      tableGestureRef.current.panStart = clampedPan;
     });
   }
 
@@ -205,11 +375,13 @@ export function useGameplayAnimations({
     handleTableLayout,
     isLeftPanelOpen,
     isTableFocused,
+    resetTableView,
     setIsLeftPanelOpen,
     setIsTableFocused,
     showdownProgress,
     tableLayout,
     tablePan,
     tablePanResponder,
+    tableViewZoom,
   };
 }

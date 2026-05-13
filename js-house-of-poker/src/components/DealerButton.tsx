@@ -11,16 +11,24 @@ import {
 
 type DealerButtonProps = {
   compact?: boolean;
+  showPulse?: boolean;
+  size?: number;
   style?: StyleProp<ViewStyle>;
 };
 
 export const DealerButton = memo(function DealerButton({
   compact = false,
+  showPulse = true,
+  size: fixedSize,
   style,
 }: DealerButtonProps) {
   const pulse = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
+    if (!showPulse) {
+      return;
+    }
+
     const loop = Animated.loop(
       Animated.sequence([
         Animated.timing(pulse, {
@@ -40,7 +48,7 @@ export const DealerButton = memo(function DealerButton({
 
     loop.start();
     return () => loop.stop();
-  }, [pulse]);
+  }, [pulse, showPulse]);
 
   const ringScale = pulse.interpolate({
     inputRange: [0, 1],
@@ -50,24 +58,27 @@ export const DealerButton = memo(function DealerButton({
     inputRange: [0, 1],
     outputRange: [0.45, 0.08],
   });
-  const size = compact ? 26 : 30;
+  const size = fixedSize ?? (compact ? 26 : 30);
+  const fontSize = fixedSize ? Math.max(8, size * 0.42) : compact ? 11 : 13;
 
   return (
-    <View style={style}>
-      <Animated.View
-        pointerEvents="none"
-        style={[
-          styles.ring,
-          {
-            height: size + 10,
-            opacity: ringOpacity,
-            width: size + 10,
-            transform: [{ scale: ringScale }],
-          },
-        ]}
-      />
+    <View style={[{ height: size, width: size }, style]}>
+      {showPulse ? (
+        <Animated.View
+          pointerEvents="none"
+          style={[
+            styles.ring,
+            {
+              height: size + 10,
+              opacity: ringOpacity,
+              width: size + 10,
+              transform: [{ scale: ringScale }],
+            },
+          ]}
+        />
+      ) : null}
       <View style={[styles.badge, { height: size, width: size }]}>
-        <Text style={[styles.label, compact ? styles.labelCompact : null]}>D</Text>
+        <Text style={[styles.label, compact ? styles.labelCompact : null, { fontSize }]}>D</Text>
       </View>
     </View>
   );

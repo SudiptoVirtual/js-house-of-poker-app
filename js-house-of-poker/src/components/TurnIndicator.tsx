@@ -86,14 +86,15 @@ const styles = StyleSheet.create({
   dot: {
     backgroundColor: '#3BF5D0',
     borderRadius: 999,
-    height: 7,
-    width: 7,
+    height: 6.5,
+    width: 6.5,
   },
   label: {
     color: '#E9FFFB',
-    fontSize: 10,
+    fontSize: 9.5,
     fontWeight: '900',
-    letterSpacing: 1.3,
+    letterSpacing: 1.15,
+    lineHeight: 12,
   },
   orbit: {
     ...StyleSheet.absoluteFillObject,
@@ -110,8 +111,8 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     borderWidth: 1,
     flexDirection: 'row',
-    gap: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
+    gap: 5.5,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
   },
 });

@@ -39,9 +39,9 @@ export function GameplayFooter({
         <Text style={styles.brandText}>JSHOUSEOFPOKER.COM</Text>
       </View>
 
-      <Text style={[styles.centerText, isCompact ? styles.centerTextCompact : null]}>
+      {/* <Text style={[styles.centerText, isCompact ? styles.centerTextCompact : null]}>
         GOOD LUCK, PLAY SMART, HAVE FUN!
-      </Text>
+      </Text> */}
 
       <View style={[styles.rightRail, isCompact ? styles.rightRailCompact : null]}>
         <Text style={styles.metaText}>SERVER TIME: {serverTimeLabel}</Text>

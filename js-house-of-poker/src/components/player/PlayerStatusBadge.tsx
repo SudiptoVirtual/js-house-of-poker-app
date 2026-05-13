@@ -6,27 +6,53 @@ import { PLAYER_STATUS_ASSETS, type PlayerStatusTier } from '../../constants/pla
 type PlayerStatusBadgeProps = {
   compact?: boolean;
   showLabel?: boolean;
+  size?: number;
   statusTier?: PlayerStatusTier;
 };
 
 export const PlayerStatusBadge = memo(function PlayerStatusBadge({
   compact = false,
   showLabel = true,
+  size,
   statusTier,
 }: PlayerStatusBadgeProps) {
   const statusAsset = statusTier ? PLAYER_STATUS_ASSETS[statusTier] : null;
+  const fixedIconSize = size ?? null;
 
   if (!statusAsset?.image) {
     return null;
   }
 
   return (
-    <View style={[styles.badge, compact ? styles.badgeCompact : null]}>
+    <View
+      style={[
+        styles.badge,
+        compact ? styles.badgeCompact : null,
+        size
+          ? {
+              backgroundColor: 'transparent',
+              borderRadius: size / 2,
+              borderWidth: 0,
+              height: size,
+              maxWidth: size,
+              overflow: 'hidden',
+              paddingHorizontal: 0,
+              paddingVertical: 0,
+              width: size,
+            }
+          : null,
+      ]}
+    >
       <Image
         accessibilityLabel={statusAsset.label}
         resizeMode="contain"
         source={statusAsset.image}
-        style={compact ? styles.imageCompact : styles.image}
+        style={[
+          compact ? styles.imageCompact : styles.image,
+          fixedIconSize
+            ? { borderRadius: fixedIconSize / 2, height: fixedIconSize, width: fixedIconSize }
+            : null,
+        ]}
       />
       {showLabel ? (
         <Text numberOfLines={1} style={[styles.label, compact ? styles.labelCompact : null]}>
