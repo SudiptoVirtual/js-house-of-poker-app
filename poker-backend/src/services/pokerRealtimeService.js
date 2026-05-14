@@ -32,6 +32,24 @@ const DISCONNECT_GRACE_PERIOD_MS = Math.max(
 const MAX_PLAYERS = 6;
 const MIN_PLAYERS_TO_START = 2;
 const LOG_LIMIT = 32;
+const TABLE_CHAT_HISTORY_LIMIT = 100;
+const TABLE_CHAT_MESSAGE_CHAR_LIMIT = 280;
+const TABLE_CHAT_USER_RATE_LIMIT = Number.parseInt(
+  process.env.TABLE_CHAT_USER_RATE_LIMIT || "5",
+  10
+);
+const TABLE_CHAT_USER_RATE_WINDOW_MS = Number.parseInt(
+  process.env.TABLE_CHAT_USER_RATE_WINDOW_MS || "10000",
+  10
+);
+const TABLE_CHAT_TABLE_RATE_LIMIT = Number.parseInt(
+  process.env.TABLE_CHAT_TABLE_RATE_LIMIT || "30",
+  10
+);
+const TABLE_CHAT_TABLE_RATE_WINDOW_MS = Number.parseInt(
+  process.env.TABLE_CHAT_TABLE_RATE_WINDOW_MS || "60000",
+  10
+);
 const TABLE_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 const VALID_GAMES = new Set([
   "357",
@@ -194,7 +212,101 @@ function normalizeTableChatText(value) {
     return "";
   }
 
-  return value.trim().replace(/\s+/g, " ").slice(0, 280);
+  return value
+    .trim()
+    .replace(/\s+/g, " ")
+    .slice(0, TABLE_CHAT_MESSAGE_CHAR_LIMIT);
+}
+
+function createAcceptedChatModeration() {
+  return {
+    flags: [],
+    reason: null,
+    reviewedAt: null,
+    status: "accepted",
+  };
+}
+
+const BLOCKED_CHAT_PATTERNS = [
+  {
+    flag: "identity_hate_or_harassment",
+    reason: "Messages that attack protected classes are not allowed in table chat.",
+    pattern: /\b(?:n[i1!]gg?(?:a|er)s?|f[a@]gg?(?:ot)?s?|k[i1!]kes?|sp[i1!]cs?|tr[a@]nn(?:y|ies)|r[e3]t[a@]rds?)\b/i,
+  },
+  {
+    flag: "threat_or_violent_abuse",
+    reason: "Threats or violent abuse are not allowed in table chat.",
+    pattern: /\b(?:kill|murder|doxx?|swat|hunt down)\s+(?:you|ur|u|him|her|them)\b/i,
+  },
+  {
+    flag: "sexual_abuse",
+    reason: "Sexual harassment or abuse is not allowed in table chat.",
+    pattern: /\b(?:rape|sexually assault)\s+(?:you|ur|u|him|her|them)\b/i,
+  },
+];
+
+const FLAGGED_CHAT_PATTERNS = [
+  {
+    flag: "profanity_or_abusive_language",
+    reason: "Message contains profanity or abusive language and requires moderation review.",
+    pattern: /\b(?:fuck|shit|bitch|asshole|cunt|dickhead|motherfucker|bastard)\b/i,
+  },
+  {
+    flag: "targeted_harassment",
+    reason: "Message appears to target another player and requires moderation review.",
+    pattern: /\b(?:idiot|moron|loser|trash|stupid)\b/i,
+  },
+];
+
+function moderateTableChatMessage({ text } = {}) {
+  const message = normalizeTableChatText(text);
+  const blockedFlags = BLOCKED_CHAT_PATTERNS.filter(({ pattern }) =>
+    pattern.test(message)
+  );
+
+  if (blockedFlags.length > 0) {
+    return {
+      flags: blockedFlags.map(({ flag }) => flag),
+      reason: blockedFlags[0].reason,
+      reviewedAt: null,
+      status: "blocked",
+    };
+  }
+
+  const reviewFlags = FLAGGED_CHAT_PATTERNS.filter(({ pattern }) =>
+    pattern.test(message)
+  );
+
+  if (reviewFlags.length > 0) {
+    return {
+      flags: reviewFlags.map(({ flag }) => flag),
+      reason: reviewFlags[0].reason,
+      reviewedAt: null,
+      status: "pending-review",
+    };
+  }
+
+  return createAcceptedChatModeration();
+}
+
+function getChatRateRetrySeconds(retryAfterMs) {
+  return Math.max(1, Math.ceil(retryAfterMs / 1000));
+}
+
+function registerChatRateLimitHit(bucketMap, key, now, limit, windowMs) {
+  const previousHits = bucketMap.get(key) || [];
+  const hits = previousHits.filter((timestamp) => now - timestamp < windowMs);
+
+  if (hits.length >= limit) {
+    return {
+      allowed: false,
+      retryAfterMs: windowMs - (now - hits[0]),
+    };
+  }
+
+  hits.push(now);
+  bucketMap.set(key, hits);
+  return { allowed: true, retryAfterMs: 0 };
 }
 
 function buildTableCodeCandidate() {
@@ -1177,6 +1289,77 @@ class PokerRealtimeService {
     this.rooms = new Map();
     this.sessions = new Map();
     this.pendingDisconnectTimers = new Map();
+    this.chatUserRateBuckets = new Map();
+    this.chatTableRateBuckets = new Map();
+  }
+
+  enforceTableChatRateLimit(roomId, playerId) {
+    const now = Date.now();
+    const userKey = `${roomId}:${playerId}`;
+    const userLimit = registerChatRateLimitHit(
+      this.chatUserRateBuckets,
+      userKey,
+      now,
+      TABLE_CHAT_USER_RATE_LIMIT,
+      TABLE_CHAT_USER_RATE_WINDOW_MS
+    );
+
+    if (!userLimit.allowed) {
+      throw new Error(
+        `You are sending table chat messages too quickly. Please wait ${getChatRateRetrySeconds(
+          userLimit.retryAfterMs
+        )} second(s) before sending another message.`
+      );
+    }
+
+    const tableLimit = registerChatRateLimitHit(
+      this.chatTableRateBuckets,
+      roomId,
+      now,
+      TABLE_CHAT_TABLE_RATE_LIMIT,
+      TABLE_CHAT_TABLE_RATE_WINDOW_MS
+    );
+
+    if (!tableLimit.allowed) {
+      throw new Error(
+        `This table is sending too many chat messages. Please wait ${getChatRateRetrySeconds(
+          tableLimit.retryAfterMs
+        )} second(s) and try again.`
+      );
+    }
+  }
+
+  async recordTableChatModerationEvent(room, chatMessage, eventType) {
+    const moderation = chatMessage.moderation || createAcceptedChatModeration();
+    const logPayload = {
+      chatMessageId: chatMessage.id,
+      flags: moderation.flags || [],
+      moderationStatus: moderation.status,
+      playerId: chatMessage.playerId,
+      playerName: chatMessage.playerName,
+      reason: moderation.reason,
+      roomId: room.id,
+      text: chatMessage.text,
+    };
+
+    console.warn("Table chat moderation event", {
+      eventType,
+      tableId: room.tableDbId || room.id,
+      ...logPayload,
+    });
+
+    if (!room.tableDbId) {
+      return;
+    }
+
+    await logTableEvent({
+      createdById: chatMessage.playerId || "",
+      createdByType: "player",
+      eventType,
+      message: `Table chat ${moderation.status} for ${chatMessage.playerName} on ${room.id}.`,
+      payload: logPayload,
+      tableId: room.tableDbId,
+    });
   }
 
   getDisconnectTimerKey(roomId, playerId) {
@@ -2318,29 +2501,61 @@ class PokerRealtimeService {
   async sendTableChatMessage(socket, payload = {}) {
     const { room, session } = await this.getSessionRoom(socket);
     const player = getPlayer(room, session.playerId);
+
+    if (!player) {
+      throw new Error("Player not found.");
+    }
+
     const text = normalizeTableChatText(payload.message || payload.text);
 
     if (!text) {
       throw new Error("Chat message cannot be empty.");
     }
 
+    this.enforceTableChatRateLimit(room.id, player.id);
+
+    const createdAt = Date.now();
+    const moderation = moderateTableChatMessage({
+      playerId: player.id,
+      roomId: room.id,
+      text,
+    });
     const chatMessage = {
-      createdAt: Date.now(),
-      id: `chat_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-      moderation: {
-        flags: [],
-        reason: null,
-        reviewedAt: null,
-        status: "accepted",
-      },
+      createdAt,
+      id: `chat_${createdAt}_${Math.random().toString(36).slice(2, 8)}`,
+      moderation,
       playerId: player.id,
       playerName: player.name,
       text,
       tone: "player",
     };
 
-    room.chatMessages = [chatMessage, ...(room.chatMessages || [])].slice(0, 100);
+    if (moderation.status === "blocked") {
+      await this.recordTableChatModerationEvent(
+        room,
+        chatMessage,
+        "CHAT_MESSAGE_BLOCKED"
+      );
+      throw new Error(
+        moderation.reason ||
+          "Your table chat message was blocked because it violates chat safety rules."
+      );
+    }
+
+    room.chatMessages = [chatMessage, ...(room.chatMessages || [])].slice(
+      0,
+      TABLE_CHAT_HISTORY_LIMIT
+    );
     await this.persistRoom(room);
+
+    if (moderation.status === "pending-review") {
+      await this.recordTableChatModerationEvent(
+        room,
+        chatMessage,
+        "CHAT_MESSAGE_FLAGGED"
+      );
+    }
+
     this.io.to(room.id).emit("table:chat:message", {
       chatMessage,
       roomId: room.id,
