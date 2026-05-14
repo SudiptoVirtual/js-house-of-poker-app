@@ -30,21 +30,51 @@ const { initPlayerGameSocket } = require("./sockets/playerGameSocket");
 dotenv.config();
 connectDB();
 
+const parseAllowedOrigins = (origins = "") =>
+  origins
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+
+const localDevelopmentOrigins = [
+  "http://localhost:3000",
+  "http://localhost:5173",
+  "http://localhost:8081",
+  "http://127.0.0.1:3000",
+  "http://127.0.0.1:5173",
+  "http://127.0.0.1:8081",
+];
+
+const isProduction = process.env.NODE_ENV === "production";
+const allowedOrigins = new Set([
+  ...parseAllowedOrigins(process.env.ALLOWED_ORIGINS),
+  ...(!isProduction ? localDevelopmentOrigins : []),
+]);
+
+const corsOptions = {
+  origin(origin, callback) {
+    if (!origin || allowedOrigins.has(origin)) {
+      callback(null, true);
+      return;
+    }
+
+    callback(new Error(`CORS origin not allowed: ${origin}`));
+  },
+  methods: ["GET", "POST", "PATCH", "PUT", "DELETE"],
+};
+
 const app = express();
 const server = http.createServer(app);
 
 const io = new Server(server, {
-  cors: {
-    origin: "*",
-    methods: ["GET", "POST", "PATCH", "PUT", "DELETE"],
-  },
+  cors: corsOptions,
 });
 
 setIO(io);
 initAdminLiveSocket(io);
 initPlayerGameSocket(io);
 
-app.use(cors());
+app.use(cors(corsOptions));
 app.use(express.json());
 
 
