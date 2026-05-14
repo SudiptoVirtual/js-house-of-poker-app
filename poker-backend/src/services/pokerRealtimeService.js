@@ -25,6 +25,10 @@ const DEFAULT_BUY_IN = Math.max(
   BIG_BLIND * 10,
   Number.parseInt(process.env.POKER_DEFAULT_BUY_IN || "1000", 10)
 );
+const DISCONNECT_GRACE_PERIOD_MS = Math.max(
+  0,
+  Number.parseInt(process.env.POKER_DISCONNECT_GRACE_MS || "30000", 10)
+);
 const MAX_PLAYERS = 6;
 const MIN_PLAYERS_TO_START = 2;
 const LOG_LIMIT = 32;
@@ -1172,6 +1176,48 @@ class PokerRealtimeService {
     this.io = io;
     this.rooms = new Map();
     this.sessions = new Map();
+    this.pendingDisconnectTimers = new Map();
+  }
+
+  getDisconnectTimerKey(roomId, playerId) {
+    return `${roomId}:${playerId}`;
+  }
+
+  clearPendingDisconnect(roomId, playerId) {
+    const timerKey = this.getDisconnectTimerKey(roomId, playerId);
+    const timer = this.pendingDisconnectTimers.get(timerKey);
+
+    if (timer) {
+      clearTimeout(timer);
+      this.pendingDisconnectTimers.delete(timerKey);
+    }
+  }
+
+  hasPendingDisconnect(roomId, playerId) {
+    return this.pendingDisconnectTimers.has(
+      this.getDisconnectTimerKey(roomId, playerId)
+    );
+  }
+
+  schedulePendingDisconnect(room, player) {
+    this.clearPendingDisconnect(room.id, player.id);
+
+    const timerKey = this.getDisconnectTimerKey(room.id, player.id);
+    const removalDeadlineAt = player.disconnectedRemovalDeadlineAt;
+    const timer = setTimeout(() => {
+      this.expireDisconnectedPlayer(room.id, player.id, removalDeadlineAt).catch(
+        (error) => {
+          // Do not crash the socket server if the delayed cleanup fails.
+          console.error("Failed to expire disconnected poker player", error);
+        }
+      );
+    }, DISCONNECT_GRACE_PERIOD_MS);
+
+    if (typeof timer.unref === "function") {
+      timer.unref();
+    }
+
+    this.pendingDisconnectTimers.set(timerKey, timer);
   }
 
   extractToken(socket, payload = {}) {
@@ -1458,9 +1504,19 @@ class PokerRealtimeService {
 
     const existingPlayer = getPlayer(room, user._id.toString());
     if (existingPlayer) {
+      if (
+        existingPlayer.pendingRemoval &&
+        !this.hasPendingDisconnect(room.id, existingPlayer.id)
+      ) {
+        throw new Error("Your previous table session has expired.");
+      }
+
+      this.clearPendingDisconnect(room.id, existingPlayer.id);
       existingPlayer.socketId = socket.id;
       existingPlayer.isConnected = true;
       existingPlayer.pendingRemoval = false;
+      delete existingPlayer.disconnectedAt;
+      delete existingPlayer.disconnectedRemovalDeadlineAt;
       existingPlayer.name = user.name;
       existingPlayer.avatar = user.avatar || "";
       existingPlayer.playerStatus = user.playerStatus?.tier || "NO_STATUS";
@@ -1543,6 +1599,82 @@ class PokerRealtimeService {
     return { room, session };
   }
 
+  applyExpiredDisconnectToHand(room, player, reason = "disconnect_timeout") {
+    if (
+      !room.hand ||
+      room.hand.phase === "completed" ||
+      !room.hand.players[player.id]
+    ) {
+      return;
+    }
+
+    if (is357Game(room)) {
+      const roundSize = Number(room.hand.phase.slice(-1));
+      if (
+        Number.isInteger(roundSize) &&
+        THREE_FIVE_SEVEN_TABLE.rounds.includes(roundSize)
+      ) {
+        const lockedDecision =
+          room.hand.threeFiveSeven.decisionHistoryByPlayerId[player.id]?.[
+            roundSize
+          ] || null;
+        if (lockedDecision == null) {
+          room.hand.threeFiveSeven.decisionHistoryByPlayerId[player.id][
+            roundSize
+          ] = "STAY";
+          room.hand.threeFiveSeven.finalDecisionByPlayerId[player.id] = "STAY";
+          ensureThreeFiveSevenState(room).hiddenDecisionState.historyByPlayerId[
+            player.id
+          ][roundSize] = "STAY";
+        }
+      }
+      addLog(
+        room,
+        reason === "left"
+          ? `${player.name} left the table and unresolved 357 decisions are treated as STAY.`
+          : `${player.name} did not reconnect in time; unresolved 357 decisions are treated as STAY.`
+      );
+    } else {
+      const handPlayer = room.hand.players[player.id];
+      if (!handPlayer.folded && !handPlayer.allIn) {
+        handPlayer.folded = true;
+        handPlayer.hasActed = true;
+        addLog(
+          room,
+          reason === "left"
+            ? `${player.name} left the table and folded.`
+            : `${player.name} did not reconnect in time and folded.`
+        );
+      }
+    }
+
+    advanceGame(room);
+  }
+
+  async finalizeDisconnectedPlayerRemoval(
+    room,
+    player,
+    reason = "disconnect_timeout"
+  ) {
+    player.pendingRemoval = true;
+    player.isConnected = false;
+    player.socketId = null;
+
+    this.applyExpiredDisconnectToHand(room, player, reason);
+
+    if (room.hand?.phase === "completed") {
+      await this.persistRoom(room);
+    }
+
+    if (!room.hand || room.hand.phase === "completed") {
+      await this.removePendingPlayers(room);
+    }
+
+    if (!getPlayer(room, room.hostId)) {
+      room.hostId = buildPlayerRuntimeMap(room.players)[0]?.id || null;
+    }
+  }
+
   async removePendingPlayers(room) {
     if (room.hand && room.hand.phase !== "completed") {
       return;
@@ -1551,6 +1683,7 @@ class PokerRealtimeService {
     const leavingPlayers = room.players.filter((player) => player.pendingRemoval);
 
     for (const player of leavingPlayers) {
+      this.clearPendingDisconnect(room.id, player.id);
       if (player.chips > 0) {
         await User.findByIdAndUpdate(player.userId, {
           $inc: { chips: player.chips },
@@ -1995,6 +2128,79 @@ class PokerRealtimeService {
     await this.emitRoomState(room);
   }
 
+  async markPlayerTemporarilyDisconnected(socket) {
+    const session = this.sessions.get(socket.id);
+    if (!session) {
+      return;
+    }
+
+    const room = await this.loadRoom(session.roomId).catch(() => null);
+    this.sessions.delete(socket.id);
+
+    if (!room) {
+      return;
+    }
+
+    const player = getPlayer(room, session.playerId);
+    if (!player) {
+      return;
+    }
+
+    player.isConnected = false;
+    player.pendingRemoval = false;
+    player.socketId = null;
+    player.disconnectedAt = Date.now();
+    player.disconnectedRemovalDeadlineAt =
+      player.disconnectedAt + DISCONNECT_GRACE_PERIOD_MS;
+
+    addLog(
+      room,
+      `${player.name} disconnected. Holding their seat for ${Math.ceil(
+        DISCONNECT_GRACE_PERIOD_MS / 1000
+      )} seconds.`
+    );
+
+    this.schedulePendingDisconnect(room, player);
+    await this.persistRoom(room);
+    await this.emitRoomState(room);
+  }
+
+  async expireDisconnectedPlayer(roomId, playerId, removalDeadlineAt) {
+    const timerKey = this.getDisconnectTimerKey(roomId, playerId);
+    this.pendingDisconnectTimers.delete(timerKey);
+
+    const room = await this.loadRoom(roomId).catch(() => null);
+    if (!room) {
+      return;
+    }
+
+    const player = getPlayer(room, playerId);
+    if (
+      !player ||
+      player.isConnected ||
+      player.socketId ||
+      player.disconnectedRemovalDeadlineAt !== removalDeadlineAt
+    ) {
+      return;
+    }
+
+    await this.finalizeDisconnectedPlayerRemoval(room, player);
+    await this.persistRoom(room);
+    await logTableEvent({
+      createdById: player.id,
+      createdByType: "player",
+      eventType: "PLAYER_LEFT_TABLE",
+      message: `${player.name} was removed from table ${room.id} after disconnect grace period`,
+      payload: {
+        disconnectGracePeriodMs: DISCONNECT_GRACE_PERIOD_MS,
+        roomId: room.id,
+      },
+      tableId: room.tableDbId,
+    });
+    await this.emitRoomState(room);
+    await this.cleanupRoomIfEmpty(room);
+  }
+
   async leaveRoom(socket, { silent = false } = {}) {
     const session = this.sessions.get(socket.id);
     if (!session) {
@@ -2026,57 +2232,8 @@ class PokerRealtimeService {
       return;
     }
 
-    player.isConnected = false;
-    player.pendingRemoval = true;
-    player.socketId = null;
-
-    if (room.hand && room.hand.phase !== "completed" && room.hand.players[player.id]) {
-      if (is357Game(room)) {
-        const roundSize = Number(room.hand.phase.slice(-1));
-        if (
-          Number.isInteger(roundSize) &&
-          THREE_FIVE_SEVEN_TABLE.rounds.includes(roundSize)
-        ) {
-          const lockedDecision =
-            room.hand.threeFiveSeven.decisionHistoryByPlayerId[player.id]?.[
-              roundSize
-            ] || null;
-          if (lockedDecision == null) {
-            room.hand.threeFiveSeven.decisionHistoryByPlayerId[player.id][
-              roundSize
-            ] = "STAY";
-            room.hand.threeFiveSeven.finalDecisionByPlayerId[player.id] = "STAY";
-            ensureThreeFiveSevenState(room).hiddenDecisionState.historyByPlayerId[
-              player.id
-            ][roundSize] = "STAY";
-          }
-        }
-        addLog(
-          room,
-          `${player.name} left the table and unresolved 357 decisions are treated as STAY.`
-        );
-      } else {
-        const handPlayer = room.hand.players[player.id];
-        if (!handPlayer.folded && !handPlayer.allIn) {
-          handPlayer.folded = true;
-          handPlayer.hasActed = true;
-          addLog(room, `${player.name} left the table and folded.`);
-        }
-      }
-      advanceGame(room);
-    }
-
-    if (room.hand?.phase === "completed") {
-      await this.persistRoom(room);
-    }
-
-    if (!room.hand || room.hand.phase === "completed") {
-      await this.removePendingPlayers(room);
-    }
-
-    if (!getPlayer(room, room.hostId)) {
-      room.hostId = buildPlayerRuntimeMap(room.players)[0]?.id || null;
-    }
+    this.clearPendingDisconnect(room.id, player.id);
+    await this.finalizeDisconnectedPlayerRemoval(room, player, "left");
 
     await this.persistRoom(room);
     await logTableEvent({
@@ -2257,9 +2414,22 @@ class PokerRealtimeService {
       return;
     }
 
+    if (
+      player.pendingRemoval &&
+      !this.hasPendingDisconnect(room.id, player.id)
+    ) {
+      socket.emit("session:resume_failed", {
+        message: "Your previous table session has expired.",
+      });
+      return;
+    }
+
     player.socketId = socket.id;
     player.isConnected = true;
     player.pendingRemoval = false;
+    this.clearPendingDisconnect(room.id, player.id);
+    delete player.disconnectedAt;
+    delete player.disconnectedRemovalDeadlineAt;
     this.sessions.set(socket.id, {
       playerId: player.id,
       roomId: room.id,

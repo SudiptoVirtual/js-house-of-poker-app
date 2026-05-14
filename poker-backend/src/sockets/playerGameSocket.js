@@ -126,7 +126,7 @@ function initPlayerGameSocket(io) {
 
     socket.on("disconnect", () => {
       withSocketErrorBoundary(socket, () =>
-        realtimeService.leaveRoom(socket, { silent: true })
+        realtimeService.markPlayerTemporarilyDisconnected(socket)
       );
     });
   });
