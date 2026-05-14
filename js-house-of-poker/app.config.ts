@@ -6,6 +6,7 @@ const baseConfig = require('./app.json').expo as {
 type AppEnvironment = 'development' | 'preview' | 'production';
 
 const DEFAULT_API_TIMEOUT = '15000';
+const DEFAULT_POKER_SOCKET_PROTOCOL = 'table-v1';
 const PRODUCTION_API_BASE_URL = 'https://www.jshouseofpoker.com';
 
 const defaultApiBaseUrls: Record<AppEnvironment, string> = {
@@ -18,6 +19,7 @@ const defaultPublicEnv = {
   EXPO_PUBLIC_API_TIMEOUT: DEFAULT_API_TIMEOUT,
   EXPO_PUBLIC_POKER_TRANSPORT: 'local',
   EXPO_PUBLIC_POKER_SOCKET_URL: '',
+  EXPO_PUBLIC_POKER_SOCKET_PROTOCOL: DEFAULT_POKER_SOCKET_PROTOCOL,
   EXPO_PUBLIC_FIREBASE_API_KEY: 'AIzaSyBQjIklN4IJAQCh-U8NxHmxQnl2KyCcazA',
   EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN: 'j-s-house-of-poker-2f734.firebaseapp.com',
   EXPO_PUBLIC_FIREBASE_PROJECT_ID: 'j-s-house-of-poker-2f734',
@@ -54,16 +56,29 @@ const apiBaseUrl =
   readEnv('EXPO_PUBLIC_API_BASE_URL') ||
   readEnv('EXPO_PUBLIC_BASE_URL') ||
   defaultApiBaseUrls[appEnvironment];
+const pokerTransport =
+  readEnv('EXPO_PUBLIC_POKER_TRANSPORT') ||
+  (appEnvironment === 'production' ? 'socket' : defaultPublicEnv.EXPO_PUBLIC_POKER_TRANSPORT);
+const pokerSocketUrl =
+  readEnv('EXPO_PUBLIC_POKER_SOCKET_URL') || defaultPublicEnv.EXPO_PUBLIC_POKER_SOCKET_URL;
+const pokerSocketProtocol =
+  readEnv('EXPO_PUBLIC_POKER_SOCKET_PROTOCOL') ||
+  defaultPublicEnv.EXPO_PUBLIC_POKER_SOCKET_PROTOCOL;
+
+if (appEnvironment === 'production' && pokerTransport === 'socket' && !pokerSocketUrl) {
+  throw new Error(
+    'APP_ENV=production requires EXPO_PUBLIC_POKER_SOCKET_URL when EXPO_PUBLIC_POKER_TRANSPORT=socket.',
+  );
+}
 
 const publicEnv = {
   ...defaultPublicEnv,
   EXPO_PUBLIC_API_BASE_URL: apiBaseUrl,
   EXPO_PUBLIC_BASE_URL: apiBaseUrl,
   EXPO_PUBLIC_API_TIMEOUT: readEnv('EXPO_PUBLIC_API_TIMEOUT') || DEFAULT_API_TIMEOUT,
-  EXPO_PUBLIC_POKER_TRANSPORT:
-    readEnv('EXPO_PUBLIC_POKER_TRANSPORT') || defaultPublicEnv.EXPO_PUBLIC_POKER_TRANSPORT,
-  EXPO_PUBLIC_POKER_SOCKET_URL:
-    readEnv('EXPO_PUBLIC_POKER_SOCKET_URL') || defaultPublicEnv.EXPO_PUBLIC_POKER_SOCKET_URL,
+  EXPO_PUBLIC_POKER_TRANSPORT: pokerTransport,
+  EXPO_PUBLIC_POKER_SOCKET_URL: pokerSocketUrl,
+  EXPO_PUBLIC_POKER_SOCKET_PROTOCOL: pokerSocketProtocol,
   EXPO_PUBLIC_FIREBASE_API_KEY:
     readEnv('EXPO_PUBLIC_FIREBASE_API_KEY') || defaultPublicEnv.EXPO_PUBLIC_FIREBASE_API_KEY,
   EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN:
