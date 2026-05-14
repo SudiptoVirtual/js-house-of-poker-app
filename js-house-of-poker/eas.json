@@ -22,7 +22,10 @@
     },
     "production": {
       "env": {
-        "APP_ENV": "production"
+        "APP_ENV": "production",
+        "EXPO_PUBLIC_POKER_TRANSPORT": "socket",
+        "EXPO_PUBLIC_POKER_SOCKET_URL": "https://www.jshouseofpoker.com",
+        "EXPO_PUBLIC_POKER_SOCKET_PROTOCOL": "table-v1"
       },
       "autoIncrement": true
     }
