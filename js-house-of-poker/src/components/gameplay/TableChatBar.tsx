@@ -21,6 +21,8 @@ import {
 
 const gamePlayIcon = require('../../../assets/images/game-play-icon.png');
 
+const INCOMING_CHAT_TOAST_TIMEOUT_MS = 4000;
+
 type Props = {
   chatNotificationCount?: number;
   connectedCount: number;
@@ -30,6 +32,7 @@ type Props = {
   onInvitePress?: () => void;
   onSendMessage: (message: string) => void;
   onToggleTopBar?: () => void;
+  selfId: string | null;
   roomId: string;
   tableName: string;
   transportLabel?: string;
@@ -82,6 +85,7 @@ export function TableChatBar({
   onInvitePress,
   onSendMessage,
   onToggleTopBar,
+  selfId,
   roomId,
   tableName,
   transportLabel = 'Realtime',
@@ -92,6 +96,9 @@ export function TableChatBar({
   const [isComposeFocused, setIsComposeFocused] = useState(false);
   const [openPanel, setOpenPanel] = useState<'messages' | 'notifications' | null>(null);
   const pendingSentRef = useRef<string | null>(null);
+  const seenMessageIdsRef = useRef(new Set(messages.map((message) => message.id)));
+  const incomingChatToastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [incomingChatMessage, setIncomingChatMessage] = useState<PokerTableChatMessage | null>(null);
   const isCompact = width < 620 && height > width;
   const normalizedDraft = normalizeTableChatText(draft);
   const canSend = normalizedDraft.length > 0;
@@ -123,6 +130,44 @@ export function TableChatBar({
       setDraft((current) => (normalizeTableChatText(current) === pendingText ? '' : current));
     }
   }, [messages]);
+
+  useEffect(() => {
+    const seenMessageIds = seenMessageIdsRef.current;
+    const newMessages = messages.filter((message) => !seenMessageIds.has(message.id));
+    const latestIncomingMessage = newMessages
+      .filter((message) => message.playerId !== null && message.playerId !== selfId)
+      .at(-1);
+
+    messages.forEach((message) => {
+      seenMessageIds.add(message.id);
+    });
+
+    if (latestIncomingMessage) {
+      setIncomingChatMessage(latestIncomingMessage);
+    }
+  }, [messages, selfId]);
+
+  useEffect(() => {
+    if (!incomingChatMessage) {
+      return undefined;
+    }
+
+    if (incomingChatToastTimerRef.current) {
+      clearTimeout(incomingChatToastTimerRef.current);
+    }
+
+    incomingChatToastTimerRef.current = setTimeout(() => {
+      setIncomingChatMessage(null);
+      incomingChatToastTimerRef.current = null;
+    }, INCOMING_CHAT_TOAST_TIMEOUT_MS);
+
+    return () => {
+      if (incomingChatToastTimerRef.current) {
+        clearTimeout(incomingChatToastTimerRef.current);
+        incomingChatToastTimerRef.current = null;
+      }
+    };
+  }, [incomingChatMessage]);
 
   useEffect(() => {
     if (!isTopBarExpanded) {
@@ -163,6 +208,30 @@ export function TableChatBar({
           size={gameplayLayoutConfig.topBar.menuIconSize}
         />
       </Pressable>
+    );
+  }
+
+  function renderIncomingChatToast() {
+    if (!incomingChatMessage) {
+      return null;
+    }
+
+    const constrainedText = normalizeTableChatText(incomingChatMessage.text);
+
+    return (
+      <View pointerEvents="none" style={styles.incomingChatToast}>
+        <View style={styles.incomingChatToastIcon}>
+          <MaterialCommunityIcons color="#F7F4FF" name="message-text" size={16} />
+        </View>
+        <View style={styles.incomingChatToastCopy}>
+          <Text numberOfLines={1} style={styles.incomingChatToastTitle}>
+            {incomingChatMessage.playerName}
+          </Text>
+          <Text numberOfLines={2} style={styles.incomingChatToastText}>
+            {constrainedText}
+          </Text>
+        </View>
+      </View>
     );
   }
 
@@ -219,6 +288,7 @@ export function TableChatBar({
         style={[styles.shell, styles.shellCollapsed]}
       >
         {renderTopBarToggle()}
+        {renderIncomingChatToast()}
       </LinearGradient>
     );
   }
@@ -235,6 +305,7 @@ export function TableChatBar({
           {renderTopBarToggle()}
           <View style={styles.composePriorityShell}>{renderComposeRail()}</View>
         </View>
+        {renderIncomingChatToast()}
       </LinearGradient>
     );
   }
@@ -311,6 +382,8 @@ export function TableChatBar({
         </View>
       </View>
 
+
+      {renderIncomingChatToast()}
 
       {openPanel ? (
         <View style={styles.popover}>
@@ -444,6 +517,54 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '900',
     letterSpacing: 0.6,
+  },
+  incomingChatToast: {
+    alignItems: 'center',
+    alignSelf: 'center',
+    backgroundColor: 'rgba(38, 15, 72, 0.98)',
+    borderColor: 'rgba(215, 128, 255, 0.54)',
+    borderRadius: 16,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 10,
+    maxWidth: 360,
+    minHeight: 58,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    position: 'absolute',
+    shadowColor: '#B35CFF',
+    shadowOffset: { height: 8, width: 0 },
+    shadowOpacity: 0.28,
+    shadowRadius: 18,
+    top: 54,
+    width: '70%',
+    zIndex: 120,
+  },
+  incomingChatToastCopy: {
+    flex: 1,
+    minWidth: 0,
+  },
+  incomingChatToastIcon: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(179, 92, 255, 0.48)',
+    borderRadius: 999,
+    height: 30,
+    justifyContent: 'center',
+    width: 30,
+  },
+  incomingChatToastText: {
+    color: '#F7F4FF',
+    fontSize: 13,
+    fontWeight: '700',
+    lineHeight: 17,
+  },
+  incomingChatToastTitle: {
+    color: '#F2C9FF',
+    fontSize: 11,
+    fontWeight: '900',
+    letterSpacing: 0.5,
+    marginBottom: 2,
+    textTransform: 'uppercase',
   },
   logoFrame: {
     height: 38,

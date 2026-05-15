@@ -1167,6 +1167,7 @@ export function GameScreen({ navigation }: Props) {
       onInvitePress={() => navigation.navigate(routes.PlayerDirectory)}
       onSendMessage={sendTableChatMessage}
       onToggleTopBar={() => setIsTopBarExpanded((current) => !current)}
+      selfId={currentTableState.selfId}
       roomId={currentTableState.roomId ?? 'Table'}
       tableName={currentTableState.tableName}
       transportLabel={transportLabel}
