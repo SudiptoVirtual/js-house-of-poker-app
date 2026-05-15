@@ -33,6 +33,13 @@ export function normalizeTableChatText(value: string) {
   return value.replace(/\s+/g, ' ').trim().slice(0, TABLE_CHAT_MESSAGE_CHAR_LIMIT);
 }
 
+export function getVisibleTableChatMessages(
+  messages: PokerTableChatMessage[],
+  limit = 3,
+) {
+  return messages.slice(-limit);
+}
+
 export function appendTableChatMessage(
   messages: PokerTableChatMessage[],
   nextMessage: PokerTableChatMessage,

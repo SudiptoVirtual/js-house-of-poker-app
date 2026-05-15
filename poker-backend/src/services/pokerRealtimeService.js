@@ -2542,9 +2542,8 @@ class PokerRealtimeService {
       );
     }
 
-    room.chatMessages = [chatMessage, ...(room.chatMessages || [])].slice(
-      0,
-      TABLE_CHAT_HISTORY_LIMIT
+    room.chatMessages = [...(room.chatMessages || []), chatMessage].slice(
+      -TABLE_CHAT_HISTORY_LIMIT
     );
     await this.persistRoom(room);
 

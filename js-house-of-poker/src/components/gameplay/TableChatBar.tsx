@@ -14,6 +14,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { gameplayLayoutConfig } from './layoutConfig';
 import type { PokerTableChatMessage } from '../../types/poker';
 import {
+  getVisibleTableChatMessages,
   normalizeTableChatText,
   TABLE_CHAT_EMOJI_OPTIONS,
   TABLE_CHAT_MESSAGE_CHAR_LIMIT,
@@ -103,7 +104,7 @@ export function TableChatBar({
   const normalizedDraft = normalizeTableChatText(draft);
   const canSend = normalizedDraft.length > 0;
   const shouldPrioritizeCompose = isCompact && (isComposeFocused || canSend);
-  const tickerMessages = useMemo(() => messages.slice(-3), [messages]);
+  const tickerMessages = useMemo(() => getVisibleTableChatMessages(messages), [messages]);
   const notificationHeadlines = useMemo(() => {
     const pendingInvites = inviteNotificationCount > 0
       ? [`${inviteNotificationCount} pending table invite${inviteNotificationCount === 1 ? '' : 's'}.`]
