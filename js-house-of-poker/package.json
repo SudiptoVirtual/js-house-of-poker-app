@@ -9,7 +9,9 @@
     "web": "expo start --web",
     "server": "node server/index.js",
     "test:357": "node server/tests/threeFiveSeven.engine.test.js",
-    "typecheck": "tsc --noEmit -p tsconfig.json"
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test:357:qa-fixtures": "node server/tests/threeFiveSeven.qaFixtures.test.js",
+    "test:357:all": "npm run test:357 && npm run test:357:qa-fixtures"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.1.1",
