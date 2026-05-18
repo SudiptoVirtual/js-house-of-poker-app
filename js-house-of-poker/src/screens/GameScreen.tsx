@@ -89,7 +89,6 @@ type ThreeFiveSevenRevealPreview = {
   winnerIds: string[];
 };
 
-
 function joinCompactNames(names: string[]) {
   if (names.length <= 1) {
     return names[0] ?? '';
@@ -126,7 +125,7 @@ function buildThreeFiveSevenSummary(
   }
 
   if (resolution.outcome === 'solo_go') {
-    return `${winnerLabel} went GO alone and gained 1 leg.`;
+    return `${winnerLabel} went GO alone.`;
   }
 
   const resultLead =

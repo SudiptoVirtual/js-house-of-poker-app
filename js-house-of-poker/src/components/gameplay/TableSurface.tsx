@@ -144,7 +144,8 @@ export function TableSurface({
   const is357 =
     state.gameSettings.game === '357' && Boolean(state.threeFiveSeven);
   const threeFiveSevenState = state.threeFiveSeven;
-  const threeFiveSevenLastResolution = threeFiveSevenState?.lastResolution ?? null;
+  const threeFiveSevenLastResolution =
+    threeFiveSevenState?.lastResolution ?? null;
   const tableSurfaceOffsetY = is357
     ? threeFiveSevenTableSurfaceOffsetY
     : standardPokerTableSurfaceOffsetY;
@@ -159,8 +160,7 @@ export function TableSurface({
     : 'hidden';
   const useResolved357Outcome =
     revealState === 'resolved' ||
-    (state.phase === 'completed' &&
-      Boolean(threeFiveSevenLastResolution));
+    (state.phase === 'completed' && Boolean(threeFiveSevenLastResolution));
   const revealedDecisions = is357
     ? (threeFiveSevenPreview?.revealedDecisions ??
       (useResolved357Outcome
@@ -189,15 +189,6 @@ export function TableSurface({
         : {}) ??
       {})
     : {};
-  const showThreeFiveSevenResultSummary = Boolean(
-    is357 &&
-      threeFiveSevenLastResolution &&
-      (threeFiveSevenPreview?.revealState === 'resolved' ||
-        (revealState === 'resolved' &&
-          (threeFiveSevenLastResolution.handNumber === state.handNumber ||
-            state.phase === 'completed' ||
-            state.phase === 'resolve'))),
-  );
   const showDecisionMode =
     is357 &&
     (state.phase === 'decide_3' ||
@@ -428,7 +419,6 @@ export function TableSurface({
                           <ThreeFiveSevenCenterBoard
                             revealedDecisions={revealedDecisions}
                             revealState={revealState}
-                            resultSummaryVisible={showThreeFiveSevenResultSummary}
                             showdownDescriptions={showdownDescriptions}
                             state={state}
                             statusText={headlineText}
@@ -471,6 +461,11 @@ export function TableSurface({
                       ? (revealedDecisions[descriptor.player.id] ??
                         descriptor.player.revealedDecision)
                       : null;
+                  const resolvedLegCount = is357
+                    ? (state.threeFiveSeven?.legsByPlayerId[
+                        descriptor.player.id
+                      ] ?? descriptor.player.legs)
+                    : descriptor.player.legs;
                   const seatZIndex = isSelf
                     ? 16
                     : descriptor.isBottomSeat
@@ -514,6 +509,7 @@ export function TableSurface({
                           isLoser={isLoser}
                           isSelf={isSelf}
                           isWinner={isWinner}
+                          legCount={resolvedLegCount}
                           phase={state.phase}
                           player={descriptor.player}
                           showdownDescription={
@@ -529,6 +525,7 @@ export function TableSurface({
                           isBottomSeat={descriptor.isBottomSeat}
                           isSelf={isSelf}
                           isWinner={isWinner}
+                          legCount={resolvedLegCount}
                           phase={state.phase}
                           player={descriptor.player}
                         />
