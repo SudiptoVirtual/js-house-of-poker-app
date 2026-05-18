@@ -189,6 +189,10 @@ const tests = [
       );
       assert.equal(room.threeFiveSeven.legsByPlayerId[soloGoPlayerId], 1);
       assert.equal(
+        room.threeFiveSeven.lastResolution?.legsByPlayerId[soloGoPlayerId],
+        1,
+      );
+      assert.equal(
         room.threeFiveSeven.lastResolution?.payoutByPlayerId[soloGoPlayerId],
         3,
       );
@@ -196,6 +200,58 @@ const tests = [
       const roomState = game.buildRoomState(room, host.id);
       const winnerState = roomState.players.find((player) => player.id === soloGoPlayerId);
       assert.equal(winnerState?.legs, 1);
+      assert.equal(roomState.threeFiveSeven?.legsByPlayerId[soloGoPlayerId], 1);
+      assert.equal(
+        roomState.threeFiveSeven?.lastResolution?.legDeltaByPlayerId[soloGoPlayerId],
+        1,
+      );
+      assert.equal(
+        roomState.threeFiveSeven?.lastResolution?.legsByPlayerId[soloGoPlayerId],
+        1,
+      );
+      assert.equal(
+        roomState.threeFiveSeven?.lastResolution?.payoutByPlayerId[soloGoPlayerId],
+        3,
+      );
+      assert.equal(roomState.threeFiveSeven?.lastResolution?.potAfterResolution, 0);
+    },
+  ],
+
+  [
+    'six kings with no other GO players wins the pot and earns exactly one leg',
+    () => {
+      const { players, room } = setup357Room({ mode: 'HOSTEST' });
+      const [hero, left, right] = players;
+
+      forceFinalRound(
+        room,
+        {
+          [hero.id]: ['Ks', 'Kh', 'Kd', 'Kc', '3s', '5h', '7d'],
+          [left.id]: ['As', 'Qh', 'Jd', '9c', '8s', '4h', '2d'],
+          [right.id]: ['Ah', 'Qs', 'Jc', '9d', '8h', '4s', '2c'],
+        },
+        { mode: 'HOSTEST', pot: 11 },
+      );
+      room.hand.currentPlayerId = hero.id;
+
+      act(room, 'go');
+      act(room, 'stay');
+      act(room, 'stay');
+
+      const resolution = room.threeFiveSeven.lastResolution;
+      assert.equal(resolution?.outcome, 'solo_go');
+      assert.deepEqual(resolution?.goPlayerIds, [hero.id]);
+      assert.deepEqual(resolution?.winnerIds, [hero.id]);
+      assert.equal(resolution?.potAwarded, 11);
+      assert.equal(resolution?.potAfterResolution, 0);
+      assert.equal(resolution?.legDeltaByPlayerId[hero.id], 1);
+      assert.equal(resolution?.legsByPlayerId[hero.id], 1);
+      assert.equal(room.threeFiveSeven.legsByPlayerId[hero.id], 1);
+      assert.equal(resolution?.legDeltaByPlayerId[left.id], 0);
+      assert.equal(resolution?.legDeltaByPlayerId[right.id], 0);
+      assert.equal(resolution?.payoutByPlayerId[hero.id], 11);
+      assert.equal(resolution?.payoutByPlayerId[left.id], 0);
+      assert.equal(resolution?.payoutByPlayerId[right.id], 0);
     },
   ],
   [

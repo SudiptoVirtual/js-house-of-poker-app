@@ -1004,8 +1004,8 @@ function resolve357Cycle(room) {
     room.hand.showdownDescriptions = showdownDescriptions;
     room.lastWinnerSummary =
       winnerIds.length > 1
-        ? `${winnerIds.map((playerId) => getPlayer(room, playerId).name).join(" & ")} split ${winnerPenaltyTotal} chips.`
-        : `${getPlayer(room, winnerIds[0]).name} wins ${winnerPenaltyTotal} chips (${showdownDescriptions[winnerIds[0]]}).`;
+        ? `${winnerIds.map((playerId) => getPlayer(room, playerId).name).join(" & ")} split ${winnerPenaltyTotal} chips. ${loserIds.length} losing GO player(s) each paid ${variantState.penaltyModel.unitToWinner} to the winner side and ${variantState.penaltyModel.unitToPot} to the pot.`
+        : `${getPlayer(room, winnerIds[0]).name} wins ${winnerPenaltyTotal} chips (${showdownDescriptions[winnerIds[0]]}). ${loserIds.length} losing GO player(s) each paid ${variantState.penaltyModel.unitToWinner} to the winner and ${variantState.penaltyModel.unitToPot} to the pot.`;
   }
 
   addLog(room, room.lastWinnerSummary);
@@ -1015,6 +1015,7 @@ function resolve357Cycle(room) {
     goPlayerIds,
     handNumber: room.handCount,
     legDeltaByPlayerId,
+    legsByPlayerId: { ...legsByPlayerId },
     loserIds,
     outcome:
       goPlayerIds.length === 0
@@ -2897,6 +2898,9 @@ class PokerRealtimeService {
                   ...variantState.lastResolution,
                   legDeltaByPlayerId: {
                     ...variantState.lastResolution.legDeltaByPlayerId,
+                  },
+                  legsByPlayerId: {
+                    ...variantState.lastResolution.legsByPlayerId,
                   },
                   payoutByPlayerId: {
                     ...variantState.lastResolution.payoutByPlayerId,

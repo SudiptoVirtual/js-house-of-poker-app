@@ -142,6 +142,7 @@ export type Poker357Resolution = {
   goPlayerIds: string[];
   handNumber: number;
   legDeltaByPlayerId: Record<string, number>;
+  legsByPlayerId: Record<string, number>;
   loserIds: string[];
   outcome: 'no_go' | 'solo_go' | 'showdown' | 'showdown_tie';
   payoutByPlayerId: Record<string, number>;
