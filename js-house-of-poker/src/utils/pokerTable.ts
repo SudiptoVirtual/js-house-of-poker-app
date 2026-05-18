@@ -36,6 +36,7 @@ const HERO_SEAT_VERTICAL_ADJUSTMENT = 5;
 const HERO_SEAT_WIDTH_SCALE = 0.89376;
 const HERO_SEAT_WIDTH_ADJUSTMENT = -4;
 const BET_TO_BOARD_GAP = 28;
+const MAX_SUPPORTED_TABLE_PLAYERS = 7;
 const HERO_ANCHOR = {
   x: 0.5,
   y: 0.84,
@@ -60,8 +61,9 @@ const OPPONENT_LAYOUTS: Record<number, number[]> = {
   3: [0, 3, 4],
   4: [1, 2, 3, 4],
   5: [0, 1, 2, 3, 4],
+  // Six opponents means seven total players; skip the top-center anchor so the
+  // top rail has two separated seats instead of a crowded three-seat cluster.
   6: [1, 2, 3, 4, 5, 6],
-  7: [0, 1, 2, 3, 4, 5, 6],
 };
 
 export type { PlayerStatusTier };
@@ -301,7 +303,7 @@ export function buildSeatDescriptors(
     HERO_SEAT_HEIGHT_ADJUSTMENT;
   const horizontalSeatInset = Math.max(TABLE_EDGE_OVERHANG_X, tableWidth * 0.058);
   const verticalSeatInset = Math.max(TABLE_EDGE_OVERHANG_Y, tableHeight * 0.11);
-  const cappedPlayers = players.slice(0, OPPONENT_ANCHORS.length + 1);
+  const cappedPlayers = players.slice(0, MAX_SUPPORTED_TABLE_PLAYERS);
   const boardSafeHalfWidth = tableWidth * 0.38;
   const boardSafeHalfHeight = tableHeight * 0.27;
   const secondaryBetSafeRx = boardSafeHalfWidth + BET_TO_BOARD_GAP;

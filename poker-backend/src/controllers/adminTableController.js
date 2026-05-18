@@ -5,12 +5,19 @@ const AuditLog = require("../models/AuditLog");
 const allowedGameTypes = ["7/27", "55 Little Red", "357"];
 const allowedStatuses = ["waiting", "active", "paused", "closed"];
 
+const DEFAULT_MAX_PLAYERS = 6;
+const THREE_FIVE_SEVEN_MAX_PLAYERS = 7;
+
+function resolveDefaultMaxPlayers(gameType) {
+  return gameType === "357" ? THREE_FIVE_SEVEN_MAX_PLAYERS : DEFAULT_MAX_PLAYERS;
+}
+
 const createTable = async (req, res) => {
   try {
     const {
       tableName,
       gameType,
-      maxPlayers = 6,
+      maxPlayers,
       ante = 0,
       smallBlind = 0,
       bigBlind = 0,
@@ -39,10 +46,12 @@ const createTable = async (req, res) => {
       });
     }
 
+    const resolvedMaxPlayers = maxPlayers ?? resolveDefaultMaxPlayers(gameType);
+
     const table = await GameTable.create({
       tableName: tableName.trim(),
       gameType,
-      maxPlayers,
+      maxPlayers: resolvedMaxPlayers,
       ante,
       smallBlind,
       bigBlind,
@@ -249,7 +258,11 @@ const updateTableConfig = async (req, res) => {
 
     if (tableName !== undefined) table.tableName = tableName.trim();
     if (gameType !== undefined) table.gameType = gameType;
-    if (maxPlayers !== undefined) table.maxPlayers = maxPlayers;
+    if (maxPlayers !== undefined) {
+      table.maxPlayers = maxPlayers;
+    } else if (gameType !== undefined) {
+      table.maxPlayers = resolveDefaultMaxPlayers(gameType);
+    }
     if (ante !== undefined) table.ante = ante;
     if (smallBlind !== undefined) table.smallBlind = smallBlind;
     if (bigBlind !== undefined) table.bigBlind = bigBlind;

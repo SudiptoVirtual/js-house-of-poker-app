@@ -69,6 +69,7 @@ type LegacyPokerRoomState = {
   hostId: string | null;
   inviteRecipients?: PokerInviteRecipient[] | null;
   lastWinnerSummary: string | null;
+  maxPlayers?: number | null;
   phase: PokerPhase;
   players: LegacyPokerPlayerState[];
   pot: number;
@@ -81,6 +82,11 @@ type LegacyPokerRoomState = {
 };
 
 const DEFAULT_MAX_SEATS = 6;
+const THREE_FIVE_SEVEN_MAX_SEATS = 7;
+
+function getDefaultMaxSeats(game: PokerGameSettings['game']) {
+  return game === '357' ? THREE_FIVE_SEVEN_MAX_SEATS : DEFAULT_MAX_SEATS;
+}
 const DEFAULT_GAME_SETTINGS: PokerGameSettings = {
   game: 'holdem',
   locked: false,
@@ -631,7 +637,11 @@ export function normalizePokerRoomState(
       statusUpdatedAt: normalizeStatusUpdatedAt(player.statusUpdatedAt),
     } satisfies PokerPlayerState;
   });
-  const maxSeats = Math.max(DEFAULT_MAX_SEATS, players.length);
+  const maxSeats = Math.max(
+    getDefaultMaxSeats(gameSettings.game),
+    normalizeNumber(roomState.maxPlayers),
+    players.length,
+  );
   const seats = buildSeats(players, maxSeats);
   const communityCardStates = roomState.communityCards.map((code, order) =>
     createCardState(code, null, order, 'face-up'),
@@ -923,3 +933,158 @@ export function toPokerActionEmitter(
 ) {
   return emitters[type];
 }
+
+const SEVEN_PLAYER_357_VISUAL_QA_PLAYER_NAMES = [
+  'Hero',
+  'Thor',
+  'Artie',
+  'Poker4Ever',
+  'Ullii67',
+  'vossell',
+  'RiverRita',
+] as const;
+
+function createSevenPlayer357VisualQAStatusSnapshot(): PokerPlayerState['statusSnapshot'] {
+  return {
+    invitePriority: 0,
+    lastUpdatedAt: null,
+    recentHands: 0,
+    recentScore: 0,
+    reputation: 0,
+    sharkWins: 0,
+    strongTableWins: 0,
+    windowSize: 20,
+  };
+}
+
+function createSevenPlayer357VisualQAPlayer(name: string, seatIndex: number): PokerPlayerState {
+  const id = `qa-357-seat-${seatIndex}`;
+
+  return {
+    betThisRound: 0,
+    cardCount: 3,
+    cards: [],
+    chips: 1000 - seatIndex * 25,
+    handDescription: null,
+    hasFolded: false,
+    hasHiddenCards: true,
+    holeCards: [],
+    id,
+    isAllIn: false,
+    isBigBlind: false,
+    isConnected: true,
+    isDealer: seatIndex === 1,
+    isHost: seatIndex === 0,
+    isSmallBlind: false,
+    isTurn: seatIndex === 2,
+    lastAction: null,
+    legs: seatIndex % 3,
+    name,
+    netChipBalance: seatIndex * 40,
+    playerStatus: seatIndex === 5 ? 'SHARK' : 'NO_STATUS',
+    revealedDecision: null,
+    seatIndex,
+    statusMomentum: 0,
+    statusScore: 0,
+    statusSnapshot: createSevenPlayer357VisualQAStatusSnapshot(),
+    statusTier: seatIndex === 5 ? 'shark' : 'none',
+    statusUpdatedAt: null,
+    totalContribution: 0,
+  };
+}
+
+export const SEVEN_PLAYER_357_VISUAL_QA_ROOM_STATE: PokerRoomState = (() => {
+  const players = SEVEN_PLAYER_357_VISUAL_QA_PLAYER_NAMES.map((name, seatIndex) =>
+    createSevenPlayer357VisualQAPlayer(name, seatIndex),
+  );
+  const seats = buildSeats(players, THREE_FIVE_SEVEN_MAX_SEATS);
+  const legsByPlayerId = Object.fromEntries(players.map((player) => [player.id, player.legs]));
+  const historyByPlayerId = Object.fromEntries(
+    players.map((player) => [player.id, { 3: null, 5: null, 7: null }]),
+  );
+
+  return {
+    actionHistory: [],
+    actionLog: ['Visual QA fixture: seven-player 357 table.'],
+    bigBlind: 0,
+    bigBlindPosition: null,
+    chatMessages: [],
+    communityCardStates: [],
+    communityCards: [],
+    controls: {
+      availableActions: ['go', 'stay'],
+      canAct: true,
+      canRebuy: false,
+      canStartHand: false,
+      callAmount: 0,
+      maxRaiseTo: 0,
+      minRaiseTo: 0,
+    },
+    currentBet: 0,
+    currentTurnPlayerId: players[2].id,
+    currentTurnSeat: 2,
+    dealerPosition: 1,
+    economy: null,
+    gameSettings: {
+      game: '357',
+      locked: true,
+      lowRule: '8-or-better',
+      mode: 'HOSTEST',
+      stips: {
+        bestFiveCards: false,
+        hostestWithTheMostest: true,
+        suitedBeatsUnsuited: false,
+        wildCards: false,
+      },
+      wildCards: [],
+    },
+    handNumber: 1,
+    hostId: players[0].id,
+    inviteRecipients: [],
+    lastWinnerSummary: null,
+    maxSeats: THREE_FIVE_SEVEN_MAX_SEATS,
+    minPlayersToStart: 2,
+    phase: 'decide_3',
+    players,
+    pot: 7,
+    roomId: 'QA3577',
+    seats,
+    selfId: players[0].id,
+    smallBlind: 0,
+    smallBlindPosition: null,
+    statusMessage: 'Round 3: seven-player 357 visual QA fixture.',
+    tableId: 'QA3577',
+    tableInvites: [],
+    tableName: 'Seven-player 357 visual QA',
+    threeFiveSeven: {
+      activeRound: 3,
+      activeWildDefinition: {
+        cumulative: true,
+        label: '3s wild',
+        mode: 'HOSTEST',
+        round: 3,
+        wildRanks: ['3'],
+      },
+      anteAmount: 1,
+      hiddenDecisionState: {
+        currentRound: 3,
+        historyByPlayerId,
+        revealedByPlayerId: {},
+      },
+      lastPhaseSequence: ['deal_3', 'decide_3'],
+      lastResolution: null,
+      legsByPlayerId,
+      mode: 'HOSTEST',
+      penaltyModel: {
+        legsToWin: 3,
+        soloGoLegAward: 1,
+        unitToPot: 1,
+        unitToWinner: 1,
+      },
+      pot: 7,
+      revealState: 'hidden',
+      showdownPlayerIds: [],
+    },
+    updatedAt: 1_700_000_000_000,
+  };
+})();

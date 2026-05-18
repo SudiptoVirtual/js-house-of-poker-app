@@ -77,6 +77,7 @@ type InternalRoom = {
   id: string;
   lastDealerId: string | null;
   lastWinnerSummary: string | null;
+  maxPlayers?: number;
   players: InternalPlayer[];
   threeFiveSeven?: {
     activeRound: number | null;
@@ -124,8 +125,15 @@ const pokerGame = require('../../game/pokerEngine') as {
   ) => void;
 };
 
-const BOT_NAMES = ['Thor', 'Artie', 'Poker4Ever', 'Ullii67', 'vossell'];
+const BOT_NAMES = ['Thor', 'Artie', 'Poker4Ever', 'Ullii67', 'vossell', 'RiverRita'];
 const DEFAULT_MAX_SEATS = 6;
+const THREE_FIVE_SEVEN_MAX_SEATS = 7;
+
+function getLocalMaxSeats(targetRoom: InternalRoom | null) {
+  return targetRoom?.gameSettings?.game === '357'
+    ? THREE_FIVE_SEVEN_MAX_SEATS
+    : targetRoom?.maxPlayers ?? DEFAULT_MAX_SEATS;
+}
 
 function estimateLocalLatencyMs() {
   return 12 + Math.round((Date.now() % 37) + Math.random() * 9);
@@ -544,8 +552,10 @@ export function createLocalPokerTransport(): PokerTransport {
       return;
     }
 
-    if (input.seatIndex < 0 || input.seatIndex >= DEFAULT_MAX_SEATS) {
-      pushError(`Seat must be between 1 and ${DEFAULT_MAX_SEATS}.`);
+    const maxSeats = getLocalMaxSeats(room);
+
+    if (input.seatIndex < 0 || input.seatIndex >= maxSeats) {
+      pushError(`Seat must be between 1 and ${maxSeats}.`);
       return;
     }
 

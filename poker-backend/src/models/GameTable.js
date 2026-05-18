@@ -29,6 +29,13 @@ const SUPPORTED_GAME_TYPES = [
   "in-between-the-sheets",
 ];
 
+const DEFAULT_MAX_PLAYERS = 6;
+const THREE_FIVE_SEVEN_MAX_PLAYERS = 7;
+
+function resolveDefaultMaxPlayers(gameType) {
+  return gameType === "357" ? THREE_FIVE_SEVEN_MAX_PLAYERS : DEFAULT_MAX_PLAYERS;
+}
+
 function createDefaultGameSettings() {
   return {
     game: "holdem",
@@ -319,7 +326,9 @@ const gameTableSchema = new mongoose.Schema(
     },
     maxPlayers: {
       type: Number,
-      default: 6,
+      default: function defaultMaxPlayers() {
+        return resolveDefaultMaxPlayers(this.gameType);
+      },
       min: 2,
       max: 10,
     },
