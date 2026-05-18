@@ -58,6 +58,9 @@ type Props = {
   leftPanelGap?: number;
   leftPanelNode?: ReactNode;
   leftPanelWidth?: number;
+  rightPanelGap?: number;
+  rightPanelNode?: ReactNode;
+  rightPanelWidth?: number;
   onLayout: (event: any) => void;
   onPressTable: () => void;
   onResetTableView: () => void;
@@ -109,6 +112,9 @@ export function TableSurface({
   leftPanelGap = 0,
   leftPanelNode = null,
   leftPanelWidth,
+  rightPanelGap = 0,
+  rightPanelNode = null,
+  rightPanelWidth,
   onLayout,
   onPressTable,
   onResetTableView,
@@ -142,13 +148,25 @@ export function TableSurface({
     is357 &&
     (state.phase === 'decide_3' || state.phase === 'decide_5' || state.phase === 'decide_7');
   const hasLeftRailNode = Boolean(leftPanelNode || bottomRightNode);
+  const hasRightRailNode = Boolean(rightPanelNode);
   const resolvedLeftPanelWidth = hasLeftRailNode
     ? leftPanelWidth ?? clamp(width * 0.24, 220, 320)
     : 0;
   const resolvedLeftPanelGap = hasLeftRailNode
     ? leftPanelGap || clamp(width * 0.012, 12, 24)
     : 0;
-  const viewportWidth = width + resolvedLeftPanelWidth + resolvedLeftPanelGap;
+  const resolvedRightPanelWidth = hasRightRailNode
+    ? rightPanelWidth ?? clamp(width * 0.11, 78, 108)
+    : 0;
+  const resolvedRightPanelGap = hasRightRailNode
+    ? rightPanelGap || clamp(width * 0.01, 8, 16)
+    : 0;
+  const viewportWidth =
+    width +
+    resolvedLeftPanelWidth +
+    resolvedLeftPanelGap +
+    resolvedRightPanelWidth +
+    resolvedRightPanelGap;
   const leftPanelHorizontalNudge = hasLeftRailNode
     ? clamp(width * 0.045, 36, 82)
     : 0;
@@ -178,7 +196,7 @@ export function TableSurface({
     <View
       style={[
         styles.tableViewport,
-        hasLeftRailNode ? styles.tableViewportLeftRailAligned : null,
+        hasLeftRailNode || hasRightRailNode ? styles.tableViewportLeftRailAligned : null,
         { height, width: viewportWidth },
       ]}
     >
@@ -474,6 +492,24 @@ export function TableSurface({
       </Animated.View>
       {/* Table Layout End */}
 
+      {hasRightRailNode ? (
+        <View
+          pointerEvents="box-none"
+          style={[
+            styles.rightPanelSlot,
+            {
+              marginLeft: resolvedRightPanelGap,
+              transform: [
+                { translateY: -leftPanelVerticalNudge + leftPanelVerticalBalanceOffset + 5 },
+              ],
+              width: resolvedRightPanelWidth,
+            },
+          ]}
+        >
+          {rightPanelNode}
+        </View>
+      ) : null}
+
     </View>
   );
 }
@@ -525,6 +561,12 @@ const styles = StyleSheet.create({
     zIndex: 12,
   },
   leftPanelSlot: {
+    alignSelf: 'stretch',
+    flexShrink: 0,
+    justifyContent: 'center',
+    zIndex: 34,
+  },
+  rightPanelSlot: {
     alignSelf: 'stretch',
     flexShrink: 0,
     justifyContent: 'center',

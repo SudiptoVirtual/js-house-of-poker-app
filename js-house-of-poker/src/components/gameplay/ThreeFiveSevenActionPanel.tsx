@@ -7,9 +7,12 @@ import type { PokerAction, PokerControls, PokerPlayerState } from '../../types/p
 const PANEL_SHELL_MIN_HEIGHT = 224;
 const FIT_CONTENT_PANEL_HEIGHT_RATIO = 0.85;
 
+type ThreeFiveSevenActionPanelLayout = 'leftPanel' | 'rightPanel';
+
 type Props = {
   controls: PokerControls;
   fitContent?: boolean;
+  layout?: ThreeFiveSevenActionPanelLayout;
   onAction: (action: PokerAction) => void;
   onRebuy: () => void;
   onStartHand: () => void;
@@ -17,6 +20,7 @@ type Props = {
   player: PokerPlayerState | null;
   safeAreaBottom?: number;
   safeAreaHorizontal?: number;
+  showActionButtons?: boolean;
   showDecisionPrompt: boolean;
   statusMessage: string;
 };
@@ -24,6 +28,7 @@ type Props = {
 export function ThreeFiveSevenActionPanel({
   controls,
   fitContent = false,
+  layout = 'leftPanel',
   onAction,
   onRebuy,
   onStartHand,
@@ -31,9 +36,12 @@ export function ThreeFiveSevenActionPanel({
   player,
   safeAreaBottom = 0,
   safeAreaHorizontal = 0,
+  showActionButtons = true,
   showDecisionPrompt,
   statusMessage,
 }: Props) {
+  const isRightPanel = layout === 'rightPanel';
+  const isInfoOnly = !showActionButtons;
   const panelStatus = showDecisionPrompt && controls.canAct
     ? 'Choose whether to enter this round.'
     : statusMessage;
@@ -42,6 +50,8 @@ export function ThreeFiveSevenActionPanel({
     <View
       style={[
         styles.wrapper,
+        isRightPanel ? styles.wrapperRightPanel : null,
+        isInfoOnly ? styles.wrapperInfoOnly : null,
         fitContent ? null : styles.wrapperFill,
         {
           paddingBottom: safeAreaBottom > 0 ? safeAreaBottom + 6 : 4,
@@ -54,12 +64,17 @@ export function ThreeFiveSevenActionPanel({
         colors={['rgba(31, 8, 49, 0.96)', 'rgba(15, 5, 27, 0.98)', 'rgba(7, 3, 14, 0.96)']}
         end={{ x: 1, y: 1 }}
         start={{ x: 0, y: 0 }}
-        style={[styles.panelShell, fitContent ? styles.panelShellFitContent : null]}
+        style={[
+          styles.panelShell,
+          isRightPanel ? styles.panelShellRightPanel : null,
+          isInfoOnly ? styles.panelShellInfoOnly : null,
+          fitContent && !isInfoOnly ? styles.panelShellFitContent : null,
+        ]}
       >
         <View style={styles.controlsSlot}>
           <GameControls
             controls={controls}
-            layout="leftPanel"
+            layout={layout}
             mode="357"
             onAction={onAction}
             onRebuy={onRebuy}
@@ -67,6 +82,7 @@ export function ThreeFiveSevenActionPanel({
             pendingAction={pendingAction}
             player={player}
             statusMessage={panelStatus}
+            showActionButtons={showActionButtons}
           />
         </View>
       </LinearGradient>
@@ -98,6 +114,17 @@ const styles = StyleSheet.create({
   panelShellFitContent: {
     minHeight: PANEL_SHELL_MIN_HEIGHT * FIT_CONTENT_PANEL_HEIGHT_RATIO,
   },
+  panelShellRightPanel: {
+    borderRadius: 18,
+    minHeight: 136,
+    paddingHorizontal: 8,
+    paddingVertical: 10,
+  },
+  panelShellInfoOnly: {
+    minHeight: 96,
+    paddingHorizontal: 10,
+    paddingVertical: 10,
+  },
   wrapper: {
     alignItems: 'flex-start',
     alignSelf: 'stretch',
@@ -108,5 +135,12 @@ const styles = StyleSheet.create({
   },
   wrapperFill: {
     flex: 1,
+  },
+  wrapperInfoOnly: {
+    minWidth: 0,
+  },
+  wrapperRightPanel: {
+    maxWidth: 96,
+    minWidth: 78,
   },
 });
