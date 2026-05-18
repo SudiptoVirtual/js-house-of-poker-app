@@ -62,6 +62,7 @@ type Props = {
   onPressTable: () => void;
   onResetTableView: () => void;
   phaseTitle: string;
+  ruleBadgeNode?: ReactNode;
   seatBursts: SeatBurstSpec[];
   seatDescriptors: SeatDescriptor[];
   seatMap: Map<string, SeatDescriptor>;
@@ -112,6 +113,7 @@ export function TableSurface({
   onPressTable,
   onResetTableView,
   phaseTitle,
+  ruleBadgeNode = null,
   seatBursts,
   seatDescriptors,
   seatMap,
@@ -298,6 +300,22 @@ export function TableSurface({
                       <View pointerEvents="none" style={styles.brandWatermark}>
                         <Text style={styles.brandWatermarkText}>HOUSE OF POKER</Text>
                       </View>
+
+                      {ruleBadgeNode ? (
+                        <View
+                          pointerEvents="none"
+                          style={[
+                            styles.ruleBadgeSlot,
+                            {
+                              left: width / 2 - Math.min(width * 0.42, 190),
+                              top: clamp(boardTop - 44, height * 0.08, height * 0.22),
+                              width: Math.min(width * 0.84, 380),
+                            },
+                          ]}
+                        >
+                          {ruleBadgeNode}
+                        </View>
+                      ) : null}
 
                       <View
                         style={[
@@ -587,6 +605,11 @@ const styles = StyleSheet.create({
     position: 'absolute',
     right: '3%',
     top: '8%',
+  },
+  ruleBadgeSlot: {
+    alignItems: 'center',
+    position: 'absolute',
+    zIndex: 7,
   },
   seatAnchor: {
     position: 'absolute',

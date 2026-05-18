@@ -23,6 +23,7 @@ import { gameplayLayoutConfig } from '../components/gameplay/layoutConfig';
 import { TableSurface } from '../components/gameplay/TableSurface';
 import { TableChatBar } from '../components/gameplay/TableChatBar';
 import { ThreeFiveSevenActionPanel } from '../components/gameplay/ThreeFiveSevenActionPanel';
+import { ThreeFiveSevenRuleBadge } from '../components/gameplay/ThreeFiveSevenRuleBadge';
 import { usePoker } from '../context/PokerProvider';
 import { useGameplayAnimations } from '../hooks/useGameplayAnimations';
 import { routes } from '../constants/routes';
@@ -1129,6 +1130,9 @@ export function GameScreen({ navigation }: Props) {
   const bottomRightNode = is357Current ? (
     <RoundWildsBadge label={activeWildLabel} tableCode={currentTableState.roomId} />
   ) : null;
+  const threeFiveSevenRuleBadge = is357Current ? (
+    <ThreeFiveSevenRuleBadge state={currentTableState} wildLabel={activeWildLabel} />
+  ) : null;
   const embeddedBottomRightNode =
     shouldEmbed357Panel && windowWidth >= 900 ? bottomRightNode : null;
   const bottomRightNodeHeight = clamp(
@@ -1164,6 +1168,7 @@ export function GameScreen({ navigation }: Props) {
       onPressTable={() => undefined}
       onResetTableView={resetTableView}
       phaseTitle={phaseTitle}
+      ruleBadgeNode={threeFiveSevenRuleBadge}
       seatBursts={seatBursts}
       seatDescriptors={seatDescriptors}
       seatMap={seatMap}
