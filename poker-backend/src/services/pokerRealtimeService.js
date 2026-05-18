@@ -29,7 +29,9 @@ const DISCONNECT_GRACE_PERIOD_MS = Math.max(
   0,
   Number.parseInt(process.env.POKER_DISCONNECT_GRACE_MS || "30000", 10)
 );
-const MAX_PLAYERS = 6;
+const DEFAULT_MAX_PLAYERS = 6;
+const THREE_FIVE_SEVEN_MAX_PLAYERS = 7;
+const MAX_PLAYERS = DEFAULT_MAX_PLAYERS;
 const MIN_PLAYERS_TO_START = 2;
 const LOG_LIMIT = 32;
 const TABLE_CHAT_HISTORY_LIMIT = 100;
@@ -82,6 +84,16 @@ const VALID_WILD_CARDS = new Set([
 
 function cloneValue(value) {
   return value == null ? value : JSON.parse(JSON.stringify(value));
+}
+
+function maxPlayersForGame(game) {
+  return game === "357" ? THREE_FIVE_SEVEN_MAX_PLAYERS : DEFAULT_MAX_PLAYERS;
+}
+
+function syncRoomMaxPlayers(room) {
+  const game = room.gameSettings?.game;
+  room.maxPlayers = maxPlayersForGame(game);
+  return room.maxPlayers;
 }
 
 function createDefaultGameSettings() {
@@ -1280,6 +1292,7 @@ function applyGameSettingsUpdate(room, update) {
   nextSettings.locked = Boolean(nextSettings.locked || room.handCount > 0);
   room.gameSettings = sync357GameSettings(nextSettings);
   room.gameSettings.locked = nextSettings.locked;
+  syncRoomMaxPlayers(room);
   return room.gameSettings;
 }
 
@@ -1538,7 +1551,7 @@ class PokerRealtimeService {
       id: tableCode,
       lastDealerId: null,
       lastWinnerSummary: null,
-      maxPlayers: MAX_PLAYERS,
+      maxPlayers: maxPlayersForGame("holdem"),
       minPlayersToStart: MIN_PLAYERS_TO_START,
       players: [player],
       smallBlind: SMALL_BLIND,
@@ -1554,6 +1567,7 @@ class PokerRealtimeService {
     if (room.gameSettings.game === "357") {
       ensureThreeFiveSevenState(room);
     }
+    syncRoomMaxPlayers(room);
 
     const table = await GameTable.create({
       actionLog: room.actionLog,
@@ -1568,7 +1582,7 @@ class PokerRealtimeService {
       gameType: room.gameSettings.game,
       handCount: 0,
       hostUserId: user._id,
-      maxPlayers: MAX_PLAYERS,
+      maxPlayers: room.maxPlayers,
       minPlayersToStart: MIN_PLAYERS_TO_START,
       phase: "waiting",
       players: [
@@ -1646,7 +1660,7 @@ class PokerRealtimeService {
       id: table.tableCode,
       lastDealerId: table.lastDealerPlayerId || null,
       lastWinnerSummary: table.lastWinnerSummary || null,
-      maxPlayers: table.maxPlayers || MAX_PLAYERS,
+      maxPlayers: table.maxPlayers || maxPlayersForGame(table.gameSettings?.game),
       minPlayersToStart: table.minPlayersToStart || MIN_PLAYERS_TO_START,
       players: (table.players || []).map((player) => ({
         avatar: player.avatar || "",
@@ -2857,6 +2871,7 @@ class PokerRealtimeService {
       pot: totalPot(room),
       roomId: room.id,
       selfId: playerId,
+      maxPlayers: room.maxPlayers,
       smallBlind: is357 ? 0 : room.smallBlind,
       statusMessage,
       tableInvites: room.tableInvites || [],

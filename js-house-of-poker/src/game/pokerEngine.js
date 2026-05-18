@@ -18,7 +18,9 @@ const {
 const SMALL_BLIND = 10;
 const BIG_BLIND = 20;
 const DEFAULT_STACK = 1000;
-const MAX_PLAYERS = 6;
+const DEFAULT_MAX_PLAYERS = 6;
+const THREE_FIVE_SEVEN_MAX_PLAYERS = 7;
+const MAX_PLAYERS = DEFAULT_MAX_PLAYERS;
 const ROOM_CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const LOG_LIMIT = 16;
 const VALID_GAMES = new Set([
@@ -141,6 +143,16 @@ const MOCK_STATUS_STATE_BY_TIER = Object.freeze({
     reputation: 72,
   }),
 });
+
+function maxPlayersForGame(game) {
+  return game === '357' ? THREE_FIVE_SEVEN_MAX_PLAYERS : DEFAULT_MAX_PLAYERS;
+}
+
+function syncRoomMaxPlayers(room) {
+  const game = room.gameSettings?.game;
+  room.maxPlayers = maxPlayersForGame(game);
+  return room.maxPlayers;
+}
 
 function createDefaultGameSettings() {
   return {
@@ -271,6 +283,7 @@ function applyGameSettingsUpdate(room, update) {
   nextSettings.locked = isGameSettingsLocked(room);
   room.gameSettings = sync357GameSettings(nextSettings);
   room.gameSettings.locked = nextSettings.locked;
+  syncRoomMaxPlayers(room);
   return room.gameSettings;
 }
 
@@ -1332,6 +1345,7 @@ function createRoom(rooms, socketId, name, options = {}) {
     id: roomId,
     lastDealerId: null,
     lastWinnerSummary: null,
+    maxPlayers: maxPlayersForGame('holdem'),
     players: [player],
     tableInvites: [],
     threeFiveSeven: createThreeFiveSevenRoomState(),
@@ -1353,7 +1367,7 @@ function createRoom(rooms, socketId, name, options = {}) {
 }
 
 function joinRoom(room, socketId, name, options = {}) {
-  if (room.players.length >= MAX_PLAYERS) {
+  if (room.players.length >= (room.maxPlayers ?? MAX_PLAYERS)) {
     throw new Error('Room is full.');
   }
 
@@ -1874,6 +1888,7 @@ function buildRoomState(room, playerId) {
     pot: totalPot(room),
     roomId: room.id,
     selfId: playerId,
+    maxPlayers: room.maxPlayers ?? maxPlayersForGame(gameSettings.game),
     smallBlind: is357 ? 0 : SMALL_BLIND,
     statusMessage,
     tableInvites: (room.tableInvites ?? []).map((invite) => ({ ...invite })),
