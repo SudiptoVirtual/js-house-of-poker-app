@@ -111,7 +111,13 @@ function fitAspectBox(maxWidth: number, maxHeight: number, aspectRatio: number) 
   return { height, width };
 }
 
-function RoundWildsBadge({ label }: { label: string }) {
+function RoundWildsBadge({
+  label,
+  tableCode,
+}: {
+  label: string;
+  tableCode: string | null;
+}) {
   const { height, width } = useWindowDimensions();
   const badgeHeight = clamp(
     height * bottomRightStageSizing.heightRatio,
@@ -129,6 +135,7 @@ function RoundWildsBadge({ label }: { label: string }) {
     9,
     13,
   );
+  const tableCodeFontSize = clamp(badgeHeight * 0.18, 6, 8);
 
   return (
     <View
@@ -167,6 +174,22 @@ function RoundWildsBadge({ label }: { label: string }) {
       >
         {label.toUpperCase()}
       </Text>
+      {tableCode ? (
+        <Text
+          adjustsFontSizeToFit
+          minimumFontScale={0.72}
+          numberOfLines={1}
+          style={[
+            styles.roundWildsTableCode,
+            {
+              fontSize: tableCodeFontSize + 2,
+              lineHeight: Math.ceil(tableCodeFontSize + 1),
+            },
+          ]}
+        >
+          TABLE CODE: {tableCode}
+        </Text>
+      ) : null}
     </View>
   );
 }
@@ -1104,7 +1127,7 @@ export function GameScreen({ navigation }: Props) {
     currentTableState.threeFiveSeven?.activeWildDefinition.wildRanks.join(', ') ??
     'No wilds';
   const bottomRightNode = is357Current ? (
-    <RoundWildsBadge label={activeWildLabel} />
+    <RoundWildsBadge label={activeWildLabel} tableCode={currentTableState.roomId} />
   ) : null;
   const embeddedBottomRightNode =
     shouldEmbed357Panel && windowWidth >= 900 ? bottomRightNode : null;
@@ -1437,6 +1460,13 @@ const styles = StyleSheet.create({
     fontSize: 8,
     fontWeight: '900',
     letterSpacing: 0,
+  },
+  roundWildsTableCode: {
+    color: '#67F3BB',
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 0,
+    textAlign: 'center',
   },
   roundWildsText: {
     color: '#F7F4FF',

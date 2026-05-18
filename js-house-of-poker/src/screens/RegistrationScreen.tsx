@@ -193,7 +193,7 @@ export function RegistrationScreen({ navigation }: Props) {
           autoComplete="password"
           autoCorrect={false}
           errorText={fieldErrors.password}
-          helperText="Use at least 6 characters."
+          helperText="Use at least 8 characters, including one uppercase letter, one lowercase letter, and one number."
           label="Password"
           onChangeText={(value) => {
             setPassword(value);
