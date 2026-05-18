@@ -37,6 +37,7 @@ type Props = {
   isLoser?: boolean;
   isSelf?: boolean;
   isWinner?: boolean;
+  legCount?: number;
   phase: PokerPhase;
   player: PokerPlayerState;
   showdownDescription?: string | null;
@@ -300,62 +301,108 @@ function CardFan({
   );
 }
 
-function LegsTrack({
+function LegsPips({
   compact = false,
   legs,
 }: {
   compact?: boolean;
   legs: number;
 }) {
+  const previousLegs = useRef(legs);
+  const gainPulse = useRef(new Animated.Value(0)).current;
+  const visibleLegs = Math.max(0, Math.min(legs, MAX_LEG_SLOTS));
+
+  useEffect(() => {
+    if (legs > previousLegs.current) {
+      gainPulse.setValue(0);
+      Animated.sequence([
+        Animated.timing(gainPulse, {
+          duration: 180,
+          easing: Easing.out(Easing.quad),
+          toValue: 1,
+          useNativeDriver: true,
+        }),
+        Animated.timing(gainPulse, {
+          duration: 360,
+          easing: Easing.inOut(Easing.quad),
+          toValue: 0,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }
+
+    previousLegs.current = legs;
+  }, [gainPulse, legs]);
+
   return (
-    <View style={[styles.legsShell, compact ? styles.legsShellCompact : null]}>
+    <Animated.View
+      accessibilityLabel={`${legs} of ${MAX_LEG_SLOTS} legs`}
+      style={[
+        styles.legsPipsShell,
+        compact ? styles.legsPipsShellCompact : null,
+        {
+          transform: [
+            {
+              scale: gainPulse.interpolate({
+                inputRange: [0, 1],
+                outputRange: [1, 1.08],
+              }),
+            },
+          ],
+        },
+      ]}
+    >
       <Text
-        style={[styles.legsLabel, compact ? styles.legsLabelCompact : null]}
+        style={[
+          styles.legsPipsLabel,
+          compact ? styles.legsPipsLabelCompact : null,
+        ]}
       >
-        LEGS
+        {visibleLegs}/{MAX_LEG_SLOTS}
       </Text>
-      <View style={[styles.legsRow, compact ? styles.legsRowCompact : null]}>
+      <View style={styles.legsPipsRow}>
         {Array.from({ length: MAX_LEG_SLOTS }).map((_, index) => {
-          const filled = index < Math.min(legs, MAX_LEG_SLOTS);
+          const filled = index < visibleLegs;
+          const justGained =
+            index >= previousLegs.current && index < visibleLegs;
 
           return (
-            <View
-              key={`leg-${index}`}
+            <Animated.View
+              key={`leg-pip-${index}`}
               style={[
-                styles.legOrb,
-                compact ? styles.legOrbCompact : null,
-                filled ? styles.legOrbFilled : null,
+                styles.legsPip,
+                compact ? styles.legsPipCompact : null,
+                filled ? styles.legsPipFilled : null,
+                justGained
+                  ? {
+                      opacity: gainPulse.interpolate({
+                        inputRange: [0, 0.25, 1],
+                        outputRange: [1, 0.7, 1],
+                      }),
+                      transform: [
+                        {
+                          scale: gainPulse.interpolate({
+                            inputRange: [0, 1],
+                            outputRange: [1, 1.45],
+                          }),
+                        },
+                      ],
+                    }
+                  : null,
               ]}
             >
               {filled ? (
-                <View
-                  style={[
-                    styles.legOrbCore,
-                    compact ? styles.legOrbCoreCompact : null,
-                  ]}
+                <MaterialCommunityIcons
+                  color="#12091A"
+                  name="check"
+                  size={compact ? 6 : 7}
                 />
               ) : null}
-            </View>
+            </Animated.View>
           );
         })}
       </View>
-    </View>
-  );
-}
-
-function CompactLegsTrack({ legs }: { legs: number }) {
-  return (
-    <View style={styles.compactLegsRow}>
-      {Array.from({ length: MAX_LEG_SLOTS }).map((_, index) => (
-        <View
-          key={`compact-leg-${index}`}
-          style={[
-            styles.compactLegDot,
-            index < legs ? styles.compactLegDotFilled : null,
-          ]}
-        />
-      ))}
-    </View>
+    </Animated.View>
   );
 }
 
@@ -369,6 +416,7 @@ export const GameTableSeat = memo(function GameTableSeat({
   isLoser = false,
   isSelf = false,
   isWinner = false,
+  legCount,
   phase,
   player,
   showdownDescription = null,
@@ -381,6 +429,7 @@ export const GameTableSeat = memo(function GameTableSeat({
     new Animated.Value(player.hasFolded || decision === 'STAY' ? 0.82 : 1),
   ).current;
   const cardCount = resolveCardCount(player, displayCardCount);
+  const visibleLegCount = legCount ?? player.legs;
   const revealCards = shouldRevealCards(
     phase,
     isSelf,
@@ -596,6 +645,9 @@ export const GameTableSeat = memo(function GameTableSeat({
           </Text>
         </View>
       ) : null}
+      {is357Game ? (
+        <LegsPips compact={useCompactSelfSeat} legs={visibleLegCount} />
+      ) : null}
     </View>
   );
 
@@ -732,9 +784,12 @@ export const GameTableSeat = memo(function GameTableSeat({
                 <Text numberOfLines={1} style={styles.compactName}>
                   {player.name}
                 </Text>
-                <Text numberOfLines={1} style={styles.compactStackText}>
-                  {formatChipAmount(player.chips)}
-                </Text>
+                <View style={styles.compactStackLegsRow}>
+                  <Text numberOfLines={1} style={styles.compactStackText}>
+                    {formatChipAmount(player.chips)}
+                  </Text>
+                  <LegsPips compact legs={visibleLegCount} />
+                </View>
               </View>
             </View>
             {cardCount > 0 ? (
@@ -769,7 +824,7 @@ export const GameTableSeat = memo(function GameTableSeat({
                 align === 'right' ? styles.compactDecisionRailRight : null,
               ]}
             >
-              <CompactLegsTrack legs={player.legs} />
+              <LegsPips compact legs={visibleLegCount} />
               <View style={styles.compactAmountBubble}>
                 <Text style={styles.compactAmountBubbleText}>
                   ${formatChipAmount(labelAmount)}
@@ -836,9 +891,14 @@ export const GameTableSeat = memo(function GameTableSeat({
                       <Text numberOfLines={1} style={styles.nameBoxName}>
                         {player.name}
                       </Text>
-                      <Text numberOfLines={1} style={styles.nameBoxStack}>
-                        {formatChipAmount(player.chips)}
-                      </Text>
+                      <View style={styles.nameBoxStackRow}>
+                        <Text numberOfLines={1} style={styles.nameBoxStack}>
+                          {formatChipAmount(player.chips)}
+                        </Text>
+                        {is357Game ? (
+                          <LegsPips compact legs={visibleLegCount} />
+                        ) : null}
+                      </View>
                     </View>
                   ) : null}
                 </View>
@@ -858,7 +918,7 @@ export const GameTableSeat = memo(function GameTableSeat({
               useCompactSelfSeat ? styles.decisionRailSelfCompact : null,
             ]}
           >
-            <LegsTrack compact={useCompactSelfSeat} legs={player.legs} />
+            <LegsPips compact={useCompactSelfSeat} legs={visibleLegCount} />
             <View
               style={[
                 styles.amountBubble,
@@ -904,21 +964,6 @@ export const GameTableSeat = memo(function GameTableSeat({
                 {actionBadge.label}
               </Text>
             </View>
-
-            {game === '357' ? (
-              <View style={styles.legsInline}>
-                {Array.from({ length: MAX_LEG_SLOTS }).map((_, index) => (
-                  <View
-                    key={`inline-leg-${index}`}
-                    style={[
-                      styles.inlineLegDot,
-                      useCompactSelfSeat ? styles.inlineLegDotCompact : null,
-                      index < player.legs ? styles.inlineLegDotFilled : null,
-                    ]}
-                  />
-                ))}
-              </View>
-            ) : null}
           </View>
         )}
 
@@ -1130,22 +1175,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row-reverse',
     justifyContent: 'flex-end',
   },
-  compactLegDot: {
-    backgroundColor: 'rgba(255, 118, 190, 0.16)',
-    borderColor: 'rgba(255, 118, 190, 0.35)',
-    borderRadius: 999,
-    borderWidth: 1,
-    height: 8,
-    width: 8,
-  },
-  compactLegDotFilled: {
-    backgroundColor: '#FF70B7',
-    borderColor: '#FFC7E5',
-  },
-  compactLegsRow: {
-    flexDirection: 'row',
-    gap: 4,
-  },
   compactName: {
     color: '#F7F4FF',
     fontSize: 10,
@@ -1181,6 +1210,11 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '800',
   },
+  compactStackLegsRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 5,
+  },
   decisionRail: {
     alignItems: 'center',
     gap: 6,
@@ -1190,87 +1224,52 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
   },
-  inlineLegDot: {
-    backgroundColor: 'rgba(255, 118, 190, 0.18)',
-    borderColor: 'rgba(255, 118, 190, 0.38)',
+  legsPip: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderColor: 'rgba(255, 255, 255, 0.16)',
     borderRadius: 999,
     borderWidth: 1,
-    height: 10,
-    width: 10,
+    height: 12,
+    justifyContent: 'center',
+    width: 12,
   },
-  inlineLegDotCompact: {
-    height: 8,
-    width: 8,
+  legsPipCompact: {
+    height: 9,
+    width: 9,
   },
-  inlineLegDotFilled: {
-    backgroundColor: '#FF70B7',
-    borderColor: '#FFC7E5',
+  legsPipFilled: {
+    backgroundColor: '#FFCB6B',
+    borderColor: 'rgba(255, 245, 216, 0.88)',
   },
-  legsInline: {
+  legsPipsLabel: {
+    color: 'rgba(255, 245, 216, 0.74)',
+    fontSize: 8,
+    fontWeight: '900',
+    letterSpacing: 0.2,
+  },
+  legsPipsLabelCompact: {
+    fontSize: 7,
+  },
+  legsPipsRow: {
+    flexDirection: 'row',
+    gap: 3,
+  },
+  legsPipsShell: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.045)',
+    borderColor: 'rgba(255, 203, 107, 0.16)',
+    borderRadius: 999,
+    borderWidth: 1,
     flexDirection: 'row',
     gap: 5,
-  },
-  legOrb: {
-    alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.03)',
-    borderColor: 'rgba(255, 118, 190, 0.42)',
-    borderRadius: 999,
-    borderWidth: 1,
-    height: 18,
-    justifyContent: 'center',
-    width: 18,
-  },
-  legOrbCompact: {
-    height: 14,
-    width: 14,
-  },
-  legOrbCore: {
-    backgroundColor: '#FFF5FA',
-    borderRadius: 999,
-    height: 7,
-    width: 7,
-  },
-  legOrbCoreCompact: {
-    height: 5,
-    width: 5,
-  },
-  legOrbFilled: {
-    backgroundColor: '#FF70B7',
-    borderColor: '#FFC7E5',
-  },
-  legsLabel: {
-    color: '#FF8CD2',
-    fontSize: 10,
-    fontWeight: '900',
-    letterSpacing: 1,
-  },
-  legsLabelCompact: {
-    fontSize: 9,
-    letterSpacing: 0.7,
-  },
-  legsRow: {
-    flexDirection: 'row',
-    gap: 6,
-  },
-  legsRowCompact: {
-    gap: 4,
-  },
-  legsShell: {
-    alignItems: 'center',
-    backgroundColor: 'rgba(11, 9, 21, 0.96)',
-    borderColor: 'rgba(255, 118, 190, 0.22)',
-    borderRadius: 12,
-    borderWidth: 1,
-    flexDirection: 'row',
-    gap: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 7,
-  },
-  legsShellCompact: {
-    borderRadius: 999,
-    gap: 6,
-    paddingHorizontal: 8,
+    paddingHorizontal: 7,
     paddingVertical: 4,
+  },
+  legsPipsShellCompact: {
+    gap: 4,
+    paddingHorizontal: 5,
+    paddingVertical: 3,
   },
   leftCluster: {
     alignItems: 'center',
@@ -1305,6 +1304,12 @@ const styles = StyleSheet.create({
     color: '#F4F1FF',
     fontSize: 12,
     fontWeight: '800',
+  },
+  nameBoxStackRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 6,
+    justifyContent: 'center',
   },
   nameRail: {
     alignItems: 'center',
