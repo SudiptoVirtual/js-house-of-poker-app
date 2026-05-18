@@ -2,9 +2,17 @@ import { memo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 
-import type { Poker357Mode, PokerPhase, PokerRoomState } from '../../types/poker';
+import type {
+  Poker357Decision,
+  Poker357Mode,
+  PokerPhase,
+  PokerRoomState,
+} from '../../types/poker';
 
 type Props = {
+  revealedDecisions?: Record<string, Poker357Decision>;
+  revealState?: 'hidden' | 'revealed' | 'resolved';
+  showdownDescriptions?: Record<string, string>;
   state: PokerRoomState;
   statusText: string;
 };
@@ -67,119 +75,195 @@ function getPhaseInstruction(phase: PokerPhase, currentRound: 3 | 5 | 7) {
   }
 }
 
-export const ThreeFiveSevenCenterBoard = memo(function ThreeFiveSevenCenterBoard({
-  state,
-  statusText,
-}: Props) {
-  const variantState = state.threeFiveSeven;
+export const ThreeFiveSevenCenterBoard = memo(
+  function ThreeFiveSevenCenterBoard({
+    revealedDecisions = {},
+    revealState = 'hidden',
+    showdownDescriptions = {},
+    state,
+    statusText,
+  }: Props) {
+    const variantState = state.threeFiveSeven;
 
-  if (!variantState) {
-    return null;
-  }
+    if (!variantState) {
+      return null;
+    }
 
-  const currentRound =
-    variantState.activeRound ?? variantState.hiddenDecisionState.currentRound ?? 7;
-  const wildRanks = variantState.activeWildDefinition.wildRanks;
-  const wildRanksLabel = wildRanks.length > 0 ? wildRanks.join(', ') : 'No board';
-  const isActive357Round = isActive357RoundPhase(state.phase);
-  const roundSubtitle = `${currentRound} CARD ROUND`;
-  const instruction = getPhaseInstruction(state.phase, currentRound);
+    const currentRound =
+      variantState.activeRound ??
+      variantState.hiddenDecisionState.currentRound ??
+      7;
+    const wildRanks = variantState.activeWildDefinition.wildRanks;
+    const wildRanksLabel =
+      wildRanks.length > 0 ? wildRanks.join(', ') : 'No board';
+    const isActive357Round = isActive357RoundPhase(state.phase);
+    const roundSubtitle = `${currentRound} CARD ROUND`;
+    const instruction = getPhaseInstruction(state.phase, currentRound);
+    const goPlayerIds = Object.entries(revealedDecisions)
+      .filter(([, decision]) => decision === 'GO')
+      .map(([playerId]) => playerId);
+    const goPlayerNames = goPlayerIds
+      .map(
+        (playerId) =>
+          state.players.find((player) => player.id === playerId)?.name,
+      )
+      .filter(Boolean);
+    const showdownSummary = Object.entries(showdownDescriptions)
+      .filter(([playerId]) => goPlayerIds.includes(playerId))
+      .map(([playerId, description]) => {
+        const playerName =
+          state.players.find((player) => player.id === playerId)?.name ?? 'GO';
+        return `${playerName}: ${description}`;
+      });
+    const showGoShowdown = revealState !== 'hidden' && goPlayerIds.length > 0;
 
-  if (isActive357Round) {
+    if (isActive357Round) {
+      return (
+        <View style={styles.wrapper}>
+          <View style={styles.roundInfoRow}>
+            <LinearGradient
+              colors={['rgba(25, 11, 40, 0.97)', 'rgba(8, 7, 18, 0.99)']}
+              end={{ x: 1, y: 1 }}
+              start={{ x: 0, y: 0 }}
+              style={[styles.roundShell, styles.roundShellInRow]}
+            >
+              <Text style={styles.roundTitle}>
+                ROUND {getRoundIndex(currentRound)} OF 3
+              </Text>
+              <Text style={styles.roundSubtitle}>{roundSubtitle}</Text>
+              <Text style={styles.roundWilds}>
+                {wildRanks.length > 0
+                  ? `${wildRanksLabel.toUpperCase()} ARE WILD`
+                  : 'NO BOARD'}
+              </Text>
+
+              <View style={styles.stepRail}>
+                {ROUND_STEPS.map((step, index) => {
+                  const active = step === currentRound;
+                  const reached = step <= currentRound;
+
+                  return (
+                    <View key={`357-step-${step}`} style={styles.stepSlot}>
+                      <View
+                        style={[
+                          styles.stepDot,
+                          reached ? styles.stepDotReached : null,
+                          active ? styles.stepDotActive : null,
+                        ]}
+                      >
+                        <Text style={styles.stepText}>{index + 1}</Text>
+                      </View>
+                      {index < ROUND_STEPS.length - 1 ? (
+                        <View style={styles.stepLine} />
+                      ) : null}
+                    </View>
+                  );
+                })}
+              </View>
+            </LinearGradient>
+
+            <LinearGradient
+              colors={['rgba(14, 10, 28, 0.98)', 'rgba(7, 6, 16, 0.99)']}
+              end={{ x: 1, y: 1 }}
+              start={{ x: 0, y: 0 }}
+              style={[styles.potShell, styles.potShellInRow]}
+            >
+              <Text style={styles.potLabel}>POT</Text>
+              <Text style={styles.potAmount}>
+                ${formatChipAmount(state.pot)}
+              </Text>
+            </LinearGradient>
+          </View>
+
+          <Text numberOfLines={1} style={styles.instruction}>
+            {instruction}
+          </Text>
+
+          {showGoShowdown ? (
+            <LinearGradient
+              colors={['rgba(11, 84, 76, 0.98)', 'rgba(8, 24, 36, 0.99)']}
+              end={{ x: 1, y: 1 }}
+              start={{ x: 0, y: 0 }}
+              style={styles.goShowdownShell}
+            >
+              <Text style={styles.goShowdownTitle}>GO SHOWDOWN</Text>
+              <Text numberOfLines={1} style={styles.goShowdownPlayers}>
+                {goPlayerNames.length > 0
+                  ? goPlayerNames.join(' vs ')
+                  : `${goPlayerIds.length} GO players`}
+              </Text>
+              {showdownSummary.length > 0 ? (
+                <Text numberOfLines={2} style={styles.goShowdownDetails}>
+                  {showdownSummary.join(' • ')}
+                </Text>
+              ) : null}
+            </LinearGradient>
+          ) : null}
+        </View>
+      );
+    }
+
     return (
       <View style={styles.wrapper}>
-        <View style={styles.roundInfoRow}>
-          <LinearGradient
-            colors={['rgba(25, 11, 40, 0.97)', 'rgba(8, 7, 18, 0.99)']}
-            end={{ x: 1, y: 1 }}
-            start={{ x: 0, y: 0 }}
-            style={[styles.roundShell, styles.roundShellInRow]}
-          >
-            <Text style={styles.roundTitle}>ROUND {getRoundIndex(currentRound)} OF 3</Text>
-            <Text style={styles.roundSubtitle}>{roundSubtitle}</Text>
-            <Text style={styles.roundWilds}>
-              {wildRanks.length > 0 ? `${wildRanksLabel.toUpperCase()} ARE WILD` : 'NO BOARD'}
-            </Text>
+        <LinearGradient
+          colors={['rgba(14, 10, 28, 0.98)', 'rgba(7, 6, 16, 0.99)']}
+          end={{ x: 1, y: 1 }}
+          start={{ x: 0, y: 0 }}
+          style={styles.potShell}
+        >
+          <Text style={styles.potLabel}>POT</Text>
+          <Text style={styles.potAmount}>{formatChipAmount(state.pot)}</Text>
+        </LinearGradient>
 
-            <View style={styles.stepRail}>
-              {ROUND_STEPS.map((step, index) => {
-                const active = step === currentRound;
-                const reached = step <= currentRound;
-
-                return (
-                  <View key={`357-step-${step}`} style={styles.stepSlot}>
-                    <View
-                      style={[
-                        styles.stepDot,
-                        reached ? styles.stepDotReached : null,
-                        active ? styles.stepDotActive : null,
-                      ]}
-                    >
-                      <Text style={styles.stepText}>{index + 1}</Text>
-                    </View>
-                    {index < ROUND_STEPS.length - 1 ? <View style={styles.stepLine} /> : null}
-                  </View>
-                );
-              })}
-            </View>
-          </LinearGradient>
-
-          <LinearGradient
-            colors={['rgba(14, 10, 28, 0.98)', 'rgba(7, 6, 16, 0.99)']}
-            end={{ x: 1, y: 1 }}
-            start={{ x: 0, y: 0 }}
-            style={[styles.potShell, styles.potShellInRow]}
-          >
-            <Text style={styles.potLabel}>POT</Text>
-            <Text style={styles.potAmount}>${formatChipAmount(state.pot)}</Text>
-          </LinearGradient>
+        <View style={styles.chipRail}>
+          <View style={[styles.chipDot, styles.chipGreen]} />
+          <View style={[styles.chipDot, styles.chipRed]} />
+          <View style={[styles.chipDot, styles.chipGold]} />
+          <View style={[styles.chipDot, styles.chipDark]} />
         </View>
 
-        <Text numberOfLines={1} style={styles.instruction}>
-          {instruction}
-        </Text>
+        <LinearGradient
+          colors={['rgba(17, 11, 32, 0.96)', 'rgba(8, 7, 18, 0.99)']}
+          end={{ x: 1, y: 1 }}
+          start={{ x: 0, y: 0 }}
+          style={styles.messageShell}
+        >
+          <Text style={styles.gameTitle}>THREE FIVE SEVEN</Text>
+          <Text style={styles.gameSubTitle}>
+            {wildRanks.length > 0 ? `${wildRanksLabel} wild` : 'No Board'}
+          </Text>
+          <Text style={styles.instruction}>{instruction}</Text>
+          <Text style={styles.meta}>
+            {formatModeLabel(variantState.mode)} | Penalty{' '}
+            {variantState.penaltyModel.unitToWinner}/
+            {variantState.penaltyModel.unitToPot} | {statusText}
+          </Text>
+        </LinearGradient>
+
+        {showGoShowdown ? (
+          <LinearGradient
+            colors={['rgba(11, 84, 76, 0.98)', 'rgba(8, 24, 36, 0.99)']}
+            end={{ x: 1, y: 1 }}
+            start={{ x: 0, y: 0 }}
+            style={styles.goShowdownShell}
+          >
+            <Text style={styles.goShowdownTitle}>GO SHOWDOWN</Text>
+            <Text numberOfLines={1} style={styles.goShowdownPlayers}>
+              {goPlayerNames.length > 0
+                ? goPlayerNames.join(' vs ')
+                : `${goPlayerIds.length} GO players`}
+            </Text>
+            {showdownSummary.length > 0 ? (
+              <Text numberOfLines={2} style={styles.goShowdownDetails}>
+                {showdownSummary.join(' • ')}
+              </Text>
+            ) : null}
+          </LinearGradient>
+        ) : null}
       </View>
     );
-  }
-
-  return (
-    <View style={styles.wrapper}>
-      <LinearGradient
-        colors={['rgba(14, 10, 28, 0.98)', 'rgba(7, 6, 16, 0.99)']}
-        end={{ x: 1, y: 1 }}
-        start={{ x: 0, y: 0 }}
-        style={styles.potShell}
-      >
-        <Text style={styles.potLabel}>POT</Text>
-        <Text style={styles.potAmount}>{formatChipAmount(state.pot)}</Text>
-      </LinearGradient>
-
-      <View style={styles.chipRail}>
-        <View style={[styles.chipDot, styles.chipGreen]} />
-        <View style={[styles.chipDot, styles.chipRed]} />
-        <View style={[styles.chipDot, styles.chipGold]} />
-        <View style={[styles.chipDot, styles.chipDark]} />
-      </View>
-
-      <LinearGradient
-        colors={['rgba(17, 11, 32, 0.96)', 'rgba(8, 7, 18, 0.99)']}
-        end={{ x: 1, y: 1 }}
-        start={{ x: 0, y: 0 }}
-        style={styles.messageShell}
-      >
-        <Text style={styles.gameTitle}>THREE FIVE SEVEN</Text>
-        <Text style={styles.gameSubTitle}>
-          {wildRanks.length > 0 ? `${wildRanksLabel} wild` : 'No Board'}
-        </Text>
-        <Text style={styles.instruction}>{instruction}</Text>
-        <Text style={styles.meta}>
-          {formatModeLabel(variantState.mode)} | Penalty {variantState.penaltyModel.unitToWinner}/
-          {variantState.penaltyModel.unitToPot} | {statusText}
-        </Text>
-      </LinearGradient>
-    </View>
-  );
-});
+  },
+);
 
 const styles = StyleSheet.create({
   chipDark: {
@@ -215,6 +299,36 @@ const styles = StyleSheet.create({
   gameTitle: {
     color: '#B35CFF',
     fontSize: 20,
+    fontWeight: '900',
+    letterSpacing: 1.2,
+    textAlign: 'center',
+  },
+  goShowdownDetails: {
+    color: 'rgba(230, 255, 248, 0.82)',
+    fontSize: 9,
+    fontWeight: '700',
+    lineHeight: 12,
+    textAlign: 'center',
+  },
+  goShowdownPlayers: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '900',
+    textAlign: 'center',
+  },
+  goShowdownShell: {
+    alignItems: 'center',
+    borderColor: 'rgba(77, 255, 214, 0.42)',
+    borderRadius: 14,
+    borderWidth: 1,
+    gap: 3,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    width: '100%',
+  },
+  goShowdownTitle: {
+    color: '#4DFFD6',
+    fontSize: 13,
     fontWeight: '900',
     letterSpacing: 1.2,
     textAlign: 'center',

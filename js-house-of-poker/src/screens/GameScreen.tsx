@@ -9,7 +9,10 @@ import {
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from 'react-native-safe-area-context';
 
 import { ActionButton } from '../components/ActionButton';
 import type { CardSize } from '../components/AnimatedCard';
@@ -29,7 +32,11 @@ import { useGameplayAnimations } from '../hooks/useGameplayAnimations';
 import { routes } from '../constants/routes';
 import { colors } from '../theme/colors';
 import type { RootStackParamList } from '../types/navigation';
-import type { Poker357Decision, PokerAction, PokerRoomState } from '../types/poker';
+import type {
+  Poker357Decision,
+  PokerAction,
+  PokerRoomState,
+} from '../types/poker';
 import {
   buildSeatDescriptors,
   getPhaseTitle,
@@ -73,8 +80,10 @@ type ShowdownBannerState = {
 
 type ThreeFiveSevenRevealPreview = {
   id: string;
+  loserIds: string[];
   revealedDecisions: Record<string, Poker357Decision>;
   revealState: 'resolved';
+  showdownDescriptions: Record<string, string>;
   summaryText: string;
   winnerIds: string[];
 };
@@ -93,7 +102,11 @@ function roundToIncrement(value: number, increment: number) {
   return Math.round(value / increment) * increment;
 }
 
-function fitAspectBox(maxWidth: number, maxHeight: number, aspectRatio: number) {
+function fitAspectBox(
+  maxWidth: number,
+  maxHeight: number,
+  aspectRatio: number,
+) {
   const safeWidth = Math.max(0, maxWidth);
   const safeHeight = Math.max(0, maxHeight);
 
@@ -195,7 +208,10 @@ function RoundWildsBadge({
   );
 }
 
-function shouldShowSeatCards(player: PokerRoomState['players'][number], state: PokerRoomState) {
+function shouldShowSeatCards(
+  player: PokerRoomState['players'][number],
+  state: PokerRoomState,
+) {
   if (state.phase === 'waiting') {
     return false;
   }
@@ -248,11 +264,19 @@ function buildQuickRaiseOptions(state: PokerRoomState) {
     { label: 'Min', value: minTarget },
     {
       label: 'Pressure',
-      value: clamp(roundToIncrement(pressureTarget, increment), minTarget, maxTarget),
+      value: clamp(
+        roundToIncrement(pressureTarget, increment),
+        minTarget,
+        maxTarget,
+      ),
     },
     {
       label: 'Pot',
-      value: clamp(roundToIncrement(potTarget, increment), minTarget, maxTarget),
+      value: clamp(
+        roundToIncrement(potTarget, increment),
+        minTarget,
+        maxTarget,
+      ),
     },
     { label: 'Jam', value: maxTarget },
   ];
@@ -350,7 +374,8 @@ export function GameScreen({ navigation }: Props) {
   const [chipFlights, setChipFlights] = useState<ChipFlightSpec[]>([]);
   const [seatBursts, setSeatBursts] = useState<SeatBurstSpec[]>([]);
   const [pendingAction, setPendingAction] = useState<string | null>(null);
-  const [showdownBanner, setShowdownBanner] = useState<ShowdownBannerState | null>(null);
+  const [showdownBanner, setShowdownBanner] =
+    useState<ShowdownBannerState | null>(null);
   const [threeFiveSevenRevealPreview, setThreeFiveSevenRevealPreview] =
     useState<ThreeFiveSevenRevealPreview | null>(null);
   const [clockNow, setClockNow] = useState(Date.now());
@@ -444,7 +469,8 @@ export function GameScreen({ navigation }: Props) {
   const estimatedActionHeight = isLandscape
     ? clamp(windowHeight * 0.09, 68, 94)
     : clamp(windowHeight * 0.15, 104, 146);
-  const estimatedActionBottom = estimatedFooterHeight + Math.max(4, insets.bottom ? 0 : 4);
+  const estimatedActionBottom =
+    estimatedFooterHeight + Math.max(4, insets.bottom ? 0 : 4);
   const reservedVerticalSpace = isLandscape
     ? estimatedTableTopSpace +
       estimatedActionBottom +
@@ -462,7 +488,10 @@ export function GameScreen({ navigation }: Props) {
       embedded357ActionPanelGap
     : Math.max(18, insets.left + insets.right + 18);
   const maxTableWidth = isLandscape
-    ? Math.max(gameplayLayoutConfig.table.maxWidthLandscape, windowWidth - reservedHorizontalSpace)
+    ? Math.max(
+        gameplayLayoutConfig.table.maxWidthLandscape,
+        windowWidth - reservedHorizontalSpace,
+      )
     : gameplayLayoutConfig.table.maxWidthPortrait;
   const landscapeTableFitScale = isLandscape
     ? hasEmbedded357Panel
@@ -470,8 +499,10 @@ export function GameScreen({ navigation }: Props) {
       : 0.97
     : 1;
   const tableBox = fitAspectBox(
-    Math.min(maxTableWidth, windowWidth - reservedHorizontalSpace) * landscapeTableFitScale,
-    (windowHeight - insets.top - insets.bottom - reservedVerticalSpace) * landscapeTableFitScale,
+    Math.min(maxTableWidth, windowWidth - reservedHorizontalSpace) *
+      landscapeTableFitScale,
+    (windowHeight - insets.top - insets.bottom - reservedVerticalSpace) *
+      landscapeTableFitScale,
     tableAspectRatio,
   );
   const tableWidth = Math.max(
@@ -482,7 +513,8 @@ export function GameScreen({ navigation }: Props) {
     isLandscape ? gameplayLayoutConfig.table.minHeight : 188,
     tableBox.height,
   );
-  const heroZoneCompact = windowWidth < gameplayLayoutConfig.breakpoints.heroZoneCompact;
+  const heroZoneCompact =
+    windowWidth < gameplayLayoutConfig.breakpoints.heroZoneCompact;
   const {
     ambientA,
     ambientB,
@@ -518,7 +550,9 @@ export function GameScreen({ navigation }: Props) {
     [displayTableHeight, displayTableWidth],
   );
   const resolvedLayout =
-    tableLayout.width > 0 && tableLayout.height > 0 ? tableLayout : fallbackLayout;
+    tableLayout.width > 0 && tableLayout.height > 0
+      ? tableLayout
+      : fallbackLayout;
   const seatDescriptors = useMemo(
     () =>
       buildSeatDescriptors(
@@ -529,12 +563,19 @@ export function GameScreen({ navigation }: Props) {
     [orderedPlayers, resolvedLayout.height, resolvedLayout.width],
   );
   const seatMap = useMemo(
-    () => new Map(seatDescriptors.map((descriptor) => [descriptor.player.id, descriptor])),
+    () =>
+      new Map(
+        seatDescriptors.map((descriptor) => [descriptor.player.id, descriptor]),
+      ),
     [seatDescriptors],
   );
 
   const boardCardSize: CardSize =
-    resolvedLayout.width < 430 ? 'sm' : resolvedLayout.width > 760 ? 'lg' : 'md';
+    resolvedLayout.width < 430
+      ? 'sm'
+      : resolvedLayout.width > 760
+        ? 'lg'
+        : 'md';
   const boardCardWidth =
     boardCardSize === 'sm' ? 48 : boardCardSize === 'lg' ? 68 : 58;
   const boardCardHeight =
@@ -584,7 +625,9 @@ export function GameScreen({ navigation }: Props) {
     }),
     [boardCardHeight, boardCardTop, boardLeft, boardTop],
   );
-  const tableReady = seatDescriptors.length === orderedPlayers.length && orderedPlayers.length > 0;
+  const tableReady =
+    seatDescriptors.length === orderedPlayers.length &&
+    orderedPlayers.length > 0;
 
   function schedule(callback: () => void, delay: number) {
     const timeoutId = setTimeout(() => {
@@ -704,8 +747,10 @@ export function GameScreen({ navigation }: Props) {
     latest357ResolutionKeyRef.current = resolutionKey;
     setThreeFiveSevenRevealPreview({
       id: resolutionKey,
+      loserIds: [...resolution.loserIds],
       revealedDecisions: { ...resolution.revealedDecisions },
       revealState: 'resolved',
+      showdownDescriptions: { ...resolution.showdownDescriptions },
       summaryText: tableState.lastWinnerSummary ?? '357 resolved.',
       winnerIds: [...resolution.winnerIds],
     });
@@ -715,7 +760,7 @@ export function GameScreen({ navigation }: Props) {
       setThreeFiveSevenRevealPreview((current) =>
         current?.id === resolutionKey ? null : current,
       );
-    }, 1900);
+    }, 6500);
 
     timeoutsRef.current.add(timeoutId);
 
@@ -817,7 +862,8 @@ export function GameScreen({ navigation }: Props) {
           }
 
           return [0, 1].map((roundIndex) => {
-            const delay = roundIndex * participants.length * 86 + playerIndex * 86;
+            const delay =
+              roundIndex * participants.length * 86 + playerIndex * 86;
 
             schedule(() => {
               setDealtCards((current) => ({
@@ -840,59 +886,70 @@ export function GameScreen({ navigation }: Props) {
         return;
       }
 
-      if (previous.phase !== tableState.phase && tableState.phase !== 'preflop') {
-        const closeActionFlights = tableState.players.flatMap((player, index) => {
-          const previousPlayer = previousPlayers.get(player.id);
-          const descriptor = seatMap.get(player.id);
-          if (!previousPlayer || !descriptor) {
-            return [];
-          }
+      if (
+        previous.phase !== tableState.phase &&
+        tableState.phase !== 'preflop'
+      ) {
+        const closeActionFlights = tableState.players.flatMap(
+          (player, index) => {
+            const previousPlayer = previousPlayers.get(player.id);
+            const descriptor = seatMap.get(player.id);
+            if (!previousPlayer || !descriptor) {
+              return [];
+            }
 
-          const contributionDelta =
-            player.totalContribution - previousPlayer.totalContribution;
-          if (
-            contributionDelta <= 0 ||
-            previousPlayer.betThisRound <= 0 ||
-            player.betThisRound > 0
-          ) {
-            return [];
-          }
+            const contributionDelta =
+              player.totalContribution - previousPlayer.totalContribution;
+            if (
+              contributionDelta <= 0 ||
+              previousPlayer.betThisRound <= 0 ||
+              player.betThisRound > 0
+            ) {
+              return [];
+            }
 
-          return [
-            {
-              amount: contributionDelta,
-              delay: index * 70,
-              destination: descriptor.betCenter,
-              origin: descriptor.center,
-              tone: 'bet' as const,
-            },
-          ];
-        });
+            return [
+              {
+                amount: contributionDelta,
+                delay: index * 70,
+                destination: descriptor.betCenter,
+                origin: descriptor.center,
+                tone: 'bet' as const,
+              },
+            ];
+          },
+        );
 
         await runChipFlights(closeActionFlights);
 
-        const collectionFlights = tableState.players.flatMap((player, index) => {
-          const previousPlayer = previousPlayers.get(player.id);
-          const descriptor = seatMap.get(player.id);
-          if (!previousPlayer || !descriptor || previousPlayer.betThisRound <= 0) {
-            return [];
-          }
+        const collectionFlights = tableState.players.flatMap(
+          (player, index) => {
+            const previousPlayer = previousPlayers.get(player.id);
+            const descriptor = seatMap.get(player.id);
+            if (
+              !previousPlayer ||
+              !descriptor ||
+              previousPlayer.betThisRound <= 0
+            ) {
+              return [];
+            }
 
-          const extraCommitted = Math.max(
-            0,
-            player.totalContribution - previousPlayer.totalContribution,
-          );
+            const extraCommitted = Math.max(
+              0,
+              player.totalContribution - previousPlayer.totalContribution,
+            );
 
-          return [
-            {
-              amount: previousPlayer.betThisRound + extraCommitted,
-              delay: index * 70,
-              destination: potCenter,
-              origin: descriptor.betCenter,
-              tone: 'pot' as const,
-            },
-          ];
-        });
+            return [
+              {
+                amount: previousPlayer.betThisRound + extraCommitted,
+                delay: index * 70,
+                destination: potCenter,
+                origin: descriptor.betCenter,
+                tone: 'pot' as const,
+              },
+            ];
+          },
+        );
 
         await runChipFlights(collectionFlights);
       }
@@ -952,7 +1009,9 @@ export function GameScreen({ navigation }: Props) {
         const winners = tableState.players
           .filter((player) => {
             const previousPlayer = previousPlayers.get(player.id);
-            return Boolean(previousPlayer && player.chips > previousPlayer.chips);
+            return Boolean(
+              previousPlayer && player.chips > previousPlayer.chips,
+            );
           })
           .map((player) => player.id);
 
@@ -1014,7 +1073,10 @@ export function GameScreen({ navigation }: Props) {
 
   if (!tableState?.roomId) {
     return (
-      <SafeAreaView edges={['bottom', 'left', 'right', 'top']} style={styles.safeArea}>
+      <SafeAreaView
+        edges={['bottom', 'left', 'right', 'top']}
+        style={styles.safeArea}
+      >
         <StatusBar style="light" />
         <LinearGradient
           colors={['#04020A', '#090314', '#05030B']}
@@ -1051,13 +1113,15 @@ export function GameScreen({ navigation }: Props) {
     currentTableState.players.find(
       (player) => player.id === currentTableState.selfId,
     ) ?? null;
-  const headlineText =
-    is357Current
-      ? threeFiveSevenRevealPreview?.summaryText ?? currentTableState.statusMessage
-      : currentTableState.phase === 'completed'
-        ? currentTableState.lastWinnerSummary ?? currentTableState.statusMessage
-        : currentTableState.actionLog[0] ?? currentTableState.statusMessage;
-  const quickRaiseOptions = is357Current ? [] : buildQuickRaiseOptions(currentTableState);
+  const headlineText = is357Current
+    ? (threeFiveSevenRevealPreview?.summaryText ??
+      currentTableState.statusMessage)
+    : currentTableState.phase === 'completed'
+      ? (currentTableState.lastWinnerSummary ?? currentTableState.statusMessage)
+      : (currentTableState.actionLog[0] ?? currentTableState.statusMessage);
+  const quickRaiseOptions = is357Current
+    ? []
+    : buildQuickRaiseOptions(currentTableState);
   function handleGameAction(action: PokerAction, amount?: number) {
     if (pendingAction) {
       return;
@@ -1099,11 +1163,16 @@ export function GameScreen({ navigation }: Props) {
     handleGameAction('raise', amount);
   }
 
-  const connectedCount = currentTableState.players.filter((player) => player.isConnected).length;
+  const connectedCount = currentTableState.players.filter(
+    (player) => player.isConnected,
+  ).length;
   const inviteNotificationCount = currentTableState.tableInvites.filter(
     (invite) => invite.status === 'pending',
   ).length;
-  const chatNotificationCount = Math.max(currentTableState.chatMessages.length - 3, 0);
+  const chatNotificationCount = Math.max(
+    currentTableState.chatMessages.length - 3,
+    0,
+  );
   const serverTimeLabel = new Intl.DateTimeFormat('en-US', {
     hour: 'numeric',
     minute: '2-digit',
@@ -1149,13 +1218,21 @@ export function GameScreen({ navigation }: Props) {
   ) : null;
   const activeWildLabel =
     currentTableState.threeFiveSeven?.activeWildDefinition.label ??
-    currentTableState.threeFiveSeven?.activeWildDefinition.wildRanks.join(', ') ??
+    currentTableState.threeFiveSeven?.activeWildDefinition.wildRanks.join(
+      ', ',
+    ) ??
     'No wilds';
   const bottomRightNode = is357Current ? (
-    <RoundWildsBadge label={activeWildLabel} tableCode={currentTableState.roomId} />
+    <RoundWildsBadge
+      label={activeWildLabel}
+      tableCode={currentTableState.roomId}
+    />
   ) : null;
   const threeFiveSevenRuleBadge = is357Current ? (
-    <ThreeFiveSevenRuleBadge state={currentTableState} wildLabel={activeWildLabel} />
+    <ThreeFiveSevenRuleBadge
+      state={currentTableState}
+      wildLabel={activeWildLabel}
+    />
   ) : null;
   const embeddedBottomRightNode =
     shouldEmbed357Panel && windowWidth >= 900 ? bottomRightNode : null;
@@ -1208,7 +1285,20 @@ export function GameScreen({ navigation }: Props) {
       visibleCommunityCount={visibleCommunityCount}
       height={displayTableHeight}
       width={displayTableWidth}
-      winnerIds={is357Current ? threeFiveSevenRevealPreview?.winnerIds ?? [] : winnerIds}
+      loserIds={
+        is357Current
+          ? (threeFiveSevenRevealPreview?.loserIds ??
+            currentTableState.threeFiveSeven?.lastResolution?.loserIds ??
+            [])
+          : []
+      }
+      winnerIds={
+        is357Current
+          ? (threeFiveSevenRevealPreview?.winnerIds ??
+            currentTableState.threeFiveSeven?.lastResolution?.winnerIds ??
+            [])
+          : winnerIds
+      }
     />
   );
 
@@ -1273,7 +1363,10 @@ export function GameScreen({ navigation }: Props) {
   );
 
   return (
-    <SafeAreaView edges={['bottom', 'left', 'right', 'top']} style={styles.safeArea}>
+    <SafeAreaView
+      edges={['bottom', 'left', 'right', 'top']}
+      style={styles.safeArea}
+    >
       <StatusBar style="light" />
       <LinearGradient
         colors={['#04020A', '#090314', '#05030B']}
@@ -1330,7 +1423,9 @@ export function GameScreen({ navigation }: Props) {
           pointerEvents="none"
           style={[
             styles.showdownBanner,
-            showdownBanner.tone === 'winner' ? styles.showdownBannerWinner : null,
+            showdownBanner.tone === 'winner'
+              ? styles.showdownBannerWinner
+              : null,
             {
               opacity: showdownProgress.interpolate({
                 inputRange: [0, 1],

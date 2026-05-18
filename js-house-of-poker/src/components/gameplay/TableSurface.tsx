@@ -75,11 +75,15 @@ type Props = {
   tablePanHandlers: object;
   tableViewZoom: Animated.Value;
   threeFiveSevenPreview?: {
+    loserIds: string[];
     revealedDecisions: Record<string, Poker357Decision>;
     revealState: 'revealed' | 'resolved';
+    showdownDescriptions: Record<string, string>;
+    winnerIds: string[];
   } | null;
   visibleCommunityCount: number;
   winnerIds: string[];
+  loserIds?: string[];
   width: number;
   height: number;
 };
@@ -90,7 +94,9 @@ function clamp(value: number, min: number, max: number) {
 
 const tableChatBarMenuIconStartOffset =
   gameplayLayoutConfig.topBar.shellPaddingHorizontal +
-  (gameplayLayoutConfig.topBar.touchTargetSize - gameplayLayoutConfig.topBar.menuIconSize) / 2;
+  (gameplayLayoutConfig.topBar.touchTargetSize -
+    gameplayLayoutConfig.topBar.menuIconSize) /
+    2;
 const tableSurfaceOffsetX = -35;
 const standardPokerTableSurfaceOffsetY = -25;
 const threeFiveSevenTableSurfaceOffsetY = 0;
@@ -132,31 +138,71 @@ export function TableSurface({
   visibleCommunityCount,
   width,
   winnerIds,
+  loserIds = [],
   height,
 }: Props) {
-  const is357 = state.gameSettings.game === '357' && Boolean(state.threeFiveSeven);
+  const is357 =
+    state.gameSettings.game === '357' && Boolean(state.threeFiveSeven);
+  const threeFiveSevenState = state.threeFiveSeven;
   const tableSurfaceOffsetY = is357
     ? threeFiveSevenTableSurfaceOffsetY
     : standardPokerTableSurfaceOffsetY;
   const revealState = is357
-    ? threeFiveSevenPreview?.revealState ?? state.threeFiveSeven?.revealState ?? 'hidden'
+    ? (threeFiveSevenPreview?.revealState ??
+      (threeFiveSevenState?.revealState !== 'hidden'
+        ? threeFiveSevenState?.revealState
+        : state.phase === 'completed' && threeFiveSevenState?.lastResolution
+          ? 'resolved'
+          : 'hidden') ??
+      'hidden')
     : 'hidden';
+  const useResolved357Outcome =
+    revealState === 'resolved' ||
+    (state.phase === 'completed' &&
+      Boolean(threeFiveSevenState?.lastResolution));
   const revealedDecisions = is357
-    ? threeFiveSevenPreview?.revealedDecisions ?? {}
+    ? (threeFiveSevenPreview?.revealedDecisions ??
+      (useResolved357Outcome
+        ? threeFiveSevenState?.lastResolution?.revealedDecisions
+        : threeFiveSevenState?.hiddenDecisionState.revealedByPlayerId) ??
+      {})
+    : {};
+  const visibleWinnerIds = is357
+    ? (threeFiveSevenPreview?.winnerIds ??
+      (useResolved357Outcome
+        ? threeFiveSevenState?.lastResolution?.winnerIds
+        : winnerIds) ??
+      [])
+    : winnerIds;
+  const visibleLoserIds = is357
+    ? (threeFiveSevenPreview?.loserIds ??
+      (useResolved357Outcome
+        ? threeFiveSevenState?.lastResolution?.loserIds
+        : loserIds) ??
+      [])
+    : loserIds;
+  const showdownDescriptions = is357
+    ? (threeFiveSevenPreview?.showdownDescriptions ??
+      (useResolved357Outcome
+        ? threeFiveSevenState?.lastResolution?.showdownDescriptions
+        : {}) ??
+      {})
     : {};
   const showDecisionMode =
     is357 &&
-    (state.phase === 'decide_3' || state.phase === 'decide_5' || state.phase === 'decide_7');
+    (state.phase === 'decide_3' ||
+      state.phase === 'decide_5' ||
+      state.phase === 'decide_7');
   const hasLeftRailNode = Boolean(leftPanelNode || bottomRightNode);
   const hasRightRailNode = Boolean(rightPanelNode);
   const resolvedLeftPanelWidth = hasLeftRailNode
-    ? leftPanelWidth ?? clamp(width * 0.24, 220, 320)
+    ? (leftPanelWidth ?? clamp(width * 0.24, 220, 320))
     : 0;
   const resolvedLeftPanelGap = hasLeftRailNode
     ? leftPanelGap || clamp(width * 0.012, 12, 24)
     : 0;
   const resolvedRightPanelWidth = hasRightRailNode
-    ? rightPanelWidth ?? clamp(width * 0.11, 78, 108)
+    ? (rightPanelWidth ?? clamp(width * 0.11, 78, 108))
     : 0;
   const resolvedRightPanelGap = hasRightRailNode
     ? rightPanelGap || clamp(width * 0.01, 8, 16)
@@ -183,20 +229,21 @@ export function TableSurface({
     : 0;
   const leftPanelVerticalBalanceOffset = hasLeftRailNode ? 15 : 0;
   const resolvedBottomRightNodeHeight = bottomRightNode
-    ? bottomRightNodeHeight ?? clamp(height * 0.12, 45, 60)
+    ? (bottomRightNodeHeight ?? clamp(height * 0.12, 45, 60))
     : 0;
   const resolvedBottomRightNodeWidth = bottomRightNode
-    ? bottomRightNodeWidth ?? Math.min(resolvedLeftPanelWidth, 180)
+    ? (bottomRightNodeWidth ?? Math.min(resolvedLeftPanelWidth, 180))
     : 0;
-  const leftPanelStackGap = leftPanelNode && bottomRightNode
-    ? clamp(height * 0.018, 8, 14)
-    : 0;
+  const leftPanelStackGap =
+    leftPanelNode && bottomRightNode ? clamp(height * 0.018, 8, 14) : 0;
 
   return (
     <View
       style={[
         styles.tableViewport,
-        hasLeftRailNode || hasRightRailNode ? styles.tableViewportLeftRailAligned : null,
+        hasLeftRailNode || hasRightRailNode
+          ? styles.tableViewportLeftRailAligned
+          : null,
         { height, width: viewportWidth },
       ]}
     >
@@ -209,7 +256,12 @@ export function TableSurface({
               marginRight: resolvedLeftPanelGap,
               transform: [
                 { translateX: leftPanelHorizontalOffset + 15 },
-                { translateY: -leftPanelVerticalNudge + leftPanelVerticalBalanceOffset + 5 },
+                {
+                  translateY:
+                    -leftPanelVerticalNudge +
+                    leftPanelVerticalBalanceOffset +
+                    5,
+                },
               ],
               width: resolvedLeftPanelWidth,
             },
@@ -277,10 +329,7 @@ export function TableSurface({
             },
           ]}
         >
-          <Pressable
-            onPress={onPressTable}
-            style={styles.tablePressable}
-          >
+          <Pressable onPress={onPressTable} style={styles.tablePressable}>
             <View onLayout={onLayout} style={[styles.tableSurface, { height }]}>
               <Animated.View
                 pointerEvents="none"
@@ -295,10 +344,17 @@ export function TableSurface({
                 ]}
               />
               <LinearGradient
-                colors={['rgba(99,24,176,0.98)', 'rgba(54,13,103,0.98)', 'rgba(22,8,43,0.99)']}
+                colors={[
+                  'rgba(99,24,176,0.98)',
+                  'rgba(54,13,103,0.98)',
+                  'rgba(22,8,43,0.99)',
+                ]}
                 end={{ x: 1, y: 1 }}
                 start={{ x: 0, y: 0 }}
-                style={[styles.tableOuter, focusMode ? styles.tableViewportFocused : null]}
+                style={[
+                  styles.tableOuter,
+                  focusMode ? styles.tableViewportFocused : null,
+                ]}
               >
                 <View style={styles.tableRail}>
                   <LinearGradient
@@ -308,15 +364,23 @@ export function TableSurface({
                     style={styles.tableFelt}
                   >
                     <Animated.View style={styles.tableContentLayer}>
-                      <Animated.View pointerEvents="none" style={[styles.feltGlowA, { opacity: ambientA }]} />
-                      <Animated.View pointerEvents="none" style={[styles.feltGlowB, { opacity: ambientB }]} />
+                      <Animated.View
+                        pointerEvents="none"
+                        style={[styles.feltGlowA, { opacity: ambientA }]}
+                      />
+                      <Animated.View
+                        pointerEvents="none"
+                        style={[styles.feltGlowB, { opacity: ambientB }]}
+                      />
                       <View style={styles.tableInnerCore} />
                       <View style={styles.innerRingOuter} />
                       <View style={styles.innerRingInner} />
                       <View style={styles.centerAura} />
 
                       <View pointerEvents="none" style={styles.brandWatermark}>
-                        <Text style={styles.brandWatermarkText}>HOUSE OF POKER</Text>
+                        <Text style={styles.brandWatermarkText}>
+                          HOUSE OF POKER
+                        </Text>
                       </View>
 
                       {ruleBadgeNode ? (
@@ -326,7 +390,11 @@ export function TableSurface({
                             styles.ruleBadgeSlot,
                             {
                               left: width / 2 - Math.min(width * 0.42, 190),
-                              top: clamp(boardTop - 44, height * 0.08, height * 0.22),
+                              top: clamp(
+                                boardTop - 44,
+                                height * 0.08,
+                                height * 0.22,
+                              ),
                               width: Math.min(width * 0.84, 380),
                             },
                           ]}
@@ -347,7 +415,13 @@ export function TableSurface({
                         ]}
                       >
                         {is357 ? (
-                          <ThreeFiveSevenCenterBoard state={state} statusText={headlineText} />
+                          <ThreeFiveSevenCenterBoard
+                            revealedDecisions={revealedDecisions}
+                            revealState={revealState}
+                            showdownDescriptions={showdownDescriptions}
+                            state={state}
+                            statusText={headlineText}
+                          />
                         ) : (
                           <TableCenterBoard
                             cardSize={boardCardSize}
@@ -359,7 +433,11 @@ export function TableSurface({
                             pot={state.pot}
                             statusMessage={state.statusMessage}
                             visibleCount={visibleCommunityCount}
-                            winnerSummary={state.phase === 'completed' ? state.lastWinnerSummary : null}
+                            winnerSummary={
+                              state.phase === 'completed'
+                                ? state.lastWinnerSummary
+                                : null
+                            }
                           />
                         )}
                       </View>
@@ -371,13 +449,24 @@ export function TableSurface({
               <View pointerEvents="box-none" style={styles.overlayLayer}>
                 {seatDescriptors.map((descriptor) => {
                   const isSelf = descriptor.player.id === selfId;
-                  const isWinner = winnerIds.includes(descriptor.player.id);
+                  const isWinner = visibleWinnerIds.includes(
+                    descriptor.player.id,
+                  );
+                  const isLoser = visibleLoserIds.includes(
+                    descriptor.player.id,
+                  );
                   const decision =
                     is357 && revealState !== 'hidden'
-                      ? revealedDecisions[descriptor.player.id] ?? descriptor.player.revealedDecision
+                      ? (revealedDecisions[descriptor.player.id] ??
+                        descriptor.player.revealedDecision)
                       : null;
-                  const seatZIndex = isSelf ? 16 : descriptor.isBottomSeat ? 12 : 8;
-                  const decisionModeHeroNudge = showDecisionMode && isSelf ? -8 : 0;
+                  const seatZIndex = isSelf
+                    ? 16
+                    : descriptor.isBottomSeat
+                      ? 12
+                      : 8;
+                  const decisionModeHeroNudge =
+                    showDecisionMode && isSelf ? -8 : 0;
 
                   return (
                     <View
@@ -385,12 +474,19 @@ export function TableSurface({
                       pointerEvents="box-none"
                       style={[
                         styles.seatAnchor,
-                        descriptor.isBottomSeat ? styles.bottomSeatAnchor : null,
-                        showDecisionMode && !isSelf ? styles.compactDecisionSeatAnchor : null,
+                        descriptor.isBottomSeat
+                          ? styles.bottomSeatAnchor
+                          : null,
+                        showDecisionMode && !isSelf
+                          ? styles.compactDecisionSeatAnchor
+                          : null,
                         {
                           height: descriptor.height,
                           left: descriptor.center.x - descriptor.width / 2,
-                          top: descriptor.center.y - descriptor.height / 2 + decisionModeHeroNudge,
+                          top:
+                            descriptor.center.y -
+                            descriptor.height / 2 +
+                            decisionModeHeroNudge,
                           width: descriptor.width,
                           zIndex: seatZIndex,
                         },
@@ -404,10 +500,14 @@ export function TableSurface({
                           displayCardCount={descriptor.player.cardCount}
                           game={state.gameSettings.game}
                           isBottomSeat={descriptor.isBottomSeat}
+                          isLoser={isLoser}
                           isSelf={isSelf}
                           isWinner={isWinner}
                           phase={state.phase}
                           player={descriptor.player}
+                          showdownDescription={
+                            showdownDescriptions[descriptor.player.id]
+                          }
                           showDecisionMode={showDecisionMode}
                         />
                       ) : (
@@ -469,11 +569,17 @@ export function TableSurface({
                         styles.burstSlot,
                         {
                           left: descriptor.center.x - 58,
-                          top: descriptor.center.y - descriptor.height / 2 - (descriptor.isBottomSeat ? 34 : 28),
+                          top:
+                            descriptor.center.y -
+                            descriptor.height / 2 -
+                            (descriptor.isBottomSeat ? 34 : 28),
                         },
                       ]}
                     >
-                      <PlayerActionBurst label={burst.label} tone={burst.tone} />
+                      <PlayerActionBurst
+                        label={burst.label}
+                        tone={burst.tone}
+                      />
                     </View>
                   );
                 })}
@@ -500,7 +606,12 @@ export function TableSurface({
             {
               marginLeft: resolvedRightPanelGap,
               transform: [
-                { translateY: -leftPanelVerticalNudge + leftPanelVerticalBalanceOffset + 5 },
+                {
+                  translateY:
+                    -leftPanelVerticalNudge +
+                    leftPanelVerticalBalanceOffset +
+                    5,
+                },
               ],
               width: resolvedRightPanelWidth,
             },
@@ -509,7 +620,6 @@ export function TableSurface({
           {rightPanelNode}
         </View>
       ) : null}
-
     </View>
   );
 }

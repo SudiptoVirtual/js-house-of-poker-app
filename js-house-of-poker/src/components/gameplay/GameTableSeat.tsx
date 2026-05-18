@@ -1,5 +1,12 @@
 import { memo, useEffect, useMemo, useRef } from 'react';
-import { Animated, Easing, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import {
+  Animated,
+  Easing,
+  StyleSheet,
+  Text,
+  useWindowDimensions,
+  View,
+} from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 
@@ -27,10 +34,12 @@ type Props = {
   displayCardCount?: number;
   game: PokerGame;
   isBottomSeat?: boolean;
+  isLoser?: boolean;
   isSelf?: boolean;
   isWinner?: boolean;
   phase: PokerPhase;
   player: PokerPlayerState;
+  showdownDescription?: string | null;
   showDecisionMode?: boolean;
 };
 
@@ -51,24 +60,77 @@ function formatChipAmount(value: number) {
 }
 
 function resolveCardCount(player: PokerPlayerState, displayCardCount?: number) {
-  return Math.max(displayCardCount ?? 0, player.cardCount, player.holeCards.length);
+  return Math.max(
+    displayCardCount ?? 0,
+    player.cardCount,
+    player.holeCards.length,
+  );
 }
 
 function shouldRevealCards(
-  player: PokerPlayerState,
   phase: PokerPhase,
   isSelf: boolean,
   isWinner: boolean,
+  game: PokerGame,
+  decision: Poker357Decision | null,
 ) {
   if (isSelf) {
     return true;
+  }
+
+  if (game === '357') {
+    return decision === 'GO';
   }
 
   if (isWinner) {
     return true;
   }
 
-  return phase === 'showdown' || phase === 'completed' || phase === 'reveal' || phase === 'resolve';
+  return (
+    phase === 'showdown' ||
+    phase === 'completed' ||
+    phase === 'reveal' ||
+    phase === 'resolve'
+  );
+}
+
+function getShowdownResult(
+  decision: Poker357Decision | null,
+  isLoser: boolean,
+  isWinner: boolean,
+  showdownDescription?: string | null,
+) {
+  if (decision !== 'GO') {
+    return null;
+  }
+
+  if (isWinner) {
+    return {
+      backgroundColor: 'rgba(77, 46, 5, 0.96)',
+      borderColor: '#FFCB6B',
+      color: '#FFF5D8',
+      label: 'GO WIN',
+      text: showdownDescription ?? 'Winning GO hand',
+    };
+  }
+
+  if (isLoser) {
+    return {
+      backgroundColor: 'rgba(79, 14, 36, 0.96)',
+      borderColor: '#FF79B4',
+      color: '#FFF0F8',
+      label: 'GO LOSE',
+      text: showdownDescription ?? 'Losing GO hand',
+    };
+  }
+
+  return {
+    backgroundColor: 'rgba(11, 70, 66, 0.96)',
+    borderColor: '#4DFFD6',
+    color: '#E6FFF8',
+    label: 'GO SHOWDOWN',
+    text: showdownDescription ?? 'Cards revealed for showdown',
+  };
 }
 
 function getStatusRibbon(isWinner: boolean) {
@@ -205,7 +267,8 @@ function CardFan({
       {slots.map((_, index) => {
         const card = cards[index];
         const rotate = (index - (count - 1) / 2) * angleSpread;
-        const translateY = Math.abs(index - (count - 1) / 2) * (size === 'md' ? 1.8 : 1.2);
+        const translateY =
+          Math.abs(index - (count - 1) / 2) * (size === 'md' ? 1.8 : 1.2);
 
         return (
           <View
@@ -214,7 +277,13 @@ function CardFan({
               styles.cardFanSlot,
               index > 0 ? { marginLeft: -overlap } : null,
               compact ? styles.cardFanSlotCompact : null,
-              { transform: [{ rotate: `${rotate}deg` }, { translateY }, { scale: cardScale }] },
+              {
+                transform: [
+                  { rotate: `${rotate}deg` },
+                  { translateY },
+                  { scale: cardScale },
+                ],
+              },
             ]}
           >
             <AnimatedCard
@@ -231,10 +300,20 @@ function CardFan({
   );
 }
 
-function LegsTrack({ compact = false, legs }: { compact?: boolean; legs: number }) {
+function LegsTrack({
+  compact = false,
+  legs,
+}: {
+  compact?: boolean;
+  legs: number;
+}) {
   return (
     <View style={[styles.legsShell, compact ? styles.legsShellCompact : null]}>
-      <Text style={[styles.legsLabel, compact ? styles.legsLabelCompact : null]}>LEGS</Text>
+      <Text
+        style={[styles.legsLabel, compact ? styles.legsLabelCompact : null]}
+      >
+        LEGS
+      </Text>
       <View style={[styles.legsRow, compact ? styles.legsRowCompact : null]}>
         {Array.from({ length: MAX_LEG_SLOTS }).map((_, index) => {
           const filled = index < Math.min(legs, MAX_LEG_SLOTS);
@@ -249,7 +328,12 @@ function LegsTrack({ compact = false, legs }: { compact?: boolean; legs: number 
               ]}
             >
               {filled ? (
-                <View style={[styles.legOrbCore, compact ? styles.legOrbCoreCompact : null]} />
+                <View
+                  style={[
+                    styles.legOrbCore,
+                    compact ? styles.legOrbCoreCompact : null,
+                  ]}
+                />
               ) : null}
             </View>
           );
@@ -265,7 +349,10 @@ function CompactLegsTrack({ legs }: { legs: number }) {
       {Array.from({ length: MAX_LEG_SLOTS }).map((_, index) => (
         <View
           key={`compact-leg-${index}`}
-          style={[styles.compactLegDot, index < legs ? styles.compactLegDotFilled : null]}
+          style={[
+            styles.compactLegDot,
+            index < legs ? styles.compactLegDotFilled : null,
+          ]}
         />
       ))}
     </View>
@@ -279,20 +366,37 @@ export const GameTableSeat = memo(function GameTableSeat({
   displayCardCount,
   game,
   isBottomSeat = false,
+  isLoser = false,
   isSelf = false,
   isWinner = false,
   phase,
   player,
+  showdownDescription = null,
   showDecisionMode = false,
 }: Props) {
   const { width: viewportWidth } = useWindowDimensions();
   const turnGlow = useRef(new Animated.Value(player.isTurn ? 0.55 : 0)).current;
   const winnerGlow = useRef(new Animated.Value(isWinner ? 0.7 : 0)).current;
-  const folded = useRef(new Animated.Value(player.hasFolded || decision === 'STAY' ? 0.82 : 1)).current;
+  const folded = useRef(
+    new Animated.Value(player.hasFolded || decision === 'STAY' ? 0.82 : 1),
+  ).current;
   const cardCount = resolveCardCount(player, displayCardCount);
-  const revealCards = shouldRevealCards(player, phase, isSelf, isWinner);
+  const revealCards = shouldRevealCards(
+    phase,
+    isSelf,
+    isWinner,
+    game,
+    decision,
+  );
   const cardsHidden = !revealCards && cardCount > 0;
   const actionBadge = getActionBadge(decision, player, phase, isWinner);
+  const showdownResult = getShowdownResult(
+    decision,
+    isLoser,
+    isWinner,
+    showdownDescription,
+  );
+  const showShowdownConnector = Boolean(showdownResult) && revealCards;
   const statusRibbon = getStatusRibbon(isWinner);
   const statusTier = getPlayerStatusTier(player.playerStatus);
   const labelAmount =
@@ -308,17 +412,27 @@ export const GameTableSeat = memo(function GameTableSeat({
         ? styles.alignRight
         : styles.alignCenter;
   const is357Game = game === '357';
-  const useCompact357Seat = is357Game && (!isSelf || viewportWidth <= COMPACT_357_HERO_MAX_WIDTH);
-  const useCompactDecisionSeat = useCompact357Seat || (showDecisionMode && !isSelf);
+  const useCompact357Seat =
+    is357Game && (!isSelf || viewportWidth <= COMPACT_357_HERO_MAX_WIDTH);
+  const useCompactDecisionSeat =
+    useCompact357Seat || (showDecisionMode && !isSelf);
   const playerName = player.name;
   const selfTag = isSelf ? 'YOU' : null;
-  const showQuestionBadge = showDecisionMode && !revealCards && !isSelf && !decision;
-  const useCompactSelfSeat = isBottomSeat && isSelf && (!is357Game || useCompact357Seat);
+  const showQuestionBadge =
+    showDecisionMode && !revealCards && !isSelf && !decision;
+  const useCompactSelfSeat =
+    isBottomSeat && isSelf && (!is357Game || useCompact357Seat);
   const showSelfSideCards = isBottomSeat && isSelf && cardCount > 0;
   const bottomCardSize = useCompactSelfSeat ? 'sm' : 'md';
   const showCompactActionPill =
     useCompact357Seat &&
-    (isWinner || Boolean(decision) || player.isTurn || player.hasFolded || !player.isConnected || player.isAllIn);
+    (isWinner ||
+      isLoser ||
+      Boolean(decision) ||
+      player.isTurn ||
+      player.hasFolded ||
+      !player.isConnected ||
+      player.isAllIn);
 
   const sideLayout = useMemo(() => {
     if (isBottomSeat) {
@@ -408,14 +522,75 @@ export const GameTableSeat = memo(function GameTableSeat({
     </View>
   );
 
+  const renderShowdownConnector = (compact = false) => {
+    if (!showdownResult) {
+      return null;
+    }
+
+    return (
+      <View
+        style={[
+          styles.showdownConnector,
+          compact ? styles.showdownConnectorCompact : null,
+          {
+            backgroundColor: showdownResult.backgroundColor,
+            borderColor: showdownResult.borderColor,
+          },
+        ]}
+      >
+        <Text
+          numberOfLines={1}
+          style={[
+            styles.showdownConnectorLabel,
+            compact ? styles.showdownConnectorLabelCompact : null,
+            { color: showdownResult.color },
+          ]}
+        >
+          {showdownResult.label}
+        </Text>
+        {compact ? null : (
+          <Text numberOfLines={2} style={styles.showdownConnectorText}>
+            {showdownResult.text}
+          </Text>
+        )}
+      </View>
+    );
+  };
+
+  const renderCardFan = (size: 'md' | 'sm', compact = false) => (
+    <View
+      style={[
+        styles.revealedCardStack,
+        compact ? styles.revealedCardStackCompact : null,
+      ]}
+    >
+      <CardFan
+        cards={player.holeCards}
+        compact={compact}
+        count={cardCount}
+        hidden={cardsHidden}
+        size={size}
+      />
+      {showShowdownConnector ? renderShowdownConnector(compact) : null}
+    </View>
+  );
+
   const bottomIdentityNode = (
     <View style={styles.bottomIdentityWrap}>
       {renderAvatarStack(useCompactSelfSeat ? 'sm' : 'md')}
       {!showDecisionMode ? (
-        <View style={[styles.stackPlate, useCompactSelfSeat ? styles.stackPlateCompact : null]}>
+        <View
+          style={[
+            styles.stackPlate,
+            useCompactSelfSeat ? styles.stackPlateCompact : null,
+          ]}
+        >
           <Text
             numberOfLines={1}
-            style={[styles.stackText, useCompactSelfSeat ? styles.stackTextCompact : null]}
+            style={[
+              styles.stackText,
+              useCompactSelfSeat ? styles.stackTextCompact : null,
+            ]}
           >
             {formatChipAmount(player.chips)}
           </Text>
@@ -442,8 +617,14 @@ export const GameTableSeat = memo(function GameTableSeat({
         },
       ]}
     >
-      <Animated.View pointerEvents="none" style={[styles.turnGlow, { opacity: turnGlow }]} />
-      <Animated.View pointerEvents="none" style={[styles.winnerGlow, { opacity: winnerGlow }]} />
+      <Animated.View
+        pointerEvents="none"
+        style={[styles.turnGlow, { opacity: turnGlow }]}
+      />
+      <Animated.View
+        pointerEvents="none"
+        style={[styles.winnerGlow, { opacity: winnerGlow }]}
+      />
 
       {statusRibbon && !showDecisionMode && !useCompact357Seat ? (
         <View
@@ -455,14 +636,23 @@ export const GameTableSeat = memo(function GameTableSeat({
             },
           ]}
         >
-          <MaterialCommunityIcons color={statusRibbon.color} name={statusRibbon.icon as any} size={12} />
-          <Text numberOfLines={1} style={[styles.statusRibbonText, { color: statusRibbon.color }]}>
+          <MaterialCommunityIcons
+            color={statusRibbon.color}
+            name={statusRibbon.icon as any}
+            size={12}
+          />
+          <Text
+            numberOfLines={1}
+            style={[styles.statusRibbonText, { color: statusRibbon.color }]}
+          >
             {statusRibbon.label}
           </Text>
         </View>
       ) : null}
 
-      {player.isTurn && !useCompact357Seat ? <TurnIndicator active style={styles.turnIndicator} /> : null}
+      {player.isTurn && !useCompact357Seat ? (
+        <TurnIndicator active style={styles.turnIndicator} />
+      ) : null}
 
       <LinearGradient
         colors={getShellGradient(isBottomSeat, showDecisionMode, isWinner)}
@@ -476,19 +666,42 @@ export const GameTableSeat = memo(function GameTableSeat({
           useCompact357Seat ? styles.shell357Compact : null,
         ]}
       >
-        <View style={[styles.shellBorder, useCompact357Seat ? styles.shellBorder357Compact : null]} />
+        <View
+          style={[
+            styles.shellBorder,
+            useCompact357Seat ? styles.shellBorder357Compact : null,
+          ]}
+        />
 
         {!useCompactDecisionSeat && (showDecisionMode || isBottomSeat) ? (
-          <View style={[styles.nameRail, useCompactSelfSeat ? styles.nameRailCompact : null]}>
+          <View
+            style={[
+              styles.nameRail,
+              useCompactSelfSeat ? styles.nameRailCompact : null,
+            ]}
+          >
             <Text
               numberOfLines={1}
-              style={[styles.playerName, useCompactSelfSeat ? styles.playerNameCompact : null]}
+              style={[
+                styles.playerName,
+                useCompactSelfSeat ? styles.playerNameCompact : null,
+              ]}
             >
               {playerName}
             </Text>
             {selfTag ? (
-              <View style={[styles.selfTag, useCompactSelfSeat ? styles.selfTagCompact : null]}>
-                <Text style={[styles.selfTagText, useCompactSelfSeat ? styles.selfTagTextCompact : null]}>
+              <View
+                style={[
+                  styles.selfTag,
+                  useCompactSelfSeat ? styles.selfTagCompact : null,
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.selfTagText,
+                    useCompactSelfSeat ? styles.selfTagTextCompact : null,
+                  ]}
+                >
                   {selfTag}
                 </Text>
               </View>
@@ -497,10 +710,25 @@ export const GameTableSeat = memo(function GameTableSeat({
         ) : null}
 
         {useCompactDecisionSeat ? (
-          <View style={[styles.compactDecisionSeat, align === 'right' ? styles.compactDecisionSeatRight : null]}>
-            <View style={[styles.compactIdentityRow, align === 'right' ? styles.compactIdentityRowRight : null]}>
+          <View
+            style={[
+              styles.compactDecisionSeat,
+              align === 'right' ? styles.compactDecisionSeatRight : null,
+            ]}
+          >
+            <View
+              style={[
+                styles.compactIdentityRow,
+                align === 'right' ? styles.compactIdentityRowRight : null,
+              ]}
+            >
               {renderAvatarStack('sm')}
-              <View style={[styles.compactNameStack, align === 'right' ? styles.compactNameStackRight : null]}>
+              <View
+                style={[
+                  styles.compactNameStack,
+                  align === 'right' ? styles.compactNameStackRight : null,
+                ]}
+              >
                 <Text numberOfLines={1} style={styles.compactName}>
                   {player.name}
                 </Text>
@@ -510,25 +738,42 @@ export const GameTableSeat = memo(function GameTableSeat({
               </View>
             </View>
             {cardCount > 0 ? (
-              <View style={[styles.compactFanWrap, align === 'right' ? styles.compactFanWrapRight : null]}>
-                <CardFan
-                  cards={player.holeCards}
-                  compact
-                  count={cardCount}
-                  hidden={cardsHidden}
-                  size="sm"
-                />
+              <View
+                style={[
+                  styles.compactFanWrap,
+                  align === 'right' ? styles.compactFanWrapRight : null,
+                ]}
+              >
+                {renderCardFan('sm', true)}
                 {showQuestionBadge ? (
-                  <View style={[styles.compactQuestionBadge, align === 'right' ? styles.compactQuestionBadgeLeft : null]}>
-                    <MaterialCommunityIcons color="#F6F2FF" name="help" size={12} />
+                  <View
+                    style={[
+                      styles.compactQuestionBadge,
+                      align === 'right'
+                        ? styles.compactQuestionBadgeLeft
+                        : null,
+                    ]}
+                  >
+                    <MaterialCommunityIcons
+                      color="#F6F2FF"
+                      name="help"
+                      size={12}
+                    />
                   </View>
                 ) : null}
               </View>
             ) : null}
-            <View style={[styles.compactDecisionRail, align === 'right' ? styles.compactDecisionRailRight : null]}>
+            <View
+              style={[
+                styles.compactDecisionRail,
+                align === 'right' ? styles.compactDecisionRailRight : null,
+              ]}
+            >
               <CompactLegsTrack legs={player.legs} />
               <View style={styles.compactAmountBubble}>
-                <Text style={styles.compactAmountBubbleText}>${formatChipAmount(labelAmount)}</Text>
+                <Text style={styles.compactAmountBubbleText}>
+                  ${formatChipAmount(labelAmount)}
+                </Text>
               </View>
               {showCompactActionPill ? (
                 <View
@@ -540,7 +785,12 @@ export const GameTableSeat = memo(function GameTableSeat({
                     },
                   ]}
                 >
-                  <Text style={[styles.compactActionPillText, { color: actionBadge.color }]}>
+                  <Text
+                    style={[
+                      styles.compactActionPillText,
+                      { color: actionBadge.color },
+                    ]}
+                  >
                     {actionBadge.label}
                   </Text>
                 </View>
@@ -548,43 +798,35 @@ export const GameTableSeat = memo(function GameTableSeat({
             </View>
           </View>
         ) : (
-          <View style={[styles.cluster, sideLayout, useCompactSelfSeat ? styles.clusterCompact : null]}>
+          <View
+            style={[
+              styles.cluster,
+              sideLayout,
+              useCompactSelfSeat ? styles.clusterCompact : null,
+            ]}
+          >
             {isBottomSeat ? (
               showSelfSideCards ? (
                 <View style={styles.bottomSelfAnchorCluster}>
                   {bottomIdentityNode}
-                  <View pointerEvents="none" style={styles.bottomSelfCardsRight}>
-                    <CardFan
-                      cards={player.holeCards}
-                      count={cardCount}
-                      hidden={cardsHidden}
-                      size={bottomCardSize}
-                    />
+                  <View
+                    pointerEvents="none"
+                    style={styles.bottomSelfCardsRight}
+                  >
+                    {renderCardFan(bottomCardSize)}
                   </View>
                 </View>
               ) : (
                 <>
-                  {cardCount > 0 ? (
-                    <CardFan
-                      cards={player.holeCards}
-                      count={cardCount}
-                      hidden={cardsHidden}
-                      size={bottomCardSize}
-                    />
-                  ) : null}
+                  {cardCount > 0 ? renderCardFan(bottomCardSize) : null}
                   {bottomIdentityNode}
                 </>
               )
             ) : (
               <>
-                {align === 'right' && cardCount > 0 ? (
-                  <CardFan
-                    cards={player.holeCards}
-                    count={cardCount}
-                    hidden={cardsHidden}
-                    size="sm"
-                  />
-                ) : null}
+                {align === 'right' && cardCount > 0
+                  ? renderCardFan('sm')
+                  : null}
 
                 <View style={styles.sideIdentityWrap}>
                   {renderAvatarStack('md')}
@@ -601,27 +843,34 @@ export const GameTableSeat = memo(function GameTableSeat({
                   ) : null}
                 </View>
 
-                {align !== 'right' && cardCount > 0 ? (
-                  <CardFan
-                    cards={player.holeCards}
-                    count={cardCount}
-                    hidden={cardsHidden}
-                    size="sm"
-                  />
-                ) : null}
+                {align !== 'right' && cardCount > 0
+                  ? renderCardFan('sm')
+                  : null}
               </>
             )}
           </View>
         )}
 
         {useCompactDecisionSeat ? null : showDecisionMode ? (
-          <View style={[styles.decisionRail, useCompactSelfSeat ? styles.decisionRailSelfCompact : null]}>
+          <View
+            style={[
+              styles.decisionRail,
+              useCompactSelfSeat ? styles.decisionRailSelfCompact : null,
+            ]}
+          >
             <LegsTrack compact={useCompactSelfSeat} legs={player.legs} />
-            <View style={[styles.amountBubble, useCompactSelfSeat ? styles.amountBubbleSelfCompact : null]}>
+            <View
+              style={[
+                styles.amountBubble,
+                useCompactSelfSeat ? styles.amountBubbleSelfCompact : null,
+              ]}
+            >
               <Text
                 style={[
                   styles.amountBubbleText,
-                  useCompactSelfSeat ? styles.amountBubbleTextSelfCompact : null,
+                  useCompactSelfSeat
+                    ? styles.amountBubbleTextSelfCompact
+                    : null,
                 ]}
               >
                 ${formatChipAmount(labelAmount)}
@@ -629,7 +878,12 @@ export const GameTableSeat = memo(function GameTableSeat({
             </View>
           </View>
         ) : (
-          <View style={[styles.liveFooter, useCompactSelfSeat ? styles.liveFooterCompact : null]}>
+          <View
+            style={[
+              styles.liveFooter,
+              useCompactSelfSeat ? styles.liveFooterCompact : null,
+            ]}
+          >
             <View
               style={[
                 styles.actionBadge,
@@ -669,7 +923,12 @@ export const GameTableSeat = memo(function GameTableSeat({
         )}
 
         {showQuestionBadge && !useCompactDecisionSeat ? (
-          <View style={[styles.questionBadge, align === 'right' ? styles.questionBadgeLeft : null]}>
+          <View
+            style={[
+              styles.questionBadge,
+              align === 'right' ? styles.questionBadgeLeft : null,
+            ]}
+          >
             <MaterialCommunityIcons color="#F6F2FF" name="help" size={14} />
           </View>
         ) : null}
@@ -1087,6 +1346,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'flex-end',
   },
+  revealedCardStack: {
+    alignItems: 'center',
+    gap: 4,
+    justifyContent: 'center',
+  },
+  revealedCardStackCompact: {
+    gap: 0,
+  },
   selfTag: {
     backgroundColor: 'rgba(103, 237, 255, 0.18)',
     borderColor: 'rgba(103, 237, 255, 0.4)',
@@ -1149,6 +1416,39 @@ const styles = StyleSheet.create({
   },
   shellLive: {
     backgroundColor: 'rgba(0,0,0,0.12)',
+  },
+  showdownConnector: {
+    alignItems: 'center',
+    borderRadius: 10,
+    borderWidth: 1,
+    marginTop: -2,
+    maxWidth: 138,
+    paddingHorizontal: 7,
+    paddingVertical: 4,
+  },
+  showdownConnectorCompact: {
+    borderRadius: 999,
+    bottom: -10,
+    minWidth: 72,
+    paddingHorizontal: 5,
+    paddingVertical: 2,
+    position: 'absolute',
+  },
+  showdownConnectorLabel: {
+    fontSize: 9,
+    fontWeight: '900',
+    letterSpacing: 0.5,
+  },
+  showdownConnectorLabelCompact: {
+    fontSize: 7,
+    letterSpacing: 0.2,
+  },
+  showdownConnectorText: {
+    color: 'rgba(255,255,255,0.86)',
+    fontSize: 8,
+    fontWeight: '700',
+    lineHeight: 10,
+    textAlign: 'center',
   },
   sideIdentityWrap: {
     alignItems: 'center',
