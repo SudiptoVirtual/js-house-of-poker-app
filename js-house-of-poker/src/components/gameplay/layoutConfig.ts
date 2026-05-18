@@ -13,7 +13,11 @@ export const gameplayLayoutConfig = {
     landscapeFocusBottomOffset: 30,
   },
   topBar: {
+    expandedPortraitHeightRatio: 0.064,
+    landscapeHeightRatio: 0.052,
     menuIconSize: 30,
+    portraitMaxHeight: 60,
+    portraitMinHeight: 48,
     shellPaddingHorizontal: 8,
     touchTargetSize: 36,
   },

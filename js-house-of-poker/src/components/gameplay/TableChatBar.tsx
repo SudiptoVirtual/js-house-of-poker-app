@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Image,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -103,7 +104,7 @@ export function TableChatBar({
   const isCompact = width < 620 && height > width;
   const normalizedDraft = normalizeTableChatText(draft);
   const canSend = normalizedDraft.length > 0;
-  const shouldPrioritizeCompose = isCompact && (isComposeFocused || canSend);
+  const shouldPrioritizeCompose = isCompact && isComposeFocused;
   const tickerMessages = useMemo(() => getVisibleTableChatMessages(messages), [messages]);
   const notificationHeadlines = useMemo(() => {
     const pendingInvites = inviteNotificationCount > 0
@@ -280,6 +281,74 @@ export function TableChatBar({
     );
   }
 
+  function renderTickerControl() {
+    const latestMessage = tickerMessages.at(-1);
+
+    return (
+      <Pressable
+        accessibilityRole="button"
+        onPress={() => setOpenPanel((current) => (current === 'messages' ? null : 'messages'))}
+        style={styles.chatTickerControl}
+      >
+        <MaterialCommunityIcons color="#D780FF" name="chat-outline" size={17} />
+        {latestMessage ? (
+          <Text numberOfLines={1} style={styles.chatTickerText}>
+            <Text style={styles.tickerName}>{latestMessage.playerName}:</Text> {latestMessage.text}
+          </Text>
+        ) : (
+          <Text numberOfLines={1} style={styles.chatTickerTextMuted}>
+            Room {roomId} chat
+          </Text>
+        )}
+      </Pressable>
+    );
+  }
+
+  function renderScrollableControls() {
+    return (
+      <ScrollView
+        horizontal
+        keyboardShouldPersistTaps="handled"
+        showsHorizontalScrollIndicator={false}
+        style={styles.controlsScroll}
+        contentContainerStyle={styles.controlsScrollContent}
+      >
+        <View style={styles.composeControl}>{renderComposeRail()}</View>
+        {renderTickerControl()}
+
+        <Pressable
+          accessibilityRole="button"
+          onPress={onInvitePress}
+          style={styles.inviteButton}
+        >
+          <MaterialCommunityIcons color="#67F3BB" name="account-plus-outline" size={18} />
+          <Text style={styles.inviteButtonText}>INVITE</Text>
+        </Pressable>
+
+        <Pressable
+          accessibilityLabel="Invite friends"
+          accessibilityRole="button"
+          onPress={onInvitePress}
+          style={styles.friendInviteButton}
+        >
+          <MaterialCommunityIcons color="#F2C9FF" name="account-multiple-plus-outline" size={18} />
+          <Text style={styles.friendInviteButtonText}>FRIENDS</Text>
+        </Pressable>
+
+        <NotificationIcon
+          badgeCount={inviteNotificationCount}
+          icon="bell-outline"
+          onPress={() => setOpenPanel((current) => (current === 'notifications' ? null : 'notifications'))}
+        />
+        <NotificationIcon
+          badgeCount={chatNotificationCount}
+          icon="message-text-outline"
+          onPress={() => setOpenPanel((current) => (current === 'messages' ? null : 'messages'))}
+        />
+      </ScrollView>
+    );
+  }
+
   if (!isTopBarExpanded) {
     return (
       <LinearGradient
@@ -318,7 +387,7 @@ export function TableChatBar({
       start={{ x: 0, y: 0 }}
       style={[styles.shell, isCompact ? styles.shellCompact : null]}
     >
-      <View style={[styles.row, isCompact ? styles.rowCompact : null]}>
+      <View style={styles.row}>
         <View style={styles.brandRail}>
           {renderTopBarToggle()}
 
@@ -340,49 +409,8 @@ export function TableChatBar({
           </View>
         </View>
 
-        <View style={styles.composeShell}>
-          {renderComposeRail()}
-
-          {isCompact ? (
-            <View style={styles.tickerRail}>
-              {tickerMessages.length > 0 ? (
-                tickerMessages.map((message) => (
-                  <Text key={message.id} numberOfLines={1} style={styles.tickerText}>
-                    <Text style={styles.tickerName}>{message.playerName}:</Text> {message.text}
-                  </Text>
-                ))
-              ) : (
-                <Text numberOfLines={1} style={styles.tickerTextMuted}>
-                  Room {roomId} is ready. Send the first message to {tableName}.
-                </Text>
-              )}
-            </View>
-          ) : null}
-        </View>
-
-        <View style={styles.actionsRail}>
-          <Pressable
-            accessibilityRole="button"
-            onPress={onInvitePress}
-            style={styles.inviteButton}
-          >
-            <MaterialCommunityIcons color="#67F3BB" name="account-plus-outline" size={18} />
-            <Text style={styles.inviteButtonText}>INVITE</Text>
-          </Pressable>
-
-          <NotificationIcon
-            badgeCount={inviteNotificationCount}
-            icon="bell-outline"
-            onPress={() => setOpenPanel((current) => (current === 'notifications' ? null : 'notifications'))}
-          />
-          <NotificationIcon
-            badgeCount={chatNotificationCount}
-            icon="message-text-outline"
-            onPress={() => setOpenPanel((current) => (current === 'messages' ? null : 'messages'))}
-          />
-        </View>
+        {renderScrollableControls()}
       </View>
-
 
       {renderIncomingChatToast()}
 
@@ -417,36 +445,50 @@ export function TableChatBar({
           )}
         </View>
       ) : null}
-
-      {isCompact ? (
-        <View style={styles.footerMeta}>
-          <Text style={styles.footerMetaText}>{tableName}</Text>
-          <Text style={styles.footerMetaDivider}>|</Text>
-          <Text style={styles.footerMetaText}>{roomId}</Text>
-          <Text style={styles.footerMetaDivider}>|</Text>
-          <Text style={styles.footerMetaText}>{transportLabel}</Text>
-        </View>
-      ) : null}
     </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
-  actionsRail: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: 6,
-  },
   brandRail: {
     alignItems: 'center',
     flexDirection: 'row',
+    flexShrink: 0,
     gap: 8,
+  },
+  chatTickerControl: {
+    alignItems: 'center',
+    borderColor: 'rgba(180, 84, 255, 0.26)',
+    borderRadius: 12,
+    borderWidth: 1,
+    flexDirection: 'row',
+    flexShrink: 0,
+    gap: 7,
+    minHeight: 36,
+    paddingHorizontal: 10,
+    width: 210,
+  },
+  chatTickerText: {
+    color: '#F7F4FF',
+    flex: 1,
+    fontSize: 12,
+    minWidth: 0,
+  },
+  chatTickerTextMuted: {
+    color: 'rgba(235, 231, 255, 0.56)',
+    flex: 1,
+    fontSize: 12,
+    minWidth: 0,
   },
   composeInput: {
     color: '#F7F4FF',
     flex: 1,
     fontSize: 13,
     paddingVertical: 0,
+  },
+  composeControl: {
+    flexShrink: 0,
+    width: 280,
   },
   composeRail: {
     alignItems: 'center',
@@ -468,10 +510,15 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 0,
   },
-  composeShell: {
+  controlsScroll: {
     flex: 1,
-    gap: 6,
     minWidth: 0,
+  },
+  controlsScrollContent: {
+    alignItems: 'center',
+    flexGrow: 1,
+    gap: 6,
+    paddingRight: 6,
   },
   emojiButton: {
     alignItems: 'center',
@@ -486,22 +533,6 @@ const styles = StyleSheet.create({
   emojiText: {
     fontSize: 18,
   },
-  footerMeta: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: 6,
-    justifyContent: 'center',
-  },
-  footerMetaDivider: {
-    color: 'rgba(235, 231, 255, 0.36)',
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  footerMetaText: {
-    color: 'rgba(235, 231, 255, 0.64)',
-    fontSize: 11,
-    fontWeight: '700',
-  },
   inviteButton: {
     alignItems: 'center',
     backgroundColor: 'rgba(12, 29, 14, 0.98)',
@@ -515,6 +546,23 @@ const styles = StyleSheet.create({
   },
   inviteButtonText: {
     color: '#67F3BB',
+    fontSize: 12,
+    fontWeight: '900',
+    letterSpacing: 0.6,
+  },
+  friendInviteButton: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(35, 14, 50, 0.98)',
+    borderColor: 'rgba(242, 201, 255, 0.3)',
+    borderRadius: 12,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 6,
+    minHeight: 36,
+    paddingHorizontal: 10,
+  },
+  friendInviteButtonText: {
+    color: '#F2C9FF',
     fontSize: 12,
     fontWeight: '900',
     letterSpacing: 0.6,
@@ -599,11 +647,8 @@ const styles = StyleSheet.create({
   row: {
     alignItems: 'center',
     flexDirection: 'row',
-    gap: 12,
-  },
-  rowCompact: {
-    alignItems: 'stretch',
-    flexDirection: 'column',
+    gap: 8,
+    maxHeight: gameplayLayoutConfig.topBar.portraitMaxHeight - 10,
   },
   sendButton: {
     alignItems: 'center',
@@ -632,15 +677,17 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(180, 84, 255, 0.18)',
     borderRadius: 16,
     borderWidth: 1,
-    gap: 8,
+    gap: 0,
+    maxHeight: gameplayLayoutConfig.topBar.portraitMaxHeight,
     paddingHorizontal: gameplayLayoutConfig.topBar.shellPaddingHorizontal,
     paddingVertical: 5,
   },
   shellCompact: {
-    gap: 12,
+    maxHeight: gameplayLayoutConfig.topBar.portraitMaxHeight,
   },
   shellComposePriority: {
     borderRadius: 14,
+    maxHeight: gameplayLayoutConfig.topBar.portraitMaxHeight,
     paddingHorizontal: 6,
     paddingVertical: 4,
   },
@@ -664,26 +711,6 @@ const styles = StyleSheet.create({
   tickerName: {
     color: '#D780FF',
     fontWeight: '900',
-  },
-  tickerRail: {
-    alignItems: 'center',
-    borderColor: 'rgba(180, 84, 255, 0.2)',
-    borderRadius: 14,
-    borderWidth: 1,
-    flexDirection: 'row',
-    gap: 12,
-    minHeight: 42,
-    paddingHorizontal: 14,
-  },
-  tickerText: {
-    color: '#F7F4FF',
-    flex: 1,
-    fontSize: 12,
-    minWidth: 0,
-  },
-  tickerTextMuted: {
-    color: 'rgba(235, 231, 255, 0.56)',
-    fontSize: 12,
   },
   popover: {
     backgroundColor: 'rgba(9, 6, 18, 0.98)',

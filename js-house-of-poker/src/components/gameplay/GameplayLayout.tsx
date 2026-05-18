@@ -1,5 +1,7 @@
 import { StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 
+import { gameplayLayoutConfig } from './layoutConfig';
+
 function clamp(value: number, min: number, max: number) {
   return Math.max(min, Math.min(max, value));
 }
@@ -40,9 +42,17 @@ export function GameplayLayout({
   const topInset = Math.max(2, insets.top ? 0 : 4);
   const sideGap = clamp(width * 0.008, 8, 16);
   const topBarHeight = isLandscape
-    ? clamp(height * 0.052, 42, 56)
-    : clamp(height * 0.12, 72, 108);
-  const collapsedTopBarHeight = clamp(height * 0.052, 42, 56);
+    ? clamp(height * gameplayLayoutConfig.topBar.landscapeHeightRatio, 42, 56)
+    : clamp(
+        height * gameplayLayoutConfig.topBar.expandedPortraitHeightRatio,
+        gameplayLayoutConfig.topBar.portraitMinHeight,
+        gameplayLayoutConfig.topBar.portraitMaxHeight,
+      );
+  const collapsedTopBarHeight = clamp(
+    height * gameplayLayoutConfig.topBar.landscapeHeightRatio,
+    42,
+    56,
+  );
   const activeTopBarHeight = isTopBarExpanded ? topBarHeight : collapsedTopBarHeight;
   const tableLift = isLandscape ? clamp(height * 0.04, 24, 36) : 0;
   const portraitTableGap = clamp(height * 0.01, 4, 8);
