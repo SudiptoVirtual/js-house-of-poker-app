@@ -566,9 +566,15 @@ function normalizeThreeFiveSevenState(
             revealedDecisions: normalizeStringRecord(
               threeFiveSeven.lastResolution.revealedDecisions,
             ) as Poker357State['hiddenDecisionState']['revealedByPlayerId'],
-            showdownDescriptions: normalizeStringRecord(
-              threeFiveSeven.lastResolution.showdownDescriptions,
-            ),
+            showdownDescriptions: {
+              ...normalizeStringRecord(
+                previousState?.threeFiveSeven?.lastResolution?.handNumber ===
+                  threeFiveSeven.lastResolution.handNumber
+                  ? previousState.threeFiveSeven.lastResolution.showdownDescriptions
+                  : null,
+              ),
+              ...normalizeStringRecord(threeFiveSeven.lastResolution.showdownDescriptions),
+            },
             winnerIds: normalizeStringArray(threeFiveSeven.lastResolution.winnerIds),
           }
         : null,
