@@ -1,5 +1,5 @@
 import { memo, useEffect, useMemo, useRef } from 'react';
-import { Animated, Easing, StyleSheet, Text, View } from 'react-native';
+import { Animated, Easing, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 
@@ -35,7 +35,8 @@ type Props = {
 };
 
 const MAX_LEG_SLOTS = 4;
-const SEAT_META_BADGE_SIZE = 36;
+const SEAT_META_BADGE_SIZE = 24;
+const COMPACT_357_HERO_MAX_WIDTH = 480;
 
 function formatChipAmount(value: number) {
   if (value >= 1000000) {
@@ -284,6 +285,7 @@ export const GameTableSeat = memo(function GameTableSeat({
   player,
   showDecisionMode = false,
 }: Props) {
+  const { width: viewportWidth } = useWindowDimensions();
   const turnGlow = useRef(new Animated.Value(player.isTurn ? 0.55 : 0)).current;
   const winnerGlow = useRef(new Animated.Value(isWinner ? 0.7 : 0)).current;
   const folded = useRef(new Animated.Value(player.hasFolded || decision === 'STAY' ? 0.82 : 1)).current;
@@ -305,14 +307,18 @@ export const GameTableSeat = memo(function GameTableSeat({
       : align === 'right'
         ? styles.alignRight
         : styles.alignCenter;
-  const seatSize = isBottomSeat ? 'md' : 'sm';
-  const useCompactDecisionSeat = showDecisionMode && !isSelf;
+  const is357Game = game === '357';
+  const useCompact357Seat = is357Game && (!isSelf || viewportWidth <= COMPACT_357_HERO_MAX_WIDTH);
+  const useCompactDecisionSeat = useCompact357Seat || (showDecisionMode && !isSelf);
   const playerName = player.name;
   const selfTag = isSelf ? 'YOU' : null;
   const showQuestionBadge = showDecisionMode && !revealCards && !isSelf && !decision;
-  const useCompactSelfSeat = isBottomSeat && isSelf;
+  const useCompactSelfSeat = isBottomSeat && isSelf && (!is357Game || useCompact357Seat);
   const showSelfSideCards = isBottomSeat && isSelf && cardCount > 0;
   const bottomCardSize = useCompactSelfSeat ? 'sm' : 'md';
+  const showCompactActionPill =
+    useCompact357Seat &&
+    (isWinner || Boolean(decision) || player.isTurn || player.hasFolded || !player.isConnected || player.isAllIn);
 
   const sideLayout = useMemo(() => {
     if (isBottomSeat) {
@@ -383,22 +389,22 @@ export const GameTableSeat = memo(function GameTableSeat({
         seed={player.id}
         size={avatarSize}
       />
-      <View style={styles.seatAvatarMetaRow}>
+      <View style={styles.seatAvatarStatusBubble}>
         <PlayerStatusBadge
           compact
           showLabel={false}
-          size={SEAT_META_BADGE_SIZE}
+          size={avatarSize === 'sm' ? SEAT_META_BADGE_SIZE : 28}
           statusTier={statusTier}
         />
-        {player.isDealer ? (
-          <DealerButton
-            compact
-            showPulse={false}
-            size={SEAT_META_BADGE_SIZE}
-            style={styles.seatMetaButton}
-          />
-        ) : null}
       </View>
+      {player.isDealer ? (
+        <DealerButton
+          compact
+          showPulse={false}
+          size={avatarSize === 'sm' ? 20 : 24}
+          style={styles.seatMetaButton}
+        />
+      ) : null}
     </View>
   );
 
@@ -439,7 +445,7 @@ export const GameTableSeat = memo(function GameTableSeat({
       <Animated.View pointerEvents="none" style={[styles.turnGlow, { opacity: turnGlow }]} />
       <Animated.View pointerEvents="none" style={[styles.winnerGlow, { opacity: winnerGlow }]} />
 
-      {statusRibbon && !showDecisionMode ? (
+      {statusRibbon && !showDecisionMode && !useCompact357Seat ? (
         <View
           style={[
             styles.statusRibbon,
@@ -456,7 +462,7 @@ export const GameTableSeat = memo(function GameTableSeat({
         </View>
       ) : null}
 
-      {player.isTurn ? <TurnIndicator active style={styles.turnIndicator} /> : null}
+      {player.isTurn && !useCompact357Seat ? <TurnIndicator active style={styles.turnIndicator} /> : null}
 
       <LinearGradient
         colors={getShellGradient(isBottomSeat, showDecisionMode, isWinner)}
@@ -467,9 +473,10 @@ export const GameTableSeat = memo(function GameTableSeat({
           showDecisionMode ? styles.shellDecision : styles.shellLive,
           isBottomSeat ? styles.shellBottom : null,
           useCompactSelfSeat ? styles.shellBottomCompact : null,
+          useCompact357Seat ? styles.shell357Compact : null,
         ]}
       >
-        <View style={styles.shellBorder} />
+        <View style={[styles.shellBorder, useCompact357Seat ? styles.shellBorder357Compact : null]} />
 
         {!useCompactDecisionSeat && (showDecisionMode || isBottomSeat) ? (
           <View style={[styles.nameRail, useCompactSelfSeat ? styles.nameRailCompact : null]}>
@@ -501,28 +508,43 @@ export const GameTableSeat = memo(function GameTableSeat({
                   {formatChipAmount(player.chips)}
                 </Text>
               </View>
-              {cardCount > 0 ? (
-                <View style={styles.compactFanWrap}>
-                  <CardFan
-                    cards={player.holeCards}
-                    compact
-                    count={cardCount}
-                    hidden={cardsHidden}
-                    size="sm"
-                  />
-                  {showQuestionBadge ? (
-                    <View style={[styles.compactQuestionBadge, align === 'right' ? styles.compactQuestionBadgeLeft : null]}>
-                      <MaterialCommunityIcons color="#F6F2FF" name="help" size={12} />
-                    </View>
-                  ) : null}
-                </View>
-              ) : null}
             </View>
+            {cardCount > 0 ? (
+              <View style={[styles.compactFanWrap, align === 'right' ? styles.compactFanWrapRight : null]}>
+                <CardFan
+                  cards={player.holeCards}
+                  compact
+                  count={cardCount}
+                  hidden={cardsHidden}
+                  size="sm"
+                />
+                {showQuestionBadge ? (
+                  <View style={[styles.compactQuestionBadge, align === 'right' ? styles.compactQuestionBadgeLeft : null]}>
+                    <MaterialCommunityIcons color="#F6F2FF" name="help" size={12} />
+                  </View>
+                ) : null}
+              </View>
+            ) : null}
             <View style={[styles.compactDecisionRail, align === 'right' ? styles.compactDecisionRailRight : null]}>
               <CompactLegsTrack legs={player.legs} />
               <View style={styles.compactAmountBubble}>
                 <Text style={styles.compactAmountBubbleText}>${formatChipAmount(labelAmount)}</Text>
               </View>
+              {showCompactActionPill ? (
+                <View
+                  style={[
+                    styles.compactActionPill,
+                    {
+                      backgroundColor: actionBadge.backgroundColor,
+                      borderColor: actionBadge.borderColor,
+                    },
+                  ]}
+                >
+                  <Text style={[styles.compactActionPillText, { color: actionBadge.color }]}>
+                    {actionBadge.label}
+                  </Text>
+                </View>
+              ) : null}
             </View>
           </View>
         ) : (
@@ -709,24 +731,29 @@ const styles = StyleSheet.create({
   amountBubbleTextSelfCompact: {
     fontSize: 10,
   },
-  seatAvatarMetaRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: 3,
-    height: SEAT_META_BADGE_SIZE,
-    justifyContent: 'center',
-    marginTop: 1,
-  },
   seatAvatarStack: {
     alignItems: 'center',
-    height: 91,
-    justifyContent: 'flex-start',
+    height: 56,
+    justifyContent: 'center',
+    position: 'relative',
+    width: 58,
   },
   seatAvatarStackCompact: {
-    height: 77,
+    height: 42,
+    width: 44,
+  },
+  seatAvatarStatusBubble: {
+    bottom: -5,
+    position: 'absolute',
+    right: -4,
+    zIndex: 4,
   },
   seatMetaButton: {
+    bottom: -3,
     flexShrink: 0,
+    left: -3,
+    position: 'absolute',
+    zIndex: 5,
   },
   bottomIdentityWrap: {
     alignItems: 'center',
@@ -775,31 +802,46 @@ const styles = StyleSheet.create({
   },
   compactAmountBubble: {
     alignItems: 'center',
-    backgroundColor: 'rgba(10, 10, 16, 0.88)',
-    borderColor: 'rgba(255, 139, 210, 0.28)',
+    backgroundColor: 'rgba(10, 10, 16, 0.72)',
+    borderColor: 'rgba(255, 139, 210, 0.22)',
     borderRadius: 999,
     borderWidth: 1,
-    minWidth: 46,
-    paddingHorizontal: 7,
-    paddingVertical: 3,
+    minWidth: 38,
+    paddingHorizontal: 5,
+    paddingVertical: 2,
   },
   compactAmountBubbleText: {
     color: '#FFF6FB',
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: '900',
+  },
+  compactActionPill: {
+    alignItems: 'center',
+    borderRadius: 999,
+    borderWidth: 1,
+    minWidth: 28,
+    paddingHorizontal: 5,
+    paddingVertical: 2,
+  },
+  compactActionPillText: {
+    fontSize: 8,
+    fontWeight: '900',
+    letterSpacing: 0.35,
   },
   compactDecisionRail: {
     alignItems: 'center',
     flexDirection: 'row',
-    gap: 6,
-    justifyContent: 'flex-start',
+    flexWrap: 'wrap',
+    gap: 4,
+    justifyContent: 'center',
+    marginTop: -2,
   },
   compactDecisionRailRight: {
-    justifyContent: 'flex-end',
+    justifyContent: 'center',
   },
   compactDecisionSeat: {
-    gap: 5,
-    minHeight: 72,
+    gap: 1,
+    minHeight: 48,
   },
   compactDecisionSeatRight: {
     alignItems: 'flex-end',
@@ -809,14 +851,20 @@ const styles = StyleSheet.create({
   },
   compactFanWrap: {
     alignItems: 'center',
+    alignSelf: 'center',
+    height: 34,
     justifyContent: 'center',
-    marginLeft: 1,
+    marginTop: -6,
     position: 'relative',
+    width: 92,
+  },
+  compactFanWrapRight: {
+    alignSelf: 'center',
   },
   compactIdentityRow: {
     alignItems: 'center',
     flexDirection: 'row',
-    gap: 5,
+    gap: 4,
     justifyContent: 'flex-start',
   },
   compactIdentityRowRight: {
@@ -1084,6 +1132,17 @@ const styles = StyleSheet.create({
     gap: 5,
     paddingHorizontal: 8,
     paddingVertical: 6,
+  },
+  shell357Compact: {
+    backgroundColor: 'rgba(7, 6, 13, 0.42)',
+    borderRadius: 12,
+    gap: 3,
+    paddingHorizontal: 5,
+    paddingVertical: 4,
+  },
+  shellBorder357Compact: {
+    borderColor: 'rgba(209, 110, 255, 0.12)',
+    borderRadius: 12,
   },
   shellDecision: {
     backgroundColor: 'rgba(0,0,0,0.18)',
