@@ -34,6 +34,7 @@ import { colors } from '../theme/colors';
 import type { RootStackParamList } from '../types/navigation';
 import type {
   Poker357Decision,
+  Poker357Resolution,
   PokerAction,
   PokerRoomState,
 } from '../types/poker';
@@ -87,6 +88,62 @@ type ThreeFiveSevenRevealPreview = {
   summaryText: string;
   winnerIds: string[];
 };
+
+
+function joinCompactNames(names: string[]) {
+  if (names.length <= 1) {
+    return names[0] ?? '';
+  }
+
+  if (names.length === 2) {
+    return `${names[0]} and ${names[1]}`;
+  }
+
+  return `${names.slice(0, -1).join(', ')}, and ${names[names.length - 1]}`;
+}
+
+function formatCompactChipAmount(value: number) {
+  return value.toLocaleString('en-US');
+}
+
+function buildThreeFiveSevenSummary(
+  resolution: Poker357Resolution,
+  state: PokerRoomState,
+) {
+  const playerName = (playerId: string) =>
+    state.players.find((player) => player.id === playerId)?.name ?? 'Player';
+  const winnerNames = resolution.winnerIds.map(playerName);
+  const loserNames = resolution.loserIds.map(playerName);
+  const winnerDescription = resolution.winnerIds
+    .map((playerId) => resolution.showdownDescriptions[playerId])
+    .find((description) => description && description.length > 0);
+  const winnerLabel = joinCompactNames(winnerNames);
+  const loserLabel = joinCompactNames(loserNames);
+  const winnerHand = winnerDescription ? ` with ${winnerDescription}` : '';
+
+  if (resolution.outcome === 'no_go') {
+    return 'No GO players. Pot carries forward.';
+  }
+
+  if (resolution.outcome === 'solo_go') {
+    return `${winnerLabel} went GO alone and gained 1 leg.`;
+  }
+
+  const resultLead =
+    resolution.winnerIds.length > 1
+      ? `${winnerLabel} split the GO showdown${winnerHand}.`
+      : `${winnerLabel} beat ${loserLabel || 'the GO field'}${winnerHand}.`;
+  const paymentSummary =
+    resolution.loserIds.length > 0
+      ? ` ${loserLabel}${resolution.loserIds.length === 1 ? '' : ' each'} paid ${formatCompactChipAmount(
+          state.threeFiveSeven?.penaltyModel.unitToWinner ?? 0,
+        )} to ${resolution.winnerIds.length > 1 ? 'winner side' : winnerLabel} and ${formatCompactChipAmount(
+          state.threeFiveSeven?.penaltyModel.unitToPot ?? 0,
+        )} to pot.`
+      : '';
+
+  return `${resultLead}${paymentSummary}`;
+}
 
 function wait(milliseconds: number) {
   return new Promise<void>((resolve) => {
@@ -751,7 +808,7 @@ export function GameScreen({ navigation }: Props) {
       revealedDecisions: { ...resolution.revealedDecisions },
       revealState: 'resolved',
       showdownDescriptions: { ...resolution.showdownDescriptions },
-      summaryText: tableState.lastWinnerSummary ?? '357 resolved.',
+      summaryText: buildThreeFiveSevenSummary(resolution, tableState),
       winnerIds: [...resolution.winnerIds],
     });
 

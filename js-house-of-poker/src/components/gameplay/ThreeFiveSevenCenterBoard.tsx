@@ -1,10 +1,11 @@
-import { memo } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { memo, useMemo, useState } from 'react';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 
 import type {
   Poker357Decision,
   Poker357Mode,
+  Poker357Resolution,
   PokerPhase,
   PokerRoomState,
 } from '../../types/poker';
@@ -12,6 +13,7 @@ import type {
 type Props = {
   revealedDecisions?: Record<string, Poker357Decision>;
   revealState?: 'hidden' | 'revealed' | 'resolved';
+  resultSummaryVisible?: boolean;
   showdownDescriptions?: Record<string, string>;
   state: PokerRoomState;
   statusText: string;
@@ -33,6 +35,113 @@ function formatChipAmount(value: number) {
 
 function formatModeLabel(mode: Poker357Mode) {
   return mode === 'BEST_FIVE' ? 'Best Five' : 'Hostest';
+}
+
+function joinNames(names: string[]) {
+  if (names.length <= 1) {
+    return names[0] ?? '';
+  }
+
+  if (names.length === 2) {
+    return `${names[0]} and ${names[1]}`;
+  }
+
+  return `${names.slice(0, -1).join(', ')}, and ${names[names.length - 1]}`;
+}
+
+function pluralizeChip(value: number) {
+  return `${formatChipAmount(value)} ${value === 1 ? 'chip' : 'chips'}`;
+}
+
+function buildResolutionKey(resolution: Poker357Resolution | null) {
+  if (!resolution) {
+    return null;
+  }
+
+  return [
+    resolution.handNumber,
+    resolution.outcome,
+    resolution.winnerIds.join(','),
+    resolution.loserIds.join(','),
+    resolution.potBeforeResolution,
+    resolution.potAfterResolution,
+  ].join(':');
+}
+
+function build357ResolutionSummary(
+  resolution: Poker357Resolution,
+  state: PokerRoomState,
+) {
+  const playerName = (playerId: string) =>
+    state.players.find((player) => player.id === playerId)?.name ?? 'Player';
+  const winnerNames = resolution.winnerIds.map(playerName);
+  const loserNames = resolution.loserIds.map(playerName);
+  const winnerDescription = resolution.winnerIds
+    .map((playerId) => resolution.showdownDescriptions[playerId])
+    .find((description) => description && description.length > 0);
+  const loserDescriptions = resolution.loserIds
+    .map((playerId) => {
+      const description = resolution.showdownDescriptions[playerId];
+
+      return description ? `${playerName(playerId)} had ${description}` : null;
+    })
+    .filter((description): description is string => Boolean(description));
+  const legGains = Object.entries(resolution.legDeltaByPlayerId)
+    .filter(([, delta]) => delta > 0)
+    .map(
+      ([playerId, delta]) =>
+        `${playerName(playerId)} gained ${delta} ${delta === 1 ? 'leg' : 'legs'}`,
+    );
+
+  const winnerLabel = joinNames(winnerNames);
+  const loserLabel = joinNames(loserNames);
+  const winnerHand = winnerDescription ? ` with ${winnerDescription}` : '';
+  const summaryParts: string[] = [];
+
+  if (resolution.outcome === 'no_go') {
+    summaryParts.push('No GO players. Pot carries forward.');
+  } else if (resolution.outcome === 'solo_go') {
+    const potText = resolution.potAwarded > 0
+      ? ` and collected ${pluralizeChip(resolution.potAwarded)} from pot`
+      : '';
+    summaryParts.push(`${winnerLabel} went GO alone${potText}.`);
+  } else if (resolution.winnerIds.length > 1) {
+    const splitText = resolution.winnerPenaltyTotal > 0
+      ? ` split ${pluralizeChip(resolution.winnerPenaltyTotal)}`
+      : ' tied';
+    summaryParts.push(`${winnerLabel}${splitText}${winnerHand}.`);
+  } else {
+    summaryParts.push(
+      `${winnerLabel} beat ${loserLabel || 'the GO field'}${winnerHand}.`,
+    );
+  }
+
+  if (resolution.loserIds.length > 0) {
+    const paidPrefix =
+      resolution.loserIds.length === 1
+        ? `${loserLabel} paid`
+        : `${loserLabel} each paid`;
+    const winnerTarget =
+      resolution.winnerIds.length > 1 ? 'winner side' : winnerLabel || 'winner';
+
+    summaryParts.push(
+      `${paidPrefix} ${formatChipAmount(
+        state.threeFiveSeven?.penaltyModel.unitToWinner ?? 0,
+      )} to ${winnerTarget} and ${formatChipAmount(
+        state.threeFiveSeven?.penaltyModel.unitToPot ?? 0,
+      )} to pot.`,
+    );
+  }
+
+  if (loserDescriptions.length > 0) {
+    summaryParts.push(loserDescriptions.join('; ') + '.');
+  }
+
+  if (legGains.length > 0) {
+    summaryParts.push(`${joinNames(legGains)}.`);
+  }
+
+  return summaryParts.join(' ');
 }
 
 function getRoundIndex(round: 3 | 5 | 7 | null) {
@@ -79,11 +188,21 @@ export const ThreeFiveSevenCenterBoard = memo(
   function ThreeFiveSevenCenterBoard({
     revealedDecisions = {},
     revealState = 'hidden',
+    resultSummaryVisible = false,
     showdownDescriptions = {},
     state,
     statusText,
   }: Props) {
     const variantState = state.threeFiveSeven;
+    const [dismissedResolutionKey, setDismissedResolutionKey] = useState<
+      string | null
+    >(null);
+    const resolution = variantState?.lastResolution ?? null;
+    const resolutionKey = buildResolutionKey(resolution);
+    const resolutionSummary = useMemo(
+      () => (resolution ? build357ResolutionSummary(resolution, state) : null),
+      [resolution, state],
+    );
 
     if (!variantState) {
       return null;
@@ -116,6 +235,12 @@ export const ThreeFiveSevenCenterBoard = memo(
         return `${playerName}: ${description}`;
       });
     const showGoShowdown = revealState !== 'hidden' && goPlayerIds.length > 0;
+    const showResolutionSummary = Boolean(
+      resolution &&
+        resolutionSummary &&
+        resultSummaryVisible &&
+        resolutionKey !== dismissedResolutionKey,
+    );
 
     if (isActive357Round) {
       return (
@@ -199,6 +324,24 @@ export const ThreeFiveSevenCenterBoard = memo(
               ) : null}
             </LinearGradient>
           ) : null}
+
+          {showResolutionSummary ? (
+            <Pressable
+              accessibilityLabel="Dismiss 357 result summary"
+              accessibilityRole="button"
+              onPress={() => setDismissedResolutionKey(resolutionKey)}
+              style={({ pressed }) => [
+                styles.resultSummaryShell,
+                pressed ? styles.resultSummaryShellPressed : null,
+              ]}
+            >
+              <Text style={styles.resultSummaryTitle}>RESULT</Text>
+              <Text numberOfLines={3} style={styles.resultSummaryText}>
+                {resolutionSummary}
+              </Text>
+              <Text style={styles.resultSummaryDismiss}>Tap to dismiss</Text>
+            </Pressable>
+          ) : null}
         </View>
       );
     }
@@ -259,6 +402,24 @@ export const ThreeFiveSevenCenterBoard = memo(
               </Text>
             ) : null}
           </LinearGradient>
+        ) : null}
+
+        {showResolutionSummary ? (
+          <Pressable
+            accessibilityLabel="Dismiss 357 result summary"
+            accessibilityRole="button"
+            onPress={() => setDismissedResolutionKey(resolutionKey)}
+            style={({ pressed }) => [
+              styles.resultSummaryShell,
+              pressed ? styles.resultSummaryShellPressed : null,
+            ]}
+          >
+            <Text style={styles.resultSummaryTitle}>RESULT</Text>
+            <Text numberOfLines={3} style={styles.resultSummaryText}>
+              {resolutionSummary}
+            </Text>
+            <Text style={styles.resultSummaryDismiss}>Tap to dismiss</Text>
+          </Pressable>
         ) : null}
       </View>
     );
@@ -380,6 +541,42 @@ const styles = StyleSheet.create({
     alignSelf: 'stretch',
     justifyContent: 'center',
     minWidth: 74,
+  },
+
+  resultSummaryDismiss: {
+    color: 'rgba(255, 255, 255, 0.58)',
+    fontSize: 8,
+    fontWeight: '800',
+    letterSpacing: 0.3,
+    textTransform: 'uppercase',
+  },
+  resultSummaryShell: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(30, 18, 48, 0.94)',
+    borderColor: 'rgba(255, 203, 107, 0.44)',
+    borderRadius: 14,
+    borderWidth: 1,
+    gap: 2,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    width: '100%',
+  },
+  resultSummaryShellPressed: {
+    opacity: 0.72,
+  },
+  resultSummaryText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '800',
+    lineHeight: 13,
+    textAlign: 'center',
+  },
+  resultSummaryTitle: {
+    color: '#FFCB6B',
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 0.9,
+    textAlign: 'center',
   },
   roundInfoRow: {
     alignItems: 'center',

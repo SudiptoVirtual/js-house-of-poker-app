@@ -144,6 +144,7 @@ export function TableSurface({
   const is357 =
     state.gameSettings.game === '357' && Boolean(state.threeFiveSeven);
   const threeFiveSevenState = state.threeFiveSeven;
+  const threeFiveSevenLastResolution = threeFiveSevenState?.lastResolution ?? null;
   const tableSurfaceOffsetY = is357
     ? threeFiveSevenTableSurfaceOffsetY
     : standardPokerTableSurfaceOffsetY;
@@ -151,7 +152,7 @@ export function TableSurface({
     ? (threeFiveSevenPreview?.revealState ??
       (threeFiveSevenState?.revealState !== 'hidden'
         ? threeFiveSevenState?.revealState
-        : state.phase === 'completed' && threeFiveSevenState?.lastResolution
+        : state.phase === 'completed' && threeFiveSevenLastResolution
           ? 'resolved'
           : 'hidden') ??
       'hidden')
@@ -159,35 +160,44 @@ export function TableSurface({
   const useResolved357Outcome =
     revealState === 'resolved' ||
     (state.phase === 'completed' &&
-      Boolean(threeFiveSevenState?.lastResolution));
+      Boolean(threeFiveSevenLastResolution));
   const revealedDecisions = is357
     ? (threeFiveSevenPreview?.revealedDecisions ??
       (useResolved357Outcome
-        ? threeFiveSevenState?.lastResolution?.revealedDecisions
+        ? threeFiveSevenLastResolution?.revealedDecisions
         : threeFiveSevenState?.hiddenDecisionState.revealedByPlayerId) ??
       {})
     : {};
   const visibleWinnerIds = is357
     ? (threeFiveSevenPreview?.winnerIds ??
       (useResolved357Outcome
-        ? threeFiveSevenState?.lastResolution?.winnerIds
+        ? threeFiveSevenLastResolution?.winnerIds
         : winnerIds) ??
       [])
     : winnerIds;
   const visibleLoserIds = is357
     ? (threeFiveSevenPreview?.loserIds ??
       (useResolved357Outcome
-        ? threeFiveSevenState?.lastResolution?.loserIds
+        ? threeFiveSevenLastResolution?.loserIds
         : loserIds) ??
       [])
     : loserIds;
   const showdownDescriptions = is357
     ? (threeFiveSevenPreview?.showdownDescriptions ??
       (useResolved357Outcome
-        ? threeFiveSevenState?.lastResolution?.showdownDescriptions
+        ? threeFiveSevenLastResolution?.showdownDescriptions
         : {}) ??
       {})
     : {};
+  const showThreeFiveSevenResultSummary = Boolean(
+    is357 &&
+      threeFiveSevenLastResolution &&
+      (threeFiveSevenPreview?.revealState === 'resolved' ||
+        (revealState === 'resolved' &&
+          (threeFiveSevenLastResolution.handNumber === state.handNumber ||
+            state.phase === 'completed' ||
+            state.phase === 'resolve'))),
+  );
   const showDecisionMode =
     is357 &&
     (state.phase === 'decide_3' ||
@@ -418,6 +428,7 @@ export function TableSurface({
                           <ThreeFiveSevenCenterBoard
                             revealedDecisions={revealedDecisions}
                             revealState={revealState}
+                            resultSummaryVisible={showThreeFiveSevenResultSummary}
                             showdownDescriptions={showdownDescriptions}
                             state={state}
                             statusText={headlineText}
