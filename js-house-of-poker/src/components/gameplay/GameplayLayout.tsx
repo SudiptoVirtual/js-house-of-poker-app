@@ -45,15 +45,22 @@ export function GameplayLayout({
   const collapsedTopBarHeight = clamp(height * 0.052, 42, 56);
   const activeTopBarHeight = isTopBarExpanded ? topBarHeight : collapsedTopBarHeight;
   const tableLift = isLandscape ? clamp(height * 0.04, 24, 36) : 0;
+  const portraitTableGap = clamp(height * 0.01, 4, 8);
   const tableTopOffset = isLandscape
     ? topInset + topBarHeight + 2 - tableLift
-    : topBarHeight * 0.78;
+    : topInset + activeTopBarHeight + portraitTableGap;
   const actionHeight = hasHeroSection
     ? isLandscape
       ? clamp(height * 0.09, 68, 94)
       : clamp(height * 0.15, 104, 146)
     : 0;
   const actionBottom = footerHeight + Math.max(4, insets.bottom ? 0 : 4);
+  const portraitTableBottomReserve = hasHeroSection
+    ? actionHeight * clamp(0.58 - height * 0.00012, 0.48, 0.54)
+    : 0;
+  const tableBottomOffset = isLandscape
+    ? actionBottom + actionHeight + (hasHeroSection ? 2 : 0) + tableLift
+    : actionBottom + portraitTableBottomReserve;
 
   return (
     <View style={styles.screen}>
@@ -61,9 +68,7 @@ export function GameplayLayout({
         style={[
           styles.tableStage,
           {
-            bottom: isLandscape
-              ? actionBottom + actionHeight + (hasHeroSection ? 2 : 0) + tableLift
-              : actionBottom + (hasHeroSection ? actionHeight * 0.58 : 0),
+            bottom: tableBottomOffset,
             left: sideGap + insets.left,
             right: sideGap + insets.right,
             top: tableTopOffset,

@@ -88,7 +88,8 @@ const tableChatBarMenuIconStartOffset =
   gameplayLayoutConfig.topBar.shellPaddingHorizontal +
   (gameplayLayoutConfig.topBar.touchTargetSize - gameplayLayoutConfig.topBar.menuIconSize) / 2;
 const tableSurfaceOffsetX = -35;
-const tableSurfaceOffsetY = -25;
+const standardPokerTableSurfaceOffsetY = -25;
+const threeFiveSevenTableSurfaceOffsetY = 0;
 
 export function TableSurface({
   ambientA,
@@ -126,6 +127,9 @@ export function TableSurface({
   height,
 }: Props) {
   const is357 = state.gameSettings.game === '357' && Boolean(state.threeFiveSeven);
+  const tableSurfaceOffsetY = is357
+    ? threeFiveSevenTableSurfaceOffsetY
+    : standardPokerTableSurfaceOffsetY;
   const revealState = is357
     ? threeFiveSevenPreview?.revealState ?? state.threeFiveSeven?.revealState ?? 'hidden'
     : 'hidden';
