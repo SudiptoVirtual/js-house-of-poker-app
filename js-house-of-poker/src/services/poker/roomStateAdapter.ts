@@ -109,6 +109,43 @@ function normalizeNumber(value: unknown, fallback = 0) {
   return typeof value === 'number' && Number.isFinite(value) ? value : fallback;
 }
 
+function normalizeStringArray(value: unknown) {
+  return Array.isArray(value)
+    ? value.filter((entry): entry is string => typeof entry === 'string' && entry.length > 0)
+    : [];
+}
+
+function normalizeNumberRecord(value: unknown) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return {};
+  }
+
+  return Object.fromEntries(
+    Object.entries(value).filter(
+      (entry): entry is [string, number] =>
+        typeof entry[0] === 'string' &&
+        entry[0].length > 0 &&
+        typeof entry[1] === 'number' &&
+        Number.isFinite(entry[1]),
+    ),
+  );
+}
+
+function normalizeStringRecord(value: unknown) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return {};
+  }
+
+  return Object.fromEntries(
+    Object.entries(value).filter(
+      (entry): entry is [string, string] =>
+        typeof entry[0] === 'string' &&
+        entry[0].length > 0 &&
+        typeof entry[1] === 'string',
+    ),
+  );
+}
+
 function normalizeStatusUpdatedAt(value: unknown) {
   return typeof value === 'number' || typeof value === 'string' ? value : null;
 }
@@ -513,27 +550,29 @@ function normalizeThreeFiveSevenState(
       threeFiveSeven.lastResolution && typeof threeFiveSeven.lastResolution === 'object'
         ? {
             ...threeFiveSeven.lastResolution,
-            goPlayerIds: Array.isArray(threeFiveSeven.lastResolution.goPlayerIds)
-              ? threeFiveSeven.lastResolution.goPlayerIds.filter(
-                  (value): value is string => typeof value === 'string' && value.length > 0,
-                )
-              : [],
-            loserIds: Array.isArray(threeFiveSeven.lastResolution.loserIds)
-              ? threeFiveSeven.lastResolution.loserIds.filter(
-                  (value): value is string => typeof value === 'string' && value.length > 0,
-                )
-              : [],
-            winnerIds: Array.isArray(threeFiveSeven.lastResolution.winnerIds)
-              ? threeFiveSeven.lastResolution.winnerIds.filter(
-                  (value): value is string => typeof value === 'string' && value.length > 0,
-                )
-              : [],
+            goPlayerIds: normalizeStringArray(threeFiveSeven.lastResolution.goPlayerIds),
+            legDeltaByPlayerId: normalizeNumberRecord(
+              threeFiveSeven.lastResolution.legDeltaByPlayerId,
+            ),
+            legsByPlayerId: normalizeNumberRecord(
+              threeFiveSeven.lastResolution.legsByPlayerId ?? threeFiveSeven.legsByPlayerId,
+            ),
+            loserIds: normalizeStringArray(threeFiveSeven.lastResolution.loserIds),
+            payoutByPlayerId: normalizeNumberRecord(threeFiveSeven.lastResolution.payoutByPlayerId),
+            potAfterResolution: normalizeNumber(
+              threeFiveSeven.lastResolution.potAfterResolution,
+              threeFiveSeven.pot,
+            ),
+            revealedDecisions: normalizeStringRecord(
+              threeFiveSeven.lastResolution.revealedDecisions,
+            ) as Poker357State['hiddenDecisionState']['revealedByPlayerId'],
+            showdownDescriptions: normalizeStringRecord(
+              threeFiveSeven.lastResolution.showdownDescriptions,
+            ),
+            winnerIds: normalizeStringArray(threeFiveSeven.lastResolution.winnerIds),
           }
         : null,
-    legsByPlayerId:
-      threeFiveSeven.legsByPlayerId && typeof threeFiveSeven.legsByPlayerId === 'object'
-        ? threeFiveSeven.legsByPlayerId
-        : {},
+    legsByPlayerId: normalizeNumberRecord(threeFiveSeven.legsByPlayerId),
     mode: threeFiveSeven.mode === 'BEST_FIVE' ? 'BEST_FIVE' : 'HOSTEST',
     penaltyModel: {
       legsToWin:

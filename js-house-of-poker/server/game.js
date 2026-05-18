@@ -1058,6 +1058,7 @@ function resolve357Cycle(room) {
     potAwarded = variantState.pot;
     payouts[winnerId] = potAwarded;
     getPlayer(room, winnerId).chips += potAwarded;
+    room.hand.players[winnerId].payout = potAwarded;
     variantState.pot = 0;
     legsByPlayerId[winnerId] = (legsByPlayerId[winnerId] ?? 0) + 1;
     legDeltaByPlayerId[winnerId] = 1;
@@ -1076,6 +1077,7 @@ function resolve357Cycle(room) {
     winnerIds = rankedWinnerIds;
     rankedHands.forEach((entry) => {
       showdownDescriptions[entry.playerId] = entry.solved.descr;
+      room.hand.players[entry.playerId].handDescription = entry.solved.descr;
     });
     loserIds = goPlayerIds.filter((playerId) => !winnerIds.includes(playerId));
 
@@ -1105,6 +1107,7 @@ function resolve357Cycle(room) {
       const amount = splitAmount + (remainder > 0 ? 1 : 0);
       payouts[playerId] += amount;
       getPlayer(room, playerId).chips += amount;
+      room.hand.players[playerId].payout = amount;
       if (remainder > 0) {
         remainder -= 1;
       }
@@ -1125,6 +1128,7 @@ function resolve357Cycle(room) {
     goPlayerIds,
     handNumber: room.handCount,
     legDeltaByPlayerId,
+    legsByPlayerId: { ...legsByPlayerId },
     loserIds,
     outcome:
       goPlayerIds.length === 0
@@ -1895,6 +1899,7 @@ function buildRoomState(room, playerId) {
           ? {
             ...variantState.lastResolution,
             legDeltaByPlayerId: { ...variantState.lastResolution.legDeltaByPlayerId },
+            legsByPlayerId: { ...variantState.lastResolution.legsByPlayerId },
             payoutByPlayerId: { ...variantState.lastResolution.payoutByPlayerId },
             revealedDecisions: { ...variantState.lastResolution.revealedDecisions },
             showdownDescriptions: { ...variantState.lastResolution.showdownDescriptions },
