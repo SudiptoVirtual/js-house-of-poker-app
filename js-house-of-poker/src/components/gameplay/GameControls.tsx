@@ -5,7 +5,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import type { PokerAction, PokerControls, PokerPlayerState } from '../../types/poker';
 
 type ControlMode = '357' | 'standard';
-type ControlLayout = 'default' | 'leftPanel';
+type ControlLayout = 'default' | 'leftPanel' | 'rightPanel';
 
 type Props = {
   controls: PokerControls;
@@ -21,6 +21,7 @@ type Props = {
   player: PokerPlayerState | null;
   raiseTo?: string;
   statusMessage: string;
+  showActionButtons?: boolean;
 };
 
 function clamp(value: number, min: number, max: number) {
@@ -114,9 +115,12 @@ export const GameControls = memo(function GameControls({
   player,
   raiseTo = '',
   statusMessage,
+  showActionButtons = true,
 }: Props) {
   const [raiseOpen, setRaiseOpen] = useState(false);
   const isLeftPanel = layout === 'leftPanel';
+  const isRightPanel = layout === 'rightPanel';
+  const isSidePanel = isLeftPanel || isRightPanel;
   const availableActions = controls.availableActions;
   const canRaise =
     mode === 'standard' &&
@@ -166,25 +170,31 @@ export const GameControls = memo(function GameControls({
     controls.canAct || controls.canStartHand || controls.canRebuy || canAllIn;
 
   return (
-    <View style={[styles.root, isLeftPanel ? styles.rootLeftPanel : null]}>
-      <View style={[styles.metaRow, isLeftPanel ? styles.metaRowLeftPanel : null]}>
-        <Text
-          numberOfLines={1}
-          style={[styles.playerText, isLeftPanel ? styles.playerTextLeftPanel : null]}
-        >
-          {infoText}
-        </Text>
-        {!isLeftPanel ? (
-          <Text numberOfLines={1} style={styles.statusText}>
-            {pendingAction ? 'Waiting for server...' : statusMessage}
+    <View style={[styles.root, isSidePanel ? styles.rootSidePanel : null]}>
+      {!isRightPanel ? (
+        <View style={[styles.metaRow, isLeftPanel ? styles.metaRowLeftPanel : null]}>
+          <Text
+            numberOfLines={1}
+            style={[styles.playerText, isLeftPanel ? styles.playerTextLeftPanel : null]}
+          >
+            {infoText}
           </Text>
-        ) : null}
-      </View>
+          {!isLeftPanel ? (
+            <Text numberOfLines={1} style={styles.statusText}>
+              {pendingAction ? 'Waiting for server...' : statusMessage}
+            </Text>
+          ) : (
+            <Text numberOfLines={2} style={styles.statusTextLeftPanel}>
+              {pendingAction ? 'Waiting for server...' : statusMessage}
+            </Text>
+          )}
+        </View>
+      ) : null}
 
-      {mode === '357' && controls.canAct ? (
-        <View style={[styles.buttonRow, isLeftPanel ? styles.buttonRowLeftPanel : null]}>
+      {mode === '357' && controls.canAct && showActionButtons ? (
+        <View style={[styles.buttonRow, isSidePanel ? styles.buttonRowSidePanel : null]}>
           <ControlButton
-            compact={isLeftPanel}
+            compact={isSidePanel}
             disabled={!availableActions.includes('go')}
             label="GO"
             loading={pendingAction === 'go'}
@@ -193,7 +203,7 @@ export const GameControls = memo(function GameControls({
             tone="blue"
           />
           <ControlButton
-            compact={isLeftPanel}
+            compact={isSidePanel}
             disabled={!availableActions.includes('stay')}
             label="STAY"
             loading={pendingAction === 'stay'}
@@ -349,7 +359,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     width: '80%',
   },
-  buttonRowLeftPanel: {
+  buttonRowSidePanel: {
     alignSelf: 'stretch',
     flexDirection: 'column',
     gap: 9,
@@ -503,7 +513,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6,
     width: '100%',
   },
-  rootLeftPanel: {
+  rootSidePanel: {
     alignSelf: 'stretch',
     gap: 10,
     maxWidth: 236,
@@ -515,6 +525,12 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '700',
     textAlign: 'right',
+  },
+  statusTextLeftPanel: {
+    color: 'rgba(239, 235, 255, 0.72)',
+    fontSize: 11,
+    fontWeight: '700',
+    lineHeight: 14,
   },
   stepper: {
     alignItems: 'center',

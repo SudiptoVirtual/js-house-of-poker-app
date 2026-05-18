@@ -420,8 +420,14 @@ export function GameScreen({ navigation }: Props) {
         gameplayLayoutConfig.panel.maxWidth,
       )
     : 0;
+  const embedded357ActionPanelWidth = hasEmbedded357Panel
+    ? clamp(windowWidth * 0.07, 82, 104)
+    : 0;
   const embedded357PanelGap = hasEmbedded357Panel
     ? clamp(windowWidth * 0.012, 12, 24)
+    : 0;
+  const embedded357ActionPanelGap = hasEmbedded357Panel
+    ? clamp(windowWidth * 0.008, 8, 14)
     : 0;
   const tableAspectRatio = isLandscape
     ? gameplayLayoutConfig.table.aspectRatioLandscape
@@ -451,7 +457,9 @@ export function GameScreen({ navigation }: Props) {
       insets.left +
       insets.right +
       embedded357PanelWidth +
-      embedded357PanelGap
+      embedded357PanelGap +
+      embedded357ActionPanelWidth +
+      embedded357ActionPanelGap
     : Math.max(18, insets.left + insets.right + 18);
   const maxTableWidth = isLandscape
     ? Math.max(gameplayLayoutConfig.table.maxWidthLandscape, windowWidth - reservedHorizontalSpace)
@@ -1106,19 +1114,35 @@ export function GameScreen({ navigation }: Props) {
       : typeof connection.latencyMs === 'number'
         ? `${Math.round(connection.latencyMs)}ms`
         : '--ms';
-  const threeFiveSevenActionPanel = is357Current ? (
+  const threeFiveSevenInfoPanel = is357Current ? (
     <ThreeFiveSevenActionPanel
       controls={currentTableState.controls}
       fitContent={shouldEmbed357Panel}
+      layout="leftPanel"
       onAction={(action) => handleGameAction(action)}
       onRebuy={handleRebuy}
       onStartHand={handleStartHand}
       pendingAction={pendingAction}
       player={selfPlayer}
       safeAreaBottom={shouldEmbed357Panel || isLandscape ? 0 : insets.bottom}
-      safeAreaHorizontal={
-        shouldEmbed357Panel || isLandscape ? 0 : Math.max(insets.left, insets.right)
-      }
+      safeAreaHorizontal={shouldEmbed357Panel || isLandscape ? 0 : insets.left}
+      showActionButtons={false}
+      showDecisionPrompt={showDecisionLayout}
+      statusMessage={headlineText}
+    />
+  ) : null;
+  const threeFiveSevenActionRail = is357Current ? (
+    <ThreeFiveSevenActionPanel
+      controls={currentTableState.controls}
+      fitContent={shouldEmbed357Panel}
+      layout="rightPanel"
+      onAction={(action) => handleGameAction(action)}
+      onRebuy={handleRebuy}
+      onStartHand={handleStartHand}
+      pendingAction={pendingAction}
+      player={selfPlayer}
+      safeAreaBottom={shouldEmbed357Panel || isLandscape ? 0 : insets.bottom}
+      safeAreaHorizontal={shouldEmbed357Panel || isLandscape ? 0 : insets.right}
       showDecisionPrompt={showDecisionLayout}
       statusMessage={headlineText}
     />
@@ -1162,8 +1186,11 @@ export function GameScreen({ navigation }: Props) {
       focusMode={isLandscape}
       headlineText={headlineText}
       leftPanelGap={embedded357PanelGap}
-      leftPanelNode={shouldEmbed357Panel ? threeFiveSevenActionPanel : null}
+      leftPanelNode={shouldEmbed357Panel ? threeFiveSevenInfoPanel : null}
       leftPanelWidth={embedded357PanelWidth}
+      rightPanelGap={embedded357ActionPanelGap}
+      rightPanelNode={shouldEmbed357Panel ? threeFiveSevenActionRail : null}
+      rightPanelWidth={embedded357ActionPanelWidth}
       onLayout={handleTableLayout}
       onPressTable={() => undefined}
       onResetTableView={resetTableView}
@@ -1204,7 +1231,16 @@ export function GameScreen({ navigation }: Props) {
   );
 
   const heroSection = is357Current ? (
-    shouldEmbed357Panel ? null : threeFiveSevenActionPanel
+    shouldEmbed357Panel ? null : (
+      <View style={styles.threeFiveSevenPortraitActions}>
+        <View style={styles.threeFiveSevenPortraitInfo}>
+          {threeFiveSevenInfoPanel}
+        </View>
+        <View style={styles.threeFiveSevenPortraitRail}>
+          {threeFiveSevenActionRail}
+        </View>
+      </View>
+    )
   ) : (
     <HeroActionSection
       barMode={false}
@@ -1566,6 +1602,22 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 0,
     width: '100%',
+  },
+  threeFiveSevenPortraitActions: {
+    alignItems: 'stretch',
+    alignSelf: 'stretch',
+    flexDirection: 'row',
+    gap: 8,
+    justifyContent: 'space-between',
+    width: '100%',
+  },
+  threeFiveSevenPortraitInfo: {
+    flex: 1,
+    minWidth: 0,
+  },
+  threeFiveSevenPortraitRail: {
+    flexShrink: 0,
+    width: 92,
   },
   leftOverlayPanel: {
     backgroundColor: 'rgba(9,16,36,0.94)',
