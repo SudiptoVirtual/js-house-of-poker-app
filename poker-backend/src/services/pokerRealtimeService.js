@@ -1645,8 +1645,14 @@ class PokerRealtimeService {
     }
 
     const table = await GameTable.findOne({ tableCode: normalizedRoomId });
-    if (!table || table.status === "closed") {
-      throw new Error("Table not found.");
+    if (!table) {
+      throw new Error("Invalid table code.");
+    }
+
+    const tableStatus = String(table.status || "").toLowerCase();
+    const tablePhase = String(table.phase || "").toLowerCase();
+    if (tableStatus === "closed" || tablePhase === "completed") {
+      throw new Error("Table is closed or completed.");
     }
 
     const room = {
@@ -1698,7 +1704,11 @@ class PokerRealtimeService {
 
   async joinRoom(socket, payload = {}) {
     const user = await this.authenticateSocketUser(socket, payload);
-    const room = await this.loadRoom(payload.tableId || payload.roomId);
+    const requestedTableId = payload.tableId || payload.roomId;
+    if (!requestedTableId) {
+      throw new Error("Table code is required.");
+    }
+    const room = await this.loadRoom(requestedTableId);
 
     const existingPlayer = getPlayer(room, user._id.toString());
     if (existingPlayer) {
@@ -1728,6 +1738,14 @@ class PokerRealtimeService {
       socket.join(room.id);
       await this.persistRoom(room);
       await this.emitRoomState(room);
+      socket.emit("table:joined", {
+        playerId: existingPlayer.id,
+        roomId: room.id,
+      });
+      socket.emit("room:joined", {
+        playerId: existingPlayer.id,
+        roomId: room.id,
+      });
       return room;
     }
 
@@ -1762,7 +1780,9 @@ class PokerRealtimeService {
       ensureThreeFiveSevenState(room);
     }
     addLog(room, `${player.name} joined the table.`);
-    room.status = "waiting";
+    if (room.status !== "active") {
+      room.status = "waiting";
+    }
     room.phase = room.hand?.phase || "waiting";
 
     this.sessions.set(socket.id, {
@@ -1784,6 +1804,14 @@ class PokerRealtimeService {
       tableId: room.tableDbId,
     });
     await this.emitRoomState(room);
+    socket.emit("table:joined", {
+      playerId: player.id,
+      roomId: room.id,
+    });
+    socket.emit("room:joined", {
+      playerId: player.id,
+      roomId: room.id,
+    });
     return room;
   }
 
