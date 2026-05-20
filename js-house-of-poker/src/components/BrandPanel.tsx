@@ -16,7 +16,7 @@ export function BrandPanel({ subtitle, title }: BrandPanelProps) {
         <Image source={appLogo} style={styles.logo} resizeMode="cover" />
       </View>
       <View style={styles.copyBlock}>
-        <Text style={styles.kicker}>J&apos;s House of Poker</Text>
+        <Text style={styles.kicker}>J's House of Poker</Text>
         <Text style={styles.title}>{title}</Text>
         {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
       </View>

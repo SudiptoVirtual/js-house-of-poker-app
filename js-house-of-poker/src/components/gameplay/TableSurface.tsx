@@ -380,7 +380,7 @@ export function TableSurface({
 
                       <View pointerEvents="none" style={styles.brandWatermark}>
                         <Text style={styles.brandWatermarkText}>
-                          HOUSE OF POKER
+                          J'S HOUSE OF POKER
                         </Text>
                       </View>
 

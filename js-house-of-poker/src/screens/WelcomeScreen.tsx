@@ -21,7 +21,7 @@ export function WelcomeScreen({ navigation }: Props) {
   return (
     <Screen
       eyebrow="Free-play social poker"
-      title="House of Poker"
+      title="J's House of Poker"
       subtitle="Create private tables, discover players, and keep every invite inside one free-play social poker flow."
     >
       <ComplianceNotice />

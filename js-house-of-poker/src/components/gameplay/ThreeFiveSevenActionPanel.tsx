@@ -6,6 +6,7 @@ import type { PokerAction, PokerControls, PokerPlayerState } from '../../types/p
 
 const PANEL_SHELL_MIN_HEIGHT = 224;
 const FIT_CONTENT_PANEL_HEIGHT_RATIO = 0.85;
+const INFO_ONLY_PANEL_MAX_WIDTH = 182;
 
 type ThreeFiveSevenActionPanelLayout = 'leftPanel' | 'rightPanel';
 
@@ -61,7 +62,11 @@ export function ThreeFiveSevenActionPanel({
       ]}
     >
       <LinearGradient
-        colors={['rgba(31, 8, 49, 0.96)', 'rgba(15, 5, 27, 0.98)', 'rgba(7, 3, 14, 0.96)']}
+        colors={
+          isRightPanel
+            ? ['transparent', 'transparent']
+            : ['rgba(31, 8, 49, 0.96)', 'rgba(15, 5, 27, 0.98)', 'rgba(7, 3, 14, 0.96)']
+        }
         end={{ x: 1, y: 1 }}
         start={{ x: 0, y: 0 }}
         style={[
@@ -115,10 +120,12 @@ const styles = StyleSheet.create({
     minHeight: PANEL_SHELL_MIN_HEIGHT * FIT_CONTENT_PANEL_HEIGHT_RATIO,
   },
   panelShellRightPanel: {
+    borderWidth: 0,
     borderRadius: 18,
     minHeight: 136,
     paddingHorizontal: 8,
     paddingVertical: 10,
+    shadowOpacity: 0,
   },
   panelShellInfoOnly: {
     minHeight: 96,
@@ -137,6 +144,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   wrapperInfoOnly: {
+    maxWidth: INFO_ONLY_PANEL_MAX_WIDTH,
     minWidth: 0,
   },
   wrapperRightPanel: {

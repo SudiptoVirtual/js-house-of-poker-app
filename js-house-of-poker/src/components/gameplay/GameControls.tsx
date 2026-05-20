@@ -170,7 +170,13 @@ export const GameControls = memo(function GameControls({
     controls.canAct || controls.canStartHand || controls.canRebuy || canAllIn;
 
   return (
-    <View style={[styles.root, isSidePanel ? styles.rootSidePanel : null]}>
+    <View
+      style={[
+        styles.root,
+        isSidePanel ? styles.rootSidePanel : null,
+        isRightPanel ? styles.rootRightPanel : null,
+      ]}
+    >
       {!isRightPanel ? (
         <View style={[styles.metaRow, isLeftPanel ? styles.metaRowLeftPanel : null]}>
           <Text
@@ -518,6 +524,9 @@ const styles = StyleSheet.create({
     gap: 10,
     maxWidth: 236,
     paddingHorizontal: 0,
+  },
+  rootRightPanel: {
+    transform: [{ translateX: '-30%' }],
   },
   statusText: {
     color: 'rgba(239, 235, 255, 0.66)',

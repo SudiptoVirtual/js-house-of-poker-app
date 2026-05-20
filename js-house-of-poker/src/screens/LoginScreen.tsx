@@ -178,7 +178,7 @@ export function LoginScreen({ navigation }: Props) {
       </SectionCard>
 
       <View style={styles.actions}>
-        <Text style={styles.metaText}>New to House of Poker?</Text>
+        <Text style={styles.metaText}>New to J's House of Poker?</Text>
         <Pressable disabled={isBusy} onPress={() => navigation.navigate(routes.Registration)}>
           <Text style={styles.link}>Create an account</Text>
         </Pressable>

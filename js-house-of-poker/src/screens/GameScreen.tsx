@@ -89,6 +89,12 @@ type ThreeFiveSevenRevealPreview = {
   winnerIds: string[];
 };
 
+const EMBEDDED_357_INFO_RAIL_WIDTH_SCALE = 0.7;
+const EMBEDDED_357_RAIL_GAP_SCALE = 0.75;
+const EMBEDDED_357_TABLE_WIDTH_SCALE = 1.15;
+const EMBEDDED_357_BASE_TABLE_FIT_SCALE = 0.955;
+const LANDSCAPE_TABLE_FIT_SCALE = 0.97;
+
 function joinCompactNames(names: string[]) {
   if (names.length <= 1) {
     return names[0] ?? '';
@@ -494,22 +500,28 @@ export function GameScreen({ navigation }: Props) {
   const hasEmbedded357Panel =
     isLandscape && is357Table && Boolean(tableState?.threeFiveSeven);
   const hasBottomHeroSection = !hasEmbedded357Panel;
-  const embedded357PanelWidth = hasEmbedded357Panel
+  const baseEmbedded357PanelWidth = hasEmbedded357Panel
     ? clamp(
         windowWidth * gameplayLayoutConfig.panel.widthRatio,
         gameplayLayoutConfig.panel.minWidth,
         gameplayLayoutConfig.panel.maxWidth,
       )
     : 0;
-  const embedded357ActionPanelWidth = hasEmbedded357Panel
+  const embedded357PanelWidth =
+    baseEmbedded357PanelWidth * EMBEDDED_357_INFO_RAIL_WIDTH_SCALE;
+  const baseEmbedded357ActionPanelWidth = hasEmbedded357Panel
     ? clamp(windowWidth * 0.07, 82, 104)
     : 0;
-  const embedded357PanelGap = hasEmbedded357Panel
+  const embedded357ActionPanelWidth = baseEmbedded357ActionPanelWidth;
+  const baseEmbedded357PanelGap = hasEmbedded357Panel
     ? clamp(windowWidth * 0.012, 12, 24)
     : 0;
-  const embedded357ActionPanelGap = hasEmbedded357Panel
+  const embedded357PanelGap =
+    baseEmbedded357PanelGap * EMBEDDED_357_RAIL_GAP_SCALE;
+  const baseEmbedded357ActionPanelGap = hasEmbedded357Panel
     ? clamp(windowWidth * 0.008, 8, 14)
     : 0;
+  const embedded357ActionPanelGap = baseEmbedded357ActionPanelGap;
   const tableAspectRatio = isLandscape
     ? gameplayLayoutConfig.table.aspectRatioLandscape
     : gameplayLayoutConfig.table.aspectRatio;
@@ -543,22 +555,34 @@ export function GameScreen({ navigation }: Props) {
       embedded357ActionPanelWidth +
       embedded357ActionPanelGap
     : Math.max(18, insets.left + insets.right + 18);
+  const baseReservedHorizontalSpace = isLandscape
+    ? layoutSideGap * 2 +
+      insets.left +
+      insets.right +
+      baseEmbedded357PanelWidth +
+      baseEmbedded357PanelGap +
+      baseEmbedded357ActionPanelWidth +
+      baseEmbedded357ActionPanelGap
+    : reservedHorizontalSpace;
   const maxTableWidth = isLandscape
     ? Math.max(
         gameplayLayoutConfig.table.maxWidthLandscape,
         windowWidth - reservedHorizontalSpace,
       )
     : gameplayLayoutConfig.table.maxWidthPortrait;
-  const landscapeTableFitScale = isLandscape
-    ? hasEmbedded357Panel
-      ? 0.955
-      : 0.97
-    : 1;
+  const landscapeTableFitScale = isLandscape ? LANDSCAPE_TABLE_FIT_SCALE : 1;
+  const embedded357TableWidthTarget = hasEmbedded357Panel
+    ? Math.max(0, windowWidth - baseReservedHorizontalSpace) *
+      EMBEDDED_357_BASE_TABLE_FIT_SCALE *
+      EMBEDDED_357_TABLE_WIDTH_SCALE
+    : 0;
   const tableBox = fitAspectBox(
-    Math.min(maxTableWidth, windowWidth - reservedHorizontalSpace) *
-      landscapeTableFitScale,
+    hasEmbedded357Panel
+      ? embedded357TableWidthTarget
+      : Math.min(maxTableWidth, windowWidth - reservedHorizontalSpace) *
+        landscapeTableFitScale,
     (windowHeight - insets.top - insets.bottom - reservedVerticalSpace) *
-      landscapeTableFitScale,
+      (hasEmbedded357Panel ? 1 : landscapeTableFitScale),
     tableAspectRatio,
   );
   const tableWidth = Math.max(

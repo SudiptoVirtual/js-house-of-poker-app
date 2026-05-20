@@ -22,7 +22,7 @@ const sessions = new Map();
 
 const server = http.createServer((request, response) => {
   response.writeHead(200, { 'Content-Type': 'application/json' });
-  response.end(JSON.stringify({ ok: true, rooms: rooms.size, service: 'house-of-poker-socket-server' }));
+  response.end(JSON.stringify({ ok: true, rooms: rooms.size, service: 'js-house-of-poker-socket-server' }));
 });
 
 const io = new Server(server, {
@@ -280,5 +280,5 @@ io.on('connection', (socket) => {
 });
 
 server.listen(PORT, () => {
-  console.log(`House of Poker socket server listening on http://localhost:${PORT}`);
+  console.log(`J's House of Poker socket server listening on http://localhost:${PORT}`);
 });

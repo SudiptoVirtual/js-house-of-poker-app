@@ -9,10 +9,10 @@ function clamp(value: number, min: number, max: number) {
 export const bottomRightStageSizing = {
   heightRatio: 0.0350,
   maxHeight: 60,
-  maxWidth: 180,
+  maxWidth: 153,
   minHeight: 45,
-  minWidth: 80,
-  widthRatio: 0.15,
+  minWidth: 68,
+  widthRatio: 0.1275,
 } as const;
 
 type Props = {

@@ -311,7 +311,7 @@ export const AnimatedCard = memo(function AnimatedCard({
           <View style={styles.backStripe} />
           <View style={styles.backStripe} />
         </View>
-        <Text style={[styles.backLabel, { fontSize: config.backLabel }]}>HOP</Text>
+        <Text style={[styles.backLabel, { fontSize: config.backLabel }]}>JHOP</Text>
       </Animated.View>
 
       <Animated.View

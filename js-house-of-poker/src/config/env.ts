@@ -143,7 +143,7 @@ const expoScheme = Constants.expoConfig?.scheme;
 const googleRedirectScheme = Array.isArray(expoScheme) ? expoScheme[0] : expoScheme;
 
 export const env = {
-  appName: Constants.expoConfig?.name ?? 'House of Poker',
+  appName: Constants.expoConfig?.name ?? "J's House of Poker",
   appVersion: Constants.expoConfig?.version ?? '1.0.0',
   apiBaseUrl,
   poker: {

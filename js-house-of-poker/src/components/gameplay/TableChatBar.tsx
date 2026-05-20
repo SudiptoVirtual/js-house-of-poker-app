@@ -21,7 +21,7 @@ import {
   TABLE_CHAT_MESSAGE_CHAR_LIMIT,
 } from '../../utils/tableChat';
 
-const gamePlayIcon = require('../../../assets/images/game-play-icon.png');
+const gamePlayIcon = require('../../../assets/icon.png');
 
 const INCOMING_CHAT_TOAST_TIMEOUT_MS = 4000;
 
@@ -466,7 +466,7 @@ const styles = StyleSheet.create({
     gap: 7,
     minHeight: 36,
     paddingHorizontal: 10,
-    width: 210,
+    width: 180,
   },
   chatTickerText: {
     color: '#F7F4FF',
@@ -619,14 +619,11 @@ const styles = StyleSheet.create({
     height: 38,
     overflow: 'hidden',
     position: 'relative',
-    width: 76,
+    width: 38,
   },
   logoImage: {
-    height: 38,
-    position: 'absolute',
-    right: 0,
-    top: 0,
-    width: 150,
+    height: 35,
+    width: 35,
   },
   notificationBadge: {
     alignItems: 'center',
@@ -657,8 +654,8 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1,
     justifyContent: 'center',
-    minHeight: 32,
-    minWidth: 64,
+    minHeight: 30,
+    minWidth: 65,
     paddingHorizontal: 12,
   },
   sendButtonEnabled: {

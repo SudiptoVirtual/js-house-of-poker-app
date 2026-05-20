@@ -27,8 +27,8 @@ export type SeatDescriptor = {
   width: number;
 };
 
-const TABLE_EDGE_OVERHANG_X = 40;
-const TABLE_EDGE_OVERHANG_Y = 34;
+const TABLE_EDGE_OVERHANG_X = 70;
+const TABLE_EDGE_OVERHANG_Y = 58;
 const SEAT_HEIGHT_SCALE = 0.92;
 const HERO_SEAT_HEIGHT_SCALE = 0.68;
 const HERO_SEAT_HEIGHT_ADJUSTMENT = -2;
@@ -39,7 +39,7 @@ const BET_TO_BOARD_GAP = 28;
 const MAX_SUPPORTED_TABLE_PLAYERS = 7;
 const HERO_ANCHOR = {
   x: 0.5,
-  y: 0.84,
+  y: 1.052,
   zone: 'bottom' as const,
 };
 const OPPONENT_ANCHORS: Array<{
@@ -47,13 +47,13 @@ const OPPONENT_ANCHORS: Array<{
   y: number;
   zone: 'bottom' | 'left' | 'right' | 'top';
 }> = [
-  { x: 0.5, y: 0.08, zone: 'top' },
-  { x: 0.24, y: 0.14, zone: 'top' },
-  { x: 0.76, y: 0.14, zone: 'top' },
-  { x: 0.08, y: 0.47, zone: 'left' },
-  { x: 0.92, y: 0.47, zone: 'right' },
-  { x: 0.25, y: 0.74, zone: 'bottom' },
-  { x: 0.75, y: 0.74, zone: 'bottom' },
+  { x: 0.5, y: -0.098, zone: 'top' },
+  { x: 0.063, y: -0.029, zone: 'top' },
+  { x: 0.937, y: -0.029, zone: 'top' },
+  { x: -0.121, y: 0.466, zone: 'left' },
+  { x: 1.121, y: 0.466, zone: 'right' },
+  { x: 0.063, y: 0.96, zone: 'bottom' },
+  { x: 0.937, y: 0.96, zone: 'bottom' },
 ];
 const OPPONENT_LAYOUTS: Record<number, number[]> = {
   1: [0],
