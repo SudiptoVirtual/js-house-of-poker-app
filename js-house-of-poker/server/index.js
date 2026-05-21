@@ -184,6 +184,10 @@ io.on('connection', (socket) => {
 
       leaveCurrentRoom(socket, { notifySelf: false });
       const { player, room } = createRoom(rooms, socket.id, name);
+      const gameSettingsUpdate = payload?.gameSettings ?? payload?.update;
+      if (gameSettingsUpdate) {
+        updateGameSettings(room, player.id, gameSettingsUpdate);
+      }
       sessions.set(socket.id, { playerId: player.id, roomId: room.id });
       socket.join(room.id);
       socket.emit('room:state', buildRoomState(room, player.id));

@@ -4,9 +4,9 @@ export type { PokerGameSettingsUpdate } from '../../types/poker';
 import type { PokerGameSettingsUpdate } from '../../types/poker';
 
 export type CreatePokerTableInput = {
-  botCount?: number;
   gameSettings?: PokerGameSettingsUpdate;
   name: string;
+  playerCount?: number;
   seatIndex?: number;
   tableName?: string;
 };

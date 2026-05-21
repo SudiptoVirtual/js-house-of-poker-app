@@ -15,7 +15,7 @@ import type { RootStackParamList } from '../types/navigation';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Home'>;
 
-const botOptions = [1, 2, 3, 4, 5];
+const playerCountOptions = [2, 3, 4, 5, 6, 7];
 type SocialRouteName = 'Profile' | 'Friends' | 'Feed' | 'PlayerDirectory';
 
 const socialEntrypoints: Array<{
@@ -60,7 +60,7 @@ export function HomeScreen({ navigation }: Props) {
   } = usePoker();
   const [playerName, setPlayerName] = useState('Player');
   const [authPlayerName, setAuthPlayerName] = useState<string | null>(null);
-  const [botCount, setBotCount] = useState(3);
+  const [playerCount, setPlayerCount] = useState(3);
   const [tableCode, setTableCode] = useState('');
   const [pendingGameLaunch, setPendingGameLaunch] = useState<{
     roomIdBefore: string | null;
@@ -113,12 +113,12 @@ export function HomeScreen({ navigation }: Props) {
 
     setPendingGameLaunch({ roomIdBefore: roomState?.roomId ?? null });
     createRoom({
-      botCount,
       gameSettings: {
         game: '357',
         mode: 'HOSTEST',
       },
       name: trimmedName,
+      playerCount,
     });
   }
 
@@ -168,15 +168,15 @@ export function HomeScreen({ navigation }: Props) {
           value={playerName}
         />
 
-        <Text style={styles.label}>Bot opponents</Text>
+        <Text style={styles.label}>Total players</Text>
         <View style={styles.optionRow}>
-          {botOptions.map((option) => {
-            const selected = option === botCount;
+          {playerCountOptions.map((option) => {
+            const selected = option === playerCount;
 
             return (
               <Pressable
                 key={option}
-                onPress={() => setBotCount(option)}
+                onPress={() => setPlayerCount(option)}
                 style={[styles.optionChip, selected ? styles.optionChipSelected : null]}
               >
                 <Text style={[styles.optionText, selected ? styles.optionTextSelected : null]}>
@@ -187,7 +187,7 @@ export function HomeScreen({ navigation }: Props) {
           })}
         </View>
         <Text style={styles.helper}>
-          Create a private free-play table with bots, then use the social surfaces to bring more players into the same invite flow.
+          Includes you. Remaining seats use bots for the quick table, up to seven total players.
         </Text>
 
         <View style={styles.buttonRow}>

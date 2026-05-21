@@ -92,6 +92,25 @@ const tests = [
     },
   ],
   [
+    '357 tables allow seven seated players',
+    () => {
+      const rooms = new Map();
+      const { player: host, room } = game.createRoom(rooms, 'socket-host', 'Host');
+
+      game.updateGameSettings(room, host.id, { game: '357' });
+      for (let index = 1; index < 7; index += 1) {
+        game.joinRoom(room, `socket-${index}`, `Player ${index}`);
+      }
+
+      assert.equal(room.players.length, 7);
+      assert.equal(game.buildRoomState(room, host.id).maxPlayers, 7);
+      assert.throws(
+        () => game.joinRoom(room, 'socket-overflow', 'Overflow'),
+        /full/,
+      );
+    },
+  ],
+  [
     '357 actions are simultaneous, idempotent, and locked per round',
     () => {
       const { players, room } = setup357Room();

@@ -458,7 +458,11 @@ export function createLocalPokerTransport(): PokerTransport {
       if (input.gameSettings) {
         pokerGame.updateGameSettings(nextRoom, player.id, input.gameSettings);
       }
-      const botCount = Math.max(1, Math.min(BOT_NAMES.length, input.botCount ?? 3));
+      const playerCount = Math.max(
+        2,
+        Math.min(getLocalMaxSeats(nextRoom), input.playerCount ?? 3),
+      );
+      const botCount = Math.min(BOT_NAMES.length, playerCount - 1);
 
       BOT_NAMES.slice(0, botCount).forEach((botName, index) => {
         pokerGame.joinRoom(nextRoom, `bot-${index + 1}`, botName, { seedMockStatuses: true });
