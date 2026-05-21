@@ -91,8 +91,8 @@ type ThreeFiveSevenRevealPreview = {
 
 const EMBEDDED_357_INFO_RAIL_WIDTH_SCALE = 0.7;
 const EMBEDDED_357_RAIL_GAP_SCALE = 0.75;
-const EMBEDDED_357_TABLE_WIDTH_SCALE = 1.15;
-const EMBEDDED_357_BASE_TABLE_FIT_SCALE = 0.955;
+const EMBEDDED_357_TABLE_WIDTH_SCALE = 1.0;
+const EMBEDDED_357_BASE_TABLE_FIT_SCALE = 0.9;
 const LANDSCAPE_TABLE_FIT_SCALE = 0.97;
 
 function joinCompactNames(names: string[]) {
@@ -1131,10 +1131,23 @@ export function GameScreen({ navigation }: Props) {
         await runChipFlights(payoutFlights);
       } else {
         setWinnerIds([]);
+        const latest357Resolution = tableState.threeFiveSeven?.lastResolution;
+        const previous357Resolution = previous.threeFiveSeven?.lastResolution;
+        const isNew357Showdown = Boolean(
+          latest357Resolution &&
+            latest357Resolution.handNumber !== previous357Resolution?.handNumber &&
+            (latest357Resolution.outcome === 'showdown' || latest357Resolution.outcome === 'showdown_tie'),
+        );
         if (previous.phase !== 'showdown' && tableState.phase === 'showdown') {
           setShowdownBanner({
             id: Date.now(),
             text: 'Showdown',
+            tone: 'showdown',
+          });
+        } else if (isNew357Showdown) {
+          setShowdownBanner({
+            id: Date.now(),
+            text: 'GO showdown resolved',
             tone: 'showdown',
           });
         }
