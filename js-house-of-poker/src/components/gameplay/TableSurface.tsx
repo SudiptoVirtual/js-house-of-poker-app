@@ -100,7 +100,7 @@ const tableChatBarMenuIconStartOffset =
 const tableSurfaceOffsetX = -35;
 const standardPokerTableSurfaceOffsetY = -25;
 const threeFiveSevenTableSurfaceOffsetY = 0;
-const disableTablePanning = true;
+const disableTablePanning = false;
 
 export function TableSurface({
   ambientA,
@@ -208,6 +208,9 @@ export function TableSurface({
     : 0;
   const resolvedRightPanelGap = hasRightRailNode
     ? rightPanelGap || clamp(width * 0.01, 8, 16)
+    : 0;
+  const rightPanelHorizontalOffset = hasRightRailNode
+    ? clamp(width * 0.03, 26, 56)
     : 0;
   const viewportWidth =
     width +
@@ -615,6 +618,7 @@ export function TableSurface({
             {
               marginLeft: resolvedRightPanelGap,
               transform: [
+                { translateX: rightPanelHorizontalOffset },
                 {
                   translateY:
                     -leftPanelVerticalNudge +
