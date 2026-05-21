@@ -641,6 +641,7 @@ export function normalizePokerRoomState(
   const actionHistory = buildActionHistory(roomState.actionLog, roomState.players, updatedAt);
   const gameSettings = normalizeGameSettings(roomState.gameSettings, previousState);
   const threeFiveSeven = normalizeThreeFiveSevenState(roomState.threeFiveSeven, previousState);
+  const legsByPlayerId = threeFiveSeven?.legsByPlayerId ?? {};
   const players = roomState.players.map((player, seatIndex) => {
     const visibleCardCodes = (player.holeCards ?? []).length > 0
       ? (player.holeCards ?? [])
@@ -668,7 +669,7 @@ export function normalizePokerRoomState(
       cards,
       hasHiddenCards: cardCount > cards.length,
       lastAction,
-      legs: typeof player.legs === 'number' ? player.legs : 0,
+      legs: typeof legsByPlayerId[player.id] === 'number' ? legsByPlayerId[player.id] : typeof player.legs === 'number' ? player.legs : 0,
       netChipBalance: normalizeNumber(player.netChipBalance),
       playerStatus: normalizePokerPlayerStatus(statusTier),
       revealedDecision:

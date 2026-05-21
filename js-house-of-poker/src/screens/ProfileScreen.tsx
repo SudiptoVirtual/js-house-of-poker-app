@@ -16,6 +16,9 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Profile'>;
 export function ProfileScreen({ navigation }: Props) {
   const { roomState } = usePoker();
   const activeTableCode = roomState?.roomId ?? null;
+  const selfPlayer = roomState?.players.find((player) => player.id === roomState.selfId) ?? null;
+  const bankroll = selfPlayer?.chips ?? 0;
+  const legs = roomState?.threeFiveSeven?.legsByPlayerId?.[roomState.selfId] ?? selfPlayer?.legs ?? 0;
 
   return (
     <Screen
@@ -24,6 +27,7 @@ export function ProfileScreen({ navigation }: Props) {
       subtitle={`${currentPlayerProfile.handle} | ${currentPlayerProfile.socialLine}`}
     >
       <SectionCard title="Player card">
+        <Text style={styles.metaLine}>Bankroll: ${bankroll.toLocaleString('en-US')} • Legs: {legs}</Text>
         <Text style={styles.metaLine}>Favorite game: {currentPlayerProfile.favoriteGame}</Text>
         <View style={styles.statRow}>
           {currentPlayerProfile.stats.map((stat) => (

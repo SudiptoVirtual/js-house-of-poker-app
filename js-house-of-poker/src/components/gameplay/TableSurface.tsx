@@ -100,6 +100,7 @@ const tableChatBarMenuIconStartOffset =
 const tableSurfaceOffsetX = -35;
 const standardPokerTableSurfaceOffsetY = -25;
 const threeFiveSevenTableSurfaceOffsetY = 0;
+const disableTablePanning = true;
 
 export function TableSurface({
   ambientA,
@@ -314,13 +315,13 @@ export function TableSurface({
             transform: [
               { translateX: tableSurfaceOffsetX },
               { translateY: tableSurfaceOffsetY },
-              { translateX: tablePan.x },
-              { translateY: tablePan.y },
+              { translateX: disableTablePanning ? 0 : tablePan.x },
+              { translateY: disableTablePanning ? 0 : tablePan.y },
             ],
             width,
           },
         ]}
-        {...tablePanHandlers}
+        {...(disableTablePanning ? {} : tablePanHandlers)}
       >
         <Animated.View
           style={[
