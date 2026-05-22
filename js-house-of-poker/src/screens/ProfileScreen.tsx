@@ -18,7 +18,9 @@ export function ProfileScreen({ navigation }: Props) {
   const activeTableCode = roomState?.roomId ?? null;
   const selfPlayer = roomState?.players.find((player) => player.id === roomState.selfId) ?? null;
   const bankroll = selfPlayer?.chips ?? 0;
-  const legs = roomState?.threeFiveSeven?.legsByPlayerId?.[roomState.selfId] ?? selfPlayer?.legs ?? 0;
+  const legs = selfPlayer
+    ? roomState?.threeFiveSeven?.legsByPlayerId[selfPlayer.id] ?? selfPlayer.legs
+    : 0;
 
   return (
     <Screen

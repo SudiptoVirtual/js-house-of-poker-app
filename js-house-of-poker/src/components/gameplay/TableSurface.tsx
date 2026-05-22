@@ -150,6 +150,7 @@ export function TableSurface({
   const tableSurfaceOffsetY = is357
     ? threeFiveSevenTableSurfaceOffsetY
     : standardPokerTableSurfaceOffsetY;
+  const tableSurfaceHorizontalShift = tableSurfaceOffsetX + width * 0.1;
   const revealState = is357
     ? (threeFiveSevenPreview?.revealState ??
       (threeFiveSevenState?.revealState !== 'hidden'
@@ -210,7 +211,7 @@ export function TableSurface({
     ? rightPanelGap || clamp(width * 0.01, 8, 16)
     : 0;
   const rightPanelHorizontalOffset = hasRightRailNode
-    ? clamp(width * 0.03, 26, 56)
+    ? width * 0.2
     : 0;
   const viewportWidth =
     width +
@@ -241,6 +242,12 @@ export function TableSurface({
     : 0;
   const leftPanelStackGap =
     leftPanelNode && bottomRightNode ? clamp(height * 0.018, 8, 14) : 0;
+  const ruleBadgeWidth = Math.min(width * 0.84, 380);
+  const ruleBadgeTop = focusMode
+    ? -clamp(height * 0.18, 45, 96)
+    : clamp(boardTop - 44, height * 0.08, height * 0.22);
+  const threeFiveSevenHeaderWidth = Math.max(ruleBadgeWidth, boardWidth);
+  const threeFiveSevenBoardLift = height * 0.05;
 
   return (
     <View
@@ -316,7 +323,7 @@ export function TableSurface({
           styles.tableGestureLayer,
           {
             transform: [
-              { translateX: tableSurfaceOffsetX },
+              { translateX: tableSurfaceHorizontalShift },
               { translateY: tableSurfaceOffsetY },
               { translateX: disableTablePanning ? 0 : tablePan.x },
               { translateY: disableTablePanning ? 0 : tablePan.y },
@@ -336,6 +343,63 @@ export function TableSurface({
         >
           <Pressable onPress={onPressTable} style={styles.tablePressable}>
             <View onLayout={onLayout} style={[styles.tableSurface, { height }]}>
+              {is357 ? (
+                <View
+                  pointerEvents="none"
+                  style={[
+                    styles.threeFiveSevenHeaderSlot,
+                    {
+                      left: width / 2 - threeFiveSevenHeaderWidth / 2,
+                      top: ruleBadgeTop,
+                      width: threeFiveSevenHeaderWidth,
+                    },
+                  ]}
+                >
+                  {ruleBadgeNode ? (
+                    <View
+                      style={[
+                        styles.ruleBadgeStackSlot,
+                        { width: ruleBadgeWidth },
+                      ]}
+                    >
+                      {ruleBadgeNode}
+                    </View>
+                  ) : null}
+                  <View
+                    style={[
+                      styles.threeFiveSevenBoardSlot,
+                      {
+                        minHeight: boardHeight,
+                        transform: [{ translateY: -threeFiveSevenBoardLift }],
+                        width: boardWidth,
+                      },
+                    ]}
+                  >
+                    <ThreeFiveSevenCenterBoard
+                      revealedDecisions={revealedDecisions}
+                      revealState={revealState}
+                      showdownDescriptions={showdownDescriptions}
+                      state={state}
+                      statusText={headlineText}
+                    />
+                  </View>
+                </View>
+              ) : ruleBadgeNode ? (
+                <View
+                  pointerEvents="none"
+                  style={[
+                    styles.ruleBadgeSlot,
+                    {
+                      left: width / 2 - ruleBadgeWidth / 2,
+                      top: ruleBadgeTop,
+                      width: ruleBadgeWidth,
+                    },
+                  ]}
+                >
+                  {ruleBadgeNode}
+                </View>
+              ) : null}
+
               <Animated.View
                 pointerEvents="none"
                 style={[
@@ -388,46 +452,18 @@ export function TableSurface({
                         </Text>
                       </View>
 
-                      {ruleBadgeNode ? (
+                      {!is357 ? (
                         <View
-                          pointerEvents="none"
                           style={[
-                            styles.ruleBadgeSlot,
+                            styles.centerBoardZone,
                             {
-                              left: width / 2 - Math.min(width * 0.42, 190),
-                              top: clamp(
-                                boardTop - 44,
-                                height * 0.08,
-                                height * 0.22,
-                              ),
-                              width: Math.min(width * 0.84, 380),
+                              left: width / 2 - boardWidth / 2,
+                              minHeight: boardHeight,
+                              top: boardTop,
+                              width: boardWidth,
                             },
                           ]}
                         >
-                          {ruleBadgeNode}
-                        </View>
-                      ) : null}
-
-                      <View
-                        style={[
-                          styles.centerBoardZone,
-                          {
-                            left: width / 2 - boardWidth / 2,
-                            minHeight: boardHeight,
-                            top: boardTop,
-                            width: boardWidth,
-                          },
-                        ]}
-                      >
-                        {is357 ? (
-                          <ThreeFiveSevenCenterBoard
-                            revealedDecisions={revealedDecisions}
-                            revealState={revealState}
-                            showdownDescriptions={showdownDescriptions}
-                            state={state}
-                            statusText={headlineText}
-                          />
-                        ) : (
                           <TableCenterBoard
                             cardSize={boardCardSize}
                             cards={state.communityCards}
@@ -444,8 +480,8 @@ export function TableSurface({
                                 : null
                             }
                           />
-                        )}
-                      </View>
+                        </View>
+                      ) : null}
                     </Animated.View>
                   </LinearGradient>
                 </View>
@@ -659,7 +695,7 @@ const styles = StyleSheet.create({
   },
   brandWatermarkText: {
     color: '#7A39CA',
-    fontSize: 42,
+    fontSize: 38,
     fontWeight: '900',
     letterSpacing: 2.6,
   },
@@ -776,6 +812,9 @@ const styles = StyleSheet.create({
     position: 'absolute',
     zIndex: 7,
   },
+  ruleBadgeStackSlot: {
+    alignItems: 'center',
+  },
   seatAnchor: {
     position: 'absolute',
     zIndex: 8,
@@ -851,6 +890,16 @@ const styles = StyleSheet.create({
   tableZoomLayer: {
     flexShrink: 0,
     width: '100%',
+  },
+  threeFiveSevenBoardSlot: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  threeFiveSevenHeaderSlot: {
+    alignItems: 'center',
+    gap: 6,
+    position: 'absolute',
+    zIndex: 7,
   },
   centerAura: {
     backgroundColor: 'rgba(114, 26, 177, 0.06)',

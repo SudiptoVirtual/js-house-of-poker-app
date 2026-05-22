@@ -119,64 +119,63 @@ export const ThreeFiveSevenCenterBoard = memo(
     if (isActive357Round) {
       return (
         <View style={styles.wrapper}>
-          <View style={styles.roundInfoRow}>
-            <LinearGradient
-              colors={['rgba(25, 11, 40, 0.97)', 'rgba(8, 7, 18, 0.99)']}
-              end={{ x: 1, y: 1 }}
-              start={{ x: 0, y: 0 }}
-              style={[styles.roundShell, styles.roundShellInRow]}
-            >
+          <LinearGradient
+            colors={['rgba(25, 11, 40, 0.97)', 'rgba(8, 7, 18, 0.99)']}
+            end={{ x: 1, y: 1 }}
+            start={{ x: 0, y: 0 }}
+            style={styles.roundShell}
+          >
+            <View style={styles.roundSummaryHeader}>
               <Text style={styles.roundTitle}>
                 ROUND {getRoundIndex(currentRound)} OF 3
               </Text>
-              <Text style={styles.roundSubtitle}>{roundSubtitle}</Text>
-              <Text style={styles.roundWilds}>
+              <View style={styles.roundPotChip}>
+                <Text style={styles.potLabel}>POT</Text>
+                <Text style={[styles.potAmount, styles.roundPotAmount]}>
+                  ${formatChipAmount(state.pot)}
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.roundSummaryMeta}>
+              <Text numberOfLines={1} style={styles.roundSubtitle}>
+                {roundSubtitle}
+              </Text>
+              <Text numberOfLines={1} style={styles.roundWilds}>
                 {wildRanks.length > 0
                   ? `${wildRanksLabel.toUpperCase()} ARE WILD`
                   : 'NO BOARD'}
               </Text>
+            </View>
 
-              <View style={styles.stepRail}>
-                {ROUND_STEPS.map((step, index) => {
-                  const active = step === currentRound;
-                  const reached = step <= currentRound;
+            <View style={styles.stepRail}>
+              {ROUND_STEPS.map((step, index) => {
+                const active = step === currentRound;
+                const reached = step <= currentRound;
 
-                  return (
-                    <View key={`357-step-${step}`} style={styles.stepSlot}>
-                      <View
-                        style={[
-                          styles.stepDot,
-                          reached ? styles.stepDotReached : null,
-                          active ? styles.stepDotActive : null,
-                        ]}
-                      >
-                        <Text style={styles.stepText}>{index + 1}</Text>
-                      </View>
-                      {index < ROUND_STEPS.length - 1 ? (
-                        <View style={styles.stepLine} />
-                      ) : null}
+                return (
+                  <View key={`357-step-${step}`} style={styles.stepSlot}>
+                    <View
+                      style={[
+                        styles.stepDot,
+                        reached ? styles.stepDotReached : null,
+                        active ? styles.stepDotActive : null,
+                      ]}
+                    >
+                      <Text style={styles.stepText}>{index + 1}</Text>
                     </View>
-                  );
-                })}
-              </View>
-            </LinearGradient>
+                    {index < ROUND_STEPS.length - 1 ? (
+                      <View style={styles.stepLine} />
+                    ) : null}
+                  </View>
+                );
+              })}
+            </View>
+            <Text numberOfLines={1} style={styles.instruction}>
+              {instruction}
+            </Text>
+          </LinearGradient>
 
-            <LinearGradient
-              colors={['rgba(14, 10, 28, 0.98)', 'rgba(7, 6, 16, 0.99)']}
-              end={{ x: 1, y: 1 }}
-              start={{ x: 0, y: 0 }}
-              style={[styles.potShell, styles.potShellInRow]}
-            >
-              <Text style={styles.potLabel}>POT</Text>
-              <Text style={styles.potAmount}>
-                ${formatChipAmount(state.pot)}
-              </Text>
-            </LinearGradient>
-          </View>
-
-          <Text numberOfLines={1} style={styles.instruction}>
-            {instruction}
-          </Text>
 
           {showGoShowdown ? (
             <LinearGradient
@@ -272,8 +271,8 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.28)',
     borderRadius: 999,
     borderWidth: 2,
-    height: 22,
-    width: 22,
+    height: 19,
+    width: 19,
   },
   chipGold: {
     backgroundColor: '#E0A72B',
@@ -283,35 +282,35 @@ const styles = StyleSheet.create({
   },
   chipRail: {
     flexDirection: 'row',
-    gap: 8,
+    gap: 6,
   },
   chipRed: {
     backgroundColor: '#BF465E',
   },
   gameSubTitle: {
     color: '#FFCB6B',
-    fontSize: 15,
+    fontSize: 13,
     fontWeight: '800',
     textAlign: 'center',
     textTransform: 'capitalize',
   },
   gameTitle: {
     color: '#B35CFF',
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '900',
     letterSpacing: 1.2,
     textAlign: 'center',
   },
   goShowdownDetails: {
     color: 'rgba(230, 255, 248, 0.82)',
-    fontSize: 9,
+    fontSize: 8,
     fontWeight: '700',
-    lineHeight: 12,
+    lineHeight: 10,
     textAlign: 'center',
   },
   goShowdownPlayers: {
     color: '#FFFFFF',
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '900',
     textAlign: 'center',
   },
@@ -320,48 +319,48 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(77, 255, 214, 0.42)',
     borderRadius: 14,
     borderWidth: 1,
-    gap: 3,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
+    gap: 2,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
     width: '100%',
   },
   goShowdownTitle: {
     color: '#4DFFD6',
-    fontSize: 13,
+    fontSize: 11,
     fontWeight: '900',
     letterSpacing: 1.2,
     textAlign: 'center',
   },
   instruction: {
     color: '#F7F4FF',
-    fontSize: 10,
-    lineHeight: 13,
+    fontSize: 9,
+    lineHeight: 11,
     textAlign: 'center',
   },
   messageShell: {
     borderColor: 'rgba(191, 86, 255, 0.2)',
     borderRadius: 18,
     borderWidth: 1,
-    gap: 6,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
+    gap: 5,
+    paddingHorizontal: 14,
+    paddingVertical: 11,
     width: '100%',
   },
   meta: {
     color: 'rgba(206, 194, 246, 0.76)',
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '700',
     textAlign: 'center',
   },
   potAmount: {
     color: '#FFFFFF',
-    fontSize: 15,
+    fontSize: 13,
     fontWeight: '900',
     letterSpacing: 0.2,
   },
   potLabel: {
     color: '#B35CFF',
-    fontSize: 8,
+    fontSize: 7,
     fontWeight: '900',
     letterSpacing: 0.6,
   },
@@ -371,56 +370,65 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1,
     gap: 1,
-    minWidth: 82,
-    paddingHorizontal: 9,
-    paddingVertical: 5,
-  },
-  potShellInRow: {
-    alignSelf: 'stretch',
-    justifyContent: 'center',
     minWidth: 74,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
   },
-
-  roundInfoRow: {
+  roundPotAmount: {
+    fontSize: 11,
+  },
+  roundPotChip: {
     alignItems: 'center',
-    alignSelf: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    borderColor: 'rgba(191, 86, 255, 0.24)',
+    borderRadius: 999,
+    borderWidth: 1,
     flexDirection: 'row',
-    gap: 7,
-    justifyContent: 'center',
-    width: '100%',
+    gap: 3,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
   },
   roundShell: {
+    alignSelf: 'center',
     borderColor: 'rgba(255, 131, 203, 0.24)',
     borderRadius: 14,
     borderWidth: 1,
-    gap: 4,
-    paddingHorizontal: 12,
-    paddingVertical: 9,
-    width: '100%',
+    gap: 3,
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+    width: '92%',
   },
-  roundShellInRow: {
-    flex: 1,
-    minWidth: 0,
-    width: undefined,
+  roundSummaryHeader: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 5,
+    justifyContent: 'space-between',
+  },
+  roundSummaryMeta: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 6,
+    justifyContent: 'space-between',
   },
   roundSubtitle: {
     color: '#FFFFFF',
-    fontSize: 13,
+    fontSize: 11,
     fontWeight: '800',
     textAlign: 'center',
   },
   roundTitle: {
     color: '#FF5ABF',
-    fontSize: 13,
+    fontSize: 11,
     fontWeight: '900',
     letterSpacing: 0.8,
     textAlign: 'center',
   },
   roundWilds: {
     color: '#C87BFF',
-    fontSize: 11,
+    flexShrink: 1,
+    fontSize: 10,
     fontWeight: '900',
-    textAlign: 'center',
+    textAlign: 'right',
   },
   stepDot: {
     alignItems: 'center',
@@ -428,9 +436,9 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.12)',
     borderRadius: 999,
     borderWidth: 1,
-    height: 20,
+    height: 17,
     justifyContent: 'center',
-    width: 20,
+    width: 17,
     zIndex: 1,
   },
   stepDotActive: {
@@ -450,7 +458,7 @@ const styles = StyleSheet.create({
   stepRail: {
     alignItems: 'center',
     flexDirection: 'row',
-    marginTop: 2,
+    marginTop: 1,
   },
   stepSlot: {
     alignItems: 'center',
@@ -459,12 +467,12 @@ const styles = StyleSheet.create({
   },
   stepText: {
     color: '#FFFFFF',
-    fontSize: 9,
+    fontSize: 8,
     fontWeight: '900',
   },
   wrapper: {
     alignItems: 'center',
-    gap: 8,
-    width: '100%',
+    gap: 6,
+    width: '90%',
   },
 });

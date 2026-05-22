@@ -46,6 +46,7 @@ type Props = {
 
 const MAX_LEG_SLOTS = 4;
 const SEAT_META_BADGE_SIZE = 24;
+const SELF_TABLE_SEAT_SIZE_SCALE = 0.88;
 const COMPACT_357_HERO_MAX_WIDTH = 480;
 
 function formatChipAmount(value: number) {
@@ -250,17 +251,20 @@ function CardFan({
   cards,
   hidden,
   compact = false,
+  spread = 'default',
   size,
 }: {
   cards: string[];
   compact?: boolean;
   count: number;
   hidden: boolean;
+  spread?: 'default' | 'wide';
   size: 'md' | 'sm';
 }) {
-  const overlap = compact ? 27 : size === 'md' ? 24 : 18;
-  const angleSpread = compact ? 8 : size === 'md' ? 14 : 10;
-  const cardScale = compact ? 0.74 : 1;
+  const wideSpread = spread === 'wide';
+  const overlap = wideSpread ? 14.5 : compact ? 27 : size === 'md' ? 24 : 18;
+  const angleSpread = wideSpread ? 10 : compact ? 8 : size === 'md' ? 14 : 10;
+  const cardScale = wideSpread ? 0.817 : compact ? 0.74 : 1;
   const slots = Array.from({ length: count });
 
   return (
@@ -277,7 +281,7 @@ function CardFan({
             style={[
               styles.cardFanSlot,
               index > 0 ? { marginLeft: -overlap } : null,
-              compact ? styles.cardFanSlotCompact : null,
+              compact && !wideSpread ? styles.cardFanSlotCompact : null,
               {
                 transform: [
                   { rotate: `${rotate}deg` },
@@ -292,7 +296,7 @@ function CardFan({
               card={card}
               hidden={hidden || !card}
               size={size}
-              style={compact ? styles.compactFanCard : null}
+              style={compact && !wideSpread ? styles.compactFanCard : null}
             />
           </View>
         );
@@ -467,10 +471,11 @@ export const GameTableSeat = memo(function GameTableSeat({
     useCompact357Seat || (showDecisionMode && !isSelf);
   const playerName = player.name;
   const selfTag = isSelf ? 'YOU' : null;
+  const tableSeatSizeScale = isSelf ? SELF_TABLE_SEAT_SIZE_SCALE : 1;
   const showQuestionBadge =
     showDecisionMode && !revealCards && !isSelf && !decision;
-  const useCompactSelfSeat =
-    isBottomSeat && isSelf && (!is357Game || useCompact357Seat);
+  const useCompactSelfSeat = isBottomSeat && isSelf;
+  const useSelf357MetaLayout = useCompactSelfSeat && is357Game;
   const showSelfSideCards = isBottomSeat && isSelf && cardCount > 0;
   const bottomCardSize = useCompactSelfSeat ? 'sm' : 'md';
   const showCompactActionPill =
@@ -606,7 +611,11 @@ export const GameTableSeat = memo(function GameTableSeat({
     );
   };
 
-  const renderCardFan = (size: 'md' | 'sm', compact = false) => (
+  const renderCardFan = (
+    size: 'md' | 'sm',
+    compact = false,
+    spread: 'default' | 'wide' = 'default',
+  ) => (
     <View
       style={[
         styles.revealedCardStack,
@@ -618,6 +627,7 @@ export const GameTableSeat = memo(function GameTableSeat({
         compact={compact}
         count={cardCount}
         hidden={cardsHidden}
+        spread={spread}
         size={size}
       />
       {showShowdownConnector ? renderShowdownConnector(compact) : null}
@@ -651,6 +661,46 @@ export const GameTableSeat = memo(function GameTableSeat({
     </View>
   );
 
+  const self357MetaNode = (
+    <View style={styles.self357MetaLayout}>
+      <View style={styles.self357NameRow}>
+        <Text
+          numberOfLines={1}
+          style={[
+            styles.playerName,
+            styles.playerNameCompact,
+            styles.self357PlayerName,
+          ]}
+        >
+          {playerName}
+        </Text>
+        {selfTag ? (
+          <View style={[styles.selfTag, styles.selfTagCompact]}>
+            <Text style={[styles.selfTagText, styles.selfTagTextCompact]}>
+              {selfTag}
+            </Text>
+          </View>
+        ) : null}
+      </View>
+      <View style={styles.self357MetaRow}>
+        {renderAvatarStack('sm')}
+        <LegsPips compact legs={visibleLegCount} />
+        <View style={[styles.amountBubble, styles.amountBubbleSelfCompact]}>
+          <Text
+            style={[styles.amountBubbleText, styles.amountBubbleTextSelfCompact]}
+          >
+            ${formatChipAmount(labelAmount)}
+          </Text>
+        </View>
+      </View>
+      {cardCount > 0 ? (
+        <View style={styles.self357CardsRow}>
+          {renderCardFan('sm', true, 'wide')}
+        </View>
+      ) : null}
+    </View>
+  );
+
   return (
     <Animated.View
       style={[
@@ -662,7 +712,10 @@ export const GameTableSeat = memo(function GameTableSeat({
             {
               scale: folded.interpolate({
                 inputRange: [0.72, 1],
-                outputRange: [0.96, 1],
+                outputRange: [
+                  0.96 * tableSeatSizeScale,
+                  tableSeatSizeScale,
+                ],
               }),
             },
           ],
@@ -716,6 +769,7 @@ export const GameTableSeat = memo(function GameTableSeat({
           isBottomSeat ? styles.shellBottom : null,
           useCompactSelfSeat ? styles.shellBottomCompact : null,
           useCompact357Seat ? styles.shell357Compact : null,
+          useSelf357MetaLayout ? styles.shellSelf357Meta : null,
         ]}
       >
         <View
@@ -725,7 +779,9 @@ export const GameTableSeat = memo(function GameTableSeat({
           ]}
         />
 
-        {!useCompactDecisionSeat && (showDecisionMode || isBottomSeat) ? (
+        {!useSelf357MetaLayout &&
+        !useCompactDecisionSeat &&
+        (showDecisionMode || isBottomSeat) ? (
           <View
             style={[
               styles.nameRail,
@@ -761,7 +817,9 @@ export const GameTableSeat = memo(function GameTableSeat({
           </View>
         ) : null}
 
-        {useCompactDecisionSeat ? (
+        {useSelf357MetaLayout ? (
+          self357MetaNode
+        ) : useCompactDecisionSeat ? (
           <View
             style={[
               styles.compactDecisionSeat,
@@ -824,7 +882,6 @@ export const GameTableSeat = memo(function GameTableSeat({
                 align === 'right' ? styles.compactDecisionRailRight : null,
               ]}
             >
-              <LegsPips compact legs={visibleLegCount} />
               <View style={styles.compactAmountBubble}>
                 <Text style={styles.compactAmountBubbleText}>
                   ${formatChipAmount(labelAmount)}
@@ -884,7 +941,7 @@ export const GameTableSeat = memo(function GameTableSeat({
                   : null}
 
                 <View style={styles.sideIdentityWrap}>
-                  {renderAvatarStack('md')}
+                  {renderAvatarStack('sm')}
 
                   {!showDecisionMode ? (
                     <View style={styles.nameBox}>
@@ -911,32 +968,33 @@ export const GameTableSeat = memo(function GameTableSeat({
           </View>
         )}
 
-        {useCompactDecisionSeat ? null : showDecisionMode ? (
-          <View
-            style={[
-              styles.decisionRail,
-              useCompactSelfSeat ? styles.decisionRailSelfCompact : null,
-            ]}
-          >
-            <LegsPips compact={useCompactSelfSeat} legs={visibleLegCount} />
+        {useCompactDecisionSeat && !useSelf357MetaLayout ? null : showDecisionMode ? (
+          useSelf357MetaLayout ? null : (
             <View
               style={[
-                styles.amountBubble,
-                useCompactSelfSeat ? styles.amountBubbleSelfCompact : null,
+                styles.decisionRail,
+                useCompactSelfSeat ? styles.decisionRailSelfCompact : null,
               ]}
             >
-              <Text
+              <View
                 style={[
-                  styles.amountBubbleText,
-                  useCompactSelfSeat
-                    ? styles.amountBubbleTextSelfCompact
-                    : null,
+                  styles.amountBubble,
+                  useCompactSelfSeat ? styles.amountBubbleSelfCompact : null,
                 ]}
               >
-                ${formatChipAmount(labelAmount)}
-              </Text>
+                <Text
+                  style={[
+                    styles.amountBubbleText,
+                    useCompactSelfSeat
+                      ? styles.amountBubbleTextSelfCompact
+                      : null,
+                  ]}
+                >
+                  ${formatChipAmount(labelAmount)}
+                </Text>
+              </View>
             </View>
-          </View>
+          )
         ) : (
           <View
             style={[
@@ -1381,6 +1439,40 @@ const styles = StyleSheet.create({
     fontSize: 8,
     letterSpacing: 0.5,
   },
+  self357CardsRow: {
+    alignItems: 'center',
+    alignSelf: 'center',
+    justifyContent: 'center',
+    minHeight: 54,
+  },
+  self357MetaLayout: {
+    alignItems: 'flex-end',
+    alignSelf: 'center',
+    gap: 4,
+    justifyContent: 'center',
+    maxWidth: '100%',
+    minWidth: 0,
+  },
+  self357MetaRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 4,
+    justifyContent: 'flex-end',
+    maxWidth: '100%',
+    minWidth: 0,
+  },
+  self357PlayerName: {
+    flexShrink: 1,
+    maxWidth: 108,
+  },
+  self357NameRow: {
+    alignItems: 'center',
+    alignSelf: 'flex-end',
+    flexDirection: 'row',
+    gap: 4,
+    justifyContent: 'flex-end',
+    minWidth: 0,
+  },
   shell: {
     borderRadius: 18,
     gap: 8,
@@ -1411,6 +1503,11 @@ const styles = StyleSheet.create({
     gap: 3,
     paddingHorizontal: 5,
     paddingVertical: 4,
+  },
+  shellSelf357Meta: {
+    gap: 4,
+    paddingHorizontal: 3,
+    paddingVertical: 8,
   },
   shellBorder357Compact: {
     borderColor: 'rgba(209, 110, 255, 0.12)',
