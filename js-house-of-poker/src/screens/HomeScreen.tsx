@@ -174,14 +174,18 @@ export function HomeScreen({ navigation }: Props) {
           >
             <View style={styles.trainingHeaderRow}>
               <Text style={styles.trainingTitle}>{table.label}</Text>
-              <Text style={styles.trainingBadge}>
-                {table.difficulty}
-              </Text>
+              <View style={styles.trainingBadgeCluster}>
+                <Text style={styles.trainingBadge}>
+                  {table.difficulty}
+                </Text>
+                <Text style={styles.trainingModeBadge}>{table.modeLabel}</Text>
+              </View>
             </View>
             <Text style={styles.trainingDescription}>{table.description}</Text>
             <Text style={styles.trainingEducation}>{table.educationalCopy}</Text>
+            <Text style={styles.trainingModeSummary}>{table.modeSummary}</Text>
             <Text style={styles.helper}>
-              Practice-only table • {table.seatCount} total seats • Bot-focused learning flow
+              Practice-only table • {table.seatCount} total seats • Bot-focused learning flow • Simulated clips only
             </Text>
             <View style={styles.buttonRow}>
               <ActionButton
@@ -424,6 +428,27 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flexDirection: 'row',
     justifyContent: 'space-between',
+  },
+
+  trainingBadgeCluster: {
+    alignItems: 'flex-end',
+    gap: 6,
+  },
+  trainingModeBadge: {
+    backgroundColor: '#1D4ED8',
+    borderRadius: 999,
+    color: '#E0EAFF',
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    textTransform: 'uppercase',
+  },
+  trainingModeSummary: {
+    color: colors.text,
+    fontSize: 12,
+    marginTop: 4,
   },
   trainingTitle: {
     color: colors.text,

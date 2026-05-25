@@ -45,6 +45,11 @@ type InternalHandPlayer = {
 type InternalRoom = {
   botTrainingConfig?: {
     tableId: string;
+    economicMode: 'SAFE_MODE' | 'PROTECTED_MODE';
+    protectedModeConfig?: {
+      beginnerRefundEnabled?: boolean;
+      freeClipEntryCost?: number;
+    };
   } | null;
 
   actionLog: string[];
@@ -259,7 +264,10 @@ export function createLocalPokerTransport(): PokerTransport {
       nextRoom.id = trainingTable.id;
       rooms.delete(Array.from(rooms.keys()).find((id) => id !== trainingTable.id && rooms.get(id) === nextRoom) ?? '');
       rooms.set(trainingTable.id, nextRoom);
-      nextRoom.botTrainingConfig = { tableId: trainingTable.id };
+      nextRoom.botTrainingConfig = {
+        tableId: trainingTable.id,
+        economicMode: trainingTable.economicMode,
+      };
       pokerGame.updateGameSettings(nextRoom, nextRoom.hostId ?? nextRoom.players[0]?.id, {
         game: trainingTable.game,
         mode: trainingTable.mode,

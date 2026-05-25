@@ -49,6 +49,31 @@ const VALID_WILD_CARDS = new Set([
   '2',
 ]);
 const economyService = createInMemoryEconomyService();
+
+const BOT_TRAINING_ECONOMY_MODES = Object.freeze({
+  SAFE_MODE: 'SAFE_MODE',
+  PROTECTED_MODE: 'PROTECTED_MODE',
+});
+const DEFAULT_BOT_TRAINING_ECONOMY_MODE = BOT_TRAINING_ECONOMY_MODES.SAFE_MODE;
+const DEFAULT_PROTECTED_MODE_CONFIG = Object.freeze({
+  beginnerRefundEnabled: true,
+  freeClipEntryCost: 1,
+});
+
+function getBotTrainingEconomyMode(room) {
+  return room?.botTrainingConfig?.economicMode ?? null;
+}
+
+function isSafeModeBotTrainingRoom(room) {
+  return getBotTrainingEconomyMode(room) === BOT_TRAINING_ECONOMY_MODES.SAFE_MODE;
+}
+
+function resolveProtectedModeConfig(room) {
+  return {
+    ...DEFAULT_PROTECTED_MODE_CONFIG,
+    ...(room?.botTrainingConfig?.protectedModeConfig ?? {}),
+  };
+}
 const INVITE_HISTORY_LIMIT = 12;
 const INVITE_RECIPIENT_BLUEPRINTS = [
   {
@@ -587,11 +612,45 @@ function syncRoomEconomyContext(room) {
 }
 
 function seatPlayerWithDefaultBuyIn(room, player, source) {
+  if (isSafeModeBotTrainingRoom(room)) {
+    player.chips += DEFAULT_STACK;
+    const simulatedBuyIn = {
+      balance: getPlayerEconomyState(room, player.id),
+      chips: DEFAULT_STACK,
+      clipsDebited: 0,
+      isSimulated: true,
+      simulationLabel: 'SAFE_MODE_TRAINING_BUY_IN',
+    };
+    addLog(
+      room,
+      `${player.name} received a simulated ${DEFAULT_STACK}-chip training stack (0 clips charged).`,
+    );
+    return simulatedBuyIn;
+  }
+
+  if (getBotTrainingEconomyMode(room) === BOT_TRAINING_ECONOMY_MODES.PROTECTED_MODE) {
+    const protectedModeConfig = resolveProtectedModeConfig(room);
+    const clipsToDebit = Math.max(0, Number(protectedModeConfig.freeClipEntryCost) || 0);
+
+    if (clipsToDebit <= 0) {
+      player.chips += DEFAULT_STACK;
+      addLog(room, `${player.name} entered protected training with a sponsored stack (0 clips charged).`);
+      return {
+        balance: getPlayerEconomyState(room, player.id),
+        chips: DEFAULT_STACK,
+        clipsDebited: 0,
+        isSimulated: true,
+        simulationLabel: 'PROTECTED_MODE_SPONSORED_BUY_IN',
+      };
+    }
+  }
+
   const buyIn = economyService.buyInToTable({
     accountId: player.accountId,
     chips: DEFAULT_STACK,
     metadata: {
       source,
+      trainingEconomyMode: getBotTrainingEconomyMode(room),
     },
     tableId: room.id,
   });
@@ -601,6 +660,23 @@ function seatPlayerWithDefaultBuyIn(room, player, source) {
     room,
     `${player.name} bought in for ${buyIn.chips} chips (${buyIn.clipsDebited} clips).`,
   );
+
+  if (
+    getBotTrainingEconomyMode(room) === BOT_TRAINING_ECONOMY_MODES.PROTECTED_MODE &&
+    resolveProtectedModeConfig(room).beginnerRefundEnabled &&
+    buyIn.clipsDebited > 0
+  ) {
+    economyService.grantClips({
+      accountId: player.accountId,
+      clips: buyIn.clipsDebited,
+      metadata: {
+        reason: 'protected-mode-beginner-refund',
+        tableId: room.id,
+      },
+    });
+    addLog(room, `${player.name} received automatic beginner clip refund protection.`);
+  }
+
   return buyIn;
 }
 
@@ -1421,6 +1497,10 @@ function sendTableInvite(room, playerId, input = {}) {
   economyService.recordTableInvite(room.id, recipient.accountId);
 
   if (giftClips > 0) {
+    if (isSafeModeBotTrainingRoom(room)) {
+      throw new Error('Safe Mode training does not allow real-clip gift buy-ins.');
+    }
+
     const giftResult = economyService.giftBuyIn({
       chips: giftClips * clipToChipRate,
       metadata: {
