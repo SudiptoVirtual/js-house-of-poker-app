@@ -3,6 +3,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import { ActionButton } from '../components/ActionButton';
 import { ComplianceNotice } from '../components/ComplianceNotice';
+import { BotTrainingPromoBanner } from '../components/BotTrainingPromoBanner';
 import { Screen } from '../components/Screen';
 import { SectionCard } from '../components/SectionCard';
 import { routes } from '../constants/routes';
@@ -48,6 +49,15 @@ export function FriendsScreen({ navigation }: Props) {
             navigation.navigate(activeTableCode ? routes.Game : routes.Home)
           }
           variant="secondary"
+        />
+      </SectionCard>
+
+      <SectionCard title="Invite + train">
+        <BotTrainingPromoBanner
+          compact
+          placement="invite"
+          onPressPrimary={() => navigation.navigate(routes.Home)}
+          onPressSecondary={() => navigation.navigate(routes.Home)}
         />
       </SectionCard>
 

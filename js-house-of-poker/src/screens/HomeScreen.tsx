@@ -5,6 +5,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 import { ActionButton } from '../components/ActionButton';
 import { ComplianceNotice } from '../components/ComplianceNotice';
+import { BotTrainingPromoBanner } from '../components/BotTrainingPromoBanner';
 import { Screen } from '../components/Screen';
 import { SectionCard } from '../components/SectionCard';
 import { usePoker } from '../context/PokerProvider';
@@ -198,6 +199,12 @@ export function HomeScreen({ navigation }: Props) {
       </SectionCard>
 
       <SectionCard title="Establish Bot Table">
+        <BotTrainingPromoBanner
+          placement="lobby"
+          onPressPrimary={() => trainingActionHandlers.quickStart()}
+          onPressSecondary={() => trainingActionHandlers.learn357()}
+        />
+
         <View style={styles.featuredTrainingCard}>
           <View style={styles.featuredTrainingHeader}>
             <Text style={styles.featuredPill}>Training Feature • AI Opponents</Text>

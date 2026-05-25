@@ -6,6 +6,7 @@ import { ActionButton } from '../components/ActionButton';
 import { AuthTextField } from '../components/AuthTextField';
 import { BrandPanel } from '../components/BrandPanel';
 import { ComplianceNotice } from '../components/ComplianceNotice';
+import { BotTrainingPromoBanner } from '../components/BotTrainingPromoBanner';
 import { Screen } from '../components/Screen';
 import { SectionCard } from '../components/SectionCard';
 import { complianceCopy } from '../constants/compliance';
@@ -162,6 +163,21 @@ export function LoginScreen({ navigation }: Props) {
         <Text style={styles.dividerText}>or continue with Google</Text>
         <View style={styles.dividerLine} />
       </View>
+
+      <SectionCard title="Quick tutorial">
+        <BotTrainingPromoBanner
+          compact
+          placement="tutorial"
+          onPressPrimary={() => navigation.navigate(routes.Home)}
+          onPressSecondary={() => navigation.navigate(routes.Home)}
+        />
+      </SectionCard>
+
+      {isBusy ? (
+        <SectionCard title="Loading">
+          <BotTrainingPromoBanner compact placement="loading" hideCtas />
+        </SectionCard>
+      ) : null}
 
       <SectionCard title="Google login">
         <View style={styles.socialRow}>
