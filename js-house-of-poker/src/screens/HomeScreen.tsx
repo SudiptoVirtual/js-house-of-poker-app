@@ -10,6 +10,7 @@ import { SectionCard } from '../components/SectionCard';
 import { usePoker } from '../context/PokerProvider';
 import { routes } from '../constants/routes';
 import { getAuthSession } from '../services/storage/sessionStorage';
+import { BOT_TRAINING_TABLES } from '../constants/botTrainingTables';
 import { colors } from '../theme/colors';
 import type { RootStackParamList } from '../types/navigation';
 
@@ -132,6 +133,24 @@ export function HomeScreen({ navigation }: Props) {
     joinTable({ name: trimmedName, tableId: tableCode.trim().toUpperCase() });
   }
 
+  function handleEnterBotTrainingTable() {
+    const trimmedName =
+      transportKind === 'socket'
+        ? authPlayerName || playerName.trim() || 'Player'
+        : playerName.trim() || 'Player';
+    const defaultTrainingTable = BOT_TRAINING_TABLES[0];
+
+    setPendingGameLaunch({ roomIdBefore: roomState?.roomId ?? null });
+    createRoom({
+      gameSettings: {
+        game: '357',
+        mode: defaultTrainingTable.mode,
+      },
+      name: trimmedName,
+      playerCount: defaultTrainingTable.seatCount,
+    });
+  }
+
   return (
     <Screen
       eyebrow="Free-play social poker"
@@ -154,6 +173,35 @@ export function HomeScreen({ navigation }: Props) {
             onPress={() => navigation.navigate(routes.Game)}
           />
         ) : null}
+      </SectionCard>
+
+      <SectionCard title="Establish Bot Table">
+        {BOT_TRAINING_TABLES.map((table) => (
+          <View
+            key={table.id}
+            style={styles.trainingCard}
+          >
+            <View style={styles.trainingHeaderRow}>
+              <Text style={styles.trainingTitle}>{table.label}</Text>
+              <Text style={styles.trainingBadge}>
+                {table.difficulty}
+              </Text>
+            </View>
+            <Text style={styles.trainingDescription}>{table.description}</Text>
+            <Text style={styles.trainingEducation}>{table.educationalCopy}</Text>
+            <Text style={styles.helper}>
+              Practice-only table • {table.seatCount} total seats • Bot-focused learning flow
+            </Text>
+          </View>
+        ))}
+        <View style={styles.buttonRow}>
+          <ActionButton
+            icon="robot-outline"
+            label="Enter bot training"
+            onPress={handleEnterBotTrainingTable}
+            variant="secondary"
+          />
+        </View>
       </SectionCard>
 
       <SectionCard title="Create a table">
@@ -347,6 +395,46 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   socialTitle: {
+    color: colors.text,
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  trainingBadge: {
+    backgroundColor: 'rgba(54, 231, 255, 0.15)',
+    borderRadius: 999,
+    color: colors.secondary,
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    textTransform: 'uppercase',
+  },
+  trainingCard: {
+    backgroundColor: colors.surfaceMuted,
+    borderColor: colors.border,
+    borderRadius: 16,
+    borderWidth: 1,
+    gap: 8,
+    padding: 14,
+  },
+  trainingDescription: {
+    color: colors.text,
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  trainingEducation: {
+    color: colors.mutedText,
+    fontSize: 13,
+    fontWeight: '600',
+    lineHeight: 19,
+  },
+  trainingHeaderRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  trainingTitle: {
     color: colors.text,
     fontSize: 16,
     fontWeight: '700',
