@@ -133,22 +133,13 @@ export function HomeScreen({ navigation }: Props) {
     joinTable({ name: trimmedName, tableId: tableCode.trim().toUpperCase() });
   }
 
-  function handleEnterBotTrainingTable() {
+  function handleEnterBotTrainingTable(tableId: string) {
     const trimmedName =
       transportKind === 'socket'
         ? authPlayerName || playerName.trim() || 'Player'
         : playerName.trim() || 'Player';
-    const defaultTrainingTable = BOT_TRAINING_TABLES[0];
-
     setPendingGameLaunch({ roomIdBefore: roomState?.roomId ?? null });
-    createRoom({
-      gameSettings: {
-        game: '357',
-        mode: defaultTrainingTable.mode,
-      },
-      name: trimmedName,
-      playerCount: defaultTrainingTable.seatCount,
-    });
+    joinTable({ name: trimmedName, tableId });
   }
 
   return (
@@ -192,16 +183,16 @@ export function HomeScreen({ navigation }: Props) {
             <Text style={styles.helper}>
               Practice-only table • {table.seatCount} total seats • Bot-focused learning flow
             </Text>
+            <View style={styles.buttonRow}>
+              <ActionButton
+                icon="robot-outline"
+                label="Enter bot training"
+                onPress={() => handleEnterBotTrainingTable(table.id)}
+                variant="secondary"
+              />
+            </View>
           </View>
         ))}
-        <View style={styles.buttonRow}>
-          <ActionButton
-            icon="robot-outline"
-            label="Enter bot training"
-            onPress={handleEnterBotTrainingTable}
-            variant="secondary"
-          />
-        </View>
       </SectionCard>
 
       <SectionCard title="Create a table">

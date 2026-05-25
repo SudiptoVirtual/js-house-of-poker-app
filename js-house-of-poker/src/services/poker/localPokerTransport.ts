@@ -16,6 +16,7 @@ import type {
   SendPokerTableInviteInput,
   SitAtSeatInput,
 } from './types';
+import { BOT_TRAINING_TABLES, BOT_TRAINING_TABLE_IDS } from '../../constants/botTrainingTables';
 import {
   appendTableChatMessage,
   createLocalTableChatMessage,
@@ -42,6 +43,10 @@ type InternalHandPlayer = {
 };
 
 type InternalRoom = {
+  botTrainingConfig?: {
+    tableId: string;
+  } | null;
+
   actionLog: string[];
   chatMessages: PokerTableChatMessage[];
   gameSettings?: {
@@ -125,7 +130,7 @@ const pokerGame = require('../../game/pokerEngine') as {
   ) => void;
 };
 
-const BOT_NAMES = ['Thor', 'Artie', 'Poker4Ever', 'Ullii67', 'vossell', 'RiverRita'];
+const BOT_NAMES = ['Bot Thor', 'Bot Artie', 'Bot Poker4Ever', 'Bot Ullii67', 'Bot Vossell', 'Bot RiverRita'];
 const DEFAULT_MAX_SEATS = 6;
 const THREE_FIVE_SEVEN_MAX_SEATS = 7;
 
@@ -230,12 +235,55 @@ export function createLocalPokerTransport(): PokerTransport {
     botTimer = null;
   }
 
+  function isBotTrainingRoom(targetRoom: InternalRoom | null) {
+    return Boolean(targetRoom?.botTrainingConfig?.tableId && BOT_TRAINING_TABLE_IDS.has(targetRoom.botTrainingConfig.tableId));
+  }
+
+  function fillRoomWithBots(targetRoom: InternalRoom, seatCount: number) {
+    const openSeats = Math.max(0, Math.min(getLocalMaxSeats(targetRoom), seatCount) - targetRoom.players.length);
+    for (let index = 0; index < openSeats; index += 1) {
+      const botName = BOT_NAMES[index % BOT_NAMES.length];
+      pokerGame.joinRoom(targetRoom, `bot-${Date.now()}-${index + 1}`, botName, { seedMockStatuses: true });
+    }
+  }
+
+  function ensureBotTrainingTables() {
+    BOT_TRAINING_TABLES.forEach((trainingTable) => {
+      if (rooms.has(trainingTable.id)) {
+        return;
+      }
+
+      const { room: nextRoom } = pokerGame.createRoom(rooms, `training-host-${trainingTable.id}`, `Bot Host ${trainingTable.game}`, {
+        seedMockStatuses: true,
+      });
+      nextRoom.id = trainingTable.id;
+      rooms.delete(Array.from(rooms.keys()).find((id) => id !== trainingTable.id && rooms.get(id) === nextRoom) ?? '');
+      rooms.set(trainingTable.id, nextRoom);
+      nextRoom.botTrainingConfig = { tableId: trainingTable.id };
+      pokerGame.updateGameSettings(nextRoom, nextRoom.hostId ?? nextRoom.players[0]?.id, {
+        game: trainingTable.game,
+        mode: trainingTable.mode,
+      });
+      fillRoomWithBots(nextRoom, trainingTable.seatCount);
+      if (trainingTable.game === '357') {
+        pokerGame.startHand(nextRoom, nextRoom.hostId ?? nextRoom.players[0].id);
+      }
+      pokerGame.leaveRoom(nextRoom, nextRoom.hostId ?? nextRoom.players[0].id);
+      nextRoom.hostId = nextRoom.players[0]?.id ?? null;
+    });
+  }
+
   function cleanupRoom(targetRoom: InternalRoom | null) {
     if (!targetRoom) {
       return;
     }
 
     pokerGame.removePendingPlayers(targetRoom);
+    if (isBotTrainingRoom(targetRoom)) {
+      fillRoomWithBots(targetRoom, BOT_TRAINING_TABLES.find((table) => table.id === targetRoom.botTrainingConfig?.tableId)?.seatCount ?? 4);
+      return;
+    }
+
     if (targetRoom.players.length === 0) {
       rooms.delete(targetRoom.id);
     }
@@ -422,6 +470,7 @@ export function createLocalPokerTransport(): PokerTransport {
   }
 
   async function connect() {
+    ensureBotTrainingTables();
     pushConnection({
       lastDisconnectReason: null,
       lastError: null,
@@ -516,6 +565,10 @@ export function createLocalPokerTransport(): PokerTransport {
         seedMockStatuses: true,
       });
       targetRoom.chatMessages = targetRoom.chatMessages ?? [];
+      if (isBotTrainingRoom(targetRoom)) {
+        const trainingTable = BOT_TRAINING_TABLES.find((table) => table.id === targetRoom?.botTrainingConfig?.tableId);
+        fillRoomWithBots(targetRoom, trainingTable?.seatCount ?? 4);
+      }
       room = targetRoom;
       selfId = player.id;
       selfName = player.name;
