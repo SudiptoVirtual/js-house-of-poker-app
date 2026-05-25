@@ -18,6 +18,22 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Home'>;
 
 const playerCountOptions = [2, 3, 4, 5, 6, 7];
 type SocialRouteName = 'Profile' | 'Friends' | 'Feed' | 'PlayerDirectory';
+type TrainingActionId = 'quickStart' | 'learn357' | 'inviteFriends' | 'watchDemo';
+
+const TRAINING_DEFAULT_TABLE_ID = BOT_TRAINING_TABLES[0]?.id ?? 'TRN357A';
+const TRAINING_357_TABLE_ID =
+  BOT_TRAINING_TABLES.find((table) => table.game === '357')?.id ?? TRAINING_DEFAULT_TABLE_ID;
+
+const trainingLobbyActions: Array<{
+  actionId: TrainingActionId;
+  icon: keyof typeof MaterialCommunityIcons.glyphMap;
+  label: string;
+}> = [
+  { actionId: 'quickStart', icon: 'flash-outline', label: 'Quick Start' },
+  { actionId: 'learn357', icon: 'school-outline', label: 'Learn 357' },
+  { actionId: 'inviteFriends', icon: 'account-multiple-plus-outline', label: 'Invite Friends' },
+  { actionId: 'watchDemo', icon: 'play-box-multiple-outline', label: 'Watch Demo Hand' },
+];
 
 const socialEntrypoints: Array<{
   description: string;
@@ -142,6 +158,21 @@ export function HomeScreen({ navigation }: Props) {
     joinTable({ name: trimmedName, tableId });
   }
 
+  const trainingActionHandlers: Record<TrainingActionId, () => void> = {
+    inviteFriends: () => {
+      navigation.navigate(routes.Friends);
+    },
+    learn357: () => {
+      handleEnterBotTrainingTable(TRAINING_357_TABLE_ID);
+    },
+    quickStart: () => {
+      handleEnterBotTrainingTable(TRAINING_DEFAULT_TABLE_ID);
+    },
+    watchDemo: () => {
+      navigation.navigate(routes.Feed);
+    },
+  };
+
   return (
     <Screen
       eyebrow="Free-play social poker"
@@ -167,6 +198,31 @@ export function HomeScreen({ navigation }: Props) {
       </SectionCard>
 
       <SectionCard title="Establish Bot Table">
+        <View style={styles.featuredTrainingCard}>
+          <View style={styles.featuredTrainingHeader}>
+            <Text style={styles.featuredPill}>Training Feature • AI Opponents</Text>
+            <Text style={styles.featuredTitle}>LEARN WITH BOT TABLES</Text>
+            <Text style={styles.featuredSubtitle}>Practice safely with instant AI opponents</Text>
+          </View>
+          <View style={styles.featuredActionRow}>
+            {trainingLobbyActions.map((action) => (
+              <View key={action.actionId} style={styles.featuredActionButton}>
+                <ActionButton
+                  fullWidth
+                  icon={action.icon}
+                  label={action.label}
+                  onPress={trainingActionHandlers[action.actionId]}
+                  variant={action.actionId === 'quickStart' ? 'primary' : 'secondary'}
+                />
+              </View>
+            ))}
+          </View>
+          <Text style={styles.featuredSupportCopy}>
+            Learn flows are modular and support future tutorials, difficulty settings, replays,
+            guided onboarding, and progression systems.
+          </Text>
+        </View>
+
         {BOT_TRAINING_TABLES.map((table) => (
           <View
             key={table.id}
@@ -303,6 +359,57 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     lineHeight: 20,
+  },
+  featuredActionButton: {
+    flexBasis: '48%',
+    flexGrow: 1,
+    minWidth: 160,
+  },
+  featuredActionRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  featuredPill: {
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(54, 231, 255, 0.18)',
+    borderRadius: 999,
+    color: '#BFFAFF',
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.8,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    textTransform: 'uppercase',
+  },
+  featuredSubtitle: {
+    color: '#B5C7E6',
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  featuredSupportCopy: {
+    color: '#A4B0C2',
+    fontSize: 12,
+    lineHeight: 18,
+  },
+  featuredTitle: {
+    color: colors.white,
+    fontSize: 24,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+    lineHeight: 30,
+    textTransform: 'uppercase',
+  },
+  featuredTrainingCard: {
+    backgroundColor: '#121D3D',
+    borderColor: '#2F4B83',
+    borderRadius: 20,
+    borderWidth: 1,
+    gap: 14,
+    padding: 16,
+  },
+  featuredTrainingHeader: {
+    gap: 8,
   },
   helper: {
     color: colors.mutedText,
