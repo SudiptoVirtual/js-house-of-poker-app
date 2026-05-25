@@ -4,6 +4,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import { ActionButton } from '../components/ActionButton';
 import { ComplianceNotice } from '../components/ComplianceNotice';
+import { BotTrainingPromoBanner } from '../components/BotTrainingPromoBanner';
 import { Screen } from '../components/Screen';
 import { SectionCard } from '../components/SectionCard';
 import { routes } from '../constants/routes';
@@ -35,6 +36,15 @@ export function WelcomeScreen({ navigation }: Props) {
 
       <SectionCard title="Table tip">
         <Text style={styles.tip}>{tip}</Text>
+      </SectionCard>
+
+      <SectionCard title="First-login training">
+        <BotTrainingPromoBanner
+          compact
+          placement="first-login"
+          onPressPrimary={() => navigation.navigate(routes.Home)}
+          onPressSecondary={() => navigation.navigate(routes.Home)}
+        />
       </SectionCard>
 
       <View style={styles.actions}>

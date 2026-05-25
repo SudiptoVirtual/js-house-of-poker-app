@@ -15,6 +15,7 @@ import {
 } from 'react-native-safe-area-context';
 
 import { ActionButton } from '../components/ActionButton';
+import { BotTrainingPromoBanner } from '../components/BotTrainingPromoBanner';
 import type { CardSize } from '../components/AnimatedCard';
 import {
   GameplayLayout,
@@ -1185,6 +1186,12 @@ export function GameScreen({ navigation }: Props) {
             label="Back to lobby"
             onPress={() => navigation.navigate(routes.Home)}
             tone="primary"
+          />
+          <BotTrainingPromoBanner
+            compact
+            placement="empty-seat"
+            onPressPrimary={() => navigation.navigate(routes.Home)}
+            onPressSecondary={() => navigation.navigate(routes.Feed)}
           />
         </View>
       </SafeAreaView>

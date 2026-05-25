@@ -3,6 +3,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import { ActionButton } from '../components/ActionButton';
 import { ComplianceNotice } from '../components/ComplianceNotice';
+import { BotTrainingPromoBanner } from '../components/BotTrainingPromoBanner';
 import { Screen } from '../components/Screen';
 import { SectionCard } from '../components/SectionCard';
 import { routes } from '../constants/routes';
@@ -40,6 +41,15 @@ export function FeedScreen({ navigation }: Props) {
             ? `Post-based invites will open the same invite rail for table ${activeTableCode}.`
             : 'Open a free-play table first. Feed actions should point into a live table instead of creating a second invite system.'}
         </Text>
+      </SectionCard>
+
+      <SectionCard title="Social spotlight">
+        <BotTrainingPromoBanner
+          compact
+          placement="social-feed"
+          onPressPrimary={() => navigation.navigate(routes.Home)}
+          onPressSecondary={() => navigation.navigate(routes.Feed)}
+        />
       </SectionCard>
 
       <SectionCard title="Recent posts">
