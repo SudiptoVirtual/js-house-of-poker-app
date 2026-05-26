@@ -1,6 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import type { PokerRoomState } from '../../types/poker';
+import { build357ShowdownPanelViewModel } from '../../utils/threeFiveSevenShowdown';
 import { PanelShell } from './PanelShell';
 
 type Props = {
@@ -37,6 +38,7 @@ export function ThreeFiveSevenRoundLeftPanel({ onQuickEmote, roomState }: Props)
       : variantState?.activeWildDefinition.label ?? 'None';
   const penaltyPot = variantState?.lastResolution?.potPenaltyTotal ?? 0;
   const antePot = Math.max(0, roomState.pot - penaltyPot);
+  const showdownPanel = build357ShowdownPanelViewModel(variantState, roomState.players);
 
   return (
     <View style={styles.stack}>
@@ -68,6 +70,31 @@ export function ThreeFiveSevenRoundLeftPanel({ onQuickEmote, roomState }: Props)
           ))}
         </View>
         <Text style={styles.footerText}>4 legs to win</Text>
+      </PanelShell>
+
+
+      <PanelShell eyebrow="Showdown" title="Round Showdown">
+        <View style={styles.card}>
+          <DetailRow label="Stage" value={showdownPanel.stageLabel} />
+          <DetailRow label="Winning Hand" value={showdownPanel.winningHandName} />
+          <DetailRow label="Hand Rank" value={showdownPanel.handRankExplanation} />
+          <DetailRow
+            label="Leg Gain/Loss"
+            value={`${showdownPanel.legGainLoss >= 0 ? '+' : ''}${showdownPanel.legGainLoss}`}
+          />
+          <DetailRow
+            label="Pot Update"
+            value={`$${showdownPanel.potBefore.toLocaleString('en-US')} → $${showdownPanel.potAfter.toLocaleString('en-US')}`}
+          />
+          <DetailRow
+            label="Pot Delta"
+            value={`${showdownPanel.potDelta >= 0 ? '+' : ''}$${Math.abs(showdownPanel.potDelta).toLocaleString('en-US')}`}
+          />
+          <DetailRow
+            label="Active GO Players"
+            value={String(showdownPanel.activePlayersRemaining)}
+          />
+        </View>
       </PanelShell>
 
       <PanelShell title="Quick Emotes">
