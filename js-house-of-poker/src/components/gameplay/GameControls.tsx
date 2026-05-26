@@ -5,7 +5,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import type { PokerAction, PokerControls, PokerPlayerState } from '../../types/poker';
 
 type ControlMode = '357' | 'standard';
-type ControlLayout = 'default' | 'leftPanel' | 'rightPanel';
+type ControlLayout = 'default' | 'leftPanel' | 'rightPanel' | 'column';
 
 type Props = {
   controls: PokerControls;
@@ -120,6 +120,7 @@ export const GameControls = memo(function GameControls({
   const [raiseOpen, setRaiseOpen] = useState(false);
   const isLeftPanel = layout === 'leftPanel';
   const isRightPanel = layout === 'rightPanel';
+  const isColumn = layout === 'column';
   const isSidePanel = isLeftPanel || isRightPanel;
   const availableActions = controls.availableActions;
   const canRaise =
@@ -222,8 +223,9 @@ export const GameControls = memo(function GameControls({
 
       {mode === 'standard' && controls.canAct ? (
         <>
-          <View style={styles.buttonRow}>
+          <View style={[styles.buttonRow, isColumn ? styles.buttonRowColumn : null]}>
             <ControlButton
+              compact={isColumn}
               disabled={!availableActions.includes('fold')}
               label="FOLD"
               loading={pendingAction === 'fold'}
@@ -231,6 +233,7 @@ export const GameControls = memo(function GameControls({
               tone="blue"
             />
             <ControlButton
+              compact={isColumn}
               disabled={!canCheck && !canCall}
               label={canCheck ? 'CHECK' : `CALL ${controls.callAmount}`}
               loading={pendingAction === 'check' || pendingAction === 'call'}
@@ -238,6 +241,7 @@ export const GameControls = memo(function GameControls({
               tone="purple"
             />
             <ControlButton
+              compact={isColumn}
               disabled={!canRaise && !canAllIn}
               label={canRaise ? raiseVerb : 'ALL-IN'}
               loading={
@@ -336,13 +340,13 @@ const styles = StyleSheet.create({
     opacity: 0.42,
   },
   buttonLabel: {
-    fontSize: 21,
+    fontSize: 24,
     fontWeight: '900',
     letterSpacing: 0,
     textAlign: 'center',
   },
   buttonLabelCompact: {
-    fontSize: 15,
+    fontSize: 18,
     letterSpacing: 0.2,
   },
   buttonPressable: {
@@ -363,6 +367,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 10,
     justifyContent: 'center',
+    width: '80%',
+  },
+  buttonRowColumn: {
+    flexDirection: 'column',
+    gap: 10,
     width: '80%',
   },
   buttonRowSidePanel: {

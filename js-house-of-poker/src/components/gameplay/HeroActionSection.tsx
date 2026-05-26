@@ -72,6 +72,7 @@ export function HeroActionSection({
           <GameControls
             controls={controls}
             currentBet={currentBet}
+            layout="column"
             mode="standard"
             onAction={onAction}
             onRaiseChange={onRaiseChange}
