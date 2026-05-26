@@ -1356,6 +1356,29 @@ export function GameScreen({ navigation }: Props) {
     bottomRightStageSizing.minWidth,
     bottomRightStageSizing.maxWidth,
   );
+  const standardHoldemControlPanel = !is357Current ? (
+    <HeroActionSection
+      barMode={false}
+      compact={heroZoneCompact && !isLandscape}
+      controls={currentTableState.controls}
+      currentBet={currentTableState.currentBet}
+      onAction={(action) => handleGameAction(action)}
+      onRaiseChange={setRaiseTo}
+      onRaiseSubmit={handleRaiseSubmit}
+      onRebuy={handleRebuy}
+      onStartHand={handleStartHand}
+      pendingAction={pendingAction}
+      phase={currentTableState.phase}
+      player={selfPlayer}
+      quickRaiseOptions={quickRaiseOptions}
+      raiseTo={raiseTo}
+      recentActions={currentTableState.actionLog.slice(0, 3)}
+      safeAreaBottom={0}
+      safeAreaHorizontal={0}
+      statusMessage={currentTableState.statusMessage}
+    />
+  ) : null;
+
   const tableNode = (
     <TableSurface
       ambientA={ambientA}
@@ -1372,9 +1395,13 @@ export function GameScreen({ navigation }: Props) {
       dealtCards={dealtCards}
       focusMode={isLandscape}
       headlineText={headlineText}
-      leftPanelGap={embedded357PanelGap}
-      leftPanelNode={shouldEmbed357Panel ? threeFiveSevenInfoPanel : null}
-      leftPanelWidth={embedded357PanelWidth}
+      leftPanelGap={shouldEmbed357Panel ? embedded357PanelGap : undefined}
+      leftPanelNode={
+        shouldEmbed357Panel
+          ? threeFiveSevenInfoPanel
+          : standardHoldemControlPanel
+      }
+      leftPanelWidth={shouldEmbed357Panel ? embedded357PanelWidth : undefined}
       rightPanelGap={embedded357ActionPanelGap}
       rightPanelNode={shouldEmbed357Panel ? threeFiveSevenActionRail : null}
       rightPanelWidth={embedded357ActionPanelWidth}
@@ -1444,28 +1471,7 @@ export function GameScreen({ navigation }: Props) {
         </View>
       </View>
     )
-  ) : (
-    <HeroActionSection
-      barMode={false}
-      compact={heroZoneCompact && !isLandscape}
-      controls={currentTableState.controls}
-      currentBet={currentTableState.currentBet}
-      onAction={(action) => handleGameAction(action)}
-      onRaiseChange={setRaiseTo}
-      onRaiseSubmit={handleRaiseSubmit}
-      onRebuy={handleRebuy}
-      onStartHand={handleStartHand}
-      pendingAction={pendingAction}
-      phase={currentTableState.phase}
-      player={selfPlayer}
-      quickRaiseOptions={quickRaiseOptions}
-      raiseTo={raiseTo}
-      recentActions={currentTableState.actionLog.slice(0, 3)}
-      safeAreaBottom={isLandscape ? 0 : insets.bottom}
-      safeAreaHorizontal={isLandscape ? 0 : Math.max(insets.left, insets.right)}
-      statusMessage={currentTableState.statusMessage}
-    />
-  );
+  ) : null;
 
   const footerNode = (
     <GameplayFooter
