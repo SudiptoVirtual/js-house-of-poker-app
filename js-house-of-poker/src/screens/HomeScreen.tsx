@@ -209,7 +209,8 @@ export function HomeScreen({ navigation }: Props) {
           <View style={styles.featuredTrainingHeader}>
             <Text style={styles.featuredPill}>Training Feature • AI Opponents</Text>
             <Text style={styles.featuredTitle}>LEARN WITH BOT TABLES</Text>
-            <Text style={styles.featuredSubtitle}>Practice safely with instant AI opponents</Text>
+            <Text style={styles.featuredSubtitle}>You can safely learn here before playing real players.</Text>
+            <Text style={styles.featuredSafetyCallout}>No real-player pressure • No real clip risk • Instant AI seats</Text>
           </View>
           <View style={styles.featuredActionRow}>
             {trainingLobbyActions.map((action) => (
@@ -225,8 +226,7 @@ export function HomeScreen({ navigation }: Props) {
             ))}
           </View>
           <Text style={styles.featuredSupportCopy}>
-            Learn flows are modular and support future tutorials, difficulty settings, replays,
-            guided onboarding, and progression systems.
+            Start here to build confidence, learn pacing, and practice decisions before entering competitive tables.
           </Text>
         </View>
 
@@ -375,7 +375,7 @@ const styles = StyleSheet.create({
   featuredActionRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 10,
+    gap: 12,
   },
   featuredPill: {
     alignSelf: 'flex-start',
@@ -390,30 +390,42 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   featuredSubtitle: {
-    color: '#B5C7E6',
-    fontSize: 14,
+    color: '#D2E4FF',
+    fontSize: 16,
+    fontWeight: '700',
+    lineHeight: 23,
+  },
+  featuredSafetyCallout: {
+    color: '#B9D7FF',
+    fontSize: 13,
+    fontWeight: '600',
     lineHeight: 20,
   },
   featuredSupportCopy: {
-    color: '#A4B0C2',
-    fontSize: 12,
-    lineHeight: 18,
+    color: '#C5D3EA',
+    fontSize: 13,
+    lineHeight: 20,
   },
   featuredTitle: {
     color: colors.white,
-    fontSize: 24,
+    fontSize: 26,
     fontWeight: '800',
-    letterSpacing: 0.5,
-    lineHeight: 30,
+    letterSpacing: 0.6,
+    lineHeight: 32,
     textTransform: 'uppercase',
   },
   featuredTrainingCard: {
-    backgroundColor: '#121D3D',
-    borderColor: '#2F4B83',
-    borderRadius: 20,
+    backgroundColor: '#101A36',
+    borderColor: '#3A5FA8',
+    borderRadius: 22,
     borderWidth: 1,
-    gap: 14,
-    padding: 16,
+    gap: 16,
+    padding: 18,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.22,
+    shadowRadius: 10,
+    elevation: 5,
   },
   featuredTrainingHeader: {
     gap: 8,
