@@ -19,6 +19,7 @@ const adminLiveRoutes = require("./routes/adminLiveRoutes");
 const { setIO } = require("./sockets/socketRegistry");
 const { initAdminLiveSocket } = require("./sockets/adminLiveSocket");
 const { initPlayerGameSocket } = require("./sockets/playerGameSocket");
+const botTableManager = require("./services/botTableManager");
 
 //const adminHandHistoryRoutes = require("./routes/adminHandHistoryRoutes");
 //const adminSettingsRoutes = require("./routes/adminSettingsRoutes");
@@ -73,6 +74,9 @@ const io = new Server(server, {
 setIO(io);
 initAdminLiveSocket(io);
 initPlayerGameSocket(io);
+botTableManager.start().catch((error) => {
+  console.error("Failed to start BotTableManager", error);
+});
 
 app.use(cors(corsOptions));
 app.use(express.json());
@@ -123,4 +127,14 @@ const PORT = process.env.PORT || 5000;
 
 server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
+});
+
+process.on("SIGTERM", () => {
+  botTableManager.stop();
+  process.exit(0);
+});
+
+process.on("SIGINT", () => {
+  botTableManager.stop();
+  process.exit(0);
 });
