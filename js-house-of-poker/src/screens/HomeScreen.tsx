@@ -18,7 +18,7 @@ import type { RootStackParamList } from '../types/navigation';
 type Props = NativeStackScreenProps<RootStackParamList, 'Home'>;
 
 const playerCountOptions = [2, 3, 4, 5, 6, 7];
-const gameTypeOptions = ['357', "Texas Hold'em"] as const;
+const gameTypeOptions = ['3-5-7', "Texas Hold'em"] as const;
 type GameTypeOption = (typeof gameTypeOptions)[number];
 type SocialRouteName = 'Profile' | 'Friends' | 'Feed' | 'PlayerDirectory';
 type TrainingActionId = 'quickStart' | 'learn357' | 'inviteFriends' | 'watchDemo';
@@ -33,7 +33,7 @@ const trainingLobbyActions: Array<{
   label: string;
 }> = [
   { actionId: 'quickStart', icon: 'flash-outline', label: 'Quick Start' },
-  { actionId: 'learn357', icon: 'school-outline', label: 'Learn 357' },
+  { actionId: 'learn357', icon: 'school-outline', label: 'Learn 3-5-7' },
   { actionId: 'inviteFriends', icon: 'account-multiple-plus-outline', label: 'Invite Friends' },
   { actionId: 'watchDemo', icon: 'play-box-multiple-outline', label: 'Watch Demo Hand' },
 ];
@@ -81,7 +81,7 @@ export function HomeScreen({ navigation }: Props) {
   const [playerName, setPlayerName] = useState('Player');
   const [authPlayerName, setAuthPlayerName] = useState<string | null>(null);
   const [playerCount, setPlayerCount] = useState(3);
-  const [gameType, setGameType] = useState<GameTypeOption>('357');
+  const [gameType, setGameType] = useState<GameTypeOption>('3-5-7');
   const [tableCode, setTableCode] = useState('');
   const [pendingGameLaunch, setPendingGameLaunch] = useState<{
     roomIdBefore: string | null;
@@ -135,8 +135,8 @@ export function HomeScreen({ navigation }: Props) {
     setPendingGameLaunch({ roomIdBefore: roomState?.roomId ?? null });
     createRoom({
       gameSettings: {
-        game: gameType === '357' ? '357' : 'holdem',
-        ...(gameType === '357' ? { mode: 'HOSTEST' } : {}),
+        game: gameType === '3-5-7' ? '357' : 'holdem',
+        ...(gameType === '3-5-7' ? { mode: 'HOSTEST' } : {}),
       },
       name: trimmedName,
       playerCount,
