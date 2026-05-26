@@ -21,6 +21,20 @@ const THREE_CARD = "THREE_CARD";
 const FIVE_CARD = "FIVE_CARD";
 const SEVEN_CARD = "SEVEN_CARD";
 const THREE_FIVE_SEVEN_STAGES = Object.freeze([THREE_CARD, FIVE_CARD, SEVEN_CARD]);
+
+const SEVEN_CARD_HAND_CLASSES = Object.freeze({
+  SEVEN_ACES: 'SEVEN_ACES',
+  SIX_ACES: 'SIX_ACES',
+  SEVEN_CARD_STRAIGHT_FLUSH: 'SEVEN_CARD_STRAIGHT_FLUSH',
+  OTHER: 'OTHER',
+});
+
+const SEVEN_CARD_HAND_CLASS_BASELINE = Object.freeze({
+  [SEVEN_CARD_HAND_CLASSES.SEVEN_ACES]: 400,
+  [SEVEN_CARD_HAND_CLASSES.SIX_ACES]: 300,
+  [SEVEN_CARD_HAND_CLASSES.SEVEN_CARD_STRAIGHT_FLUSH]: 250,
+  [SEVEN_CARD_HAND_CLASSES.OTHER]: 0,
+});
 const THREE_FIVE_SEVEN_TABLE = Object.freeze({
   anteClips: 1,
   defaultMode: "HOSTEST",
@@ -169,7 +183,69 @@ function evaluateSevenCardHand(cards, mode, wildRanks) {
   return Hand.solve(mapWildCards(cards, wildRanks), get357SolverGame(mode));
 }
 
+
+function classifySevenCardHand(cards, solved, wildRanks) {
+  const wildSet = new Set(wildRanks);
+  const aceCount = cards.reduce((count, card) => {
+    const rank = card?.[0];
+    if (rank === 'A' || wildSet.has(rank)) {
+      return count + 1;
+    }
+    return count;
+  }, 0);
+
+  if (aceCount >= 7) {
+    return SEVEN_CARD_HAND_CLASSES.SEVEN_ACES;
+  }
+  if (aceCount >= 6) {
+    return SEVEN_CARD_HAND_CLASSES.SIX_ACES;
+  }
+
+  const normalizedName = String(solved?.name || solved?.descr || '').toLowerCase();
+  if (normalizedName.includes('straight flush') && Array.isArray(solved?.cards) && solved.cards.length === 7) {
+    return SEVEN_CARD_HAND_CLASSES.SEVEN_CARD_STRAIGHT_FLUSH;
+  }
+
+  return SEVEN_CARD_HAND_CLASSES.OTHER;
+}
+
+function compare357Evaluations(leftEvaluation, rightEvaluation) {
+  const leftSolved = leftEvaluation?.solved;
+  const rightSolved = rightEvaluation?.solved;
+  const leftClass = leftEvaluation?.sevenCardClass || SEVEN_CARD_HAND_CLASSES.OTHER;
+  const rightClass = rightEvaluation?.sevenCardClass || SEVEN_CARD_HAND_CLASSES.OTHER;
+
+  if (
+    leftClass === SEVEN_CARD_HAND_CLASSES.SEVEN_CARD_STRAIGHT_FLUSH &&
+    rightClass === SEVEN_CARD_HAND_CLASSES.SIX_ACES
+  ) {
+    return 1;
+  }
+  if (
+    leftClass === SEVEN_CARD_HAND_CLASSES.SIX_ACES &&
+    rightClass === SEVEN_CARD_HAND_CLASSES.SEVEN_CARD_STRAIGHT_FLUSH
+  ) {
+    return -1;
+  }
+
+  const leftBaseline = SEVEN_CARD_HAND_CLASS_BASELINE[leftClass] ?? 0;
+  const rightBaseline = SEVEN_CARD_HAND_CLASS_BASELINE[rightClass] ?? 0;
+  if (leftBaseline !== rightBaseline) {
+    return leftBaseline > rightBaseline ? 1 : -1;
+  }
+
+  const winners = Hand.winners([leftSolved, rightSolved]);
+  const leftWins = winners.includes(leftSolved);
+  const rightWins = winners.includes(rightSolved);
+  if (leftWins && rightWins) {
+    return 0;
+  }
+  return leftWins ? 1 : -1;
+}
+
 function build357EvaluationPayload(stage, cards, solved, wildRanks) {
+  const sevenCardClass = stage === SEVEN_CARD ? classifySevenCardHand(cards, solved, wildRanks) : null;
+
   return {
     displayName: solved.descr,
     explanation: {
@@ -182,6 +258,7 @@ function build357EvaluationPayload(stage, cards, solved, wildRanks) {
       .trim()
       .toLowerCase()
       .replace(/\s+/g, "_"),
+    sevenCardClass,
     solved,
     tiebreakers: Array.isArray(solved.rank) ? solved.rank : [solved.rank],
   };
@@ -221,12 +298,17 @@ function rank357Hands(playerCardsById, mode, wildRanks) {
     playerId,
     solved: Hand.solve(mapWildCards(cards, wildRanks), get357SolverGame(mode)),
   }));
-  const winnerHands = Hand.winners(rankedHands.map((entry) => entry.solved));
+  const bestEntry = rankedHands.reduce((best, candidate) => {
+    if (!best) {
+      return candidate;
+    }
+    return compare357Evaluations(candidate.evaluation, best.evaluation) > 0 ? candidate : best;
+  }, null);
 
   return {
     rankedHands,
     winnerIds: rankedHands
-      .filter((entry) => winnerHands.includes(entry.solved))
+      .filter((entry) => compare357Evaluations(entry.evaluation, bestEntry.evaluation) === 0)
       .map((entry) => entry.playerId),
   };
 }

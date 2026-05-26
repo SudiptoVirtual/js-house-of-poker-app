@@ -107,6 +107,33 @@ const tests = [
       assert.deepEqual(Hand.winners([fourKind.solved, fullHouse.solved]), [fourKind.solved]);
     },
   ],
+
+  [
+    'SEVEN_CARD ranks seven aces above seven-card straight flush and six aces with explicit override',
+    () => {
+      const { evaluate357Hand, compare357Evaluations, SEVEN_CARD } = require('../../shared/threeFiveSeven');
+      const sevenCardStraightFlush = evaluate357Hand(
+        SEVEN_CARD,
+        ['As', 'Ks', 'Qs', 'Js', 'Ts', '9s', '8s'],
+        'HOSTEST',
+        [],
+      );
+      const baseOther = evaluate357Hand(
+        SEVEN_CARD,
+        ['As', 'Ad', 'Ac', 'Kd', 'Kh', 'Qc', 'Jd'],
+        'HOSTEST',
+        [],
+      );
+      const sevenAces = { ...baseOther, sevenCardClass: 'SEVEN_ACES' };
+      const fiveAces = { ...baseOther, sevenCardClass: 'OTHER' };
+      const sixAces = { ...baseOther, sevenCardClass: 'SIX_ACES' };
+
+      assert.ok(compare357Evaluations(sevenAces, sevenCardStraightFlush) > 0);
+      assert.ok(compare357Evaluations(sevenCardStraightFlush, sixAces) > 0);
+      assert.ok(compare357Evaluations(sixAces, fiveAces) > 0);
+    },
+  ],
+
   [
     'THREE_CARD ignores straight/flush and ranks trips > pair > high card',
     () => {
