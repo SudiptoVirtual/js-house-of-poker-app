@@ -119,6 +119,20 @@ const HOSTEST_GAME = Object.freeze({
   wildValue: 'O',
 });
 
+
+const THREE_CARD_GAME = Object.freeze({
+  cardsInHand: 3,
+  descr: '357-three-card',
+  handValues: [ThreeOfAKind, OnePair, HighCard],
+  lowestQualified: null,
+  noKickers: false,
+  sfQualify: 5,
+  straights: false,
+  flushes: false,
+  wildStatus: 1,
+  wildValue: 'O',
+});
+
 function is357Mode(value) {
   return value === 'HOSTEST' || value === 'BEST_FIVE';
 }
@@ -204,7 +218,7 @@ function expectedCardCountForStage(stage) {
 }
 
 function evaluateThreeCardHand(cards, mode, wildRanks) {
-  return solve357Hand(cards, mode, wildRanks);
+  return Hand.solve(mapWildCards(cards, wildRanks), THREE_CARD_GAME);
 }
 
 function evaluateFiveCardHand(cards, mode, wildRanks) {

@@ -16,7 +16,10 @@ function normalizeRank(description?: string | null) {
   if (text.includes('full house')) return 'Full House';
   if (text.includes('flush')) return 'Flush';
   if (text.includes('straight')) return 'Straight';
-  if (text.includes('three of a kind')) return 'Three of a Kind';
+  if (text.includes('three of a kind')) {
+    if (text.includes("a's") || text.includes('aces')) return 'Three Aces';
+    return 'Three of a Kind';
+  }
   if (text.includes('two pair')) return 'Two Pair';
   if (text.includes('pair')) return 'Pair';
 
