@@ -97,8 +97,9 @@ const tableChatBarMenuIconStartOffset =
   (gameplayLayoutConfig.topBar.touchTargetSize -
     gameplayLayoutConfig.topBar.menuIconSize) /
     2;
-const tableSurfaceOffsetX = -35;
-const standardPokerTableSurfaceOffsetY = -25;
+const standardPokerTableSurfaceOffsetX = 0;
+const threeFiveSevenTableSurfaceOffsetX = 0;
+const standardPokerTableSurfaceOffsetY = 0;
 const threeFiveSevenTableSurfaceOffsetY = 0;
 const disableTablePanning = false;
 
@@ -150,7 +151,9 @@ export function TableSurface({
   const tableSurfaceOffsetY = is357
     ? threeFiveSevenTableSurfaceOffsetY
     : standardPokerTableSurfaceOffsetY;
-  const tableSurfaceHorizontalShift = tableSurfaceOffsetX + width * 0.1;
+  const tableSurfaceHorizontalShift = is357
+    ? threeFiveSevenTableSurfaceOffsetX
+    : standardPokerTableSurfaceOffsetX;
   const revealState = is357
     ? (threeFiveSevenPreview?.revealState ??
       (threeFiveSevenState?.revealState !== 'hidden'
