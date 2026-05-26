@@ -1,4 +1,5 @@
 const assert = require('node:assert/strict');
+const { Hand } = require('pokersolver');
 
 const game = require('../game');
 const { TABLE_CONFIGS, THREE_FIVE_SEVEN_TABLE } = require('../../shared/threeFiveSeven');
@@ -69,6 +70,43 @@ function forceFinalRound(room, cardsByPlayerId, { mode = 'BEST_FIVE', pot = 10 }
 }
 
 const tests = [
+
+  [
+    'THREE_CARD ignores straight/flush and ranks trips > pair > high card',
+    () => {
+      const { rank357Hands } = require('../../shared/threeFiveSeven');
+      const result = rank357Hands(
+        {
+          tripsA: ['As', 'Ad', 'Ac'],
+          tripsK: ['Ks', 'Kd', 'Kc'],
+          pairQ: ['Qs', 'Qd', '2c'],
+          highA: ['As', 'Kd', '9c'],
+        },
+        'BEST_FIVE',
+        [],
+      );
+
+      assert.deepEqual(result.winnerIds, ['tripsA']);
+      const byId = Object.fromEntries(result.rankedHands.map((entry) => [entry.playerId, entry]));
+      assert.match(byId.tripsA.evaluation.displayName, /three of a kind/i);
+      assert.match(byId.pairQ.evaluation.displayName, /pair/i);
+      assert.match(byId.highA.evaluation.displayName, /high/i);
+
+      const ranked = result.rankedHands.map((entry) => entry.solved);
+      assert.deepEqual(Hand.winners([ranked[0], ranked[1]]), [byId.tripsA.solved]);
+    },
+  ],
+  [
+    'THREE_CARD prevents straight/flush false-positives for sequential same-suit cards',
+    () => {
+      const { evaluate357Hand, THREE_CARD } = require('../../shared/threeFiveSeven');
+      const evalResult = evaluate357Hand(THREE_CARD, ['5s', '6s', '7s'], 'BEST_FIVE', []);
+
+      assert.doesNotMatch(evalResult.displayName, /straight/i);
+      assert.doesNotMatch(evalResult.displayName, /flush/i);
+      assert.match(evalResult.displayName, /high/i);
+    },
+  ],
 
   [
     '$1 357 table config exposes ante and no traditional betting flags',
