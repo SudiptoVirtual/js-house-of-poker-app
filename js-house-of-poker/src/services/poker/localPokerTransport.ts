@@ -136,6 +136,8 @@ const pokerGame = require('../../game/pokerEngine') as {
 };
 
 const BOT_NAMES = ['Bot Thor', 'Bot Artie', 'Bot Poker4Ever', 'Bot Ullii67', 'Bot Vossell', 'Bot RiverRita'];
+type BotPersonalityStyle = 'tight' | 'aggressive' | 'beginner' | 'shark' | 'random' | 'slow-learner';
+const BOT_PERSONALITY_STYLES: BotPersonalityStyle[] = ['tight', 'aggressive', 'beginner', 'shark', 'random', 'slow-learner'];
 const DEFAULT_MAX_SEATS = 6;
 const THREE_FIVE_SEVEN_MAX_SEATS = 7;
 
@@ -173,6 +175,7 @@ export function createLocalPokerTransport(): PokerTransport {
   let selfName: string | null = null;
   let preferredSeatIndex: number | null = null;
   let botTimer: ReturnType<typeof setTimeout> | null = null;
+  const botPersonalities = new Map<string, BotPersonalityStyle>();
 
   function notify(listenerPayload: Parameters<PokerTransportListener>[0]) {
     listeners.forEach((listener) => listener(listenerPayload));
@@ -250,6 +253,13 @@ export function createLocalPokerTransport(): PokerTransport {
       const botName = BOT_NAMES[index % BOT_NAMES.length];
       pokerGame.joinRoom(targetRoom, `bot-${Date.now()}-${index + 1}`, botName, { seedMockStatuses: true });
     }
+    targetRoom.players.forEach((player, index) => {
+      if (!player.id.startsWith('bot-')) {
+        return;
+      }
+      const personality = BOT_PERSONALITY_STYLES[index % BOT_PERSONALITY_STYLES.length];
+      botPersonalities.set(player.id, personality);
+    });
   }
 
   function ensureBotTrainingTables() {
@@ -381,12 +391,29 @@ export function createLocalPokerTransport(): PokerTransport {
     if (!roomPlayer || !handPlayer) {
       return null;
     }
+    const personality = botPersonalities.get(botId) ?? 'beginner';
 
     if (room.gameSettings?.game === '357') {
       const wildRanks = room.threeFiveSeven?.activeWildDefinition?.wildRanks ?? [];
       const roundSize = room.threeFiveSeven?.activeRound ?? handPlayer.cards.length;
       const strength = estimate357Strength(handPlayer.cards, wildRanks);
-      const threshold = roundSize >= 7 ? 0.9 : roundSize >= 5 ? 0.72 : 0.58;
+      const baseThreshold = roundSize >= 7 ? 0.9 : roundSize >= 5 ? 0.72 : 0.58;
+      const thresholdAdjustment =
+        personality === 'tight'
+          ? 0.12
+          : personality === 'aggressive'
+            ? -0.1
+            : personality === 'beginner'
+              ? 0.04
+              : personality === 'shark'
+                ? -0.05
+                : personality === 'slow-learner'
+                  ? 0.08
+                  : 0;
+      const threshold = baseThreshold + thresholdAdjustment;
+      if (personality === 'random' && Math.random() < 0.3) {
+        return { type: Math.random() > 0.5 ? ('go' as const) : ('stay' as const) };
+      }
 
       if (strength >= threshold) {
         return { type: 'go' as const };
@@ -415,15 +442,24 @@ export function createLocalPokerTransport(): PokerTransport {
     }
 
     const pressure = toCall / Math.max(roomPlayer.chips + handPlayer.betThisRound, 1);
-    if (strength < 0.45 && pressure > 0.2) {
+    const pressureTolerance =
+      personality === 'tight' ? 0.15 : personality === 'aggressive' ? 0.34 : personality === 'shark' ? 0.3 : 0.2;
+    const foldThreshold =
+      personality === 'tight' ? 0.55 : personality === 'aggressive' ? 0.34 : personality === 'shark' ? 0.38 : 0.45;
+    if (strength < foldThreshold && pressure > pressureTolerance) {
       return { type: 'fold' as const };
     }
 
-    if (maxRaiseTo > hand.currentBet && strength > 1.0) {
+    const raiseThreshold =
+      personality === 'tight' ? 1.08 : personality === 'aggressive' ? 0.86 : personality === 'shark' ? 0.92 : 1.0;
+    if (maxRaiseTo > hand.currentBet && strength > raiseThreshold) {
       return {
         amount: Math.min(maxRaiseTo, minRaiseTo + pokerGame.BIG_BLIND),
         type: 'raise' as const,
       };
+    }
+    if (personality === 'random' && Math.random() < 0.25) {
+      return { type: Math.random() > 0.5 ? ('call' as const) : ('fold' as const) };
     }
 
     return { type: 'call' as const };
