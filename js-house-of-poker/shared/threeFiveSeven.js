@@ -21,6 +21,79 @@ const THREE_CARD = 'THREE_CARD';
 const FIVE_CARD = 'FIVE_CARD';
 const SEVEN_CARD = 'SEVEN_CARD';
 const THREE_FIVE_SEVEN_STAGES = Object.freeze([THREE_CARD, FIVE_CARD, SEVEN_CARD]);
+/**
+ * Centralized 357 stage rule/taxonomy spec consumed by both:
+ * 1) evaluator/comparator logic, and
+ * 2) player-facing explanation text generation.
+ *
+ * Client handoff examples captured here to reduce interpretation drift:
+ * - "3-card round: no straights, no flushes, wilds enabled"
+ * - "5-card round: standard five-card taxonomy with wilds"
+ * - "7-card HOSTEST: special six aces / seven-card straight flush interaction"
+ * - "Comparator override: 7-card straight flush > six aces (but < seven aces)"
+ */
+const THREE_FIVE_SEVEN_STAGE_RULES = Object.freeze({
+  [THREE_CARD]: Object.freeze({
+    allowFiveOfAKind: false,
+    allowFlushes: false,
+    allowStraights: false,
+    allowWilds: true,
+    sevenCardHands: false,
+    taxonomy: Object.freeze(['THREE_OF_A_KIND', 'ONE_PAIR', 'HIGH_CARD']),
+  }),
+  [FIVE_CARD]: Object.freeze({
+    allowFiveOfAKind: true,
+    allowFlushes: true,
+    allowStraights: true,
+    allowWilds: true,
+    sevenCardHands: false,
+    taxonomy: Object.freeze([
+      'FIVE_OF_A_KIND',
+      'STRAIGHT_FLUSH',
+      'FOUR_OF_A_KIND',
+      'FULL_HOUSE',
+      'FLUSH',
+      'STRAIGHT',
+      'THREE_OF_A_KIND',
+      'TWO_PAIR',
+      'ONE_PAIR',
+      'HIGH_CARD',
+    ]),
+  }),
+  [SEVEN_CARD]: Object.freeze({
+    allowFiveOfAKind: true,
+    allowFlushes: true,
+    allowStraights: true,
+    allowWilds: true,
+    sevenCardHands: true,
+    taxonomy: Object.freeze([
+      'SEVEN_ACES',
+      'SEVEN_CARD_STRAIGHT_FLUSH',
+      'SIX_ACES',
+      'FIVE_OF_A_KIND',
+      'FOUR_OF_A_KIND_PAIR_PLUS',
+      'STRAIGHT_FLUSH',
+      'FLUSH',
+      'STRAIGHT',
+      'FOUR_OF_A_KIND',
+      'TWO_THREE_OF_A_KIND',
+      'THREE_OF_A_KIND_TWO_PAIR',
+      'FULL_HOUSE',
+      'THREE_OF_A_KIND',
+      'THREE_PAIR',
+      'TWO_PAIR',
+      'ONE_PAIR',
+      'HIGH_CARD',
+    ]),
+    comparatorOverrides: Object.freeze([
+      Object.freeze({
+        higher: 'SEVEN_CARD_STRAIGHT_FLUSH',
+        lower: 'SIX_ACES',
+        reason: 'Client handoff override: 7-card straight flush outranks six aces.',
+      }),
+    ]),
+  }),
+});
 
 const SEVEN_CARD_HAND_CLASSES = Object.freeze({
   SEVEN_ACES: 'SEVEN_ACES',
@@ -275,17 +348,14 @@ function compare357Evaluations(leftEvaluation, rightEvaluation) {
   const leftClass = leftEvaluation?.sevenCardClass || SEVEN_CARD_HAND_CLASSES.OTHER;
   const rightClass = rightEvaluation?.sevenCardClass || SEVEN_CARD_HAND_CLASSES.OTHER;
 
-  if (
-    leftClass === SEVEN_CARD_HAND_CLASSES.SEVEN_CARD_STRAIGHT_FLUSH &&
-    rightClass === SEVEN_CARD_HAND_CLASSES.SIX_ACES
-  ) {
-    return 1;
-  }
-  if (
-    leftClass === SEVEN_CARD_HAND_CLASSES.SIX_ACES &&
-    rightClass === SEVEN_CARD_HAND_CLASSES.SEVEN_CARD_STRAIGHT_FLUSH
-  ) {
-    return -1;
+  const overrides = THREE_FIVE_SEVEN_STAGE_RULES[SEVEN_CARD]?.comparatorOverrides ?? [];
+  for (const override of overrides) {
+    if (leftClass === override.higher && rightClass === override.lower) {
+      return 1;
+    }
+    if (leftClass === override.lower && rightClass === override.higher) {
+      return -1;
+    }
   }
 
   const leftBaseline = SEVEN_CARD_HAND_CLASS_BASELINE[leftClass] ?? 0;
@@ -305,12 +375,24 @@ function compare357Evaluations(leftEvaluation, rightEvaluation) {
 
 function build357EvaluationPayload(stage, cards, solved, wildRanks) {
   const sevenCardClass = stage === SEVEN_CARD ? classifySevenCardHand(cards, solved, wildRanks) : null;
+  const stageRules = THREE_FIVE_SEVEN_STAGE_RULES[stage] ?? null;
 
   return {
     displayName: solved.descr,
     explanation: {
       cards,
       cardsUsed: solved.cards,
+      comparatorOverrides: stageRules?.comparatorOverrides ?? [],
+      handTaxonomy: stageRules?.taxonomy ?? [],
+      ruleFlags: stageRules
+        ? {
+            allowFiveOfAKind: stageRules.allowFiveOfAKind,
+            allowFlushes: stageRules.allowFlushes,
+            allowStraights: stageRules.allowStraights,
+            allowWilds: stageRules.allowWilds,
+            sevenCardHands: stageRules.sevenCardHands,
+          }
+        : {},
       stage,
       wildRanks: [...wildRanks],
     },
@@ -389,6 +471,7 @@ module.exports = {
   SEVEN_CARD,
   THREE_FIVE_SEVEN_STAGES,
   THREE_FIVE_SEVEN_TABLE,
+  THREE_FIVE_SEVEN_STAGE_RULES,
   build357WildDefinition,
   build357WildRanks,
   evaluate357Hand,

@@ -1,3 +1,5 @@
+const { THREE_FIVE_SEVEN_STAGE_RULES } = require('../../shared/threeFiveSeven');
+
 function get357ShowdownStageLabel(stage) {
   if (stage === 'THREE_CARD') return '3-CARD SHOWDOWN';
   if (stage === 'FIVE_CARD') return '5-CARD SHOWDOWN';
@@ -23,12 +25,19 @@ function build357ShowdownPanelViewModel(variantState, players) {
   const activePlayersRemaining = resolution?.goPlayerIds?.length ?? 0;
   const legDelta = winnerId ? resolution?.legDeltaByPlayerId?.[winnerId] ?? 0 : 0;
 
+  const stageRules = stage ? THREE_FIVE_SEVEN_STAGE_RULES?.[stage] : null;
+  const ruleSummary = stageRules
+    ? `Rules: ${stageRules.allowStraights ? 'Straights' : 'No straights'}, ${stageRules.allowFlushes ? 'Flushes' : 'No flushes'}, ${
+        stageRules.allowWilds ? 'Wilds enabled' : 'No wilds'
+      }.`
+    : '';
+
   return {
     stageLabel: get357ShowdownStageLabel(stage),
     winningHandName,
     handRankExplanation:
       winningHandName !== 'N/A'
-        ? `${winnerName} takes ${get357ShowdownStageLabel(stage).toLowerCase()} with ${winningHandName}.`
+        ? `${winnerName} takes ${get357ShowdownStageLabel(stage).toLowerCase()} with ${winningHandName}. ${ruleSummary}`.trim()
         : 'Waiting for GO showdown evaluation.',
     legGainLoss: legDelta,
     potBefore: resolution?.potBeforeResolution ?? 0,
