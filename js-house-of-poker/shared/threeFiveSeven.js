@@ -351,10 +351,10 @@ function solve357Hand(cards, mode, wildRanks) {
   return Hand.solve(mapWildCards(cards, wildRanks), get357SolverGame(mode));
 }
 
-function rank357Hands(playerCardsById, mode, wildRanks) {
+function rank357Hands(playerCardsById, mode, wildRanks, stage = null) {
   const rankedHands = Object.entries(playerCardsById).map(([playerId, cards]) => ({
     evaluation: evaluate357Hand(
-      cards.length === 3 ? THREE_CARD : cards.length === 5 ? FIVE_CARD : SEVEN_CARD,
+      stage ?? (cards.length === 3 ? THREE_CARD : cards.length === 5 ? FIVE_CARD : SEVEN_CARD),
       cards,
       mode,
       wildRanks,

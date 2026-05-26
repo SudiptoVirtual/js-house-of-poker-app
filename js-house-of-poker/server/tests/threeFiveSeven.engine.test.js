@@ -41,6 +41,13 @@ function playAllStayCycle(room) {
   actForEveryHandPlayer(room, 'stay');
 }
 
+function setRoundCards(room, roundSize, cardsByPlayerId) {
+  Object.entries(room.hand.players).forEach(([playerId, handPlayer]) => {
+    handPlayer.cards = [...cardsByPlayerId[playerId]].slice(0, roundSize);
+    handPlayer.handDescription = null;
+  });
+}
+
 function assertRoundState(room, expectedPhase, expectedRound) {
   assert.equal(room.hand.phase, expectedPhase);
   assert.equal(room.threeFiveSeven.activeRound, expectedRound);
@@ -72,6 +79,53 @@ function forceFinalRound(room, cardsByPlayerId, { mode = 'BEST_FIVE', pot = 10 }
 const tests = [
 
 
+  [
+    'showdown evaluation uses stage-correct context through 3 -> 5 -> 7 progression',
+    () => {
+      const { room, players } = setup357Room({ mode: 'BEST_FIVE' });
+      const [host, left, right] = players;
+
+      setRoundCards(room, 3, {
+        [host.id]: ['As', 'Ad', '3c'],
+        [left.id]: ['Ks', 'Kd', '2c'],
+        [right.id]: ['Qs', 'Qd', '2d'],
+      });
+      actForEveryHandPlayer(room, 'go');
+      assertRoundState(room, 'decide_5', 5);
+      assert.equal(room.hand.players[host.id].handDescription, null);
+
+      setRoundCards(room, 5, {
+        [host.id]: ['As', 'Ad', 'Ac', 'Ah', '5c'],
+        [left.id]: ['Ks', 'Kd', 'Kc', 'Kh', '2c'],
+        [right.id]: ['Qs', 'Qd', 'Qc', 'Qh', '2d'],
+      });
+      actForEveryHandPlayer(room, 'go');
+      assertRoundState(room, 'decide_7', 7);
+      assert.equal(room.hand.players[host.id].handDescription, null);
+
+      setRoundCards(room, 7, {
+        [host.id]: ['As', 'Ad', 'Ac', 'Ah', 'Ks', 'Qd', '2c'],
+        [left.id]: ['Ks', 'Kd', 'Kc', 'Kh', 'Qs', 'Jd', '2d'],
+        [right.id]: ['Qs', 'Qd', 'Qc', 'Qh', 'Js', 'Td', '2h'],
+      });
+      const potBefore = room.threeFiveSeven.pot;
+      actForEveryHandPlayer(room, 'go');
+
+      const resolution = room.threeFiveSeven.lastResolution;
+      assert.equal(resolution?.outcome, 'showdown');
+      assert.deepEqual(resolution?.winnerIds, [host.id]);
+      assert.equal(resolution?.potBeforeResolution, potBefore);
+      assert.equal(
+        resolution?.potAfterResolution,
+        potBefore + ((players.length - 1) * room.threeFiveSeven.penaltyModel.unitToPot),
+      );
+      assert.ok((resolution?.showdownDescriptions?.[host.id] ?? '').length > 0);
+      assert.equal(room.threeFiveSeven.legsByPlayerId[host.id], 0);
+      assert.equal(room.threeFiveSeven.legsByPlayerId[left.id], 0);
+      assert.equal(room.threeFiveSeven.legsByPlayerId[right.id], 0);
+      assert.equal(room.threeFiveSeven.lastResolution?.goPlayerIds.length, players.length);
+    },
+  ],
   [
     'FIVE_CARD wildcards can construct five aces and classify above straight flush',
     () => {

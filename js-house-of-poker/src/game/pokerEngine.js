@@ -8,6 +8,9 @@ const {
   toPublicPlayerStatusSnapshot,
 } = require('../../shared/playerStatus');
 const {
+  FIVE_CARD,
+  SEVEN_CARD,
+  THREE_CARD,
   THREE_FIVE_SEVEN_TABLE,
   build357WildDefinition,
   is357Mode,
@@ -979,6 +982,7 @@ function deal357ToRound(room, roundSize) {
 
   activeHandIds(room).forEach((playerId) => {
     const handPlayer = room.hand.players[playerId];
+    handPlayer.handDescription = null;
     while (handPlayer.cards.length < roundSize) {
       handPlayer.cards.push(room.hand.deck.pop());
     }
@@ -1124,6 +1128,12 @@ function resolve357Cycle(room) {
   }
 
   const variantState = ensureThreeFiveSevenState(room);
+  const showdownStage =
+    variantState.activeRound === 3
+      ? THREE_CARD
+      : variantState.activeRound === 5
+        ? FIVE_CARD
+        : SEVEN_CARD;
   const goPlayerIds = variantState.showdownPlayerIds.filter((playerId) => Boolean(room.hand.players[playerId]));
   const payouts = {};
   const legDeltaByPlayerId = {};
@@ -1164,6 +1174,7 @@ function resolve357Cycle(room) {
       playerCardsById,
       variantState.mode,
       variantState.activeWildDefinition.wildRanks,
+      showdownStage,
     );
     winnerIds = rankedWinnerIds;
     rankedHands.forEach((entry) => {
