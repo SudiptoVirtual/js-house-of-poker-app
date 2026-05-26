@@ -17,6 +17,10 @@ const {
 } = require("pokersolver");
 
 const THREE_FIVE_SEVEN_MODES = Object.freeze(["HOSTEST", "BEST_FIVE"]);
+const THREE_CARD = "THREE_CARD";
+const FIVE_CARD = "FIVE_CARD";
+const SEVEN_CARD = "SEVEN_CARD";
+const THREE_FIVE_SEVEN_STAGES = Object.freeze([THREE_CARD, FIVE_CARD, SEVEN_CARD]);
 const THREE_FIVE_SEVEN_TABLE = Object.freeze({
   anteClips: 1,
   defaultMode: "HOSTEST",
@@ -140,8 +144,80 @@ function get357SolverGame(mode) {
   return mode === "BEST_FIVE" ? BEST_FIVE_GAME : HOSTEST_GAME;
 }
 
+function expectedCardCountForStage(stage) {
+  if (stage === THREE_CARD) {
+    return 3;
+  }
+  if (stage === FIVE_CARD) {
+    return 5;
+  }
+  if (stage === SEVEN_CARD) {
+    return 7;
+  }
+  return null;
+}
+
+function evaluateThreeCardHand(cards, mode, wildRanks) {
+  return Hand.solve(mapWildCards(cards, wildRanks), get357SolverGame(mode));
+}
+
+function evaluateFiveCardHand(cards, mode, wildRanks) {
+  return Hand.solve(mapWildCards(cards, wildRanks), get357SolverGame(mode));
+}
+
+function evaluateSevenCardHand(cards, mode, wildRanks) {
+  return Hand.solve(mapWildCards(cards, wildRanks), get357SolverGame(mode));
+}
+
+function build357EvaluationPayload(stage, cards, solved, wildRanks) {
+  return {
+    displayName: solved.descr,
+    explanation: {
+      cards,
+      cardsUsed: solved.cards,
+      stage,
+      wildRanks: [...wildRanks],
+    },
+    normalizedKey: String(solved.name || solved.descr || "unknown")
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, "_"),
+    solved,
+    tiebreakers: Array.isArray(solved.rank) ? solved.rank : [solved.rank],
+  };
+}
+
+function evaluate357Hand(stage, cards, mode, wildRanks = []) {
+  const expectedCardCount = expectedCardCountForStage(stage);
+  if (!expectedCardCount) {
+    throw new Error(`Unsupported 357 stage: ${stage}`);
+  }
+  if (!Array.isArray(cards) || cards.length !== expectedCardCount) {
+    throw new Error(
+      `Invalid 357 stage/card-count combination. Stage ${stage} requires ${expectedCardCount} cards, received ${Array.isArray(cards) ? cards.length : "non-array"}.`
+    );
+  }
+
+  let solved;
+  if (stage === THREE_CARD) {
+    solved = evaluateThreeCardHand(cards, mode, wildRanks);
+  } else if (stage === FIVE_CARD) {
+    solved = evaluateFiveCardHand(cards, mode, wildRanks);
+  } else {
+    solved = evaluateSevenCardHand(cards, mode, wildRanks);
+  }
+
+  return build357EvaluationPayload(stage, cards, solved, wildRanks);
+}
+
 function rank357Hands(playerCardsById, mode, wildRanks) {
   const rankedHands = Object.entries(playerCardsById).map(([playerId, cards]) => ({
+    evaluation: evaluate357Hand(
+      cards.length === 3 ? THREE_CARD : cards.length === 5 ? FIVE_CARD : SEVEN_CARD,
+      cards,
+      mode,
+      wildRanks
+    ),
     playerId,
     solved: Hand.solve(mapWildCards(cards, wildRanks), get357SolverGame(mode)),
   }));
@@ -156,8 +232,13 @@ function rank357Hands(playerCardsById, mode, wildRanks) {
 }
 
 module.exports = {
+  THREE_CARD,
+  FIVE_CARD,
+  SEVEN_CARD,
+  THREE_FIVE_SEVEN_STAGES,
   THREE_FIVE_SEVEN_TABLE,
   build357WildDefinition,
+  evaluate357Hand,
   is357Mode,
   normalize357Mode,
   rank357Hands,

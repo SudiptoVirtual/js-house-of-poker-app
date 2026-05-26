@@ -1089,8 +1089,8 @@ function resolve357Cycle(room) {
     );
     winnerIds = rankedWinnerIds;
     rankedHands.forEach((entry) => {
-      showdownDescriptions[entry.playerId] = entry.solved.descr;
-      room.hand.players[entry.playerId].handDescription = entry.solved.descr;
+      showdownDescriptions[entry.playerId] = entry.evaluation.displayName;
+      room.hand.players[entry.playerId].handDescription = entry.evaluation.displayName;
     });
     loserIds = goPlayerIds.filter((playerId) => !winnerIds.includes(playerId));
 
