@@ -18,6 +18,8 @@ import type { RootStackParamList } from '../types/navigation';
 type Props = NativeStackScreenProps<RootStackParamList, 'Home'>;
 
 const playerCountOptions = [2, 3, 4, 5, 6, 7];
+const gameTypeOptions = ['357', "Texas Hold'em"] as const;
+type GameTypeOption = (typeof gameTypeOptions)[number];
 type SocialRouteName = 'Profile' | 'Friends' | 'Feed' | 'PlayerDirectory';
 type TrainingActionId = 'quickStart' | 'learn357' | 'inviteFriends' | 'watchDemo';
 
@@ -79,6 +81,7 @@ export function HomeScreen({ navigation }: Props) {
   const [playerName, setPlayerName] = useState('Player');
   const [authPlayerName, setAuthPlayerName] = useState<string | null>(null);
   const [playerCount, setPlayerCount] = useState(3);
+  const [gameType, setGameType] = useState<GameTypeOption>('357');
   const [tableCode, setTableCode] = useState('');
   const [pendingGameLaunch, setPendingGameLaunch] = useState<{
     roomIdBefore: string | null;
@@ -132,8 +135,8 @@ export function HomeScreen({ navigation }: Props) {
     setPendingGameLaunch({ roomIdBefore: roomState?.roomId ?? null });
     createRoom({
       gameSettings: {
-        game: '357',
-        mode: 'HOSTEST',
+        game: gameType === '357' ? '357' : 'holdem',
+        ...(gameType === '357' ? { mode: 'HOSTEST' } : {}),
       },
       name: trimmedName,
       playerCount,
@@ -295,6 +298,25 @@ export function HomeScreen({ navigation }: Props) {
         <Text style={styles.helper}>
           Includes you. Remaining seats use bots for the quick table, up to seven total players.
         </Text>
+
+        <Text style={styles.label}>Game type</Text>
+        <View style={styles.optionRow}>
+          {gameTypeOptions.map((option) => {
+            const selected = option === gameType;
+
+            return (
+              <Pressable
+                key={option}
+                onPress={() => setGameType(option)}
+                style={[styles.optionChip, selected ? styles.optionChipSelected : null]}
+              >
+                <Text style={[styles.optionText, selected ? styles.optionTextSelected : null]}>
+                  {option}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
 
         <View style={styles.buttonRow}>
           <ActionButton
