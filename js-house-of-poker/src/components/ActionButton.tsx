@@ -123,7 +123,13 @@ export function ActionButton({
   }, [shine]);
 
   return (
-    <Animated.View style={[{ transform: [{ scale }] }, containerStyle]}>
+    <Animated.View
+      style={[
+        fullWidth ? styles.fullWidthContainer : null,
+        { transform: [{ scale }] },
+        containerStyle,
+      ]}
+    >
       <Pressable
         disabled={disabled || loading}
         onPress={onPress}
@@ -195,8 +201,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 8,
     justifyContent: 'center',
+    minWidth: 0,
   },
   fullWidth: {
+    minWidth: 0,
+    width: '100%',
+  },
+  fullWidthContainer: {
+    alignSelf: 'stretch',
     minWidth: 0,
     width: '100%',
   },
@@ -204,6 +216,7 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
   },
   label: {
+    flexShrink: 1,
     fontSize: 15,
     fontWeight: '900',
     textAlign: 'center',

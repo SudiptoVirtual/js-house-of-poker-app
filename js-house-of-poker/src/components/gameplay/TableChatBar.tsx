@@ -31,10 +31,13 @@ type Props = {
   inviteNotificationCount?: number;
   isTopBarExpanded?: boolean;
   messages: PokerTableChatMessage[];
+  onExitTrainingPress?: () => void;
   onInvitePress?: () => void;
   onSendMessage: (message: string) => void;
   onToggleTopBar?: () => void;
   selfId: string | null;
+  showExitTrainingButton?: boolean;
+  showInviteButtons?: boolean;
   roomId: string;
   tableName: string;
   transportLabel?: string;
@@ -84,10 +87,13 @@ export function TableChatBar({
   inviteNotificationCount = 0,
   isTopBarExpanded = true,
   messages,
+  onExitTrainingPress,
   onInvitePress,
   onSendMessage,
   onToggleTopBar,
   selfId,
+  showExitTrainingButton = false,
+  showInviteButtons = true,
   roomId,
   tableName,
   transportLabel = 'Realtime',
@@ -316,24 +322,42 @@ export function TableChatBar({
         <View style={styles.composeControl}>{renderComposeRail()}</View>
         {renderTickerControl()}
 
-        <Pressable
-          accessibilityRole="button"
-          onPress={onInvitePress}
-          style={styles.inviteButton}
-        >
-          <MaterialCommunityIcons color="#67F3BB" name="account-plus-outline" size={18} />
-          <Text style={styles.inviteButtonText}>INVITE</Text>
-        </Pressable>
+        {showExitTrainingButton && onExitTrainingPress ? (
+          <Pressable
+            accessibilityLabel="Exit bot training table"
+            accessibilityRole="button"
+            onPress={onExitTrainingPress}
+            style={styles.exitTrainingButton}
+          >
+            <MaterialCommunityIcons color="#FFD4C7" name="door-open" size={18} />
+            <Text numberOfLines={1} style={styles.exitTrainingButtonText}>
+              EXIT TRAINING
+            </Text>
+          </Pressable>
+        ) : null}
 
-        <Pressable
-          accessibilityLabel="Invite friends"
-          accessibilityRole="button"
-          onPress={onInvitePress}
-          style={styles.friendInviteButton}
-        >
-          <MaterialCommunityIcons color="#F2C9FF" name="account-multiple-plus-outline" size={18} />
-          <Text style={styles.friendInviteButtonText}>FRIENDS</Text>
-        </Pressable>
+        {showInviteButtons ? (
+          <>
+            <Pressable
+              accessibilityRole="button"
+              onPress={onInvitePress}
+              style={styles.inviteButton}
+            >
+              <MaterialCommunityIcons color="#67F3BB" name="account-plus-outline" size={18} />
+              <Text style={styles.inviteButtonText}>INVITE</Text>
+            </Pressable>
+
+            <Pressable
+              accessibilityLabel="Invite friends"
+              accessibilityRole="button"
+              onPress={onInvitePress}
+              style={styles.friendInviteButton}
+            >
+              <MaterialCommunityIcons color="#F2C9FF" name="account-multiple-plus-outline" size={18} />
+              <Text style={styles.friendInviteButtonText}>FRIENDS</Text>
+            </Pressable>
+          </>
+        ) : null}
 
         <NotificationIcon
           badgeCount={inviteNotificationCount}
@@ -532,6 +556,24 @@ const styles = StyleSheet.create({
   },
   emojiText: {
     fontSize: 18,
+  },
+  exitTrainingButton: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(70, 18, 22, 0.96)',
+    borderColor: 'rgba(255, 115, 98, 0.38)',
+    borderRadius: 12,
+    borderWidth: 1,
+    flexDirection: 'row',
+    flexShrink: 0,
+    gap: 6,
+    minHeight: 36,
+    paddingHorizontal: 10,
+  },
+  exitTrainingButtonText: {
+    color: '#FFD4C7',
+    fontSize: 12,
+    fontWeight: '900',
+    letterSpacing: 0.6,
   },
   inviteButton: {
     alignItems: 'center',

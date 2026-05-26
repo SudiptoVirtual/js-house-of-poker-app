@@ -30,6 +30,7 @@ import { ThreeFiveSevenActionPanel } from '../components/gameplay/ThreeFiveSeven
 import { ThreeFiveSevenRuleBadge } from '../components/gameplay/ThreeFiveSevenRuleBadge';
 import { usePoker } from '../context/PokerProvider';
 import { useGameplayAnimations } from '../hooks/useGameplayAnimations';
+import { BOT_TRAINING_TABLE_IDS } from '../constants/botTrainingTables';
 import { routes } from '../constants/routes';
 import { colors } from '../theme/colors';
 import type { RootStackParamList } from '../types/navigation';
@@ -90,7 +91,7 @@ type ThreeFiveSevenRevealPreview = {
   winnerIds: string[];
 };
 
-const EMBEDDED_357_INFO_RAIL_WIDTH_SCALE = 0.7;
+const EMBEDDED_357_INFO_RAIL_WIDTH_SCALE = 0.77;
 const EMBEDDED_357_RAIL_GAP_SCALE = 0.75;
 const EMBEDDED_357_TABLE_WIDTH_SCALE = 1.0;
 const EMBEDDED_357_BASE_TABLE_FIT_SCALE = 0.9;
@@ -418,6 +419,7 @@ export function GameScreen({ navigation }: Props) {
   const {
     connection,
     errorMessage,
+    leaveTable,
     rebuy,
     roomState,
     sendAction,
@@ -1249,6 +1251,11 @@ export function GameScreen({ navigation }: Props) {
     rebuy();
   }
 
+  function handleExitBotTrainingTable() {
+    leaveTable();
+    navigation.navigate(routes.Home);
+  }
+
   function handleRaiseSubmit() {
     const amount = Number(raiseTo);
     if (!Number.isFinite(amount)) {
@@ -1283,6 +1290,9 @@ export function GameScreen({ navigation }: Props) {
       : typeof connection.latencyMs === 'number'
         ? `${Math.round(connection.latencyMs)}ms`
         : '--ms';
+  const trainingTableId = currentTableState.tableId ?? currentTableState.roomId;
+  const isBotTrainingTable =
+    trainingTableId !== null && BOT_TRAINING_TABLE_IDS.has(trainingTableId);
   const threeFiveSevenInfoPanel = is357Current ? (
     <ThreeFiveSevenActionPanel
       controls={currentTableState.controls}
@@ -1409,10 +1419,13 @@ export function GameScreen({ navigation }: Props) {
       inviteNotificationCount={inviteNotificationCount}
       isTopBarExpanded={isTopBarExpanded}
       messages={currentTableState.chatMessages}
+      onExitTrainingPress={handleExitBotTrainingTable}
       onInvitePress={() => navigation.navigate(routes.PlayerDirectory)}
       onSendMessage={sendTableChatMessage}
       onToggleTopBar={() => setIsTopBarExpanded((current) => !current)}
       selfId={currentTableState.selfId}
+      showExitTrainingButton={isBotTrainingTable}
+      showInviteButtons={!isBotTrainingTable}
       roomId={currentTableState.roomId ?? 'Table'}
       tableName={currentTableState.tableName}
       transportLabel={transportLabel}

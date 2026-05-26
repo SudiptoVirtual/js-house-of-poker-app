@@ -368,14 +368,11 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   featuredActionButton: {
-    flexBasis: '48%',
-    flexGrow: 1,
-    minWidth: 160,
+    minWidth: 0,
+    width: '100%',
   },
   featuredActionRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
+    gap: 10,
   },
   featuredPill: {
     alignSelf: 'flex-start',
