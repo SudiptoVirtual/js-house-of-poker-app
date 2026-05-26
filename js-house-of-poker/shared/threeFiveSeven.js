@@ -222,7 +222,7 @@ function evaluateThreeCardHand(cards, mode, wildRanks) {
 }
 
 function evaluateFiveCardHand(cards, mode, wildRanks) {
-  return solve357Hand(cards, mode, wildRanks);
+  return Hand.solve(mapWildCards(cards, wildRanks), BEST_FIVE_GAME);
 }
 
 function evaluateSevenCardHand(cards, mode, wildRanks) {

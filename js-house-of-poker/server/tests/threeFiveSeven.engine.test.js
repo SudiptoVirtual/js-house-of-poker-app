@@ -71,6 +71,42 @@ function forceFinalRound(room, cardsByPlayerId, { mode = 'BEST_FIVE', pot = 10 }
 
 const tests = [
 
+
+  [
+    'FIVE_CARD wildcards can construct five aces and classify above straight flush',
+    () => {
+      const { evaluate357Hand, FIVE_CARD } = require('../../shared/threeFiveSeven');
+      const fiveAces = evaluate357Hand(FIVE_CARD, ['As', 'Ad', 'Ac', 'Ah', '7s'], 'BEST_FIVE', ['7']);
+      const royalFlush = evaluate357Hand(FIVE_CARD, ['As', 'Ks', 'Qs', 'Js', 'Ts'], 'BEST_FIVE', []);
+
+      assert.match(fiveAces.displayName, /five of a kind/i);
+      assert.deepEqual(Hand.winners([fiveAces.solved, royalFlush.solved]), [fiveAces.solved]);
+    },
+  ],
+  [
+    'FIVE_CARD five-of-a-kind ranks by made rank (A > K > Q)',
+    () => {
+      const { evaluate357Hand, FIVE_CARD } = require('../../shared/threeFiveSeven');
+      const fiveAces = evaluate357Hand(FIVE_CARD, ['As', 'Ad', 'Ac', 'Ah', '7s'], 'BEST_FIVE', ['7']);
+      const fiveKings = evaluate357Hand(FIVE_CARD, ['Ks', 'Kd', 'Kc', 'Kh', '7d'], 'BEST_FIVE', ['7']);
+      const fiveQueens = evaluate357Hand(FIVE_CARD, ['Qs', 'Qd', 'Qc', 'Qh', '7c'], 'BEST_FIVE', ['7']);
+
+      assert.deepEqual(Hand.winners([fiveAces.solved, fiveKings.solved]), [fiveAces.solved]);
+      assert.deepEqual(Hand.winners([fiveKings.solved, fiveQueens.solved]), [fiveKings.solved]);
+    },
+  ],
+  [
+    'FIVE_CARD preserves normal hierarchy when no wild upgrade exists',
+    () => {
+      const { evaluate357Hand, FIVE_CARD } = require('../../shared/threeFiveSeven');
+      const straightFlush = evaluate357Hand(FIVE_CARD, ['9s', '8s', '7s', '6s', '5s'], 'BEST_FIVE', ['3']);
+      const fourKind = evaluate357Hand(FIVE_CARD, ['As', 'Ad', 'Ac', 'Ah', '2d'], 'BEST_FIVE', ['3']);
+      const fullHouse = evaluate357Hand(FIVE_CARD, ['Ks', 'Kd', 'Kc', 'Qh', 'Qd'], 'BEST_FIVE', ['3']);
+
+      assert.deepEqual(Hand.winners([straightFlush.solved, fourKind.solved]), [straightFlush.solved]);
+      assert.deepEqual(Hand.winners([fourKind.solved, fullHouse.solved]), [fourKind.solved]);
+    },
+  ],
   [
     'THREE_CARD ignores straight/flush and ranks trips > pair > high card',
     () => {
