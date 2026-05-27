@@ -147,7 +147,7 @@ class BotTableManager {
     const table = await GameTable.create({
       tableCode,
       tableName: `Training Table ${tableCode}`,
-      gameType: "TEXAS_HOLDEM",
+      gameType: "holdem",
       status: "waiting",
       buyInAmount: this.defaultBuyIn,
       notes: "training-bot-table",

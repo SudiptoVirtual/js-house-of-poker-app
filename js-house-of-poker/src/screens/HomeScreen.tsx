@@ -299,7 +299,7 @@ export function HomeScreen({ navigation }: Props) {
           Includes you. Remaining seats use bots for the quick table, up to seven total players.
         </Text>
 
-        <Text style={styles.label}>Game type</Text>
+        {/* <Text style={styles.label}>Game type</Text>
         <View style={styles.optionRow}>
           {gameTypeOptions.map((option) => {
             const selected = option === gameType;
@@ -316,7 +316,7 @@ export function HomeScreen({ navigation }: Props) {
               </Pressable>
             );
           })}
-        </View>
+        </View> */}
 
         <View style={styles.buttonRow}>
           <ActionButton
