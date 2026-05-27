@@ -6,7 +6,10 @@
   "build": {
     "development": {
       "env": {
-        "APP_ENV": "development"
+        "APP_ENV": "development",
+        "EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID": "@google_android_client_id",
+        "EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID": "@google_ios_client_id",
+        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "@google_web_client_id"
       },
       "developmentClient": true,
       "distribution": "internal"
@@ -14,7 +17,10 @@
     "preview": {
       "distribution": "internal",
       "env": {
-        "APP_ENV": "preview"
+        "APP_ENV": "preview",
+        "EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID": "@google_android_client_id",
+        "EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID": "@google_ios_client_id",
+        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "@google_web_client_id"
       },
       "android": {
         "buildType": "apk"
@@ -25,7 +31,10 @@
         "APP_ENV": "production",
         "EXPO_PUBLIC_POKER_TRANSPORT": "socket",
         "EXPO_PUBLIC_POKER_SOCKET_URL": "https://www.jshouseofpoker.com",
-        "EXPO_PUBLIC_POKER_SOCKET_PROTOCOL": "table-v1"
+        "EXPO_PUBLIC_POKER_SOCKET_PROTOCOL": "table-v1",
+        "EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID": "@google_android_client_id",
+        "EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID": "@google_ios_client_id",
+        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "@google_web_client_id"
       },
       "autoIncrement": true
     }
