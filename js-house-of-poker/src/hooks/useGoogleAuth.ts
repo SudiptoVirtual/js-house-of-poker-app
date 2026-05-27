@@ -88,17 +88,27 @@ export function useGoogleAuth({ onAuthenticated, onError }: UseGoogleAuthOptions
   const redirectUri = useMemo(
     () =>
       makeRedirectUri({
+        // Keep this scheme aligned with app config and the redirect URI registered in Google/Firebase.
         path: env.googleRedirectPath,
         scheme: env.googleRedirectScheme,
       }),
     [],
   );
 
+
+  useEffect(() => {
+    if (__DEV__) {
+      console.info(
+        '[GoogleAuth] Generated redirect URI. If a custom URI is required, register this exact value in Google/Firebase config:',
+        redirectUri,
+      );
+    }
+  }, [redirectUri]);
+
   const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
     androidClientId: env.googleAuth.androidClientId || undefined,
     clientId: platformClientId || 'missing-google-client-id',
     iosClientId: env.googleAuth.iosClientId || undefined,
-    redirectUri,
     selectAccount: true,
     scopes: ['openid', 'profile', 'email'],
     webClientId: env.googleAuth.webClientId || undefined,
