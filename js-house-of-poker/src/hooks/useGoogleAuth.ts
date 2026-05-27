@@ -37,31 +37,51 @@ export function useGoogleAuth({ onAuthenticated, onError }: UseGoogleAuthOptions
     onErrorRef.current = onError;
   }, [onError]);
 
-  const sharedClientId = env.googleAuth.webClientId;
   const platformClientId =
     Platform.OS === 'android'
-      ? env.googleAuth.androidClientId || sharedClientId
+      ? env.googleAuth.androidClientId
       : Platform.OS === 'ios'
-        ? env.googleAuth.iosClientId || sharedClientId
-        : sharedClientId;
+        ? env.googleAuth.iosClientId
+        : env.googleAuth.webClientId;
 
   const missingGoogleClientConfig = useMemo(() => {
     const missing: GoogleClientEnvName[] = [];
 
-    if (!sharedClientId) {
+    if (Platform.OS === 'web' && !env.googleAuth.webClientId) {
       missing.push('EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID');
     }
 
-    if (Platform.OS === 'android' && !env.googleAuth.androidClientId && !sharedClientId) {
+    if (Platform.OS === 'android' && !env.googleAuth.androidClientId) {
       missing.push('EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID');
     }
 
-    if (Platform.OS === 'ios' && !env.googleAuth.iosClientId && !sharedClientId) {
+    if (Platform.OS === 'ios' && !env.googleAuth.iosClientId) {
       missing.push('EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID');
     }
 
     return missing;
-  }, [sharedClientId]);
+  }, []);
+
+  const duplicateGoogleClientConfig = useMemo(() => {
+    const duplicates: GoogleClientEnvName[] = [];
+    const android = env.googleAuth.androidClientId;
+    const ios = env.googleAuth.iosClientId;
+    const web = env.googleAuth.webClientId;
+
+    if (android && ios && android === ios) {
+      duplicates.push('EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID', 'EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID');
+    }
+
+    if (android && web && android === web) {
+      duplicates.push('EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID', 'EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID');
+    }
+
+    if (ios && web && ios === web) {
+      duplicates.push('EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID', 'EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID');
+    }
+
+    return [...new Set(duplicates)];
+  }, []);
 
   const missingFirebaseConfig = useMemo(() => getMissingFirebaseClientConfig(), []);
 
@@ -138,6 +158,13 @@ export function useGoogleAuth({ onAuthenticated, onError }: UseGoogleAuthOptions
 
     if (missingConfig.length > 0) {
       onErrorRef.current(`Google sign-in is not configured yet. Missing: ${missingConfig.join(', ')}`);
+      return;
+    }
+
+    if (duplicateGoogleClientConfig.length > 0) {
+      onErrorRef.current(
+        `Google sign-in client IDs must be different per platform. Update: ${duplicateGoogleClientConfig.join(', ')}`,
+      );
       return;
     }
 
