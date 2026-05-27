@@ -214,7 +214,7 @@ export function HomeScreen({ navigation }: Props) {
         <Text style={styles.helper}>
           {roomState?.roomId
             ? `Active table ${roomState.roomId} is live. Open it directly or use the social lounge to queue friend and username invites through the same invite rail.`
-            : 'Start a free-play table for a quick session, then sign in to join an existing host table code.'}
+            : 'Start a free-play table for a quick session, or join an existing table code from a host. Realtime tables require an active signed-in session.'}
         </Text>
         {roomState?.roomId ? (
           <ActionButton
