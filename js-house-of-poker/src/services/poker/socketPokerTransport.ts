@@ -26,6 +26,11 @@ type PlayerStatusUpdatedPayload = {
   statusUpdatedAt?: number | string | null;
 };
 
+type RealtimeErrorPayload = {
+  code?: string;
+  message?: string;
+};
+
 type CreateSocketPokerTransportOptions = {
   protocol: 'legacy' | 'table-v1';
   socketUrl: string;
@@ -55,6 +60,16 @@ async function withAuthToken<TPayload extends Record<string, unknown>>(payload: 
   const token = await getAuthToken();
 
   return token ? { ...payload, token } : payload;
+}
+
+async function requireRealtimeToken() {
+  const token = await getAuthToken();
+
+  if (!token) {
+    throw new Error('Please sign in again to join or create a realtime table.');
+  }
+
+  return token;
 }
 
 function emitProtocolEvent<TPayload>(
@@ -247,10 +262,24 @@ export function createSocketPokerTransport(
       pushError(null);
       syncRoomState(payload as Parameters<typeof buildRoomStateFromLegacy>[0]);
     }),
-    socketManager.on<{ message?: string }>(pokerServerEvents.roomError, (payload) => {
+    socketManager.on<RealtimeErrorPayload>(pokerServerEvents.roomError, (payload) => {
+      if (payload?.code?.startsWith('AUTH_')) {
+        pushSession({
+          playerId: null,
+          shouldResume: false,
+          tableId: null,
+        });
+      }
       pushError(payload?.message?.trim() || 'Unexpected realtime error.');
     }),
-    socketManager.on<{ message?: string }>(pokerLegacyServerEvents.roomError, (payload) => {
+    socketManager.on<RealtimeErrorPayload>(pokerLegacyServerEvents.roomError, (payload) => {
+      if (payload?.code?.startsWith('AUTH_')) {
+        pushSession({
+          playerId: null,
+          shouldResume: false,
+          tableId: null,
+        });
+      }
       pushError(payload?.message?.trim() || 'Unexpected realtime error.');
     }),
     socketManager.on<{ message?: string }>(pokerServerEvents.reconnectRejected, (payload) => {
@@ -302,6 +331,7 @@ export function createSocketPokerTransport(
       return;
     }
 
+    await requireRealtimeToken();
     await ensureConnected();
     pushSession({
       playerName,
@@ -335,6 +365,7 @@ export function createSocketPokerTransport(
       return;
     }
 
+    await requireRealtimeToken();
     await ensureConnected();
     pushSession({
       playerName,
