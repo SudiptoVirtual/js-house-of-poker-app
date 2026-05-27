@@ -92,6 +92,28 @@ function emitProtocolEvent<TPayload>(
   emit(eventName, payload);
 }
 
+function normalizeRealtimeErrorMessage(message: string | null | undefined) {
+  const normalized = (message || '').trim();
+  if (!normalized) {
+    return 'Unexpected realtime error.';
+  }
+
+  const lower = normalized.toLowerCase();
+  if (
+    lower.includes('authentication token is required') ||
+    lower.includes('invalid player token') ||
+    lower.includes('not authorized')
+  ) {
+    return 'Please sign in to join a table by code.';
+  }
+
+  if (lower.includes('invalid table code')) {
+    return 'Invalid table code. Please check the code and try again.';
+  }
+
+  return normalized;
+}
+
 export function createSocketPokerTransport(
   options: CreateSocketPokerTransportOptions,
 ): PokerTransport {

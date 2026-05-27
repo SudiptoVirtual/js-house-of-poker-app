@@ -80,9 +80,11 @@ export function HomeScreen({ navigation }: Props) {
   } = usePoker();
   const [playerName, setPlayerName] = useState('Player');
   const [authPlayerName, setAuthPlayerName] = useState<string | null>(null);
+  const [hasAuthSession, setHasAuthSession] = useState(false);
   const [playerCount, setPlayerCount] = useState(3);
   const [gameType, setGameType] = useState<GameTypeOption>('3-5-7');
   const [tableCode, setTableCode] = useState('');
+  const [joinGuardMessage, setJoinGuardMessage] = useState<string | null>(null);
   const [pendingGameLaunch, setPendingGameLaunch] = useState<{
     roomIdBefore: string | null;
   } | null>(null);
@@ -92,7 +94,13 @@ export function HomeScreen({ navigation }: Props) {
 
     void getAuthSession()
       .then((session) => {
-        if (!isMounted || !session?.user || typeof session.user !== 'object') {
+        if (!isMounted) {
+          return;
+        }
+
+        setHasAuthSession(Boolean(session?.token));
+
+        if (!session?.user || typeof session.user !== 'object') {
           return;
         }
 
@@ -102,7 +110,11 @@ export function HomeScreen({ navigation }: Props) {
           setPlayerName((current) => (current === 'Player' ? maybeName.trim() : current));
         }
       })
-      .catch(() => undefined);
+      .catch(() => {
+        if (isMounted) {
+          setHasAuthSession(false);
+        }
+      });
 
     return () => {
       isMounted = false;
@@ -143,7 +155,20 @@ export function HomeScreen({ navigation }: Props) {
     });
   }
 
-  function handleJoinTable() {
+  async function handleJoinTable() {
+    if (transportKind === 'socket') {
+      const session = await getAuthSession();
+      if (!session?.token) {
+        setPendingGameLaunch(null);
+        setHasAuthSession(false);
+        setJoinGuardMessage('Please sign in to join a table by code.');
+        return;
+      }
+      setHasAuthSession(true);
+    }
+
+    setJoinGuardMessage(null);
+
     const trimmedName =
       transportKind === 'socket'
         ? authPlayerName || playerName.trim() || 'Player'
@@ -338,8 +363,12 @@ export function HomeScreen({ navigation }: Props) {
           value={tableCode}
         />
         <Text style={styles.helper}>
-          Table codes take you into an existing free-play room so invites, gifts, and seats stay attached to one shared table state.
+          Table-code join requires sign-in so invites, gifts, and seats stay attached to your player identity in one shared table state.
         </Text>
+        {!hasAuthSession ? (
+          <Text style={styles.joinRequirement}>Sign in is required before joining by table code.</Text>
+        ) : null}
+        {joinGuardMessage ? <Text style={styles.error}>{joinGuardMessage}</Text> : null}
         <View style={styles.buttonRow}>
           <ActionButton
             label="Join table"
@@ -382,6 +411,11 @@ export function HomeScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   buttonRow: {
     gap: 10,
+  },
+  joinRequirement: {
+    color: colors.mutedText,
+    fontSize: 13,
+    lineHeight: 18,
   },
   error: {
     color: colors.danger,
