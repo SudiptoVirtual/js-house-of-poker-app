@@ -7,6 +7,7 @@ import type { PokerAction, PokerControls, PokerPlayerState } from '../../types/p
 const PANEL_SHELL_MIN_HEIGHT = 224;
 const FIT_CONTENT_PANEL_HEIGHT_RATIO = 0.85;
 const INFO_ONLY_PANEL_MAX_WIDTH = 182;
+const RIGHT_PANEL_BUTTON_SIZE_SCALE = 1.2;
 
 type ThreeFiveSevenActionPanelLayout = 'leftPanel' | 'rightPanel';
 
@@ -148,7 +149,7 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   wrapperRightPanel: {
-    maxWidth: 96,
-    minWidth: 78,
+    maxWidth: 96 * RIGHT_PANEL_BUTTON_SIZE_SCALE,
+    minWidth: 78 * RIGHT_PANEL_BUTTON_SIZE_SCALE,
   },
 });

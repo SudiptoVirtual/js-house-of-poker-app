@@ -227,11 +227,11 @@ export function HomeScreen({ navigation }: Props) {
       </SectionCard>
 
       <SectionCard title="Establish Bot Table">
-        <BotTrainingPromoBanner
+        {/* <BotTrainingPromoBanner
           placement="lobby"
           onPressPrimary={() => trainingActionHandlers.quickStart()}
           onPressSecondary={() => trainingActionHandlers.learn357()}
-        />
+        /> */}
 
         <View style={styles.featuredTrainingCard}>
           <View style={styles.featuredTrainingHeader}>
@@ -258,7 +258,7 @@ export function HomeScreen({ navigation }: Props) {
           </Text>
         </View>
 
-        {BOT_TRAINING_TABLES.map((table) => (
+        {/* {BOT_TRAINING_TABLES.map((table) => (
           <View
             key={table.id}
             style={styles.trainingCard}
@@ -287,7 +287,7 @@ export function HomeScreen({ navigation }: Props) {
               />
             </View>
           </View>
-        ))}
+        ))} */}
       </SectionCard>
 
       <SectionCard title="Create a table">

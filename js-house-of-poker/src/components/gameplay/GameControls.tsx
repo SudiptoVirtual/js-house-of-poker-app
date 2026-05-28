@@ -32,6 +32,7 @@ function ControlButton({
   compact,
   disabled,
   label,
+  large,
   loading,
   onPress,
   subtitle,
@@ -40,6 +41,7 @@ function ControlButton({
   compact?: boolean;
   disabled?: boolean;
   label: string;
+  large?: boolean;
   loading?: boolean;
   onPress: () => void;
   subtitle?: string;
@@ -53,6 +55,7 @@ function ControlButton({
       style={({ pressed }) => [
         styles.buttonPressable,
         compact ? styles.buttonPressableCompact : null,
+        large ? styles.buttonPressableLarge : null,
         pressed && !disabled ? styles.buttonPressed : null,
         disabled ? styles.buttonDisabled : null,
       ]}
@@ -64,6 +67,7 @@ function ControlButton({
         style={[
           styles.controlButton,
           compact ? styles.controlButtonCompact : null,
+          large ? styles.controlButtonLarge : null,
           styles[`${tone}Button`],
         ]}
       >
@@ -74,6 +78,7 @@ function ControlButton({
           style={[
             styles.buttonLabel,
             compact ? styles.buttonLabelCompact : null,
+            large ? styles.buttonLabelLarge : null,
             styles[`${tone}Text`],
           ]}
         >
@@ -82,7 +87,11 @@ function ControlButton({
         {subtitle ? (
           <Text
             numberOfLines={1}
-            style={[styles.buttonSubtitle, compact ? styles.buttonSubtitleCompact : null]}
+            style={[
+              styles.buttonSubtitle,
+              compact ? styles.buttonSubtitleCompact : null,
+              large ? styles.buttonSubtitleLarge : null,
+            ]}
           >
             {subtitle}
           </Text>
@@ -199,11 +208,18 @@ export const GameControls = memo(function GameControls({
       ) : null}
 
       {mode === '357' && controls.canAct && showActionButtons ? (
-        <View style={[styles.buttonRow, isSidePanel ? styles.buttonRowSidePanel : null]}>
+        <View
+          style={[
+            styles.buttonRow,
+            isSidePanel ? styles.buttonRowSidePanel : null,
+            isRightPanel ? styles.buttonRowRightPanel : null,
+          ]}
+        >
           <ControlButton
             compact={isSidePanel}
             disabled={!availableActions.includes('go')}
             label="GO"
+            large={isRightPanel}
             loading={pendingAction === 'go'}
             onPress={() => onAction('go')}
             subtitle="ENTER"
@@ -213,6 +229,7 @@ export const GameControls = memo(function GameControls({
             compact={isSidePanel}
             disabled={!availableActions.includes('stay')}
             label="STAY"
+            large={isRightPanel}
             loading={pendingAction === 'stay'}
             onPress={() => onAction('stay')}
             subtitle="SIT OUT"
@@ -305,10 +322,12 @@ export const GameControls = memo(function GameControls({
       ) : null}
 
       {!controls.canAct && (controls.canStartHand || controls.canRebuy) ? (
-        <View style={styles.utilityRow}>
+        <View style={[styles.utilityRow, isRightPanel ? styles.utilityRowRightPanel : null]}>
           {controls.canStartHand ? (
             <ControlButton
+              compact={isRightPanel}
               label={mode === '357' ? 'START' : 'DEAL'}
+              large={isRightPanel}
               loading={pendingAction === 'start'}
               onPress={onStartHand}
               tone="green"
@@ -316,7 +335,9 @@ export const GameControls = memo(function GameControls({
           ) : null}
           {controls.canRebuy ? (
             <ControlButton
+              compact={isRightPanel}
               label="REBUY"
+              large={isRightPanel}
               loading={pendingAction === 'rebuy'}
               onPress={onRebuy}
               tone="gold"
@@ -349,6 +370,9 @@ const styles = StyleSheet.create({
     fontSize: 18,
     letterSpacing: 0.2,
   },
+  buttonLabelLarge: {
+    fontSize: 22,
+  },
   buttonPressable: {
     flex: 1,
     minWidth: 0,
@@ -357,6 +381,9 @@ const styles = StyleSheet.create({
     alignSelf: 'stretch',
     flex: 0,
     width: '100%',
+  },
+  buttonPressableLarge: {
+    minWidth: 0,
   },
   buttonPressed: {
     transform: [{ scale: 0.98 }],
@@ -382,6 +409,10 @@ const styles = StyleSheet.create({
     maxWidth: 236,
     width: '100%',
   },
+  buttonRowRightPanel: {
+    gap: 11,
+    maxWidth: 236 * 1.2,
+  },
   buttonSubtitle: {
     color: '#FFFFFF',
     fontSize: 11,
@@ -392,6 +423,10 @@ const styles = StyleSheet.create({
   },
   buttonSubtitleCompact: {
     fontSize: 8,
+    marginTop: 1,
+  },
+  buttonSubtitleLarge: {
+    fontSize: 10,
     marginTop: 1,
   },
   controlButton: {
@@ -413,6 +448,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 7,
     paddingVertical: 6,
     width: '100%',
+  },
+  controlButtonLarge: {
+    borderRadius: 11,
+    minHeight: 55,
+    paddingHorizontal: 8,
+    paddingVertical: 7,
   },
   goldButton: {
     borderColor: 'rgba(255, 184, 46, 0.95)',
@@ -586,6 +627,12 @@ const styles = StyleSheet.create({
     gap: 10,
     maxWidth: 520,
     width: '51.2%',
+  },
+  utilityRowRightPanel: {
+    alignSelf: 'stretch',
+    flexDirection: 'column',
+    gap: 11,
+    width: '100%',
   },
   waitingPanel: {
     alignSelf: 'center',

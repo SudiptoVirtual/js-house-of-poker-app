@@ -101,6 +101,8 @@ const standardPokerTableSurfaceOffsetX = 0;
 const threeFiveSevenTableSurfaceOffsetX = 0;
 const standardPokerTableSurfaceOffsetY = 0;
 const threeFiveSevenTableSurfaceOffsetY = 0;
+const rightPanelBaseHorizontalOffsetRatio = 0.2;
+const rightPanelLeftShiftRatio = 0.1;
 const disableTablePanning = false;
 
 export function TableSurface({
@@ -214,7 +216,7 @@ export function TableSurface({
     ? rightPanelGap || clamp(width * 0.01, 8, 16)
     : 0;
   const rightPanelHorizontalOffset = hasRightRailNode
-    ? width * 0.2
+    ? width * (rightPanelBaseHorizontalOffsetRatio - rightPanelLeftShiftRatio)
     : 0;
   const viewportWidth =
     width +

@@ -93,6 +93,7 @@ type ThreeFiveSevenRevealPreview = {
 
 const EMBEDDED_357_INFO_RAIL_WIDTH_SCALE = 0.77;
 const EMBEDDED_357_RAIL_GAP_SCALE = 0.75;
+const EMBEDDED_357_ACTION_RAIL_SIZE_SCALE = 1.2;
 const EMBEDDED_357_TABLE_WIDTH_SCALE = 1.0;
 const EMBEDDED_357_BASE_TABLE_FIT_SCALE = 0.9;
 const LANDSCAPE_TABLE_FIT_SCALE = 0.97;
@@ -513,7 +514,8 @@ export function GameScreen({ navigation }: Props) {
   const embedded357PanelWidth =
     baseEmbedded357PanelWidth * EMBEDDED_357_INFO_RAIL_WIDTH_SCALE;
   const baseEmbedded357ActionPanelWidth = hasEmbedded357Panel
-    ? clamp(windowWidth * 0.07, 82, 104)
+    ? clamp(windowWidth * 0.07, 82, 104) *
+      EMBEDDED_357_ACTION_RAIL_SIZE_SCALE
     : 0;
   const embedded357ActionPanelWidth = baseEmbedded357ActionPanelWidth;
   const baseEmbedded357PanelGap = hasEmbedded357Panel
