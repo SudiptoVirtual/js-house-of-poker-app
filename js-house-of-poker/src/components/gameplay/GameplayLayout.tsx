@@ -15,6 +15,38 @@ export const bottomRightStageSizing = {
   widthRatio: 0.1275,
 } as const;
 
+export const landscapeFixedRailSizing = {
+  footerHeight: 28,
+  topBarMaxHeight: 52,
+  topBarMinHeight: 48,
+} as const;
+
+export function getGameplayTopBarHeight({
+  height,
+  isLandscape,
+}: {
+  height: number;
+  isLandscape: boolean;
+}) {
+  if (isLandscape) {
+    return clamp(
+      height * gameplayLayoutConfig.topBar.landscapeHeightRatio,
+      landscapeFixedRailSizing.topBarMinHeight,
+      landscapeFixedRailSizing.topBarMaxHeight,
+    );
+  }
+
+  return clamp(
+    height * gameplayLayoutConfig.topBar.expandedPortraitHeightRatio,
+    gameplayLayoutConfig.topBar.portraitMinHeight,
+    gameplayLayoutConfig.topBar.portraitMaxHeight,
+  );
+}
+
+export function getGameplayFooterHeight({ isLandscape }: { isLandscape: boolean }) {
+  return isLandscape ? landscapeFixedRailSizing.footerHeight : 42;
+}
+
 type Props = {
   errorMessage?: string | null;
   footerNode?: React.ReactNode;
@@ -38,26 +70,18 @@ export function GameplayLayout({
 }: Props) {
   const { height, width } = useWindowDimensions();
   const hasHeroSection = Boolean(heroSection);
-  const footerHeight = isLandscape ? 30 : 42;
+  const footerHeight = getGameplayFooterHeight({ isLandscape });
   const topInset = Math.max(2, insets.top ? 0 : 4);
   const sideGap = clamp(width * 0.008, 8, 16);
-  const topBarHeight = isLandscape
-    ? clamp(height * gameplayLayoutConfig.topBar.landscapeHeightRatio, 42, 56)
-    : clamp(
-        height * gameplayLayoutConfig.topBar.expandedPortraitHeightRatio,
-        gameplayLayoutConfig.topBar.portraitMinHeight,
-        gameplayLayoutConfig.topBar.portraitMaxHeight,
-      );
-  const collapsedTopBarHeight = clamp(
-    height * gameplayLayoutConfig.topBar.landscapeHeightRatio,
-    42,
-    56,
-  );
+  const topBarHeight = getGameplayTopBarHeight({ height, isLandscape });
+  const collapsedTopBarHeight = getGameplayTopBarHeight({
+    height,
+    isLandscape: true,
+  });
   const activeTopBarHeight = isTopBarExpanded ? topBarHeight : collapsedTopBarHeight;
-  const tableLift = isLandscape ? clamp(height * 0.04, 24, 36) : 0;
   const portraitTableGap = clamp(height * 0.01, 4, 8);
   const tableTopOffset = isLandscape
-    ? topInset + topBarHeight + 2 - tableLift
+    ? topInset + topBarHeight + 2
     : topInset + activeTopBarHeight + portraitTableGap;
   const actionHeight = hasHeroSection
     ? isLandscape
@@ -69,7 +93,7 @@ export function GameplayLayout({
     ? actionHeight * clamp(0.58 - height * 0.00012, 0.48, 0.54)
     : 0;
   const tableBottomOffset = isLandscape
-    ? actionBottom + actionHeight + (hasHeroSection ? 2 : 0) + tableLift
+    ? actionBottom + actionHeight + (hasHeroSection ? 2 : 0)
     : actionBottom + portraitTableBottomReserve;
 
   return (
@@ -95,6 +119,7 @@ export function GameplayLayout({
             alignItems: isTopBarExpanded ? 'stretch' : 'flex-start',
             height: activeTopBarHeight,
             left: sideGap,
+            overflow: isLandscape ? 'hidden' : 'visible',
             right: sideGap,
             top: topInset,
           },
@@ -124,7 +149,7 @@ export function GameplayLayout({
           style={[
             styles.footerRail,
             {
-              bottom: Math.max(-3, insets.bottom ? -2 : 0),
+              bottom: 0,
               height: footerHeight,
               left: sideGap,
               right: sideGap,
@@ -173,6 +198,7 @@ const styles = StyleSheet.create({
   footerRail: {
     justifyContent: 'center',
     position: 'absolute',
+    overflow: 'hidden',
     zIndex: 50,
   },
   heroStage: {
