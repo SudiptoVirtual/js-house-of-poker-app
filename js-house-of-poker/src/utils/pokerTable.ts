@@ -27,8 +27,8 @@ export type SeatDescriptor = {
   width: number;
 };
 
-const TABLE_EDGE_OVERHANG_X = 70;
-const TABLE_EDGE_OVERHANG_Y = 58;
+const TABLE_EDGE_OVERHANG_X = 42;
+const TABLE_EDGE_OVERHANG_Y = 34;
 const COMPACT_TABLE_EDGE_OVERHANG_X = 0;
 const COMPACT_TABLE_EDGE_OVERHANG_Y = 0;
 const SEAT_HEIGHT_SCALE = 0.92;
@@ -41,7 +41,7 @@ const BET_TO_BOARD_GAP = 28;
 const MAX_SUPPORTED_TABLE_PLAYERS = 7;
 const HERO_ANCHOR = {
   x: 0.5,
-  y: 1.052,
+  y: 1.025,
   zone: 'bottom' as const,
 };
 const COMPACT_HERO_ANCHOR = {
@@ -54,22 +54,22 @@ const OPPONENT_ANCHORS: Array<{
   y: number;
   zone: 'bottom' | 'left' | 'right' | 'top';
 }> = [
-  { x: 0.5, y: -0.098, zone: 'top' },
-  { x: 0.063, y: -0.029, zone: 'top' },
-  { x: 0.937, y: -0.029, zone: 'top' },
-  { x: -0.121, y: 0.466, zone: 'left' },
-  { x: 1.121, y: 0.466, zone: 'right' },
-  { x: 0.063, y: 0.96, zone: 'bottom' },
-  { x: 0.937, y: 0.96, zone: 'bottom' },
+  { x: 0.5, y: -0.058, zone: 'top' },
+  { x: 0.078, y: -0.012, zone: 'top' },
+  { x: 0.922, y: -0.012, zone: 'top' },
+  { x: -0.072, y: 0.466, zone: 'left' },
+  { x: 1.072, y: 0.466, zone: 'right' },
+  { x: 0.078, y: 0.978, zone: 'bottom' },
+  { x: 0.922, y: 0.978, zone: 'bottom' },
 ];
 const COMPACT_OPPONENT_ANCHORS: typeof OPPONENT_ANCHORS = [
-  { x: 0.5, y: 0.045, zone: 'top' },
-  { x: 0.135, y: 0.055, zone: 'top' },
-  { x: 0.865, y: 0.055, zone: 'top' },
-  { x: 0.025, y: 0.465, zone: 'left' },
-  { x: 0.975, y: 0.465, zone: 'right' },
-  { x: 0.155, y: 0.895, zone: 'bottom' },
-  { x: 0.845, y: 0.895, zone: 'bottom' },
+  { x: 0.5, y: 0.078, zone: 'top' },
+  { x: 0.15, y: 0.108, zone: 'top' },
+  { x: 0.85, y: 0.108, zone: 'top' },
+  { x: 0.04, y: 0.465, zone: 'left' },
+  { x: 0.96, y: 0.465, zone: 'right' },
+  { x: 0.17, y: 0.855, zone: 'bottom' },
+  { x: 0.83, y: 0.855, zone: 'bottom' },
 ];
 const OPPONENT_LAYOUTS: Record<number, number[]> = {
   1: [0],
@@ -300,6 +300,7 @@ export function orderPlayersForTable(
 }
 
 type BuildSeatDescriptorOptions = {
+  availableStageHeight?: number;
   compactTable?: boolean;
 };
 
@@ -314,37 +315,45 @@ export function buildSeatDescriptors(
   }
 
   const compactTable = options.compactTable ?? false;
+  const availableStageHeight = Math.max(
+    tableHeight,
+    options.availableStageHeight ?? tableHeight,
+  );
   const center = { x: tableWidth / 2, y: tableHeight / 2 };
   const seatWidth =
     Math.min(
-      compactTable ? 132 : 162,
-      Math.max(compactTable ? 96 : 118, tableWidth * 0.158),
-    ) * (compactTable ? 0.9 : 1);
+      compactTable ? 118 : 162,
+      Math.max(compactTable ? 82 : 118, tableWidth * 0.148),
+    ) * (compactTable ? 0.86 : 1);
   const seatHeight =
     Math.min(
-      compactTable ? 92 : 118,
-      Math.max(compactTable ? 66 : 88, tableHeight * 0.145),
+      compactTable ? 78 : 118,
+      Math.max(compactTable ? 56 : 88, tableHeight * 0.132),
     ) * SEAT_HEIGHT_SCALE;
   const heroSeatWidth =
     (Math.min(
-      compactTable ? 248 : 340,
-      Math.max(compactTable ? 210 : 280, tableWidth * 0.32),
+      compactTable ? 214 : 340,
+      Math.max(compactTable ? 176 : 280, tableWidth * 0.285),
     ) +
       HERO_SEAT_WIDTH_ADJUSTMENT) *
-    HERO_SEAT_WIDTH_SCALE;
+    (compactTable ? 0.7 : HERO_SEAT_WIDTH_SCALE);
   const heroSeatHeight =
     Math.min(
-      compactTable ? 68 : 86,
-      Math.max(compactTable ? 48 : 66, tableHeight * 0.105),
+      compactTable ? 58 : 86,
+      Math.max(compactTable ? 42 : 66, tableHeight * 0.095),
     ) *
-      HERO_SEAT_HEIGHT_SCALE +
+      (compactTable ? 0.72 : HERO_SEAT_HEIGHT_SCALE) +
     HERO_SEAT_HEIGHT_ADJUSTMENT;
   const horizontalSeatInset = compactTable
     ? Math.max(COMPACT_TABLE_EDGE_OVERHANG_X, tableWidth * 0.032)
     : Math.max(TABLE_EDGE_OVERHANG_X, tableWidth * 0.058);
-  const verticalSeatInset = compactTable
+  const requestedVerticalSeatInset = compactTable
     ? Math.max(COMPACT_TABLE_EDGE_OVERHANG_Y, tableHeight * 0.035)
     : Math.max(TABLE_EDGE_OVERHANG_Y, tableHeight * 0.11);
+  const verticalSeatInset = Math.min(
+    requestedVerticalSeatInset,
+    Math.max(0, (availableStageHeight - tableHeight) / 2),
+  );
   const cappedPlayers = players.slice(0, MAX_SUPPORTED_TABLE_PLAYERS);
   const boardSafeHalfWidth = tableWidth * 0.38;
   const boardSafeHalfHeight = tableHeight * 0.27;
