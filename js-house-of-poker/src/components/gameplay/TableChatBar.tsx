@@ -12,6 +12,10 @@ import {
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 
+import {
+  getGameplayTopBarHeight,
+  landscapeFixedRailSizing,
+} from './GameplayLayout';
 import { gameplayLayoutConfig } from './layoutConfig';
 import type { PokerTableChatMessage } from '../../types/poker';
 import {
@@ -108,6 +112,11 @@ export function TableChatBar({
   const incomingChatToastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [incomingChatMessage, setIncomingChatMessage] = useState<PokerTableChatMessage | null>(null);
   const isCompact = width < 620 && height > width;
+  const isLandscapeRail = width > height;
+  const topRailHeight = getGameplayTopBarHeight({ height, isLandscape: isLandscapeRail });
+  const railBoundedShellStyle = isLandscapeRail
+    ? { maxHeight: topRailHeight, minHeight: topRailHeight }
+    : null;
   const normalizedDraft = normalizeTableChatText(draft);
   const canSend = normalizedDraft.length > 0;
   const shouldPrioritizeCompose = isCompact && isComposeFocused;
@@ -227,7 +236,13 @@ export function TableChatBar({
     const constrainedText = normalizeTableChatText(incomingChatMessage.text);
 
     return (
-      <View pointerEvents="none" style={styles.incomingChatToast}>
+      <View
+        pointerEvents="none"
+        style={[
+          styles.incomingChatToast,
+          isLandscapeRail ? styles.incomingChatToastLandscape : null,
+        ]}
+      >
         <View style={styles.incomingChatToastIcon}>
           <MaterialCommunityIcons color="#F7F4FF" name="message-text" size={16} />
         </View>
@@ -379,7 +394,7 @@ export function TableChatBar({
         colors={['rgba(9, 6, 18, 0.98)', 'rgba(5, 4, 13, 0.99)']}
         end={{ x: 1, y: 1 }}
         start={{ x: 0, y: 0 }}
-        style={[styles.shell, styles.shellCollapsed]}
+        style={[styles.shell, styles.shellCollapsed, railBoundedShellStyle]}
       >
         {renderTopBarToggle()}
         {renderIncomingChatToast()}
@@ -393,7 +408,7 @@ export function TableChatBar({
         colors={['rgba(9, 6, 18, 0.98)', 'rgba(5, 4, 13, 0.99)']}
         end={{ x: 1, y: 1 }}
         start={{ x: 0, y: 0 }}
-        style={[styles.shell, styles.shellComposePriority]}
+        style={[styles.shell, styles.shellComposePriority, railBoundedShellStyle]}
       >
         <View style={styles.composePriorityRow}>
           {renderTopBarToggle()}
@@ -409,7 +424,11 @@ export function TableChatBar({
       colors={['rgba(9, 6, 18, 0.98)', 'rgba(5, 4, 13, 0.99)']}
       end={{ x: 1, y: 1 }}
       start={{ x: 0, y: 0 }}
-      style={[styles.shell, isCompact ? styles.shellCompact : null]}
+      style={[
+        styles.shell,
+        isCompact ? styles.shellCompact : null,
+        railBoundedShellStyle,
+      ]}
     >
       <View style={styles.row}>
         <View style={styles.brandRail}>
@@ -439,7 +458,7 @@ export function TableChatBar({
       {renderIncomingChatToast()}
 
       {openPanel ? (
-        <View style={styles.popover}>
+        <View style={[styles.popover, isLandscapeRail ? styles.popoverLandscape : null]}>
           <View style={styles.popoverHeader}>
             <Text style={styles.popoverTitle}>
               {openPanel === 'messages' ? 'Table messages' : 'Notifications'}
@@ -631,6 +650,13 @@ const styles = StyleSheet.create({
     width: '70%',
     zIndex: 120,
   },
+  incomingChatToastLandscape: {
+    maxHeight: landscapeFixedRailSizing.topBarMaxHeight - 8,
+    minHeight: landscapeFixedRailSizing.topBarMinHeight - 8,
+    paddingVertical: 5,
+    top: 4,
+    width: 340,
+  },
   incomingChatToastCopy: {
     flex: 1,
     minWidth: 0,
@@ -763,6 +789,13 @@ const styles = StyleSheet.create({
     top: 46,
     width: '34%',
     zIndex: 90,
+  },
+  popoverLandscape: {
+    maxHeight: landscapeFixedRailSizing.topBarMaxHeight - 8,
+    overflow: 'hidden',
+    padding: 6,
+    top: 4,
+    width: 320,
   },
   popoverEmpty: {
     color: 'rgba(235, 231, 255, 0.64)',

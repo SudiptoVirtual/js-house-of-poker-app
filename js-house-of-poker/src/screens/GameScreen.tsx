@@ -20,6 +20,8 @@ import type { CardSize } from '../components/AnimatedCard';
 import {
   GameplayLayout,
   bottomRightStageSizing,
+  getGameplayFooterHeight,
+  getGameplayTopBarHeight,
 } from '../components/gameplay/GameplayLayout';
 import { GameplayFooter } from '../components/gameplay/GameplayFooter';
 import { HeroActionSection } from '../components/gameplay/HeroActionSection';
@@ -542,11 +544,12 @@ export function GameScreen({ navigation }: Props) {
     ? gameplayLayoutConfig.table.aspectRatioLandscape
     : gameplayLayoutConfig.table.aspectRatio;
   const layoutSideGap = clamp(windowWidth * 0.008, 8, 16);
-  const estimatedFooterHeight = isLandscape ? 30 : 42;
+  const estimatedFooterHeight = getGameplayFooterHeight({ isLandscape });
   const estimatedTopInset = Math.max(2, insets.top ? 0 : 4);
-  const estimatedTopBarHeight = isLandscape
-    ? clamp(windowHeight * 0.052, 42, 56)
-    : clamp(windowHeight * 0.12, 72, 108);
+  const estimatedTopBarHeight = getGameplayTopBarHeight({
+    height: windowHeight,
+    isLandscape,
+  });
   const estimatedTableTopSpace = isLandscape
     ? estimatedTopInset + estimatedTopBarHeight + 2
     : estimatedTopBarHeight * 0.78;
