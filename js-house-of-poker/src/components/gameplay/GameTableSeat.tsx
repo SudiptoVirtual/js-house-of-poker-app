@@ -47,6 +47,7 @@ type Props = {
 
 const MAX_LEG_SLOTS = 4;
 const SEAT_META_BADGE_SIZE = 24;
+const COMPACT_357_META_BADGE_SIZE = 16;
 const SELF_TABLE_SEAT_SIZE_SCALE = 0.88;
 const COMPACT_357_HERO_MAX_WIDTH = 480;
 
@@ -263,9 +264,9 @@ function CardFan({
   size: 'md' | 'sm';
 }) {
   const wideSpread = spread === 'wide';
-  const overlap = wideSpread ? 14.5 : compact ? 27 : size === 'md' ? 24 : 18;
-  const angleSpread = wideSpread ? 10 : compact ? 8 : size === 'md' ? 14 : 10;
-  const cardScale = wideSpread ? 0.817 : compact ? 0.74 : 1;
+  const overlap = wideSpread ? 32 : compact ? 33 : size === 'md' ? 24 : 18;
+  const angleSpread = wideSpread ? 5 : compact ? 4.5 : size === 'md' ? 14 : 10;
+  const cardScale = wideSpread ? 0.62 : compact ? 0.6 : 1;
   const slots = Array.from({ length: count });
 
   return (
@@ -400,7 +401,7 @@ function LegsPips({
                 <MaterialCommunityIcons
                   color="#12091A"
                   name="check"
-                  size={compact ? 6 : 7}
+                  size={compact ? 4 : 7}
                 />
               ) : null}
             </Animated.View>
@@ -547,11 +548,15 @@ export const GameTableSeat = memo(function GameTableSeat({
     }).start();
   }, [isWinner, winnerGlow]);
 
-  const renderAvatarStack = (avatarSize: 'md' | 'sm') => (
+  const renderAvatarStack = (
+    avatarSize: 'md' | 'sm',
+    compact357 = false,
+  ) => (
     <View
       style={[
         styles.seatAvatarStack,
         avatarSize === 'sm' ? styles.seatAvatarStackCompact : null,
+        compact357 ? styles.seatAvatarStack357Compact : null,
       ]}
     >
       <PlayerAvatar
@@ -564,7 +569,13 @@ export const GameTableSeat = memo(function GameTableSeat({
         <PlayerStatusBadge
           compact
           showLabel={false}
-          size={avatarSize === 'sm' ? SEAT_META_BADGE_SIZE : 28}
+          size={
+            compact357
+              ? COMPACT_357_META_BADGE_SIZE
+              : avatarSize === 'sm'
+                ? SEAT_META_BADGE_SIZE
+                : 28
+          }
           statusTier={statusTier}
         />
       </View>
@@ -572,7 +583,7 @@ export const GameTableSeat = memo(function GameTableSeat({
         <DealerButton
           compact
           showPulse={false}
-          size={avatarSize === 'sm' ? 20 : 24}
+          size={compact357 ? 16 : avatarSize === 'sm' ? 20 : 24}
           style={styles.seatMetaButton}
         />
       ) : null}
@@ -639,7 +650,10 @@ export const GameTableSeat = memo(function GameTableSeat({
 
   const bottomIdentityNode = (
     <View style={styles.bottomIdentityWrap}>
-      {renderAvatarStack(useCompactSelfSeat ? 'sm' : 'md')}
+      {renderAvatarStack(
+        useCompactSelfSeat ? 'sm' : 'md',
+        useCompactSelfSeat && is357Game,
+      )}
       {!showDecisionMode ? (
         <View
           style={[
@@ -666,34 +680,41 @@ export const GameTableSeat = memo(function GameTableSeat({
 
   const self357MetaNode = (
     <View style={styles.self357MetaLayout}>
-      <View style={styles.self357NameRow}>
-        <Text
-          numberOfLines={1}
-          style={[
-            styles.playerName,
-            styles.playerNameCompact,
-            styles.self357PlayerName,
-          ]}
-        >
-          {playerName}
-        </Text>
-        {selfTag ? (
-          <View style={[styles.selfTag, styles.selfTagCompact]}>
-            <Text style={[styles.selfTagText, styles.selfTagTextCompact]}>
-              {selfTag}
-            </Text>
-          </View>
-        ) : null}
-      </View>
-      <View style={styles.self357MetaRow}>
-        {renderAvatarStack('sm')}
-        <LegsPips compact legs={visibleLegCount} />
-        <View style={[styles.amountBubble, styles.amountBubbleSelfCompact]}>
+      <View style={styles.self357InfoColumn}>
+        <View style={styles.self357NameRow}>
           <Text
-            style={[styles.amountBubbleText, styles.amountBubbleTextSelfCompact]}
+            numberOfLines={1}
+            style={[
+              styles.playerName,
+              styles.playerNameCompact,
+              styles.self357PlayerName,
+            ]}
           >
-            ${formatChipAmount(labelAmount)}
+            {playerName}
           </Text>
+          {selfTag ? (
+            <View style={[styles.selfTag, styles.selfTagCompact]}>
+              <Text style={[styles.selfTagText, styles.selfTagTextCompact]}>
+                {selfTag}
+              </Text>
+            </View>
+          ) : null}
+        </View>
+        <View style={styles.self357MetaRow}>
+          {renderAvatarStack('sm', true)}
+          <View style={styles.self357LegsChipColumn}>
+            <LegsPips compact legs={visibleLegCount} />
+            <View style={[styles.amountBubble, styles.amountBubbleSelfCompact]}>
+              <Text
+                style={[
+                  styles.amountBubbleText,
+                  styles.amountBubbleTextSelfCompact,
+                ]}
+              >
+                ${formatChipAmount(labelAmount)}
+              </Text>
+            </View>
+          </View>
         </View>
       </View>
       {cardCount > 0 ? (
@@ -835,7 +856,7 @@ export const GameTableSeat = memo(function GameTableSeat({
                 align === 'right' ? styles.compactIdentityRowRight : null,
               ]}
             >
-              {renderAvatarStack('sm')}
+              {renderAvatarStack('sm', true)}
               <View
                 style={[
                   styles.compactNameStack,
@@ -885,8 +906,13 @@ export const GameTableSeat = memo(function GameTableSeat({
                 align === 'right' ? styles.compactDecisionRailRight : null,
               ]}
             >
-              <View style={styles.compactAmountBubble}>
-                <Text style={styles.compactAmountBubbleText}>
+              <View style={[styles.amountBubble, styles.amountBubble357Compact]}>
+                <Text
+                  style={[
+                    styles.amountBubbleText,
+                    styles.amountBubbleText357Compact,
+                  ]}
+                >
                   ${formatChipAmount(labelAmount)}
                 </Text>
               </View>
@@ -1084,9 +1110,17 @@ const styles = StyleSheet.create({
   },
   amountBubbleSelfCompact: {
     borderRadius: 999,
-    minWidth: 44,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+    minWidth: 36,
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+  },
+  amountBubble357Compact: {
+    backgroundColor: 'rgba(10, 10, 16, 0.72)',
+    borderColor: 'rgba(255, 139, 210, 0.2)',
+    borderRadius: 999,
+    minWidth: 30,
+    paddingHorizontal: 4,
+    paddingVertical: 1,
   },
   amountBubbleText: {
     color: '#FFF6FB',
@@ -1094,7 +1128,11 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   amountBubbleTextSelfCompact: {
-    fontSize: 10,
+    fontSize: 9,
+  },
+  amountBubbleText357Compact: {
+    fontSize: 8,
+    letterSpacing: 0.15,
   },
   seatAvatarStack: {
     alignItems: 'center',
@@ -1107,16 +1145,21 @@ const styles = StyleSheet.create({
     height: 42,
     width: 44,
   },
+  seatAvatarStack357Compact: {
+    height: 34,
+    transform: [{ scale: 0.82 }],
+    width: 36,
+  },
   seatAvatarStatusBubble: {
-    bottom: -5,
+    bottom: -4,
     position: 'absolute',
-    right: -4,
+    right: -3,
     zIndex: 4,
   },
   seatMetaButton: {
-    bottom: -3,
+    bottom: -2,
     flexShrink: 0,
-    left: -3,
+    left: -2,
     position: 'absolute',
     zIndex: 5,
   },
@@ -1148,8 +1191,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   cardFanSlotCompact: {
-    height: 45,
-    width: 36,
+    height: 36,
+    width: 29,
   },
   centerCluster: {
     alignItems: 'center',
@@ -1197,16 +1240,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 4,
+    gap: 3,
     justifyContent: 'center',
-    marginTop: -2,
+    marginTop: -5,
   },
   compactDecisionRailRight: {
     justifyContent: 'center',
   },
   compactDecisionSeat: {
-    gap: 1,
-    minHeight: 48,
+    alignItems: 'center',
+    gap: 0,
+    justifyContent: 'center',
+    minHeight: 40,
   },
   compactDecisionSeatRight: {
     alignItems: 'flex-end',
@@ -1217,11 +1262,11 @@ const styles = StyleSheet.create({
   compactFanWrap: {
     alignItems: 'center',
     alignSelf: 'center',
-    height: 34,
+    height: 24,
     justifyContent: 'center',
-    marginTop: -6,
+    marginTop: -10,
     position: 'relative',
-    width: 92,
+    width: 72,
   },
   compactFanWrapRight: {
     alignSelf: 'center',
@@ -1229,7 +1274,7 @@ const styles = StyleSheet.create({
   compactIdentityRow: {
     alignItems: 'center',
     flexDirection: 'row',
-    gap: 4,
+    gap: 2,
     justifyContent: 'flex-start',
   },
   compactIdentityRowRight: {
@@ -1238,13 +1283,13 @@ const styles = StyleSheet.create({
   },
   compactName: {
     color: '#F7F4FF',
-    fontSize: 10,
+    fontSize: 8,
     fontWeight: '800',
-    maxWidth: 58,
+    maxWidth: 46,
   },
   compactNameStack: {
     alignItems: 'flex-start',
-    maxWidth: 62,
+    maxWidth: 82,
   },
   compactNameStackRight: {
     alignItems: 'flex-end',
@@ -1255,12 +1300,12 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255, 131, 203, 0.36)',
     borderRadius: 999,
     borderWidth: 1,
-    height: 24,
+    height: 18,
     justifyContent: 'center',
     position: 'absolute',
-    right: -3,
-    top: 2,
-    width: 24,
+    right: 0,
+    top: 1,
+    width: 18,
   },
   compactQuestionBadgeLeft: {
     left: -3,
@@ -1268,13 +1313,13 @@ const styles = StyleSheet.create({
   },
   compactStackText: {
     color: 'rgba(244, 241, 255, 0.78)',
-    fontSize: 10,
+    fontSize: 8,
     fontWeight: '800',
   },
   compactStackLegsRow: {
     alignItems: 'center',
     flexDirection: 'row',
-    gap: 5,
+    gap: 3,
   },
   decisionRail: {
     alignItems: 'center',
@@ -1296,8 +1341,8 @@ const styles = StyleSheet.create({
     width: 12,
   },
   legsPipCompact: {
-    height: 9,
-    width: 9,
+    height: 6,
+    width: 6,
   },
   legsPipFilled: {
     backgroundColor: '#FFCB6B',
@@ -1310,11 +1355,11 @@ const styles = StyleSheet.create({
     letterSpacing: 0.2,
   },
   legsPipsLabelCompact: {
-    fontSize: 7,
+    fontSize: 6,
   },
   legsPipsRow: {
     flexDirection: 'row',
-    gap: 3,
+    gap: 2,
   },
   legsPipsShell: {
     alignItems: 'center',
@@ -1328,9 +1373,10 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
   legsPipsShellCompact: {
-    gap: 4,
-    paddingHorizontal: 5,
-    paddingVertical: 3,
+    backgroundColor: 'rgba(255, 203, 107, 0.08)',
+    gap: 2,
+    paddingHorizontal: 3,
+    paddingVertical: 2,
   },
   leftCluster: {
     alignItems: 'center',
@@ -1444,36 +1490,52 @@ const styles = StyleSheet.create({
   },
   self357CardsRow: {
     alignItems: 'center',
-    alignSelf: 'center',
+    flexShrink: 0,
     justifyContent: 'center',
-    minHeight: 54,
+    minHeight: 34,
+    width: 66,
+  },
+  self357InfoColumn: {
+    alignItems: 'flex-start',
+    flexShrink: 1,
+    gap: 2,
+    justifyContent: 'center',
+    minWidth: 0,
+  },
+  self357LegsChipColumn: {
+    alignItems: 'flex-start',
+    gap: 2,
+    justifyContent: 'center',
+    minWidth: 0,
   },
   self357MetaLayout: {
-    alignItems: 'flex-end',
-    alignSelf: 'center',
+    alignItems: 'center',
+    alignSelf: 'stretch',
+    flexDirection: 'row',
     gap: 4,
-    justifyContent: 'center',
+    justifyContent: 'space-between',
     maxWidth: '100%',
+    minHeight: 42,
     minWidth: 0,
   },
   self357MetaRow: {
     alignItems: 'center',
     flexDirection: 'row',
-    gap: 4,
-    justifyContent: 'flex-end',
+    gap: 1,
+    justifyContent: 'flex-start',
     maxWidth: '100%',
     minWidth: 0,
   },
   self357PlayerName: {
     flexShrink: 1,
-    maxWidth: 108,
+    maxWidth: 72,
   },
   self357NameRow: {
     alignItems: 'center',
-    alignSelf: 'flex-end',
+    alignSelf: 'stretch',
     flexDirection: 'row',
-    gap: 4,
-    justifyContent: 'flex-end',
+    gap: 3,
+    justifyContent: 'flex-start',
     minWidth: 0,
   },
   shell: {
@@ -1502,15 +1564,15 @@ const styles = StyleSheet.create({
   },
   shell357Compact: {
     backgroundColor: 'rgba(7, 6, 13, 0.42)',
-    borderRadius: 12,
-    gap: 3,
-    paddingHorizontal: 5,
-    paddingVertical: 4,
+    borderRadius: 10,
+    gap: 1,
+    paddingHorizontal: 4,
+    paddingVertical: 3,
   },
   shellSelf357Meta: {
-    gap: 4,
-    paddingHorizontal: 3,
-    paddingVertical: 8,
+    gap: 0,
+    paddingHorizontal: 4,
+    paddingVertical: 3,
   },
   shellBorder357Compact: {
     borderColor: 'rgba(209, 110, 255, 0.12)',
