@@ -659,9 +659,13 @@ export function GameScreen({ navigation }: Props) {
         orderedPlayers,
         resolvedLayout.width,
         resolvedLayout.height,
-        { compactTable: useCompactLandscape357 },
+        {
+          availableStageHeight: availableTableStageHeight,
+          compactTable: useCompactLandscape357,
+        },
       ),
     [
+      availableTableStageHeight,
       orderedPlayers,
       resolvedLayout.height,
       resolvedLayout.width,
