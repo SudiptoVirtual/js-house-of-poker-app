@@ -52,6 +52,7 @@ type Props = {
   boardWidth: number;
   cardFlights: CardFlightSpec[];
   chipFlights: ChipFlightSpec[];
+  compact357Layout?: boolean;
   dealtCards: Record<string, number>;
   focusMode?: boolean;
   headlineText: string;
@@ -117,6 +118,7 @@ export function TableSurface({
   boardWidth,
   cardFlights,
   chipFlights,
+  compact357Layout = false,
   focusMode = false,
   headlineText,
   leftPanelGap = 0,
@@ -549,6 +551,7 @@ export function TableSurface({
                           anteAmount={state.threeFiveSeven?.anteAmount ?? 0}
                           decision={decision}
                           displayCardCount={descriptor.player.cardCount}
+                          compact357Layout={compact357Layout}
                           game={state.gameSettings.game}
                           isBottomSeat={descriptor.isBottomSeat}
                           isLoser={isLoser}

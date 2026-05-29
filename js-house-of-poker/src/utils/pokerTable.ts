@@ -29,6 +29,8 @@ export type SeatDescriptor = {
 
 const TABLE_EDGE_OVERHANG_X = 70;
 const TABLE_EDGE_OVERHANG_Y = 58;
+const COMPACT_TABLE_EDGE_OVERHANG_X = 0;
+const COMPACT_TABLE_EDGE_OVERHANG_Y = 0;
 const SEAT_HEIGHT_SCALE = 0.92;
 const HERO_SEAT_HEIGHT_SCALE = 0.78;
 const HERO_SEAT_HEIGHT_ADJUSTMENT = -2;
@@ -40,6 +42,11 @@ const MAX_SUPPORTED_TABLE_PLAYERS = 7;
 const HERO_ANCHOR = {
   x: 0.5,
   y: 1.052,
+  zone: 'bottom' as const,
+};
+const COMPACT_HERO_ANCHOR = {
+  x: 0.5,
+  y: 0.925,
   zone: 'bottom' as const,
 };
 const OPPONENT_ANCHORS: Array<{
@@ -54,6 +61,15 @@ const OPPONENT_ANCHORS: Array<{
   { x: 1.121, y: 0.466, zone: 'right' },
   { x: 0.063, y: 0.96, zone: 'bottom' },
   { x: 0.937, y: 0.96, zone: 'bottom' },
+];
+const COMPACT_OPPONENT_ANCHORS: typeof OPPONENT_ANCHORS = [
+  { x: 0.5, y: 0.045, zone: 'top' },
+  { x: 0.135, y: 0.055, zone: 'top' },
+  { x: 0.865, y: 0.055, zone: 'top' },
+  { x: 0.025, y: 0.465, zone: 'left' },
+  { x: 0.975, y: 0.465, zone: 'right' },
+  { x: 0.155, y: 0.895, zone: 'bottom' },
+  { x: 0.845, y: 0.895, zone: 'bottom' },
 ];
 const OPPONENT_LAYOUTS: Record<number, number[]> = {
   1: [0],
@@ -283,26 +299,52 @@ export function orderPlayersForTable(
   return [...players.slice(selfIndex), ...players.slice(0, selfIndex)];
 }
 
+type BuildSeatDescriptorOptions = {
+  compactTable?: boolean;
+};
+
 export function buildSeatDescriptors(
   players: PokerPlayerState[],
   tableWidth: number,
   tableHeight: number,
+  options: BuildSeatDescriptorOptions = {},
 ): SeatDescriptor[] {
   if (tableWidth <= 0 || tableHeight <= 0) {
     return [];
   }
 
+  const compactTable = options.compactTable ?? false;
   const center = { x: tableWidth / 2, y: tableHeight / 2 };
-  const seatWidth = Math.min(162, Math.max(118, tableWidth * 0.158));
-  const seatHeight = Math.min(118, Math.max(88, tableHeight * 0.145)) * SEAT_HEIGHT_SCALE;
+  const seatWidth =
+    Math.min(
+      compactTable ? 132 : 162,
+      Math.max(compactTable ? 96 : 118, tableWidth * 0.158),
+    ) * (compactTable ? 0.9 : 1);
+  const seatHeight =
+    Math.min(
+      compactTable ? 92 : 118,
+      Math.max(compactTable ? 66 : 88, tableHeight * 0.145),
+    ) * SEAT_HEIGHT_SCALE;
   const heroSeatWidth =
-    (Math.min(340, Math.max(280, tableWidth * 0.32)) + HERO_SEAT_WIDTH_ADJUSTMENT) *
+    (Math.min(
+      compactTable ? 248 : 340,
+      Math.max(compactTable ? 210 : 280, tableWidth * 0.32),
+    ) +
+      HERO_SEAT_WIDTH_ADJUSTMENT) *
     HERO_SEAT_WIDTH_SCALE;
   const heroSeatHeight =
-    Math.min(86, Math.max(66, tableHeight * 0.105)) * HERO_SEAT_HEIGHT_SCALE +
+    Math.min(
+      compactTable ? 68 : 86,
+      Math.max(compactTable ? 48 : 66, tableHeight * 0.105),
+    ) *
+      HERO_SEAT_HEIGHT_SCALE +
     HERO_SEAT_HEIGHT_ADJUSTMENT;
-  const horizontalSeatInset = Math.max(TABLE_EDGE_OVERHANG_X, tableWidth * 0.058);
-  const verticalSeatInset = Math.max(TABLE_EDGE_OVERHANG_Y, tableHeight * 0.11);
+  const horizontalSeatInset = compactTable
+    ? Math.max(COMPACT_TABLE_EDGE_OVERHANG_X, tableWidth * 0.032)
+    : Math.max(TABLE_EDGE_OVERHANG_X, tableWidth * 0.058);
+  const verticalSeatInset = compactTable
+    ? Math.max(COMPACT_TABLE_EDGE_OVERHANG_Y, tableHeight * 0.035)
+    : Math.max(TABLE_EDGE_OVERHANG_Y, tableHeight * 0.11);
   const cappedPlayers = players.slice(0, MAX_SUPPORTED_TABLE_PLAYERS);
   const boardSafeHalfWidth = tableWidth * 0.38;
   const boardSafeHalfHeight = tableHeight * 0.27;
@@ -315,18 +357,23 @@ export function buildSeatDescriptors(
 
   type SeatZone = 'top' | 'left' | 'right' | 'bottom';
   const seatPositions = cappedPlayers.map((player, index) => {
+    const activeHeroAnchor = compactTable ? COMPACT_HERO_ANCHOR : HERO_ANCHOR;
+    const activeOpponentAnchors = compactTable
+      ? COMPACT_OPPONENT_ANCHORS
+      : OPPONENT_ANCHORS;
     const point =
       index === 0
-        ? HERO_ANCHOR
-        : OPPONENT_ANCHORS[
+        ? activeHeroAnchor
+        : activeOpponentAnchors[
             opponentLayout[Math.min(index - 1, opponentLayout.length - 1)] ??
               opponentLayout[opponentLayout.length - 1]
           ] ??
-          OPPONENT_ANCHORS[OPPONENT_ANCHORS.length - 1];
+          activeOpponentAnchors[activeOpponentAnchors.length - 1];
     const rawCenterX = point.x * tableWidth;
     const isHeroSeat = index === 0;
     const rawCenterY =
-      point.y * tableHeight + (isHeroSeat ? HERO_SEAT_VERTICAL_ADJUSTMENT : 0);
+      point.y * tableHeight +
+      (isHeroSeat && !compactTable ? HERO_SEAT_VERTICAL_ADJUSTMENT : 0);
     const resolvedSeatWidth = isHeroSeat ? heroSeatWidth : seatWidth;
     const resolvedSeatHeight = isHeroSeat ? heroSeatHeight : seatHeight;
     const minX = -horizontalSeatInset + resolvedSeatWidth / 2;

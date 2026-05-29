@@ -30,6 +30,7 @@ import { TurnIndicator } from '../TurnIndicator';
 type Props = {
   align?: SeatAlignment;
   anteAmount?: number;
+  compact357Layout?: boolean;
   decision?: Poker357Decision | null;
   displayCardCount?: number;
   game: PokerGame;
@@ -413,6 +414,7 @@ function LegsPips({
 export const GameTableSeat = memo(function GameTableSeat({
   align = 'center',
   anteAmount = 0,
+  compact357Layout = false,
   decision = null,
   displayCardCount,
   game,
@@ -466,7 +468,8 @@ export const GameTableSeat = memo(function GameTableSeat({
         : styles.alignCenter;
   const is357Game = game === '357';
   const useCompact357Seat =
-    is357Game && (!isSelf || viewportWidth <= COMPACT_357_HERO_MAX_WIDTH);
+    is357Game &&
+    (compact357Layout || !isSelf || viewportWidth <= COMPACT_357_HERO_MAX_WIDTH);
   const useCompactDecisionSeat =
     useCompact357Seat || (showDecisionMode && !isSelf);
   const playerName = player.name;

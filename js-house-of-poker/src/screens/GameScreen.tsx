@@ -500,6 +500,13 @@ export function GameScreen({ navigation }: Props) {
 
   const activeState = roomState ?? null;
   const tableState = activeState;
+  const orderedPlayers = useMemo(
+    () =>
+      tableState
+        ? orderPlayersForTable(tableState.players, tableState.selfId)
+        : [],
+    [tableState],
+  );
   const is357Table = tableState?.gameSettings.game === '357';
   const hasEmbedded357Panel =
     isLandscape && is357Table && Boolean(tableState?.threeFiveSeven);
@@ -527,6 +534,10 @@ export function GameScreen({ navigation }: Props) {
     ? clamp(windowWidth * 0.008, 8, 14)
     : 0;
   const embedded357ActionPanelGap = baseEmbedded357ActionPanelGap;
+  const useCompactLandscape357 =
+    isLandscape &&
+    is357Table &&
+    (orderedPlayers.length >= 7 || windowHeight <= 430);
   const tableAspectRatio = isLandscape
     ? gameplayLayoutConfig.table.aspectRatioLandscape
     : gameplayLayoutConfig.table.aspectRatio;
@@ -581,23 +592,35 @@ export function GameScreen({ navigation }: Props) {
       EMBEDDED_357_BASE_TABLE_FIT_SCALE *
       EMBEDDED_357_TABLE_WIDTH_SCALE
     : 0;
+  const availableLandscapeStageHeight = Math.max(
+    0,
+    windowHeight - insets.top - insets.bottom - reservedVerticalSpace,
+  );
+  const availableTableStageHeight = isLandscape
+    ? availableLandscapeStageHeight
+    : Math.max(
+        0,
+        windowHeight - insets.top - insets.bottom - reservedVerticalSpace,
+      );
+  const availableTableStageWidth = Math.max(
+    0,
+    windowWidth - reservedHorizontalSpace,
+  );
   const tableBox = fitAspectBox(
     hasEmbedded357Panel
-      ? embedded357TableWidthTarget
-      : Math.min(maxTableWidth, windowWidth - reservedHorizontalSpace) *
+      ? Math.min(embedded357TableWidthTarget, availableTableStageWidth)
+      : Math.min(maxTableWidth, availableTableStageWidth) *
         landscapeTableFitScale,
-    (windowHeight - insets.top - insets.bottom - reservedVerticalSpace) *
+    availableTableStageHeight *
       (hasEmbedded357Panel ? 1 : landscapeTableFitScale),
     tableAspectRatio,
   );
-  const tableWidth = Math.max(
-    isLandscape ? gameplayLayoutConfig.table.minWidth : 280,
-    tableBox.width,
-  );
-  const tableHeight = Math.max(
-    isLandscape ? gameplayLayoutConfig.table.minHeight : 188,
-    tableBox.height,
-  );
+  const tableWidth = isLandscape
+    ? tableBox.width
+    : Math.max(280, tableBox.width);
+  const tableHeight = isLandscape
+    ? Math.min(tableBox.height, availableLandscapeStageHeight)
+    : Math.max(188, tableBox.height);
   const heroZoneCompact =
     windowWidth < gameplayLayoutConfig.breakpoints.heroZoneCompact;
   const {
@@ -622,14 +645,6 @@ export function GameScreen({ navigation }: Props) {
     animateShowdownBanner(Boolean(showdownBanner));
   }, [animateShowdownBanner, showdownBanner]);
 
-  const orderedPlayers = useMemo(
-    () =>
-      tableState
-        ? orderPlayersForTable(tableState.players, tableState.selfId)
-        : [],
-    [tableState],
-  );
-
   const fallbackLayout = useMemo(
     () => ({ height: displayTableHeight, width: displayTableWidth }),
     [displayTableHeight, displayTableWidth],
@@ -644,8 +659,14 @@ export function GameScreen({ navigation }: Props) {
         orderedPlayers,
         resolvedLayout.width,
         resolvedLayout.height,
+        { compactTable: useCompactLandscape357 },
       ),
-    [orderedPlayers, resolvedLayout.height, resolvedLayout.width],
+    [
+      orderedPlayers,
+      resolvedLayout.height,
+      resolvedLayout.width,
+      useCompactLandscape357,
+    ],
   );
   const seatMap = useMemo(
     () =>
@@ -1395,6 +1416,7 @@ export function GameScreen({ navigation }: Props) {
       cardFlights={cardFlights}
       chipFlights={chipFlights}
       dealtCards={dealtCards}
+      compact357Layout={useCompactLandscape357}
       focusMode={isLandscape}
       headlineText={headlineText}
       leftPanelGap={shouldEmbed357Panel ? embedded357PanelGap : undefined}
