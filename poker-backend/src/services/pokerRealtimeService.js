@@ -928,6 +928,11 @@ function resolve357Cycle(room) {
   let winnerIds = [];
   let loserIds = [];
   let showdownDescriptions = {};
+  const showdownCardsByPlayerId = {};
+
+  goPlayerIds.forEach((playerId) => {
+    showdownCardsByPlayerId[playerId] = [...room.hand.players[playerId].cards];
+  });
 
   activeHandIds(room).forEach((playerId) => {
     payouts[playerId] = 0;
@@ -948,13 +953,8 @@ function resolve357Cycle(room) {
     legDeltaByPlayerId[winnerId] = 1;
     room.lastWinnerSummary = `${getPlayer(room, winnerId).name} wins ${potAwarded} chips as the only GO and earns 1 leg.`;
   } else {
-    const playerCardsById = {};
-    goPlayerIds.forEach((playerId) => {
-      playerCardsById[playerId] = [...room.hand.players[playerId].cards];
-    });
-
     const { rankedHands, winnerIds: rankedWinnerIds } = rank357Hands(
-      playerCardsById,
+      showdownCardsByPlayerId,
       variantState.mode,
       variantState.activeWildDefinition.wildRanks
     );
@@ -1031,6 +1031,7 @@ function resolve357Cycle(room) {
     potBeforeResolution: potBefore,
     potPenaltyTotal,
     revealedDecisions: { ...variantState.hiddenDecisionState.revealedByPlayerId },
+    showdownCardsByPlayerId,
     showdownDescriptions,
     splitWinnerPayout: winnerIds.length > 1,
     winnerIds,
@@ -2936,6 +2937,11 @@ class PokerRealtimeService {
                   revealedDecisions: {
                     ...variantState.lastResolution.revealedDecisions,
                   },
+                  showdownCardsByPlayerId: Object.fromEntries(
+                    Object.entries(
+                      variantState.lastResolution.showdownCardsByPlayerId || {}
+                    ).map(([id, cards]) => [id, [...cards]])
+                  ),
                   showdownDescriptions: {
                     ...variantState.lastResolution.showdownDescriptions,
                   },
