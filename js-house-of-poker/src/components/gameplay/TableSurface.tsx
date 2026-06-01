@@ -79,6 +79,7 @@ type Props = {
     loserIds: string[];
     revealedDecisions: Record<string, Poker357Decision>;
     revealState: 'revealed' | 'resolved';
+    showdownCardsByPlayerId: Record<string, string[]>;
     showdownDescriptions: Record<string, string>;
     winnerIds: string[];
   } | null;
@@ -195,6 +196,13 @@ export function TableSurface({
     ? (threeFiveSevenPreview?.showdownDescriptions ??
       (useResolved357Outcome
         ? threeFiveSevenLastResolution?.showdownDescriptions
+        : {}) ??
+      {})
+    : {};
+  const showdownCardsByPlayerId = is357
+    ? (threeFiveSevenPreview?.showdownCardsByPlayerId ??
+      (useResolved357Outcome
+        ? threeFiveSevenLastResolution?.showdownCardsByPlayerId
         : {}) ??
       {})
     : {};
@@ -520,6 +528,12 @@ export function TableSurface({
                       : 8;
                   const decisionModeHeroNudge =
                     showDecisionMode && isSelf ? -8 : 0;
+                  const resolvedShowdownCards =
+                    is357 &&
+                    revealState === 'resolved' &&
+                    decision === 'GO'
+                      ? (showdownCardsByPlayerId[descriptor.player.id] ?? null)
+                      : null;
 
                   return (
                     <View
@@ -560,6 +574,7 @@ export function TableSurface({
                           legCount={resolvedLegCount}
                           phase={state.phase}
                           player={descriptor.player}
+                          showdownCards={resolvedShowdownCards}
                           showdownDescription={
                             showdownDescriptions[descriptor.player.id]
                           }

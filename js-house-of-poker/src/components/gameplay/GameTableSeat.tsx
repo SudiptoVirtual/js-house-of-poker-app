@@ -41,6 +41,7 @@ type Props = {
   legCount?: number;
   phase: PokerPhase;
   player: PokerPlayerState;
+  showdownCards?: string[] | null;
   showdownDescription?: string | null;
   showDecisionMode?: boolean;
 };
@@ -426,6 +427,7 @@ export const GameTableSeat = memo(function GameTableSeat({
   legCount,
   phase,
   player,
+  showdownCards = null,
   showdownDescription = null,
   showDecisionMode = false,
 }: Props) {
@@ -435,7 +437,11 @@ export const GameTableSeat = memo(function GameTableSeat({
   const folded = useRef(
     new Animated.Value(player.hasFolded || decision === 'STAY' ? 0.82 : 1),
   ).current;
-  const cardCount = resolveCardCount(player, displayCardCount);
+  const displayCards = showdownCards ?? player.holeCards;
+  const cardCount = Math.max(
+    resolveCardCount(player, displayCardCount),
+    displayCards.length,
+  );
   const visibleLegCount = legCount ?? player.legs;
   const revealCards = shouldRevealCards(
     phase,
@@ -637,7 +643,7 @@ export const GameTableSeat = memo(function GameTableSeat({
       ]}
     >
       <CardFan
-        cards={player.holeCards}
+        cards={displayCards}
         compact={compact}
         count={cardCount}
         hidden={cardsHidden}
