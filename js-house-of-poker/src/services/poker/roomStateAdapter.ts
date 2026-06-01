@@ -146,6 +146,21 @@ function normalizeStringRecord(value: unknown) {
   );
 }
 
+function normalizeStringArrayRecord(value: unknown) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return {};
+  }
+
+  return Object.fromEntries(
+    Object.entries(value)
+      .filter(
+        (entry): entry is [string, unknown[]] =>
+          typeof entry[0] === 'string' && entry[0].length > 0 && Array.isArray(entry[1]),
+      )
+      .map(([id, cards]) => [id, normalizeStringArray(cards)]),
+  );
+}
+
 function normalizeStatusUpdatedAt(value: unknown) {
   return typeof value === 'number' || typeof value === 'string' ? value : null;
 }
@@ -566,6 +581,9 @@ function normalizeThreeFiveSevenState(
             revealedDecisions: normalizeStringRecord(
               threeFiveSeven.lastResolution.revealedDecisions,
             ) as Poker357State['hiddenDecisionState']['revealedByPlayerId'],
+            showdownCardsByPlayerId: normalizeStringArrayRecord(
+              threeFiveSeven.lastResolution.showdownCardsByPlayerId,
+            ),
             showdownDescriptions: {
               ...normalizeStringRecord(
                 previousState?.threeFiveSeven?.lastResolution?.handNumber ===

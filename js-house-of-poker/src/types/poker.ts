@@ -151,6 +151,7 @@ export type Poker357Resolution = {
   potBeforeResolution: number;
   potPenaltyTotal: number;
   revealedDecisions: Record<string, Poker357Decision>;
+  showdownCardsByPlayerId: Record<string, string[]>;
   showdownDescriptions: Record<string, string>;
   splitWinnerPayout: boolean;
   winnerIds: string[];
