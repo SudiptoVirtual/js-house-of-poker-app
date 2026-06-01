@@ -39,6 +39,7 @@ type Props = {
   isSelf?: boolean;
   isWinner?: boolean;
   legCount?: number;
+  legPulseKey?: string | null;
   phase: PokerPhase;
   player: PokerPlayerState;
   showdownCards?: string[] | null;
@@ -311,16 +312,24 @@ function CardFan({
 function LegsPips({
   compact = false,
   legs,
+  pulseKey = null,
 }: {
   compact?: boolean;
   legs: number;
+  pulseKey?: string | null;
 }) {
   const previousLegs = useRef(legs);
+  const previousPulseKey = useRef(pulseKey);
   const gainPulse = useRef(new Animated.Value(0)).current;
   const visibleLegs = Math.max(0, Math.min(legs, MAX_LEG_SLOTS));
 
   useEffect(() => {
-    if (legs > previousLegs.current) {
+    const didLegsIncrease = legs > previousLegs.current;
+    const didPulseKeyChange = Boolean(
+      pulseKey && pulseKey !== previousPulseKey.current,
+    );
+
+    if (didLegsIncrease || didPulseKeyChange) {
       gainPulse.setValue(0);
       Animated.sequence([
         Animated.timing(gainPulse, {
@@ -339,7 +348,8 @@ function LegsPips({
     }
 
     previousLegs.current = legs;
-  }, [gainPulse, legs]);
+    previousPulseKey.current = pulseKey;
+  }, [gainPulse, legs, pulseKey]);
 
   return (
     <Animated.View
@@ -425,6 +435,7 @@ export const GameTableSeat = memo(function GameTableSeat({
   isSelf = false,
   isWinner = false,
   legCount,
+  legPulseKey = null,
   phase,
   player,
   showdownCards = null,
@@ -679,7 +690,11 @@ export const GameTableSeat = memo(function GameTableSeat({
         </View>
       ) : null}
       {is357Game ? (
-        <LegsPips compact={useCompactSelfSeat} legs={visibleLegCount} />
+        <LegsPips
+          compact={useCompactSelfSeat}
+          legs={visibleLegCount}
+          pulseKey={legPulseKey}
+        />
       ) : null}
     </View>
   );
@@ -709,7 +724,11 @@ export const GameTableSeat = memo(function GameTableSeat({
         <View style={styles.self357MetaRow}>
           {renderAvatarStack('sm', true)}
           <View style={styles.self357LegsChipColumn}>
-            <LegsPips compact legs={visibleLegCount} />
+            <LegsPips
+              compact
+              legs={visibleLegCount}
+              pulseKey={legPulseKey}
+            />
             <View style={[styles.amountBubble, styles.amountBubbleSelfCompact]}>
               <Text
                 style={[
@@ -876,7 +895,11 @@ export const GameTableSeat = memo(function GameTableSeat({
                   <Text numberOfLines={1} style={styles.compactStackText}>
                     {formatChipAmount(player.chips)}
                   </Text>
-                  <LegsPips compact legs={visibleLegCount} />
+                  <LegsPips
+                    compact
+                    legs={visibleLegCount}
+                    pulseKey={legPulseKey}
+                  />
                 </View>
               </View>
             </View>
@@ -988,7 +1011,11 @@ export const GameTableSeat = memo(function GameTableSeat({
                           {formatChipAmount(player.chips)}
                         </Text>
                         {is357Game ? (
-                          <LegsPips compact legs={visibleLegCount} />
+                          <LegsPips
+                            compact
+                            legs={visibleLegCount}
+                            pulseKey={legPulseKey}
+                          />
                         ) : null}
                       </View>
                     </View>
