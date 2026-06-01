@@ -88,6 +88,7 @@ type ThreeFiveSevenRevealPreview = {
   loserIds: string[];
   revealedDecisions: Record<string, Poker357Decision>;
   revealState: 'resolved';
+  showdownCardsByPlayerId: Record<string, string[]>;
   showdownDescriptions: Record<string, string>;
   summaryText: string;
   winnerIds: string[];
@@ -863,6 +864,11 @@ export function GameScreen({ navigation }: Props) {
       loserIds: [...resolution.loserIds],
       revealedDecisions: { ...resolution.revealedDecisions },
       revealState: 'resolved',
+      showdownCardsByPlayerId: Object.fromEntries(
+        Object.entries(resolution.showdownCardsByPlayerId).map(
+          ([playerId, cards]) => [playerId, [...cards]],
+        ),
+      ),
       showdownDescriptions: { ...resolution.showdownDescriptions },
       summaryText: buildThreeFiveSevenSummary(resolution, tableState),
       winnerIds: [...resolution.winnerIds],
