@@ -85,6 +85,8 @@ type ShowdownBannerState = {
 
 type ThreeFiveSevenRevealPreview = {
   id: string;
+  legDeltaByPlayerId: Record<string, number>;
+  legsByPlayerId: Record<string, number>;
   loserIds: string[];
   revealedDecisions: Record<string, Poker357Decision>;
   revealState: 'resolved';
@@ -100,6 +102,7 @@ const EMBEDDED_357_ACTION_RAIL_SIZE_SCALE = 1.2;
 const EMBEDDED_357_TABLE_WIDTH_SCALE = 1.0;
 const EMBEDDED_357_BASE_TABLE_FIT_SCALE = 0.9;
 const LANDSCAPE_TABLE_FIT_SCALE = 0.97;
+const MAX_LEG_SLOTS = 4;
 
 function joinCompactNames(names: string[]) {
   if (names.length <= 1) {
@@ -115,6 +118,37 @@ function joinCompactNames(names: string[]) {
 
 function formatCompactChipAmount(value: number) {
   return value.toLocaleString('en-US');
+}
+
+function formatLegGain(delta: number) {
+  const normalizedDelta = Math.max(0, delta);
+
+  return `+${normalizedDelta} leg${normalizedDelta === 1 ? '' : 's'}`;
+}
+
+function buildSoloGoLegText(
+  resolution: Poker357Resolution,
+  state: PokerRoomState,
+) {
+  const winnerId = resolution.winnerIds[0];
+  const winnerName = winnerId
+    ? (state.players.find((player) => player.id === winnerId)?.name ?? 'Player')
+    : 'Player';
+  const legDelta = winnerId
+    ? (resolution.legDeltaByPlayerId[winnerId] ?? 0)
+    : 0;
+  const legTotal = winnerId
+    ? (resolution.legsByPlayerId[winnerId] ??
+      state.threeFiveSeven?.legsByPlayerId[winnerId] ??
+      state.players.find((player) => player.id === winnerId)?.legs ??
+      0)
+    : 0;
+
+  return {
+    legGain: formatLegGain(legDelta || 1),
+    legTotal,
+    winnerName,
+  };
 }
 
 function buildThreeFiveSevenSummary(
@@ -137,7 +171,9 @@ function buildThreeFiveSevenSummary(
   }
 
   if (resolution.outcome === 'solo_go') {
-    return `${winnerLabel} went GO alone.`;
+    const { legGain, legTotal } = buildSoloGoLegText(resolution, state);
+
+    return `${winnerLabel} went GO alone: ${legGain} (${legTotal}/${MAX_LEG_SLOTS} legs).`;
   }
 
   const resultLead =
@@ -842,12 +878,15 @@ export function GameScreen({ navigation }: Props) {
       return;
     }
 
-    const resolutionKey = `${tableState.roomId}:${resolution.handNumber}:${resolution.winnerIds.join(',')}:${Object.entries(
-      resolution.revealedDecisions,
-    )
+    const decisionKey = Object.entries(resolution.revealedDecisions)
       .sort(([leftId], [rightId]) => leftId.localeCompare(rightId))
       .map(([playerId, decision]) => `${playerId}:${decision}`)
-      .join('|')}`;
+      .join('|');
+    const legDeltaKey = Object.entries(resolution.legDeltaByPlayerId)
+      .sort(([leftId], [rightId]) => leftId.localeCompare(rightId))
+      .map(([playerId, delta]) => `${playerId}:${delta}`)
+      .join('|');
+    const resolutionKey = `${tableState.roomId}:${resolution.handNumber}:${resolution.outcome}:${resolution.winnerIds.join(',')}:${decisionKey}:${legDeltaKey}`;
 
     if (latest357ResolutionKeyRef.current == null) {
       latest357ResolutionKeyRef.current = resolutionKey;
@@ -861,6 +900,8 @@ export function GameScreen({ navigation }: Props) {
     latest357ResolutionKeyRef.current = resolutionKey;
     setThreeFiveSevenRevealPreview({
       id: resolutionKey,
+      legDeltaByPlayerId: { ...resolution.legDeltaByPlayerId },
+      legsByPlayerId: { ...resolution.legsByPlayerId },
       loserIds: [...resolution.loserIds],
       revealedDecisions: { ...resolution.revealedDecisions },
       revealState: 'resolved',
@@ -1172,10 +1213,13 @@ export function GameScreen({ navigation }: Props) {
         setWinnerIds([]);
         const latest357Resolution = tableState.threeFiveSeven?.lastResolution;
         const previous357Resolution = previous.threeFiveSeven?.lastResolution;
-        const isNew357Showdown = Boolean(
+        const isNew357Resolution = Boolean(
           latest357Resolution &&
-            latest357Resolution.handNumber !== previous357Resolution?.handNumber &&
-            (latest357Resolution.outcome === 'showdown' || latest357Resolution.outcome === 'showdown_tie'),
+            latest357Resolution.handNumber !==
+              previous357Resolution?.handNumber &&
+            (latest357Resolution.outcome === 'showdown' ||
+              latest357Resolution.outcome === 'showdown_tie' ||
+              latest357Resolution.outcome === 'solo_go'),
         );
         if (previous.phase !== 'showdown' && tableState.phase === 'showdown') {
           setShowdownBanner({
@@ -1183,12 +1227,34 @@ export function GameScreen({ navigation }: Props) {
             text: 'Showdown',
             tone: 'showdown',
           });
-        } else if (isNew357Showdown) {
-          setShowdownBanner({
-            id: Date.now(),
-            text: 'GO showdown resolved',
-            tone: 'showdown',
-          });
+        } else if (isNew357Resolution && latest357Resolution) {
+          if (latest357Resolution.outcome === 'solo_go') {
+            const winnerId = latest357Resolution.winnerIds[0];
+            const { legGain, winnerName } = buildSoloGoLegText(
+              latest357Resolution,
+              tableState,
+            );
+
+            setShowdownBanner({
+              id: Date.now(),
+              text: `${winnerName} GO alone: ${legGain}`,
+              tone: 'winner',
+            });
+
+            if (winnerId) {
+              addSeatBurst({
+                label: `GO alone ${legGain}`,
+                playerId: winnerId,
+                tone: 'accent',
+              });
+            }
+          } else {
+            setShowdownBanner({
+              id: Date.now(),
+              text: 'GO showdown resolved',
+              tone: 'showdown',
+            });
+          }
         }
       }
     });

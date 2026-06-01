@@ -76,6 +76,8 @@ type Props = {
   tablePanHandlers: object;
   tableViewZoom: Animated.Value;
   threeFiveSevenPreview?: {
+    legDeltaByPlayerId?: Record<string, number>;
+    legsByPlayerId?: Record<string, number>;
     loserIds: string[];
     revealedDecisions: Record<string, Poker357Decision>;
     revealState: 'revealed' | 'resolved';
@@ -206,6 +208,20 @@ export function TableSurface({
         : {}) ??
       {})
     : {};
+  const legCountsByPlayerId = is357
+    ? (threeFiveSevenPreview?.legsByPlayerId ??
+      (useResolved357Outcome
+        ? threeFiveSevenLastResolution?.legsByPlayerId
+        : state.threeFiveSeven?.legsByPlayerId) ??
+      state.threeFiveSeven?.legsByPlayerId ??
+      {})
+    : {};
+  const soloGoLegPulseKey =
+    is357 &&
+    threeFiveSevenLastResolution?.outcome === 'solo_go' &&
+    threeFiveSevenLastResolution.winnerIds.length > 0
+      ? `${threeFiveSevenLastResolution.handNumber}:solo_go:${threeFiveSevenLastResolution.winnerIds.join(',')}`
+      : null;
   const showDecisionMode =
     is357 &&
     (state.phase === 'decide_3' ||
@@ -517,10 +533,21 @@ export function TableSurface({
                         descriptor.player.revealedDecision)
                       : null;
                   const resolvedLegCount = is357
-                    ? (state.threeFiveSeven?.legsByPlayerId[
+                    ? (legCountsByPlayerId[descriptor.player.id] ??
+                      state.threeFiveSeven?.legsByPlayerId[
                         descriptor.player.id
-                      ] ?? descriptor.player.legs)
+                      ] ??
+                      descriptor.player.legs)
                     : descriptor.player.legs;
+                  const legPulseKey =
+                    is357 &&
+                    isWinner &&
+                    soloGoLegPulseKey &&
+                    threeFiveSevenLastResolution?.winnerIds.includes(
+                      descriptor.player.id,
+                    )
+                      ? soloGoLegPulseKey
+                      : null;
                   const seatZIndex = isSelf
                     ? 16
                     : descriptor.isBottomSeat
@@ -572,6 +599,7 @@ export function TableSurface({
                           isSelf={isSelf}
                           isWinner={isWinner}
                           legCount={resolvedLegCount}
+                          legPulseKey={legPulseKey}
                           phase={state.phase}
                           player={descriptor.player}
                           showdownCards={resolvedShowdownCards}
