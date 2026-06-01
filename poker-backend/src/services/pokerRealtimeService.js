@@ -458,10 +458,13 @@ function ensureThreeFiveSevenState(room) {
   room.threeFiveSeven.anteAmount = THREE_FIVE_SEVEN_TABLE.anteClips;
   room.threeFiveSeven.anteCollectionKeys =
     room.threeFiveSeven.anteCollectionKeys || {};
+  const existingPenaltyModel = room.threeFiveSeven.penaltyModel || {};
   room.threeFiveSeven.penaltyModel = {
-    ...(room.threeFiveSeven.penaltyModel || {}),
+    ...existingPenaltyModel,
     legsToWin: THREE_FIVE_SEVEN_TABLE.legsToWin,
-    soloGoLegAward: 1,
+    soloGoLegAward: Number.isFinite(existingPenaltyModel.soloGoLegAward)
+      ? existingPenaltyModel.soloGoLegAward
+      : 1,
     unitToPot: THREE_FIVE_SEVEN_TABLE.goLossPenaltyToPotClips,
     unitToWinner: THREE_FIVE_SEVEN_TABLE.goLossPenaltyToWinnerClips,
   };
@@ -949,9 +952,12 @@ function resolve357Cycle(room) {
     getPlayer(room, winnerId).chips += potAwarded;
     room.hand.players[winnerId].payout = potAwarded;
     variantState.pot = 0;
-    legsByPlayerId[winnerId] = (legsByPlayerId[winnerId] || 0) + 1;
-    legDeltaByPlayerId[winnerId] = 1;
-    room.lastWinnerSummary = `${getPlayer(room, winnerId).name} wins ${potAwarded} chips as the only GO and earns 1 leg.`;
+    const soloGoLegAward = variantState.penaltyModel.soloGoLegAward;
+    legsByPlayerId[winnerId] = (legsByPlayerId[winnerId] || 0) + soloGoLegAward;
+    legDeltaByPlayerId[winnerId] = soloGoLegAward;
+    room.lastWinnerSummary = `${getPlayer(room, winnerId).name} wins ${potAwarded} chips as the only GO and earns ${soloGoLegAward} ${
+      soloGoLegAward === 1 ? "leg" : "legs"
+    }.`;
   } else {
     const { rankedHands, winnerIds: rankedWinnerIds } = rank357Hands(
       showdownCardsByPlayerId,

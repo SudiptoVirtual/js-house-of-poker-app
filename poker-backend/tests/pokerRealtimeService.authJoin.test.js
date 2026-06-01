@@ -84,7 +84,7 @@ test('Valid table code + no token is blocked with clear auth error (Option A)', 
   );
 });
 
-test('357 solo GO resolution awards and persists one leg for the solo GO player', async () => {
+test('357 solo GO resolution awards and persists configured legs for the solo GO player', async () => {
   const io = createIoStub();
   const service = createPokerRealtimeService(io);
   service.persistRoom = async () => undefined;
@@ -167,6 +167,7 @@ test('357 solo GO resolution awards and persists one leg for the solo GO player'
   await service.performAction(staySocket, 'STAY');
   assert.equal(room.hand.phase, 'decide_7');
 
+  room.threeFiveSeven.penaltyModel.soloGoLegAward = 2;
   const previousWinnerLegs = room.threeFiveSeven.legsByPlayerId[winnerId];
   await service.performAction(winnerSocket, 'GO');
   await service.performAction(staySocket, 'STAY');
@@ -174,32 +175,44 @@ test('357 solo GO resolution awards and persists one leg for the solo GO player'
   const lastResolution = room.threeFiveSeven.lastResolution;
   assert.equal(lastResolution.outcome, 'solo_go');
   assert.deepEqual(lastResolution.winnerIds, [winnerId]);
-  assert.equal(lastResolution.legDeltaByPlayerId[winnerId], 1);
+  assert.equal(lastResolution.legDeltaByPlayerId[winnerId], 2);
   assert.equal(
     room.threeFiveSeven.legsByPlayerId[winnerId],
-    previousWinnerLegs + 1,
+    previousWinnerLegs + 2,
   );
 
   const emittedWinnerState = latestRoomState(winnerSocket);
   assert.equal(emittedWinnerState.threeFiveSeven.lastResolution.outcome, 'solo_go');
-  assert.equal(emittedWinnerState.threeFiveSeven.legsByPlayerId[winnerId], 1);
+  assert.equal(emittedWinnerState.threeFiveSeven.legsByPlayerId[winnerId], 2);
+  assert.equal(
+    emittedWinnerState.threeFiveSeven.lastResolution.legDeltaByPlayerId[winnerId],
+    2,
+  );
   assert.equal(
     emittedWinnerState.players.find((player) => player.id === winnerId).legs,
-    1,
+    2,
   );
 
   assert.equal(room.handCount, 2);
   assert.equal(room.hand.phase, 'decide_3');
   assert.equal(room.threeFiveSeven.lastResolution.outcome, 'solo_go');
-  assert.equal(room.threeFiveSeven.legsByPlayerId[winnerId], 1);
+  assert.equal(room.threeFiveSeven.legsByPlayerId[winnerId], 2);
+  assert.equal(
+    room.actionLog.some((message) => /earns 2 legs\./.test(message)),
+    true,
+  );
 
   const nextCycleState = latestRoomState(staySocket);
   assert.equal(nextCycleState.handNumber, 2);
   assert.equal(nextCycleState.phase, 'decide_3');
   assert.equal(nextCycleState.threeFiveSeven.lastResolution.outcome, 'solo_go');
-  assert.equal(nextCycleState.threeFiveSeven.legsByPlayerId[winnerId], 1);
+  assert.equal(nextCycleState.threeFiveSeven.legsByPlayerId[winnerId], 2);
+  assert.equal(
+    nextCycleState.threeFiveSeven.lastResolution.legDeltaByPlayerId[winnerId],
+    2,
+  );
   assert.equal(
     nextCycleState.players.find((player) => player.id === winnerId).legs,
-    1,
+    2,
   );
 });
