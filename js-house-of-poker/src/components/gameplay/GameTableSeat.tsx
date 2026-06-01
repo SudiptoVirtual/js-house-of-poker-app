@@ -67,7 +67,7 @@ function formatChipAmount(value: number) {
 function resolveCardCount(player: PokerPlayerState, displayCardCount?: number) {
   return Math.max(
     displayCardCount ?? 0,
-    player.cardCount,
+    Number.isFinite(player.cardCount) ? player.cardCount : 0,
     player.holeCards.length,
   );
 }
