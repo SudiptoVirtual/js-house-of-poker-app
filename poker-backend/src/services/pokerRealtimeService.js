@@ -2831,12 +2831,22 @@ class PokerRealtimeService {
 
       return {
         betThisRound: handPlayer?.betThisRound ?? 0,
+        cardCount: handPlayer?.cards?.length ?? 0,
+        cards: revealCards
+          ? handPlayer.cards.map((code, order) => ({
+              code,
+              order,
+              ownerId: player.id,
+              visibility: "face-up",
+            }))
+          : [],
         chips: player.chips,
         handDescription:
           hand?.showdownDescriptions?.[player.id] ||
           handPlayer?.handDescription ||
           null,
         hasFolded: is357 ? false : handPlayer?.folded ?? false,
+        hasHiddenCards: Boolean(handPlayer?.cards?.length && !revealCards),
         holeCards: revealCards ? handPlayer.cards : [],
         id: player.id,
         isAllIn: handPlayer?.allIn ?? false,
