@@ -79,7 +79,7 @@ function getTierIdFromRoomConfig(room: (typeof chatRooms)[number] | undefined) {
 
 export function ChatRoomDetailScreen({ navigation, route }: Props) {
   const room = chatRooms.find((candidate) => candidate.id === route.params.roomId);
-  const { createRoom, errorMessage, roomState, transportKind } = usePoker();
+  const { createTableFromChatRoom, errorMessage, transportKind } = usePoker();
   const [draft, setDraft] = useState('');
   const [invitedPlayerIds, setInvitedPlayerIds] = useState<string[]>(() => getInitialInvitedPlayerIds(room));
   const [selectedPlayerIds, setSelectedPlayerIds] = useState<string[]>([]);
@@ -91,10 +91,7 @@ export function ChatRoomDetailScreen({ navigation, route }: Props) {
     ...(defaultRulesByTierId[getTierIdFromRoomConfig(room)] ?? {}),
     ...(getGameIdFromRoomLabel(room?.tableConfig.gameLabel) === '3-5-7' ? { mode: 'HOSTEST' } : {}),
   }));
-  const [pendingTableLaunch, setPendingTableLaunch] = useState<{
-    invitedPlayerIds: string[];
-    roomIdBefore: string | null;
-  } | null>(null);
+  const [isLaunchingTable, setIsLaunchingTable] = useState(false);
 
   const messages = useMemo(
     () => (room ? [...room.messages, ...localMessages] : []),
@@ -114,31 +111,11 @@ export function ChatRoomDetailScreen({ navigation, route }: Props) {
   );
 
   useEffect(() => {
-    if (
-      pendingTableLaunch &&
-      roomState?.roomId &&
-      roomState.roomId !== pendingTableLaunch.roomIdBefore
-    ) {
-      const createdTableId = roomState.roomId;
-
-      // TODO(table:inviteRoomPlayers): emit pendingTableLaunch.invitedPlayerIds with createdTableId
-      // once createRoom returns a durable table ID through the realtime transport.
-      const invitePayloadForFutureSocket = {
-        playerIds: pendingTableLaunch.invitedPlayerIds,
-        tableId: createdTableId,
-      };
-      void invitePayloadForFutureSocket;
-
-      navigation.navigate(routes.Game);
-      setPendingTableLaunch(null);
+    if (errorMessage && isLaunchingTable) {
+      setIsLaunchingTable(false);
     }
-  }, [navigation, pendingTableLaunch, roomState?.roomId]);
+  }, [errorMessage, isLaunchingTable]);
 
-  useEffect(() => {
-    if (errorMessage && pendingTableLaunch) {
-      setPendingTableLaunch(null);
-    }
-  }, [errorMessage, pendingTableLaunch]);
 
   const selectedTier = defaultTableTierOptions.find((option) => option.id === selectedTierId);
   const rulesSummary = selectedTier?.rulesLabel ?? room?.tableConfig.stakesLabel ?? 'Room table rules';
@@ -245,8 +222,8 @@ export function ChatRoomDetailScreen({ navigation, route }: Props) {
     }));
   }
 
-  function handleLaunchTable() {
-    if (!room) {
+  async function handleLaunchTable() {
+    if (!room || isLaunchingTable) {
       return;
     }
 
@@ -257,21 +234,26 @@ export function ChatRoomDetailScreen({ navigation, route }: Props) {
       ...(selectedRules.wildCards ? { wildCards: selectedRules.wildCards } : {}),
     };
 
-    // TODO(table:createFromChatRoom): pass chat room launch context once backend/socket transports support it.
-    // TODO(table:launchFromChatRoom): replace isolated metadata with realtime chat-room table launch acknowledgement.
-    const chatRoomMetadataForFutureTransport = isolatedLaunchMetadata;
-    void chatRoomMetadataForFutureTransport;
+    setIsLaunchingTable(true);
 
-    setPendingTableLaunch({
-      invitedPlayerIds: Array.from(new Set([...invitedPlayerIds, ...selectedPlayerIds])),
-      roomIdBefore: roomState?.roomId ?? null,
-    });
-    createRoom({
-      gameSettings,
-      name: currentUserName,
-      playerCount: room.tableConfig.maxSeats,
-      tableName: `${room.title} Table`,
-    });
+    try {
+      const launchAcknowledgement = await createTableFromChatRoom({
+        chatRoomId: isolatedLaunchMetadata.chatRoomId,
+        gameSettings,
+        invitedPlayerIds: Array.from(new Set([...invitedPlayerIds, ...selectedPlayerIds])),
+        name: currentUserName,
+        playerCount: room.tableConfig.maxSeats,
+        tableName: `${room.title} Table`,
+        tableTierId: selectedTierId,
+        visibility: isPrivate ? 'private' : 'room',
+      });
+
+      if (launchAcknowledgement.ok || launchAcknowledgement.success) {
+        navigation.navigate(routes.Game);
+      }
+    } finally {
+      setIsLaunchingTable(false);
+    }
   }
 
   return (
@@ -314,9 +296,10 @@ export function ChatRoomDetailScreen({ navigation, route }: Props) {
       <CreateTablePanel
         gameOptions={defaultGameOptions}
         invitedPlayerIds={invitedPlayerIds}
+        isLaunching={isLaunchingTable}
         isPrivate={isPrivate}
         onInviteSelectedPlayers={handleInviteSelectedPlayers}
-        onLaunchTable={handleLaunchTable}
+        onLaunchTable={() => { void handleLaunchTable(); }}
         onSelectGame={handleSelectGame}
         onSelectTier={handleSelectTier}
         onTogglePlayerSelection={handleTogglePlayerSelection}

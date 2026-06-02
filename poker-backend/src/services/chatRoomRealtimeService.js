@@ -361,8 +361,49 @@ function serializeChatRoomMessage(message) {
     playerName: message.senderDisplayName,
     roomId,
     text: message.text,
-    tone: "player",
+    tone: message.tone || "player",
+    ...(message.launchContext ? { launchContext: message.launchContext } : {}),
   };
+}
+
+
+function getLaunchGameLabel(gameSettings = {}) {
+  const game = String(gameSettings.game || "").trim();
+  if (game === "357") {
+    return "3-5-7";
+  }
+
+  return game || "poker";
+}
+
+function emitLaunchToOnlineInvitedPlayers(io, socket, invitedPlayerIds, launchPayload) {
+  const deliveredPlayerIds = new Set();
+  const invitedIdSet = new Set(invitedPlayerIds.map((playerId) => String(playerId)));
+  const launchingSocketUserId = socket.data?.userId ? String(socket.data.userId) : null;
+
+  io.sockets.sockets.forEach((candidateSocket) => {
+    const userId = candidateSocket.data?.userId ? String(candidateSocket.data.userId) : null;
+
+    if (!userId || !invitedIdSet.has(userId)) {
+      return;
+    }
+
+    if (candidateSocket.id && candidateSocket.id === socket.id) {
+      return;
+    }
+
+    if (launchingSocketUserId && userId === launchingSocketUserId) {
+      return;
+    }
+
+    candidateSocket.emit("table:launchFromChatRoom", {
+      ...launchPayload,
+      recipient: true,
+    });
+    deliveredPlayerIds.add(userId);
+  });
+
+  return [...deliveredPlayerIds];
 }
 
 function buildChatRoomPlayer(user, joinedAt = new Date(), socketCount = 1) {
@@ -745,7 +786,10 @@ class ChatRoomRealtimeService {
       }
     );
 
+    const createdAt = launchedAt.toISOString();
     const launchRecord = {
+      createdAt: launchedAt,
+      gameSettings,
       invitedPlayerIds,
       launchedAt,
       launchedByUserId: user._id,
@@ -756,6 +800,36 @@ class ChatRoomRealtimeService {
       tableTier,
       visibility,
     };
+
+    const launchPayload = {
+      chatRoomId,
+      createdAt,
+      createdByPlayerId: String(user._id),
+      gameSettings,
+      invitedPlayerIds,
+      launchedAt: createdAt,
+      launchedByUserId: String(user._id),
+      roomId: createdRoom.id,
+      success: true,
+      tableCode: createdRoom.id,
+      tableDbId: createdRoom.tableDbId,
+      tableId: createdRoom.id,
+      tableName: createdRoom.tableName,
+      tableTier,
+      visibility,
+    };
+    const launchText = `${getDisplayName(user)} launched a ${getLaunchGameLabel(gameSettings)} table from this room.`;
+    const systemMessage = new ChatRoomMessage({
+      launchContext: launchPayload,
+      moderation: createAcceptedModeration(),
+      roomId: chatRoom._id,
+      senderDisplayName: "System",
+      senderUserId: user._id,
+      text: launchText,
+      tone: "system",
+    });
+    await systemMessage.save();
+    const serializedSystemMessage = serializeChatRoomMessage(systemMessage);
 
     await ChatRoom.updateOne(
       { _id: chatRoom._id },
@@ -769,39 +843,39 @@ class ChatRoomRealtimeService {
       }
     );
 
-    const launchPayload = {
-      chatRoomId,
-      createdByPlayerId: String(user._id),
+    const deliveredPlayerIds = emitLaunchToOnlineInvitedPlayers(
+      this.io,
+      socket,
       invitedPlayerIds,
-      launchedAt: launchedAt.toISOString(),
-      launchedByUserId: String(user._id),
-      roomId: createdRoom.id,
-      success: true,
-      tableCode: createdRoom.id,
-      tableDbId: createdRoom.tableDbId,
-      tableId: createdRoom.id,
-      tableName: createdRoom.tableName,
-      tableTier,
-      visibility,
+      launchPayload
+    );
+    const acknowledgedLaunchPayload = {
+      ...launchPayload,
+      deliveredPlayerIds,
     };
 
     const launchNotifications = await createTableLaunchNotifications({
       chatRoom,
       invitedPlayerIds,
-      launchPayload,
+      launchPayload: acknowledgedLaunchPayload,
       presenceSnapshot: this.getPresenceSnapshot(chatRoomId),
       user,
     });
     this.emitNotificationRecords(launchNotifications, { roomId: chatRoomId });
 
-    this.io.to(getChatRoomChannel(chatRoomId)).emit("table:launchFromChatRoom", launchPayload);
-    if (!socket.rooms.has(getChatRoomChannel(chatRoomId))) {
-      socket.emit("table:launchFromChatRoom", launchPayload);
-    }
+    socket.emit("table:launchFromChatRoom", {
+      ...acknowledgedLaunchPayload,
+      sender: true,
+    });
+    socket.to(getChatRoomChannel(chatRoomId)).emit("table:launchFromChatRoom", acknowledgedLaunchPayload);
+    this.io.to(getChatRoomChannel(chatRoomId)).emit("chat:newMessage", {
+      message: serializedSystemMessage,
+      roomId: chatRoomId,
+    });
 
     return {
       ok: true,
-      ...launchPayload,
+      ...acknowledgedLaunchPayload,
     };
   }
 

@@ -15,6 +15,7 @@ import {
 type CreateTablePanelProps = {
   gameOptions?: GameSelectorOption[];
   invitedPlayerIds: string[];
+  isLaunching?: boolean;
   isPrivate: boolean;
   onInviteSelectedPlayers: () => void;
   onLaunchTable: () => void;
@@ -33,6 +34,7 @@ type CreateTablePanelProps = {
 export function CreateTablePanel({
   gameOptions = defaultGameOptions,
   invitedPlayerIds,
+  isLaunching = false,
   isPrivate,
   onInviteSelectedPlayers,
   onLaunchTable,
@@ -107,7 +109,14 @@ export function CreateTablePanel({
         </Text>
       </View>
 
-      <ActionButton fullWidth icon="rocket-launch-outline" label="Launch table" onPress={onLaunchTable} tone="success" />
+      <ActionButton
+        fullWidth
+        disabled={isLaunching}
+        icon="rocket-launch-outline"
+        label={isLaunching ? 'Launching table…' : 'Launch table'}
+        onPress={onLaunchTable}
+        tone="success"
+      />
     </SectionCard>
   );
 }

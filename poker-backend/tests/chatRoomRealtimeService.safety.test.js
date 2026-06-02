@@ -29,6 +29,13 @@ function createSocketMock() {
   return {
     data: {},
     emit: () => undefined,
+    id: 'socket-self',
+    rooms: new Set(),
+    to(roomId) {
+      return {
+        emit: () => undefined,
+      };
+    },
   };
 }
 
@@ -139,15 +146,48 @@ test('enforceRateLimit limits social chat per user and per room', () => {
 
 test('createTableFromChatRoom validates context, persists launch metadata, and emits acknowledgement payload', async () => {
   const ChatRoom = require('../src/models/ChatRoom');
+  const Notification = require('../src/models/Notification');
   const originalUpdateOne = ChatRoom.updateOne;
+  const originalFindById = ChatRoom.findById;
+  const originalInsertMany = Notification.insertMany;
+  const originalSave = ChatRoomMessage.prototype.save;
   const updates = [];
+  const savedMessages = [];
   ChatRoom.updateOne = async function updateOneStub(query, update) {
     updates.push({ query, update });
     return { acknowledged: true };
   };
+  ChatRoom.findById = function findByIdStub() {
+    return {
+      select: async () => ({ participantStates: [] }),
+    };
+  };
+  Notification.insertMany = async function insertManyStub(docs) {
+    return docs.map((doc, index) => ({ _id: `notification-${index}`, ...doc }));
+  };
+  ChatRoomMessage.prototype.save = async function saveStub() {
+    this._id = this._id || '507f1f77bcf86cd799439015';
+    this.createdAt = this.createdAt || new Date('2026-01-01T00:00:00.000Z');
+    savedMessages.push(this);
+    return this;
+  };
 
   try {
     const io = createIoMock();
+    const launcherEmits = [];
+    const recipientEmits = [];
+    io.sockets.sockets = new Map([
+      [
+        'recipient-1',
+        {
+          data: { userId: '507f1f77bcf86cd799439013' },
+          emit(event, payload) {
+            recipientEmits.push({ event, payload });
+          },
+          id: 'recipient-1',
+        },
+      ],
+    ]);
     const service = createService(io);
     service.findRoom = async () => ({
       _id: '507f1f77bcf86cd799439012',
@@ -174,7 +214,13 @@ test('createTableFromChatRoom validates context, persists launch metadata, and e
     };
 
     const socket = createSocketMock();
-    socket.rooms = new Set();
+    socket.data = { userId: '507f1f77bcf86cd799439011' };
+    socket.emit = (event, payload) => launcherEmits.push({ event, payload });
+    socket.to = (roomId) => ({
+      emit(event, payload) {
+        io.emissions.push({ event, payload, roomId, via: 'socket.to' });
+      },
+    });
     const response = await service.createTableFromChatRoom(socket, {
       chatRoomId: '507f1f77bcf86cd799439012',
       gameSettings: { game: '357', mode: 'HOSTEST' },
@@ -188,19 +234,34 @@ test('createTableFromChatRoom validates context, persists launch metadata, and e
     assert.equal(response.tableCode, 'ABCD12');
     assert.equal(response.tableDbId, '507f1f77bcf86cd799439014');
     assert.deepEqual(response.invitedPlayerIds, ['507f1f77bcf86cd799439013']);
-    assert.equal(updates.length, 1);
-    assert.equal(updates[0].update.$push.tableLaunches.$each[0].tableCode, 'ABCD12');
-    assert.equal(io.emissions[0].event, 'table:launchFromChatRoom');
-    assert.equal(io.emissions[0].payload.tableCode, 'ABCD12');
+    assert.equal(response.createdAt, response.launchedAt);
+    assert.deepEqual(response.gameSettings, { game: '357', mode: 'HOSTEST' });
+    assert.deepEqual(response.deliveredPlayerIds, ['507f1f77bcf86cd799439013']);
+    assert.equal(savedMessages.length, 1);
+    assert.equal(savedMessages[0].tone, 'system');
+    assert.equal(savedMessages[0].launchContext.tableCode, 'ABCD12');
+    const launchUpdate = updates.find((update) => update.update.$push?.tableLaunches);
+    assert.equal(launchUpdate.update.$push.tableLaunches.$each[0].tableCode, 'ABCD12');
+    assert.deepEqual(launchUpdate.update.$push.tableLaunches.$each[0].gameSettings, { game: '357', mode: 'HOSTEST' });
+    assert.equal(launcherEmits[0].event, 'table:launchFromChatRoom');
+    assert.equal(launcherEmits[0].payload.sender, true);
+    assert.equal(recipientEmits[0].event, 'table:launchFromChatRoom');
+    assert.equal(io.emissions.some((emission) => emission.event === 'chat:newMessage'), true);
   } finally {
     ChatRoom.updateOne = originalUpdateOne;
+    ChatRoom.findById = originalFindById;
+    Notification.insertMany = originalInsertMany;
+    ChatRoomMessage.prototype.save = originalSave;
   }
 });
 
 test('inviteRoomPlayers persists selected chat room invites and emits per-player statuses', async () => {
   const ChatRoom = require('../src/models/ChatRoom');
+  const Notification = require('../src/models/Notification');
   const User = require('../src/models/User');
   const originalChatRoomUpdateOne = ChatRoom.updateOne;
+  const originalChatRoomFindById = ChatRoom.findById;
+  const originalNotificationInsertMany = Notification.insertMany;
   const originalUserFind = User.find;
   const originalUserFindByIdAndUpdate = User.findByIdAndUpdate;
   const updates = [];
@@ -209,6 +270,14 @@ test('inviteRoomPlayers persists selected chat room invites and emits per-player
   ChatRoom.updateOne = async function updateOneStub(query, update) {
     updates.push({ query, update });
     return { acknowledged: true };
+  };
+  ChatRoom.findById = function findByIdStub() {
+    return {
+      select: async () => ({ participantStates: [] }),
+    };
+  };
+  Notification.insertMany = async function insertManyStub(docs) {
+    return docs.map((doc, index) => ({ _id: `invite-notification-${index}`, ...doc }));
   };
   User.find = async function findStub() {
     return [
@@ -344,16 +413,19 @@ test('inviteRoomPlayers persists selected chat room invites and emits per-player
       '507f1f77bcf86cd799439014',
     ]);
     assert.deepEqual(response.results.map((result) => result.status), ['invited', 'invited']);
-    assert.equal(recipientEmits.length, 2);
-    assert.equal(recipientEmits[0].event, 'table:playerInvited');
-    assert.equal(recipientEmits[0].payload.inviteId, 'invite-0');
+    const playerInviteEmits = recipientEmits.filter((emit) => emit.event === 'table:playerInvited');
+    assert.equal(playerInviteEmits.length, 2);
+    assert.equal(playerInviteEmits[0].event, 'table:playerInvited');
+    assert.equal(playerInviteEmits[0].payload.inviteId, 'invite-0');
     assert.equal(senderEmits.length, 1);
     assert.equal(senderEmits[0].payload.sender, true);
-    assert.equal(updates.length, 1);
-    assert.equal(updates[0].update.$push.tableInviteHistory.$each[0].tableCode, 'TABLE1');
+    const inviteHistoryUpdate = updates.find((update) => update.update.$push?.tableInviteHistory);
+    assert.equal(inviteHistoryUpdate.update.$push.tableInviteHistory.$each[0].tableCode, 'TABLE1');
     assert.equal(referralUpdates[0].update.$inc['referralStats.invitesSent'], 2);
   } finally {
     ChatRoom.updateOne = originalChatRoomUpdateOne;
+    ChatRoom.findById = originalChatRoomFindById;
+    Notification.insertMany = originalNotificationInsertMany;
     User.find = originalUserFind;
     User.findByIdAndUpdate = originalUserFindByIdAndUpdate;
   }

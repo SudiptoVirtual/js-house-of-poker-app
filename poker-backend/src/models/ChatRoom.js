@@ -101,6 +101,10 @@ const tableLaunchSchema = new mongoose.Schema(
       type: [String],
       default: [],
     },
+    gameSettings: {
+      type: mongoose.Schema.Types.Mixed,
+      default: null,
+    },
     visibility: {
       type: String,
       default: "room",
@@ -115,6 +119,10 @@ const tableLaunchSchema = new mongoose.Schema(
       default: null,
     },
     launchedAt: {
+      type: Date,
+      default: Date.now,
+    },
+    createdAt: {
       type: Date,
       default: Date.now,
     },

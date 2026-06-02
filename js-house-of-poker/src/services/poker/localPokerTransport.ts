@@ -7,6 +7,8 @@ import type {
 
 import { buildRoomStateFromLegacy } from './roomStateAdapter';
 import type {
+  CreatePokerTableFromChatRoomAck,
+  CreatePokerTableFromChatRoomInput,
   CreatePokerTableInput,
   JoinPokerTableInput,
   PokerConnectionState,
@@ -587,6 +589,30 @@ export function createLocalPokerTransport(): PokerTransport {
     }
   }
 
+
+  async function createTableFromChatRoom(input: CreatePokerTableFromChatRoomInput): Promise<CreatePokerTableFromChatRoomAck> {
+    await createTable(input);
+
+    if (!room) {
+      throw new Error('Unable to launch table from chat room.');
+    }
+
+    return {
+      chatRoomId: input.chatRoomId,
+      createdAt: new Date().toISOString(),
+      deliveredPlayerIds: input.invitedPlayerIds ?? [],
+      gameSettings: input.gameSettings,
+      invitedPlayerIds: input.invitedPlayerIds ?? [],
+      launchedByUserId: selfId ?? 'local-human',
+      ok: true,
+      roomId: room.id,
+      success: true,
+      tableCode: room.id,
+      tableId: room.id,
+      tableName: input.tableName ?? room.id,
+    };
+  }
+
   async function joinTable(input: JoinPokerTableInput) {
     const playerName = input.name.trim();
     const roomId = input.tableId.trim().toUpperCase();
@@ -783,6 +809,7 @@ export function createLocalPokerTransport(): PokerTransport {
     },
     connect,
     createTable,
+    createTableFromChatRoom,
     destroy() {
       clearBotTimer();
       releaseCurrentSeat();

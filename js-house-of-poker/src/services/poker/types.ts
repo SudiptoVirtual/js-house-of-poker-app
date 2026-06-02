@@ -11,6 +11,30 @@ export type CreatePokerTableInput = {
   tableName?: string;
 };
 
+export type CreatePokerTableFromChatRoomInput = CreatePokerTableInput & {
+  chatRoomId: string;
+  invitedPlayerIds?: string[];
+  tableTierId?: string;
+  visibility?: 'invite-only' | 'private' | 'public' | 'room';
+};
+
+export type CreatePokerTableFromChatRoomAck = {
+  chatRoomId: string;
+  createdAt?: string;
+  deliveredPlayerIds?: string[];
+  error?: string;
+  gameSettings?: PokerGameSettingsUpdate;
+  invitedPlayerIds?: string[];
+  launchedByUserId?: string;
+  ok?: boolean;
+  roomId?: string;
+  success?: boolean;
+  tableCode?: string;
+  tableDbId?: string;
+  tableId?: string;
+  tableName?: string;
+};
+
 export type JoinPokerTableInput = {
   name: string;
   seatIndex?: number;
@@ -116,6 +140,7 @@ export type PokerTransport = {
   check: () => Promise<void>;
   connect: () => Promise<void>;
   createTable: (input: CreatePokerTableInput) => Promise<void>;
+  createTableFromChatRoom: (input: CreatePokerTableFromChatRoomInput) => Promise<CreatePokerTableFromChatRoomAck>;
   destroy: () => void;
   disconnect: () => Promise<void>;
   fold: () => Promise<void>;
