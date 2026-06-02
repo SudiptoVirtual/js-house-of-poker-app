@@ -86,7 +86,7 @@ export function FriendsScreen({ navigation }: Props) {
         </View>
       </SectionCard>
 
-      <ComplianceNotice />
+      {/* <ComplianceNotice /> */}
     </Screen>
   );
 }

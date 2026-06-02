@@ -77,6 +77,7 @@ export function RootNavigator() {
           orientation: 'portrait',
           headerShadowVisible: false,
           headerStyle: { backgroundColor: colors.surface },
+          headerBackVisible: false,
           headerTintColor: colors.text,
           headerTitleStyle: { fontWeight: '700' },
         }}

@@ -209,7 +209,7 @@ export function HomeScreen({ navigation }: Props) {
       title="J's House of Poker Lobby"
       subtitle="Create private tables, explore player surfaces, and keep invites flowing through one shared table system."
     >
-      <ComplianceNotice />
+      {/* <ComplianceNotice /> */}
 
       <SectionCard title="Play now">
         <Text style={styles.helper}>

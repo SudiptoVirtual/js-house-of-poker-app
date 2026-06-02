@@ -95,7 +95,7 @@ export function PlayerDirectoryScreen({ navigation }: Props) {
         </View>
       </SectionCard>
 
-      <ComplianceNotice />
+      {/* <ComplianceNotice /> */}
     </Screen>
   );
 }

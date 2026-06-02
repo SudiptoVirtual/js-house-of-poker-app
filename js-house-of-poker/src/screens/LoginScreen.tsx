@@ -121,7 +121,7 @@ export function LoginScreen({ navigation }: Props) {
         title="Deal Yourself In"
       />
 
-      <ComplianceNotice />
+      {/* <ComplianceNotice /> */}
 
       <SectionCard title="Email login">
         <AuthTextField

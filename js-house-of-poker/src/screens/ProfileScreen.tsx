@@ -85,7 +85,7 @@ export function ProfileScreen({ navigation }: Props) {
         </View>
       </SectionCard>
 
-      <ComplianceNotice />
+      {/* <ComplianceNotice /> */}
     </Screen>
   );
 }
