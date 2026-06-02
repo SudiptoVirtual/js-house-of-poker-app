@@ -1,5 +1,6 @@
+import { env } from '../../config/env';
 import type { ChatRoom, ChatRoomMessage, ChatRoomPlayer } from '../../types/chatRooms';
-import { apiRequest } from './client';
+import { ApiError, apiRequest } from './client';
 
 type BackendChatRoomListItem = {
   activePlayerCount?: number;
@@ -92,18 +93,38 @@ function toChatRoom(room: BackendChatRoomDetail): ChatRoom {
   };
 }
 
-export async function fetchChatRooms() {
-  const response = await apiRequest<ChatRoomsResponse>('/api/chat-rooms');
+function normalizeChatRoomApiError(error: unknown) {
+  if (error instanceof ApiError && error.status === 404) {
+    const configuredHost = env.apiBaseUrl || 'the configured API host';
 
-  return (response.rooms ?? []).map(toChatRoom);
+    return new Error(
+      `Chat room API route was not found on ${configuredHost}. Set EXPO_PUBLIC_API_BASE_URL to the poker-backend server, or share the backend host through EXPO_PUBLIC_POKER_SOCKET_URL / EXPO_PUBLIC_POKER_BACKEND_URL.`,
+    );
+  }
+
+  return error;
+}
+
+export async function fetchChatRooms() {
+  try {
+    const response = await apiRequest<ChatRoomsResponse>('/api/chat-rooms');
+
+    return (response.rooms ?? []).map(toChatRoom);
+  } catch (error) {
+    throw normalizeChatRoomApiError(error);
+  }
 }
 
 export async function fetchChatRoom(roomId: string) {
-  const response = await apiRequest<ChatRoomResponse>(`/api/chat-rooms/${encodeURIComponent(roomId)}`);
+  try {
+    const response = await apiRequest<ChatRoomResponse>(`/api/chat-rooms/${encodeURIComponent(roomId)}`);
 
-  if (!response.room) {
-    throw new Error('Chat room not found.');
+    if (!response.room) {
+      throw new Error('Chat room not found.');
+    }
+
+    return toChatRoom(response.room);
+  } catch (error) {
+    throw normalizeChatRoomApiError(error);
   }
-
-  return toChatRoom(response.room);
 }
