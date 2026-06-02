@@ -1,17 +1,19 @@
 import { useMemo, useState } from 'react';
-import { StyleSheet, Text } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import { ActionButton } from '../components/ActionButton';
+import {
+  ChatInputBar,
+  ChatMessageItem,
+  ChatRoomHeader,
+  CreateTablePanel,
+  defaultGameOptions,
+  defaultTableTierOptions,
+  RoomPlayerList,
+} from '../components/chatRooms';
 import { Screen } from '../components/Screen';
 import { SectionCard } from '../components/SectionCard';
-import {
-  SocialChatComposer,
-  SocialChatInvitePanel,
-  SocialChatMessageList,
-  SocialChatPlayerStrip,
-  SocialChatTableSetupCard,
-} from '../components/social-chat/SocialChatComponents';
 import { chatRooms } from '../constants/chatRooms';
 import { routes } from '../constants/routes';
 import { colors } from '../theme/colors';
@@ -20,15 +22,33 @@ import type { RootStackParamList } from '../types/navigation';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ChatRoomDetail'>;
 
+const currentUserId = 'local-player';
+
 export function ChatRoomDetailScreen({ navigation, route }: Props) {
   const room = chatRooms.find((candidate) => candidate.id === route.params.roomId);
   const [draft, setDraft] = useState('');
+  const [invitedPlayerIds, setInvitedPlayerIds] = useState<string[]>([]);
+  const [isPrivate, setIsPrivate] = useState(room?.tableConfig.isPrivate ?? true);
   const [localMessages, setLocalMessages] = useState<ChatRoomMessage[]>([]);
+  const [selectedGameId, setSelectedGameId] = useState(() => {
+    const gameLabel = room?.tableConfig.gameLabel.toLowerCase() ?? '';
+    return gameLabel.includes('3-5-7') ? '3-5-7' : 'texas-holdem';
+  });
+  const [selectedTierId, setSelectedTierId] = useState(() => {
+    if (room?.tableConfig.stakesLabel.toLowerCase().includes('5k')) {
+      return '5k-casual';
+    }
+
+    return room?.tableConfig.isPrivate ? 'private-study' : 'free-training';
+  });
 
   const messages = useMemo(
     () => (room ? [...room.messages, ...localMessages] : []),
     [localMessages, room],
   );
+
+  const selectedTier = defaultTableTierOptions.find((option) => option.id === selectedTierId);
+  const rulesSummary = selectedTier?.rulesLabel ?? room?.tableConfig.stakesLabel ?? 'Room table rules';
 
   if (!room) {
     return (
@@ -61,7 +81,7 @@ export function ChatRoomDetailScreen({ navigation, route }: Props) {
       {
         id: `local-${Date.now()}`,
         roomId: room.id,
-        authorId: 'local-player',
+        authorId: currentUserId,
         authorName: 'You',
         body: trimmedDraft,
         createdAt: new Date().toISOString(),
@@ -71,6 +91,14 @@ export function ChatRoomDetailScreen({ navigation, route }: Props) {
     setDraft('');
   }
 
+  function handleTogglePlayerInvite(playerId: string) {
+    setInvitedPlayerIds((currentIds) =>
+      currentIds.includes(playerId)
+        ? currentIds.filter((currentId) => currentId !== playerId)
+        : [...currentIds, playerId],
+    );
+  }
+
   return (
     <Screen
       showPlatformNavigation
@@ -78,29 +106,49 @@ export function ChatRoomDetailScreen({ navigation, route }: Props) {
       title={room.title}
       subtitle={room.description}
     >
+      <ChatRoomHeader
+        activePlayerCount={room.activePlayerCount}
+        description={room.description}
+        notificationsEnabled={room.unreadCount > 0}
+        statusLabel={room.topic}
+        title={room.title}
+      />
+
       <SectionCard title="Room messages">
         <Text style={styles.helperText}>
           Social-chat mock messages are isolated from gameplay chat. TableChatBar remains reserved for live
           table play only.
         </Text>
-        <SocialChatMessageList messages={messages} />
-        <SocialChatComposer draft={draft} onChangeDraft={setDraft} onSend={handleSendMessage} />
+        <View style={styles.messageStack}>
+          {messages.map((message) => (
+            <ChatMessageItem currentUserId={currentUserId} key={message.id} message={message} />
+          ))}
+        </View>
+        <ChatInputBar draft={draft} onChangeDraft={setDraft} onSend={handleSendMessage} />
       </SectionCard>
 
       <SectionCard title="Active players">
-        <SocialChatPlayerStrip players={room.players} />
-      </SectionCard>
-
-      <SectionCard title="Table setup">
-        <SocialChatTableSetupCard
-          config={room.tableConfig}
-          onOpenTable={() => navigation.navigate(routes.Home)}
+        <RoomPlayerList
+          invitedPlayerIds={invitedPlayerIds}
+          onInvitePlayer={handleTogglePlayerInvite}
+          players={room.players}
         />
       </SectionCard>
 
-      <SectionCard title="Invites">
-        <SocialChatInvitePanel inviteState={room.inviteState} />
-      </SectionCard>
+      <CreateTablePanel
+        gameOptions={defaultGameOptions}
+        invitedPlayerIds={invitedPlayerIds}
+        isPrivate={isPrivate}
+        onLaunchTable={() => navigation.navigate(routes.Home)}
+        onSelectGame={setSelectedGameId}
+        onSelectTier={setSelectedTierId}
+        onTogglePlayerInvite={handleTogglePlayerInvite}
+        onTogglePrivacy={setIsPrivate}
+        players={room.players}
+        rulesSummary={rulesSummary}
+        selectedGameId={selectedGameId}
+        selectedTierId={selectedTierId}
+      />
     </Screen>
   );
 }
@@ -110,5 +158,8 @@ const styles = StyleSheet.create({
     color: colors.mutedText,
     fontSize: 14,
     lineHeight: 21,
+  },
+  messageStack: {
+    gap: 10,
   },
 });
