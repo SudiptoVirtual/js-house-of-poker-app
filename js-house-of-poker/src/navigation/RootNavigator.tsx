@@ -4,6 +4,7 @@ import { DefaultTheme, NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
 import { routes } from '../constants/routes';
+import { ChatRoomsScreen } from '../screens/ChatRoomsScreen';
 import { FeedScreen } from '../screens/FeedScreen';
 import { FriendsScreen } from '../screens/FriendsScreen';
 import { GameScreen } from '../screens/GameScreen';
@@ -98,6 +99,11 @@ export function RootNavigator() {
           name={routes.Home}
           component={HomeScreen}
           options={{ title: 'Lobby' }}
+        />
+        <Stack.Screen
+          name={routes.ChatRooms}
+          component={ChatRoomsScreen}
+          options={{ title: 'Chat Rooms' }}
         />
         <Stack.Screen
           name={routes.Profile}

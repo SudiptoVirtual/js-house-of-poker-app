@@ -31,6 +31,7 @@ export function FriendsScreen({ navigation }: Props) {
 
   return (
     <Screen
+      showPlatformNavigation
       eyebrow="Friends"
       title="Your table crew"
       subtitle="Track regulars, see who is ready, and route invites back into the active table rail."

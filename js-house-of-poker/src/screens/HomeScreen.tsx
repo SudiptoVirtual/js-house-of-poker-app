@@ -204,6 +204,7 @@ export function HomeScreen({ navigation }: Props) {
 
   return (
     <Screen
+      showPlatformNavigation
       eyebrow="Free-play social poker"
       title="J's House of Poker Lobby"
       subtitle="Create private tables, explore player surfaces, and keep invites flowing through one shared table system."

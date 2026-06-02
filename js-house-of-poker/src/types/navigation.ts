@@ -12,6 +12,7 @@ export type RootStackParamList = {
   Login: undefined;
   Registration: undefined;
   Home: undefined;
+  ChatRooms: undefined;
   Profile: undefined;
   Friends: undefined;
   Feed: undefined;
