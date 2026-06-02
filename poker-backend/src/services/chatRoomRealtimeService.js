@@ -2,6 +2,7 @@ const mongoose = require("mongoose");
 
 const ChatRoom = require("../models/ChatRoom");
 const ChatRoomMessage = require("../models/ChatRoomMessage");
+const User = require("../models/User");
 const { getChatRoomPresenceService } = require("./chatRoomPresenceService");
 
 const CHAT_ROOM_PREFIX = "chat:room";
@@ -33,6 +34,10 @@ const SOCIAL_CHAT_ROOM_RATE_WINDOW_MS = Math.max(
 const CHAT_ROOM_TABLE_LAUNCH_LIMIT = Math.max(
   1,
   Number.parseInt(process.env.CHAT_ROOM_TABLE_LAUNCH_LIMIT || "25", 10)
+);
+const CHAT_ROOM_TABLE_INVITE_HISTORY_LIMIT = Math.max(
+  1,
+  Number.parseInt(process.env.CHAT_ROOM_TABLE_INVITE_HISTORY_LIMIT || "100", 10)
 );
 const VALID_CHAT_ROOM_TABLE_GAMES = new Set([
   "7/27",
@@ -80,6 +85,10 @@ function normalizeChatRoomId(payload = {}) {
   return normalizeRoomId(
     payload.chatRoomId || payload.sourceRoomId || payload.chatRoomRoomId || payload.roomId
   );
+}
+
+function normalizeTableId(payload = {}) {
+  return normalizeRoomId(payload.tableId || payload.tableCode || payload.createdTableId);
 }
 
 function normalizeMessageText(value) {
@@ -181,6 +190,60 @@ function assertUserCanLaunchFromRoom(room, userId) {
   if (!isCreator && !isParticipant) {
     throw new Error("You are not allowed to launch a table from this chat room.");
   }
+}
+
+function userCanAccessChatRoom(room, userId) {
+  if (room.isPublic) {
+    return true;
+  }
+
+  const userIdString = String(userId);
+  const isCreator = room.createdByUserId && String(room.createdByUserId) === userIdString;
+  const isParticipant = (room.participantStates || []).some(
+    (state) => String(state.userId) === userIdString
+  );
+
+  return Boolean(isCreator || isParticipant);
+}
+
+function assertUserCanAccessChatRoom(room, userId) {
+  if (!userCanAccessChatRoom(room, userId)) {
+    throw new Error("You are not allowed to invite players from this chat room.");
+  }
+}
+
+function buildRoomMemberIdSet(room, presenceSnapshot) {
+  const memberIds = new Set(
+    (room.participantStates || [])
+      .map((state) => String(state.userId || "").trim())
+      .filter(Boolean)
+  );
+
+  (presenceSnapshot.players || []).forEach((player) => {
+    const userId = String(player.userId || player.id || "").trim();
+    if (userId) {
+      memberIds.add(userId);
+    }
+  });
+
+  return memberIds;
+}
+
+function serializeInviteForRecipient(invite) {
+  return {
+    createdAt: invite.createdAt,
+    giftBuyInChips: invite.giftBuyInChips || 0,
+    giftBuyInClips: invite.giftBuyInClips || 0,
+    id: invite.id,
+    message: invite.message || null,
+    recipientAccountId: invite.recipientAccountId,
+    recipientHandle: invite.recipientHandle,
+    recipientLabel: invite.recipientLabel,
+    senderPlayerId: invite.senderPlayerId,
+    senderPlayerName: invite.senderPlayerName,
+    source: invite.source,
+    status: invite.status,
+  };
 }
 
 function getDisplayName(user) {
@@ -701,6 +764,271 @@ class ChatRoomRealtimeService {
     return {
       ok: true,
       ...launchPayload,
+    };
+  }
+
+  emitInviteNotifications({ chatRoomId, invites, sender, table }) {
+    const deliveredPlayerIds = new Set();
+    const inviteByRecipientId = new Map(
+      invites.map((invite) => [String(invite.recipientAccountId), invite])
+    );
+
+    this.io.sockets.sockets.forEach((candidateSocket) => {
+      const userId = candidateSocket.data?.userId;
+      const invite = userId ? inviteByRecipientId.get(String(userId)) : null;
+
+      if (!invite) {
+        return;
+      }
+
+      const notification = {
+        chatRoomId,
+        invite: serializeInviteForRecipient(invite),
+        inviteId: invite.id,
+        invitedPlayerId: String(userId),
+        message: invite.message || null,
+        playerId: String(userId),
+        senderPlayerId: String(sender._id),
+        senderPlayerName: getDisplayName(sender),
+        tableCode: table.tableCode,
+        tableDbId: table.tableDbId,
+        tableId: table.tableId,
+        tableName: table.tableName,
+      };
+
+      candidateSocket.emit("table:playerInvited", notification);
+      deliveredPlayerIds.add(String(userId));
+    });
+
+    return [...deliveredPlayerIds];
+  }
+
+  async inviteRoomPlayers(socket, payload = {}, pokerRealtimeService) {
+    if (
+      !pokerRealtimeService ||
+      typeof pokerRealtimeService.appendTableInviteRecords !== "function"
+    ) {
+      throw new Error("Poker realtime service is required to invite chat room players.");
+    }
+
+    const sender = await this.authenticateSocketUser(socket, payload);
+    const chatRoom = await this.findRoom(normalizeChatRoomId(payload));
+    const chatRoomId = String(chatRoom._id);
+    const tableId = normalizeTableId(payload);
+    const playerIds = normalizePlayerIds(payload.playerIds || payload.invitedPlayerIds);
+    const message = normalizeMessageText(payload.message).slice(0, 120) || null;
+
+    if (!tableId) {
+      throw new Error("Table id is required.");
+    }
+
+    if (playerIds.length === 0) {
+      throw new Error("At least one player id is required.");
+    }
+
+    assertUserCanAccessChatRoom(chatRoom, sender._id);
+
+    const senderUserId = String(sender._id);
+    const presenceSnapshot = this.presenceService.getPresenceSnapshot(chatRoomId, {
+      excludedUserIds: [senderUserId],
+      invitedPlayerIds: normalizePlayerIds(payload.alreadyInvitedPlayerIds),
+    });
+    const roomMemberIds = buildRoomMemberIdSet(chatRoom, presenceSnapshot);
+    const inviteEligibility = presenceSnapshot.inviteEligibility || {
+      eligiblePlayerIds: [],
+      ineligiblePlayerIds: [],
+      invitedPlayerIds: [],
+      reasonByPlayerId: {},
+    };
+    const eligiblePresenceIds = new Set(inviteEligibility.eligiblePlayerIds || []);
+
+    const initialResults = playerIds.map((playerId) => {
+      if (!mongoose.Types.ObjectId.isValid(playerId)) {
+        return {
+          ok: false,
+          playerId,
+          reason: "invalid-player-id",
+          status: "failed",
+          success: false,
+        };
+      }
+
+      if (playerId === senderUserId) {
+        return {
+          ok: false,
+          playerId,
+          reason: "cannot-invite-self",
+          status: "failed",
+          success: false,
+        };
+      }
+
+      if (!roomMemberIds.has(playerId)) {
+        return {
+          ok: false,
+          playerId,
+          reason: "not-chat-room-member",
+          status: "failed",
+          success: false,
+        };
+      }
+
+      if (!eligiblePresenceIds.has(playerId)) {
+        return {
+          ok: false,
+          playerId,
+          reason: inviteEligibility.reasonByPlayerId?.[playerId] || "not-eligible",
+          status: "failed",
+          success: false,
+        };
+      }
+
+      return {
+        ok: true,
+        playerId,
+        status: "pending",
+        success: true,
+      };
+    });
+
+    const eligiblePlayerIds = initialResults
+      .filter((result) => result.ok)
+      .map((result) => result.playerId);
+    let invitePersistence = {
+      invites: [],
+      table: {
+        tableCode: null,
+        tableDbId: null,
+        tableId,
+        tableName: null,
+      },
+    };
+
+    if (eligiblePlayerIds.length > 0) {
+      const recipients = await User.find({ _id: { $in: eligiblePlayerIds } });
+      const recipientById = new Map(recipients.map((recipient) => [String(recipient._id), recipient]));
+      const foundRecipientIds = new Set(recipientById.keys());
+      const missingPlayerIds = eligiblePlayerIds.filter((playerId) => !foundRecipientIds.has(playerId));
+
+      if (missingPlayerIds.length > 0) {
+        initialResults.forEach((result) => {
+          if (missingPlayerIds.includes(result.playerId)) {
+            result.ok = false;
+            result.reason = "player-not-found";
+            result.status = "failed";
+            result.success = false;
+          }
+        });
+      }
+
+      const recipientsToInvite = eligiblePlayerIds
+        .map((playerId) => recipientById.get(playerId))
+        .filter(Boolean);
+
+      if (recipientsToInvite.length > 0) {
+        invitePersistence = await pokerRealtimeService.appendTableInviteRecords({
+          message,
+          recipients: recipientsToInvite,
+          sender,
+          source: "chat-room",
+          tableId,
+        });
+      }
+    }
+
+    const inviteByRecipientId = new Map(
+      invitePersistence.invites.map((invite) => [String(invite.recipientAccountId), invite])
+    );
+    const results = initialResults.map((result) => {
+      const invite = inviteByRecipientId.get(result.playerId);
+
+      if (!invite) {
+        return result.ok
+          ? {
+              ...result,
+              ok: false,
+              reason: "invite-not-created",
+              status: "failed",
+              success: false,
+            }
+          : result;
+      }
+
+      return {
+        inviteId: invite.id,
+        ok: true,
+        playerId: result.playerId,
+        status: "invited",
+        success: true,
+      };
+    });
+    const successfulPlayerIds = results
+      .filter((result) => result.ok)
+      .map((result) => result.playerId);
+
+    if (successfulPlayerIds.length > 0) {
+      await User.findByIdAndUpdate(sender._id, {
+        $inc: { "referralStats.invitesSent": successfulPlayerIds.length },
+        $set: { "referralStats.lastInviteSentAt": new Date() },
+      });
+
+      await ChatRoom.updateOne(
+        { _id: chatRoom._id },
+        {
+          $push: {
+            tableInviteHistory: {
+              $each: [
+                {
+                  chatRoomId: chatRoom._id,
+                  createdAt: new Date(),
+                  invitedPlayerIds: successfulPlayerIds,
+                  invites: invitePersistence.invites.map(serializeInviteForRecipient),
+                  message,
+                  results,
+                  senderUserId: sender._id,
+                  tableCode: invitePersistence.table.tableCode,
+                  tableId: invitePersistence.table.tableDbId,
+                },
+              ],
+              $slice: -CHAT_ROOM_TABLE_INVITE_HISTORY_LIMIT,
+            },
+          },
+        }
+      );
+    }
+
+    const deliveredPlayerIds = this.emitInviteNotifications({
+      chatRoomId,
+      invites: invitePersistence.invites,
+      sender,
+      table: invitePersistence.table,
+    });
+    const eventPayload = {
+      chatRoomId,
+      deliveredPlayerIds,
+      inviteEligibility,
+      invitedPlayerIds: successfulPlayerIds,
+      invites: invitePersistence.invites.map(serializeInviteForRecipient),
+      playerIds,
+      results,
+      senderPlayerId: senderUserId,
+      senderPlayerName: getDisplayName(sender),
+      tableCode: invitePersistence.table.tableCode,
+      tableDbId: invitePersistence.table.tableDbId,
+      tableId: invitePersistence.table.tableId,
+      tableName: invitePersistence.table.tableName,
+    };
+
+    socket.emit("table:playerInvited", {
+      ...eventPayload,
+      recipient: false,
+      sender: true,
+    });
+
+    return {
+      ok: successfulPlayerIds.length > 0,
+      success: successfulPlayerIds.length > 0,
+      ...eventPayload,
     };
   }
 

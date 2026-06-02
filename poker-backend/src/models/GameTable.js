@@ -168,7 +168,7 @@ const tableInviteSchema = new mongoose.Schema(
     },
     source: {
       type: String,
-      enum: ["share-link", "friend-list", "seat-pass"],
+      enum: ["share-link", "friend-list", "seat-pass", "chat-room"],
       required: true,
     },
     status: {

@@ -216,3 +216,57 @@ test('357 solo GO resolution awards and persists configured legs for the solo GO
     2,
   );
 });
+
+test('appendTableInviteRecords validates table access and persists chat-room invite records', async () => {
+  const GameTable = require('../src/models/GameTable');
+  const originalFindOne = GameTable.findOne;
+  const service = createPokerRealtimeService(createIoStub());
+  const savedTables = [];
+
+  GameTable.findOne = async function findOneStub(query) {
+    assert.equal(query.$or[0].tableCode, 'ROOM99');
+    return {
+      _id: '507f1f77bcf86cd799439099',
+      createdByUserId: '507f1f77bcf86cd799439011',
+      hostUserId: '507f1f77bcf86cd799439011',
+      phase: 'waiting',
+      players: [{ userId: '507f1f77bcf86cd799439011' }],
+      save: async function saveStub() {
+        savedTables.push(this);
+        return this;
+      },
+      status: 'waiting',
+      tableCode: 'ROOM99',
+      tableInvites: [],
+      tableName: 'Room 99',
+    };
+  };
+
+  try {
+    const response = await service.appendTableInviteRecords({
+      message: 'Pull up a seat',
+      recipients: [
+        {
+          _id: '507f1f77bcf86cd799439013',
+          handle: 'river-runner',
+          name: 'River Runner',
+        },
+      ],
+      sender: {
+        _id: '507f1f77bcf86cd799439011',
+        name: 'Table Host',
+      },
+      source: 'chat-room',
+      tableId: 'room99',
+    });
+
+    assert.equal(response.table.tableCode, 'ROOM99');
+    assert.equal(response.invites.length, 1);
+    assert.equal(response.invites[0].source, 'chat-room');
+    assert.equal(response.invites[0].recipientAccountId, '507f1f77bcf86cd799439013');
+    assert.equal(savedTables.length, 1);
+    assert.equal(savedTables[0].tableInvites[0].message, 'Pull up a seat');
+  } finally {
+    GameTable.findOne = originalFindOne;
+  }
+});

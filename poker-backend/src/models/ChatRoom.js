@@ -24,6 +24,54 @@ const participantStateSchema = new mongoose.Schema(
   { _id: false }
 );
 
+const tableInviteHistorySchema = new mongoose.Schema(
+  {
+    chatRoomId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "ChatRoom",
+      required: true,
+    },
+    createdAt: {
+      type: Date,
+      default: Date.now,
+    },
+    invitedPlayerIds: {
+      type: [String],
+      default: [],
+    },
+    invites: {
+      type: [mongoose.Schema.Types.Mixed],
+      default: [],
+    },
+    message: {
+      type: String,
+      default: null,
+      trim: true,
+      maxlength: 120,
+    },
+    results: {
+      type: [mongoose.Schema.Types.Mixed],
+      default: [],
+    },
+    senderUserId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
+    tableCode: {
+      type: String,
+      default: null,
+      trim: true,
+      uppercase: true,
+    },
+    tableId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "GameTable",
+      default: null,
+    },
+  },
+  { _id: false }
+);
 
 const tableLaunchSchema = new mongoose.Schema(
   {
@@ -136,6 +184,10 @@ const chatRoomSchema = new mongoose.Schema(
     },
     tableLaunches: {
       type: [tableLaunchSchema],
+      default: [],
+    },
+    tableInviteHistory: {
+      type: [tableInviteHistorySchema],
       default: [],
     },
   },
