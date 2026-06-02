@@ -12,6 +12,7 @@ const adminAuthRoutes = require("./routes/adminAuthRoutes");
 const adminDashboardRoutes = require("./routes/adminDashboardRoutes");
 const adminPlayerRoutes = require("./routes/adminPlayerRoutes");
 const adminTableRoutes = require("./routes/adminTableRoutes");
+const adminChatRoomRoutes = require("./routes/adminChatRoomRoutes");
 
 const adminTransactionRoutes = require("./routes/adminTransactionRoutes");
 const adminLiveRoutes = require("./routes/adminLiveRoutes");
@@ -106,6 +107,7 @@ app.use("/api/admin/auth", adminAuthRoutes);
 app.use("/api/admin/dashboard", adminDashboardRoutes);
 app.use("/api/admin/players", adminPlayerRoutes);
 app.use("/api/admin/tables", adminTableRoutes);
+app.use("/api/admin/chat-rooms", adminChatRoomRoutes);
 
 app.use("/api/admin/transactions", adminTransactionRoutes);
 app.use("/api/admin/live", adminLiveRoutes);
