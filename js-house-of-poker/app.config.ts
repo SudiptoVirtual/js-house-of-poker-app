@@ -7,13 +7,6 @@ type AppEnvironment = 'development' | 'preview' | 'production';
 
 const DEFAULT_API_TIMEOUT = '15000';
 const DEFAULT_POKER_SOCKET_PROTOCOL = 'table-v1';
-const PRODUCTION_API_BASE_URL = 'https://www.jshouseofpoker.com';
-
-const defaultApiBaseUrls: Record<AppEnvironment, string> = {
-  development: 'http://localhost:5000',
-  preview: PRODUCTION_API_BASE_URL,
-  production: PRODUCTION_API_BASE_URL,
-};
 
 const defaultPublicEnv = {
   EXPO_PUBLIC_API_TIMEOUT: DEFAULT_API_TIMEOUT,
@@ -51,14 +44,10 @@ function resolveAppEnvironment(): AppEnvironment {
 
 const appEnvironment = resolveAppEnvironment();
 const configuredPokerBackendUrl =
-  readEnv('EXPO_PUBLIC_POKER_SOCKET_URL') ||
   readEnv('EXPO_PUBLIC_POKER_BACKEND_URL') ||
-  defaultPublicEnv.EXPO_PUBLIC_POKER_SOCKET_URL;
-const apiBaseUrl =
-  readEnv('EXPO_PUBLIC_API_BASE_URL') ||
-  readEnv('EXPO_PUBLIC_BASE_URL') ||
-  configuredPokerBackendUrl ||
-  defaultApiBaseUrls[appEnvironment];
+  readEnv('EXPO_PUBLIC_POKER_SOCKET_URL') ||
+  defaultPublicEnv.EXPO_PUBLIC_POKER_BACKEND_URL;
+const apiBaseUrl = readEnv('EXPO_PUBLIC_BASE_URL');
 const pokerTransport =
   readEnv('EXPO_PUBLIC_POKER_TRANSPORT') ||
   (appEnvironment === 'production' ? 'socket' : defaultPublicEnv.EXPO_PUBLIC_POKER_TRANSPORT);
@@ -67,15 +56,20 @@ const pokerSocketProtocol =
   readEnv('EXPO_PUBLIC_POKER_SOCKET_PROTOCOL') ||
   defaultPublicEnv.EXPO_PUBLIC_POKER_SOCKET_PROTOCOL;
 
+if (appEnvironment === 'production' && !apiBaseUrl) {
+  throw new Error(
+    'APP_ENV=production requires EXPO_PUBLIC_BASE_URL to point at poker-backend.',
+  );
+}
+
 if (appEnvironment === 'production' && pokerTransport === 'socket' && !pokerSocketUrl) {
   throw new Error(
-    'APP_ENV=production requires EXPO_PUBLIC_POKER_SOCKET_URL when EXPO_PUBLIC_POKER_TRANSPORT=socket.',
+    'APP_ENV=production requires EXPO_PUBLIC_POKER_SOCKET_URL or EXPO_PUBLIC_POKER_BACKEND_URL when EXPO_PUBLIC_POKER_TRANSPORT=socket.',
   );
 }
 
 const publicEnv = {
   ...defaultPublicEnv,
-  EXPO_PUBLIC_API_BASE_URL: apiBaseUrl,
   EXPO_PUBLIC_BASE_URL: apiBaseUrl,
   EXPO_PUBLIC_API_TIMEOUT: readEnv('EXPO_PUBLIC_API_TIMEOUT') || DEFAULT_API_TIMEOUT,
   EXPO_PUBLIC_POKER_TRANSPORT: pokerTransport,

@@ -2,7 +2,6 @@ import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 
 type PublicEnvName =
-  | 'EXPO_PUBLIC_API_BASE_URL'
   | 'EXPO_PUBLIC_BASE_URL'
   | 'EXPO_PUBLIC_API_TIMEOUT'
   | 'EXPO_PUBLIC_POKER_BACKEND_URL'
@@ -121,14 +120,13 @@ function resolveApiBaseUrl(rawValue: string) {
   }
 }
 
-const apiBaseUrl = resolveApiBaseUrl(
-  readPublicEnv('EXPO_PUBLIC_API_BASE_URL') || readPublicEnv('EXPO_PUBLIC_BASE_URL') || '',
+const configuredPokerBackendUrl = resolveApiBaseUrl(
+  readPublicEnv('EXPO_PUBLIC_POKER_BACKEND_URL') ||
+    readPublicEnv('EXPO_PUBLIC_POKER_SOCKET_URL'),
 );
+const apiBaseUrl = resolveApiBaseUrl(readPublicEnv('EXPO_PUBLIC_BASE_URL'));
 const pokerTransport = readPublicEnv('EXPO_PUBLIC_POKER_TRANSPORT').toLowerCase();
-const pokerSocketUrl = resolveApiBaseUrl(
-  readPublicEnv('EXPO_PUBLIC_POKER_SOCKET_URL') ||
-    readPublicEnv('EXPO_PUBLIC_POKER_BACKEND_URL'),
-);
+const pokerSocketUrl = configuredPokerBackendUrl;
 const pokerSocketProtocol = readPublicEnv('EXPO_PUBLIC_POKER_SOCKET_PROTOCOL').toLowerCase();
 const googleAndroidClientId = readPublicEnv('EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID');
 const googleIosClientId = readPublicEnv('EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID');
