@@ -1,0 +1,563 @@
+%PDF-1.4
+%
+1 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+2 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>
+endobj
+3 0 obj
+<< /Length 3528 >>
+stream
+BT /F2 20 Tf 54.0 738.0 Td (Jshouseofpoker App - Client Weekend Requirements) Tj ET
+BT /F2 20 Tf 54.0 712.0 Td (Summary) Tj ET
+BT /F2 15 Tf 54.0 676.0 Td (Purpose) Tj ET
+BT /F1 10 Tf 54.0 645.0 Td (* Summarize the client's weekend requirement messages into a clear developer handoff.) Tj ET
+BT /F1 10 Tf 54.0 631.0 Td (* Capture the current product direction: Jshouseofpoker App is expanding from a poker-only) Tj ET
+BT /F1 10 Tf 54.0 617.0 Td (  application into a social gaming platform.) Tj ET
+BT /F1 10 Tf 54.0 603.0 Td (* Provide an implementation-oriented overview that can be shared with product, design, backend,) Tj ET
+BT /F1 10 Tf 54.0 589.0 Td (  frontend, QA, and admin stakeholders.) Tj ET
+BT /F2 15 Tf 54.0 568.0 Td (Product Direction) Tj ET
+BT /F1 10 Tf 54.0 537.0 Td (* Jshouseofpoker App should feel like a complete social poker community, not just a table lobby.) Tj ET
+BT /F1 10 Tf 72.0 523.0 Td (* Players should have reasons to stay active even when they are not currently playing a hand.) Tj ET
+BT /F1 10 Tf 72.0 509.0 Td (* The platform should combine a social network, chat community, game platform, player discovery) Tj ET
+BT /F1 10 Tf 72.0 495.0 Td (  system, content feed, poker lobby, and live table experience.) Tj ET
+BT /F1 10 Tf 54.0 481.0 Td (* The main user loop should connect the social and game areas together.) Tj ET
+BT /F1 10 Tf 72.0 467.0 Td (* Feed Post -> Profile -> Chat Room -> Table.) Tj ET
+BT /F1 10 Tf 72.0 453.0 Td (* Example flow:) Tj ET
+BT /F1 10 Tf 90.0 439.0 Td (* A player creates a post.) Tj ET
+BT /F1 10 Tf 90.0 425.0 Td (* Another player comments or supports it.) Tj ET
+BT /F1 10 Tf 90.0 411.0 Td (* The players become friends.) Tj ET
+BT /F1 10 Tf 90.0 397.0 Td (* They join a chat room.) Tj ET
+BT /F1 10 Tf 90.0 383.0 Td (* Someone creates a 357 table.) Tj ET
+BT /F1 10 Tf 90.0 369.0 Td (* The chat room members move directly into the game.) Tj ET
+BT /F1 10 Tf 54.0 355.0 Td (* The lobby should preserve the current "house of poker" feeling.) Tj ET
+BT /F1 10 Tf 72.0 341.0 Td (* The client likes the lobby atmosphere and wants future social additions to complement that) Tj ET
+BT /F1 10 Tf 72.0 327.0 Td (  identity.) Tj ET
+BT /F2 15 Tf 54.0 306.0 Td (Primary App Areas) Tj ET
+BT /F1 10 Tf 54.0 275.0 Td (* Player Feed.) Tj ET
+BT /F1 10 Tf 72.0 261.0 Td (* Facebook-style feed experience branded for Jshouseofpoker App.) Tj ET
+BT /F1 10 Tf 72.0 247.0 Td (* Familiar post cards, reactions, comments, sharing, and table invites.) Tj ET
+BT /F1 10 Tf 54.0 233.0 Td (* Chat Rooms.) Tj ET
+BT /F1 10 Tf 72.0 219.0 Td (* Main social hub where players gather first.) Tj ET
+BT /F1 10 Tf 72.0 205.0 Td (* Players should talk, meet people, hang out, discuss games, and organize tables naturally.) Tj ET
+BT /F1 10 Tf 54.0 191.0 Td (* Friends System.) Tj ET
+BT /F1 10 Tf 72.0 177.0 Td (* Online friends shown automatically.) Tj ET
+BT /F1 10 Tf 72.0 163.0 Td (* Search by name or username for offline friends and other players.) Tj ET
+BT /F1 10 Tf 72.0 149.0 Td (* Quick invites to chat rooms and tables.) Tj ET
+BT /F1 10 Tf 54.0 135.0 Td (* Player Profiles.) Tj ET
+BT /F1 10 Tf 72.0 121.0 Td (* Profile posts, stats, chip or clip count, badges, cover photos, and social discovery.) Tj ET
+BT /F1 10 Tf 54.0 107.0 Td (* Live Tables / The Floor.) Tj ET
+BT /F1 10 Tf 72.0 93.0 Td (* Live table area with real-player availability protected from bot overfill.) Tj ET
+BT /F1 10 Tf 72.0 79.0 Td (* AI should monitor open seats, bot-filled tables, suspicious play, chat issues, and tables) Tj ET
+endstream
+endobj
+4 0 obj
+<< /Type /Page /Parent 23 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 1 0 R /F2 2 0 R >> >> /Contents 3 0 R >>
+endobj
+5 0 obj
+<< /Length 3149 >>
+stream
+BT /F1 10 Tf 72.0 738.0 Td (  needing real players.) Tj ET
+BT /F1 10 Tf 54.0 724.0 Td (* Backend / Admin Controls.) Tj ET
+BT /F1 10 Tf 72.0 710.0 Td (* Admin broadcast messaging into table chat bars.) Tj ET
+BT /F1 10 Tf 72.0 696.0 Td (* Audit logs, permissions, rate limits, safety filters, and future scheduling.) Tj ET
+BT /F1 10 Tf 54.0 682.0 Td (* A.I. Prime.) Tj ET
+BT /F1 10 Tf 72.0 668.0 Td (* Platform-wide assistant available inside chat, table, profile, feed, recommendations,) Tj ET
+BT /F1 10 Tf 72.0 654.0 Td (  translation, moderation, and support workflows.) Tj ET
+BT /F2 15 Tf 54.0 633.0 Td (1. Chat Rooms and Chat Room to Table Flow) Tj ET
+BT /F1 10 Tf 54.0 602.0 Td (* Chat rooms are the main priority.) Tj ET
+BT /F1 10 Tf 72.0 588.0 Td (* Players should enter chat rooms first to talk, meet others, build interest, and organize) Tj ET
+BT /F1 10 Tf 72.0 574.0 Td (  games.) Tj ET
+BT /F1 10 Tf 72.0 560.0 Td (* Creating a table should feel like a natural option after conversation, not the primary screen.) Tj ET
+BT /F1 10 Tf 54.0 546.0 Td (* Required flow.) Tj ET
+BT /F1 10 Tf 72.0 532.0 Td (* Enter Chat Room.) Tj ET
+BT /F1 10 Tf 72.0 518.0 Td (* Pick Game.) Tj ET
+BT /F1 10 Tf 72.0 504.0 Td (* Set Table Tier / Rules.) Tj ET
+BT /F1 10 Tf 72.0 490.0 Td (* Invite Room Players.) Tj ET
+BT /F1 10 Tf 72.0 476.0 Td (* Launch Table.) Tj ET
+BT /F1 10 Tf 54.0 462.0 Td (* Chat room interface requirements.) Tj ET
+BT /F1 10 Tf 72.0 448.0 Td (* Create Table button.) Tj ET
+BT /F1 10 Tf 72.0 434.0 Td (* Invite to Table button.) Tj ET
+BT /F1 10 Tf 72.0 420.0 Td (* Game selection.) Tj ET
+BT /F1 10 Tf 72.0 406.0 Td (* Table tier selection.) Tj ET
+BT /F1 10 Tf 72.0 392.0 Td (* Private or public table option.) Tj ET
+BT /F1 10 Tf 72.0 378.0 Td (* Player list.) Tj ET
+BT /F1 10 Tf 72.0 364.0 Td (* Message notification support.) Tj ET
+BT /F1 10 Tf 72.0 350.0 Td (* Direct move from chat room into the live table UI.) Tj ET
+BT /F1 10 Tf 54.0 336.0 Td (* Expected user experience.) Tj ET
+BT /F1 10 Tf 72.0 322.0 Td (* A player joins a room to socialize.) Tj ET
+BT /F1 10 Tf 72.0 308.0 Td (* Room members discuss what to play.) Tj ET
+BT /F1 10 Tf 72.0 294.0 Td (* A player creates or configures a table from inside the room.) Tj ET
+BT /F1 10 Tf 72.0 280.0 Td (* Room members receive invites.) Tj ET
+BT /F1 10 Tf 72.0 266.0 Td (* Players move directly into the live table.) Tj ET
+BT /F2 15 Tf 54.0 245.0 Td (2. Facebook-Style Player Feed) Tj ET
+BT /F1 10 Tf 54.0 214.0 Td (* The feed should feel familiar, similar to Facebook, while being branded for Jshouseofpoker App.) Tj ET
+BT /F1 10 Tf 54.0 200.0 Td (* Required feed structure.) Tj ET
+BT /F1 10 Tf 72.0 186.0 Td (* Post box at the top.) Tj ET
+BT /F1 10 Tf 72.0 172.0 Td (* Scrolling post cards.) Tj ET
+BT /F1 10 Tf 72.0 158.0 Td (* Player avatar.) Tj ET
+BT /F1 10 Tf 72.0 144.0 Td (* Player name.) Tj ET
+BT /F1 10 Tf 72.0 130.0 Td (* Player status.) Tj ET
+BT /F1 10 Tf 72.0 116.0 Td (* Likes, reactions, or Supporters.) Tj ET
+BT /F1 10 Tf 72.0 102.0 Td (* Comments.) Tj ET
+BT /F1 10 Tf 72.0 88.0 Td (* Share / promote options.) Tj ET
+BT /F1 10 Tf 72.0 74.0 Td (* Invite to Table option.) Tj ET
+endstream
+endobj
+6 0 obj
+<< /Type /Page /Parent 23 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 1 0 R /F2 2 0 R >> >> /Contents 5 0 R >>
+endobj
+7 0 obj
+<< /Length 3063 >>
+stream
+BT /F1 10 Tf 54.0 738.0 Td (* Feed card actions.) Tj ET
+BT /F1 10 Tf 72.0 724.0 Td (* Support.) Tj ET
+BT /F1 10 Tf 72.0 710.0 Td (* Comment.) Tj ET
+BT /F1 10 Tf 72.0 696.0 Td (* Share.) Tj ET
+BT /F1 10 Tf 72.0 682.0 Td (* Gift Clips.) Tj ET
+BT /F1 10 Tf 72.0 668.0 Td (* Promote for Creator.) Tj ET
+BT /F1 10 Tf 72.0 654.0 Td (* Invite to Table when relevant.) Tj ET
+BT /F1 10 Tf 54.0 640.0 Td (* Feed should support social discovery.) Tj ET
+BT /F1 10 Tf 72.0 626.0 Td (* Posts should lead users to profiles.) Tj ET
+BT /F1 10 Tf 72.0 612.0 Td (* Profiles should lead to friend requests, chat rooms, and tables.) Tj ET
+BT /F1 10 Tf 72.0 598.0 Td (* Posts can help fill tables through shares, invites, and promotions.) Tj ET
+BT /F2 15 Tf 54.0 577.0 Td (3. Friends Area and Player Search) Tj ET
+BT /F1 10 Tf 54.0 546.0 Td (* Online friends should be shown by default.) Tj ET
+BT /F1 10 Tf 72.0 532.0 Td (* The default Friends area should not show offline friends or random players.) Tj ET
+BT /F1 10 Tf 72.0 518.0 Td (* Online friends should have fast action buttons.) Tj ET
+BT /F1 10 Tf 54.0 504.0 Td (* Required quick actions for online friends.) Tj ET
+BT /F1 10 Tf 72.0 490.0 Td (* Chat Invite.) Tj ET
+BT /F1 10 Tf 72.0 476.0 Td (* Table Invite.) Tj ET
+BT /F1 10 Tf 54.0 462.0 Td (* Search by Name / Username is required.) Tj ET
+BT /F1 10 Tf 72.0 448.0 Td (* Players can search for offline friends and other players.) Tj ET
+BT /F1 10 Tf 72.0 434.0 Td (* Search results should support:) Tj ET
+BT /F1 10 Tf 90.0 420.0 Td (* Viewing profiles.) Tj ET
+BT /F1 10 Tf 90.0 406.0 Td (* Sending friend requests.) Tj ET
+BT /F1 10 Tf 90.0 392.0 Td (* Inviting players to chat rooms.) Tj ET
+BT /F1 10 Tf 90.0 378.0 Td (* Inviting players to tables.) Tj ET
+BT /F1 10 Tf 54.0 364.0 Td (* Expected behavior.) Tj ET
+BT /F1 10 Tf 72.0 350.0 Td (* Default view = online friends only.) Tj ET
+BT /F1 10 Tf 72.0 336.0 Td (* Search view = offline friends and wider player discovery.) Tj ET
+BT /F2 15 Tf 54.0 315.0 Td (4. Player Profiles) Tj ET
+BT /F1 10 Tf 54.0 284.0 Td (* Profiles should support social identity and discovery.) Tj ET
+BT /F1 10 Tf 54.0 270.0 Td (* Required profile elements.) Tj ET
+BT /F1 10 Tf 72.0 256.0 Td (* Profile posts.) Tj ET
+BT /F1 10 Tf 72.0 242.0 Td (* Player stats.) Tj ET
+BT /F1 10 Tf 72.0 228.0 Td (* Chip or clip count.) Tj ET
+BT /F1 10 Tf 72.0 214.0 Td (* Status badges.) Tj ET
+BT /F1 10 Tf 72.0 200.0 Td (* Cover photos.) Tj ET
+BT /F1 10 Tf 72.0 186.0 Td (* Social visibility.) Tj ET
+BT /F1 10 Tf 54.0 172.0 Td (* Community metrics to consider.) Tj ET
+BT /F1 10 Tf 72.0 158.0 Td (* Total Supporters.) Tj ET
+BT /F1 10 Tf 72.0 144.0 Td (* Monthly Supporters.) Tj ET
+BT /F1 10 Tf 72.0 130.0 Td (* Top Supported Posts.) Tj ET
+BT /F1 10 Tf 72.0 116.0 Td (* Top Supporters.) Tj ET
+BT /F1 10 Tf 72.0 102.0 Td (* Clips Received From Supporters.) Tj ET
+BT /F1 10 Tf 54.0 88.0 Td (* Profiles should connect into the wider loop.) Tj ET
+BT /F1 10 Tf 72.0 74.0 Td (* From a profile, players should be able to send friend requests, invite to chat rooms, invite) Tj ET
+endstream
+endobj
+8 0 obj
+<< /Type /Page /Parent 23 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 1 0 R /F2 2 0 R >> >> /Contents 7 0 R >>
+endobj
+9 0 obj
+<< /Length 3246 >>
+stream
+BT /F1 10 Tf 72.0 738.0 Td (  to tables, view posts, and discover status or performance.) Tj ET
+BT /F2 15 Tf 54.0 717.0 Td (5. Admin Chat Broadcast Feature) Tj ET
+BT /F1 10 Tf 54.0 686.0 Td (* Add a backend Admin section that lets the site owner send messages directly into table chat bars.) Tj ET
+BT /F1 10 Tf 54.0 672.0 Td (* Admin broadcast modes.) Tj ET
+BT /F1 10 Tf 72.0 658.0 Td (* Global Message:) Tj ET
+BT /F1 10 Tf 90.0 644.0 Td (* Sends one admin message to all active table chat bars at once.) Tj ET
+BT /F1 10 Tf 72.0 630.0 Td (* Table-Specific Message:) Tj ET
+BT /F1 10 Tf 90.0 616.0 Td (* Selects one table and sends the message only to that table's chat bar.) Tj ET
+BT /F1 10 Tf 54.0 602.0 Td (* Message display requirement.) Tj ET
+BT /F1 10 Tf 72.0 588.0 Td (* Messages should be clearly marked as `ADMIN MESSAGE`.) Tj ET
+BT /F1 10 Tf 54.0 574.0 Td (* Backend requirements.) Tj ET
+BT /F1 10 Tf 72.0 560.0 Td (* Admin-only permission checks.) Tj ET
+BT /F1 10 Tf 72.0 546.0 Td (* Select all tables or one table.) Tj ET
+BT /F1 10 Tf 72.0 532.0 Td (* Message text box.) Tj ET
+BT /F1 10 Tf 72.0 518.0 Td (* Send now button.) Tj ET
+BT /F1 10 Tf 72.0 504.0 Td (* Optional schedule later feature.) Tj ET
+BT /F1 10 Tf 72.0 490.0 Td (* Socket.IO event to push messages live.) Tj ET
+BT /F1 10 Tf 72.0 476.0 Td (* Audit log showing who sent the message, when it was sent, and where it was sent.) Tj ET
+BT /F1 10 Tf 72.0 462.0 Td (* Rate limits to prevent spam.) Tj ET
+BT /F1 10 Tf 72.0 448.0 Td (* Moderation and safety filter before sending.) Tj ET
+BT /F1 10 Tf 54.0 434.0 Td (* Business use cases.) Tj ET
+BT /F1 10 Tf 72.0 420.0 Td (* Site announcements.) Tj ET
+BT /F1 10 Tf 72.0 406.0 Td (* Ads and promotions.) Tj ET
+BT /F1 10 Tf 72.0 392.0 Td (* Updates.) Tj ET
+BT /F1 10 Tf 72.0 378.0 Td (* Tournament-style alerts.) Tj ET
+BT /F1 10 Tf 72.0 364.0 Td (* Support messages.) Tj ET
+BT /F1 10 Tf 72.0 350.0 Td (* Sponsor posts inside table chat.) Tj ET
+BT /F2 15 Tf 54.0 329.0 Td (6. Social Table Promotion System) Tj ET
+BT /F1 10 Tf 54.0 298.0 Td (* When a player creates a table, they can optionally purchase a Table Promotion Campaign.) Tj ET
+BT /F1 10 Tf 72.0 284.0 Td (* Example fixed fee: $2.) Tj ET
+BT /F1 10 Tf 72.0 270.0 Td (* Higher tiers may include $5 Featured Promotion and $10 Top Feed Placement.) Tj ET
+BT /F1 10 Tf 54.0 256.0 Td (* Promotion placements.) Tj ET
+BT /F1 10 Tf 72.0 242.0 Td (* Facebook-style player feed.) Tj ET
+BT /F1 10 Tf 72.0 228.0 Td (* Chat rooms.) Tj ET
+BT /F1 10 Tf 72.0 214.0 Td (* Player directory highlights.) Tj ET
+BT /F1 10 Tf 72.0 200.0 Td (* Selected table lobbies.) Tj ET
+BT /F1 10 Tf 54.0 186.0 Td (* Targeting options.) Tj ET
+BT /F1 10 Tf 72.0 172.0 Td (* All players.) Tj ET
+BT /F1 10 Tf 72.0 158.0 Td (* Players with a minimum clip balance.) Tj ET
+BT /F1 10 Tf 72.0 144.0 Td (* Players within a clip range, such as 100-1,000 clips or 1,000-10,000 clips.) Tj ET
+BT /F1 10 Tf 72.0 130.0 Td (* High Roller players.) Tj ET
+BT /F1 10 Tf 72.0 116.0 Td (* Shark players.) Tj ET
+BT /F1 10 Tf 72.0 102.0 Td (* Up & Coming players.) Tj ET
+BT /F1 10 Tf 72.0 88.0 Td (* Friends only.) Tj ET
+BT /F1 10 Tf 72.0 74.0 Td (* Specific game players, such as 357, Shanghai, 7/27, or In-Between the Sheets.) Tj ET
+endstream
+endobj
+10 0 obj
+<< /Type /Page /Parent 23 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 1 0 R /F2 2 0 R >> >> /Contents 9 0 R >>
+endobj
+11 0 obj
+<< /Length 3400 >>
+stream
+BT /F1 10 Tf 72.0 738.0 Td (* Multiple targets combined.) Tj ET
+BT /F1 10 Tf 54.0 724.0 Td (* Automatic shutoff requirement.) Tj ET
+BT /F1 10 Tf 72.0 710.0 Td (* Promotion status = Active while the table has open seats.) Tj ET
+BT /F1 10 Tf 72.0 696.0 Td (* Promotion status = Complete once the table fills up.) Tj ET
+BT /F1 10 Tf 72.0 682.0 Td (* The ad should automatically stop when the final seat is taken.) Tj ET
+BT /F1 10 Tf 72.0 668.0 Td (* This prevents players from paying for impressions after the table is full.) Tj ET
+BT /F1 10 Tf 54.0 654.0 Td (* Gift Clip promotion incentives.) Tj ET
+BT /F1 10 Tf 72.0 640.0 Td (* Hosts can attach incentives to promoted tables.) Tj ET
+BT /F1 10 Tf 72.0 626.0 Td (* Examples:) Tj ET
+BT /F1 10 Tf 90.0 612.0 Td (* "Join this table and receive 50 clips.") Tj ET
+BT /F1 10 Tf 90.0 598.0 Td (* "First 3 players receive 100 clips.") Tj ET
+BT /F1 10 Tf 90.0 584.0 Td (* "High Roller table - 500 clip welcome gift.") Tj ET
+BT /F1 10 Tf 72.0 570.0 Td (* Promotions should only display to qualified players based on targeting rules.) Tj ET
+BT /F1 10 Tf 54.0 556.0 Td (* Revenue opportunities.) Tj ET
+BT /F1 10 Tf 72.0 542.0 Td (* Standard table promotion.) Tj ET
+BT /F1 10 Tf 72.0 528.0 Td (* Featured promotion.) Tj ET
+BT /F1 10 Tf 72.0 514.0 Td (* Top feed placement.) Tj ET
+BT /F1 10 Tf 72.0 500.0 Td (* Sponsored chat room placement.) Tj ET
+BT /F1 10 Tf 72.0 486.0 Td (* Priority directory placement.) Tj ET
+BT /F2 15 Tf 54.0 465.0 Td (7. The Floor, Bots, and Real Player Seat Protection) Tj ET
+BT /F1 10 Tf 54.0 434.0 Td (* The Floor means the live table area.) Tj ET
+BT /F1 10 Tf 54.0 420.0 Td (* Before bots fill a table, the system should keep an open seat available for real players.) Tj ET
+BT /F1 10 Tf 72.0 406.0 Td (* Bots should support action without blocking human users from joining.) Tj ET
+BT /F1 10 Tf 54.0 392.0 Td (* AI monitoring should watch The Floor for:) Tj ET
+BT /F1 10 Tf 72.0 378.0 Td (* Open seats.) Tj ET
+BT /F1 10 Tf 72.0 364.0 Td (* Bot-filled tables.) Tj ET
+BT /F1 10 Tf 72.0 350.0 Td (* Player traffic.) Tj ET
+BT /F1 10 Tf 72.0 336.0 Td (* Suspicious play.) Tj ET
+BT /F1 10 Tf 72.0 322.0 Td (* Chat problems.) Tj ET
+BT /F1 10 Tf 72.0 308.0 Td (* Tables needing real players.) Tj ET
+BT /F1 10 Tf 72.0 294.0 Td (* When to add bots.) Tj ET
+BT /F1 10 Tf 72.0 280.0 Td (* When to remove bots.) Tj ET
+BT /F1 10 Tf 54.0 266.0 Td (* Product intent.) Tj ET
+BT /F1 10 Tf 72.0 252.0 Td (* Bots are used to keep games moving.) Tj ET
+BT /F1 10 Tf 72.0 238.0 Td (* Real players should always have access to available action where possible.) Tj ET
+BT /F2 15 Tf 54.0 217.0 Td (8. Enhanced Support System and Community Supporters) Tj ET
+BT /F1 10 Tf 54.0 186.0 Td (* Replace basic "likes" language with community-focused "Supporters" language.) Tj ET
+BT /F1 10 Tf 72.0 172.0 Td (* Use "250 Supporters" instead of "250 Supports.") Tj ET
+BT /F1 10 Tf 72.0 158.0 Td (* This makes interactions feel more like community backing than a simple like count.) Tj ET
+BT /F1 10 Tf 54.0 144.0 Td (* Support action.) Tj ET
+BT /F1 10 Tf 72.0 130.0 Td (* Free reaction.) Tj ET
+BT /F1 10 Tf 72.0 116.0 Td (* Adds the player to the supporter count.) Tj ET
+BT /F1 10 Tf 72.0 102.0 Td (* Can show activity such as "Ra Frost supported this post.") Tj ET
+BT /F1 10 Tf 54.0 88.0 Td (* Post statistics can include:) Tj ET
+BT /F1 10 Tf 72.0 74.0 Td (* Supporters.) Tj ET
+endstream
+endobj
+12 0 obj
+<< /Type /Page /Parent 23 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 1 0 R /F2 2 0 R >> >> /Contents 11 0 R >>
+endobj
+13 0 obj
+<< /Length 2898 >>
+stream
+BT /F1 10 Tf 72.0 738.0 Td (* Comments.) Tj ET
+BT /F1 10 Tf 72.0 724.0 Td (* Shares.) Tj ET
+BT /F1 10 Tf 72.0 710.0 Td (* Clips Gifted.) Tj ET
+BT /F1 10 Tf 72.0 696.0 Td (* Sponsored by number of players.) Tj ET
+BT /F1 10 Tf 54.0 682.0 Td (* Enhanced support actions.) Tj ET
+BT /F1 10 Tf 72.0 668.0 Td (* Support a post.) Tj ET
+BT /F1 10 Tf 72.0 654.0 Td (* Gift clips to a post creator.) Tj ET
+BT /F1 10 Tf 72.0 640.0 Td (* Promote another player's post.) Tj ET
+BT /F1 10 Tf 72.0 626.0 Td (* Sponsor a player's table advertisement.) Tj ET
+BT /F1 10 Tf 72.0 612.0 Td (* Boost a tournament, game room, or chat room announcement.) Tj ET
+BT /F1 10 Tf 72.0 598.0 Td (* Help new players gain visibility.) Tj ET
+BT /F1 10 Tf 54.0 584.0 Td (* Safety controls.) Tj ET
+BT /F1 10 Tf 72.0 570.0 Td (* Daily gifting limits.) Tj ET
+BT /F1 10 Tf 72.0 556.0 Td (* Anti-spam protections.) Tj ET
+BT /F1 10 Tf 72.0 542.0 Td (* Fraud detection.) Tj ET
+BT /F1 10 Tf 72.0 528.0 Td (* Promotion approval rules.) Tj ET
+BT /F1 10 Tf 72.0 514.0 Td (* Audit logs.) Tj ET
+BT /F1 10 Tf 72.0 500.0 Td (* Blocked-user restrictions.) Tj ET
+BT /F1 10 Tf 72.0 486.0 Td (* AI monitoring for suspicious gifting patterns.) Tj ET
+BT /F2 15 Tf 54.0 465.0 Td (9. Gift Clips as a Premium Feed Action) Tj ET
+BT /F1 10 Tf 54.0 434.0 Td (* Gift Clips should be a visible premium action on the post card, not hidden in a menu.) Tj ET
+BT /F1 10 Tf 54.0 420.0 Td (* Suggested post card action row.) Tj ET
+BT /F1 10 Tf 72.0 406.0 Td (* Support.) Tj ET
+BT /F1 10 Tf 72.0 392.0 Td (* Comment.) Tj ET
+BT /F1 10 Tf 72.0 378.0 Td (* Share.) Tj ET
+BT /F1 10 Tf 72.0 364.0 Td (* Gift Clips.) Tj ET
+BT /F1 10 Tf 72.0 350.0 Td (* Invite to Table when applicable.) Tj ET
+BT /F1 10 Tf 54.0 336.0 Td (* Gift Clips panel requirements.) Tj ET
+BT /F1 10 Tf 72.0 322.0 Td (* Title: Gift Clips to This Player.) Tj ET
+BT /F1 10 Tf 72.0 308.0 Td (* Gift amount selector.) Tj ET
+BT /F1 10 Tf 72.0 294.0 Td (* Preset buttons:) Tj ET
+BT /F1 10 Tf 90.0 280.0 Td (* 100 clips.) Tj ET
+BT /F1 10 Tf 90.0 266.0 Td (* 500 clips.) Tj ET
+BT /F1 10 Tf 90.0 252.0 Td (* 1,000 clips.) Tj ET
+BT /F1 10 Tf 90.0 238.0 Td (* 5,000 clips.) Tj ET
+BT /F1 10 Tf 90.0 224.0 Td (* 10,000 clips.) Tj ET
+BT /F1 10 Tf 90.0 210.0 Td (* Custom amount.) Tj ET
+BT /F1 10 Tf 72.0 196.0 Td (* Optional message field.) Tj ET
+BT /F1 10 Tf 90.0 182.0 Td (* Example messages: "Great post!", "Good luck at the tables!", "Welcome to Jshouseofpoker!") Tj ET
+BT /F1 10 Tf 72.0 168.0 Td (* Send Gift button.) Tj ET
+BT /F1 10 Tf 54.0 154.0 Td (* Feed statistics example.) Tj ET
+BT /F1 10 Tf 72.0 140.0 Td (* 250 Supporters.) Tj ET
+BT /F1 10 Tf 72.0 126.0 Td (* 42 Comments.) Tj ET
+BT /F1 10 Tf 72.0 112.0 Td (* 17 Shares.) Tj ET
+BT /F1 10 Tf 72.0 98.0 Td (* 35,000 Clips Gifted.) Tj ET
+BT /F1 10 Tf 72.0 84.0 Td (* Sponsored by 8 Players.) Tj ET
+BT /F1 10 Tf 54.0 70.0 Td (* Leaderboards to consider.) Tj ET
+endstream
+endobj
+14 0 obj
+<< /Type /Page /Parent 23 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 1 0 R /F2 2 0 R >> >> /Contents 13 0 R >>
+endobj
+15 0 obj
+<< /Length 3261 >>
+stream
+BT /F1 10 Tf 72.0 738.0 Td (* Most Supported Posts.) Tj ET
+BT /F1 10 Tf 72.0 724.0 Td (* Most Shared Posts.) Tj ET
+BT /F1 10 Tf 72.0 710.0 Td (* Most Gifted Posts.) Tj ET
+BT /F1 10 Tf 72.0 696.0 Td (* Top Supporters.) Tj ET
+BT /F1 10 Tf 72.0 682.0 Td (* Top Clip Givers.) Tj ET
+BT /F1 10 Tf 72.0 668.0 Td (* Top Community Builders.) Tj ET
+BT /F2 15 Tf 54.0 647.0 Td (10. Sharing and Advertising Separation) Tj ET
+BT /F1 10 Tf 54.0 616.0 Td (* Keep community, visibility, advertising, and gifting actions separate.) Tj ET
+BT /F1 10 Tf 72.0 602.0 Td (* Support = community encouragement.) Tj ET
+BT /F1 10 Tf 72.0 588.0 Td (* Share = visibility.) Tj ET
+BT /F1 10 Tf 72.0 574.0 Td (* Promote for Creator = paid advertising sponsorship.) Tj ET
+BT /F1 10 Tf 72.0 560.0 Td (* Gift Clips = direct premium help.) Tj ET
+BT /F1 10 Tf 54.0 546.0 Td (* Share menu options.) Tj ET
+BT /F1 10 Tf 72.0 532.0 Td (* Copy Link.) Tj ET
+BT /F1 10 Tf 72.0 518.0 Td (* Share to Facebook.) Tj ET
+BT /F1 10 Tf 72.0 504.0 Td (* Share to Messenger.) Tj ET
+BT /F1 10 Tf 72.0 490.0 Td (* Share to Profile.) Tj ET
+BT /F1 10 Tf 72.0 476.0 Td (* Share to Feed.) Tj ET
+BT /F1 10 Tf 72.0 462.0 Td (* Share to Chat Room.) Tj ET
+BT /F1 10 Tf 72.0 448.0 Td (* Share to Table.) Tj ET
+BT /F1 10 Tf 72.0 434.0 Td (* Promote for Creator.) Tj ET
+BT /F1 10 Tf 54.0 420.0 Td (* Share to Facebook behavior.) Tj ET
+BT /F1 10 Tf 72.0 406.0 Td (* Generate a shareable link.) Tj ET
+BT /F1 10 Tf 72.0 392.0 Td (* Open Facebook's share dialog with that link.) Tj ET
+BT /F1 10 Tf 72.0 378.0 Td (* Facebook should display the title, image or thumbnail, short description, and link back to) Tj ET
+BT /F1 10 Tf 72.0 364.0 Td (  Jshouseofpoker App.) Tj ET
+BT /F1 10 Tf 54.0 350.0 Td (* Copy Link importance.) Tj ET
+BT /F1 10 Tf 72.0 336.0 Td (* Players can paste links into Facebook, Messenger, text messages, Discord, X, Reddit, email,) Tj ET
+BT /F1 10 Tf 72.0 322.0 Td (  and other platforms.) Tj ET
+BT /F1 10 Tf 72.0 308.0 Td (* Copy Link and Share to Facebook should be standard free options.) Tj ET
+BT /F1 10 Tf 72.0 294.0 Td (* Promote for Creator should remain a paid option.) Tj ET
+BT /F1 10 Tf 54.0 280.0 Td (* Marketing benefit.) Tj ET
+BT /F1 10 Tf 72.0 266.0 Td (* Shared links can bring new players, returning players, table participants, chat room members,) Tj ET
+BT /F1 10 Tf 72.0 252.0 Td (  profile views, Supporters, and clip purchases.) Tj ET
+BT /F1 10 Tf 72.0 238.0 Td (* Players effectively become an organic marketing channel when sharing is effortless.) Tj ET
+BT /F2 15 Tf 54.0 217.0 Td (11. Promote for Creator) Tj ET
+BT /F1 10 Tf 54.0 186.0 Td (* Promote for Creator should live inside the Share flow, not inside Support.) Tj ET
+BT /F1 10 Tf 54.0 172.0 Td (* Purpose.) Tj ET
+BT /F1 10 Tf 72.0 158.0 Td (* A player can pay to help another player's post reach more people.) Tj ET
+BT /F1 10 Tf 72.0 144.0 Td (* The paying player sponsors the original creator's visibility rather than promoting themselves.) Tj ET
+BT /F1 10 Tf 54.0 130.0 Td (* Promotion examples.) Tj ET
+BT /F1 10 Tf 72.0 116.0 Td (* $2 Promotion.) Tj ET
+BT /F1 10 Tf 72.0 102.0 Td (* $5 Promotion.) Tj ET
+BT /F1 10 Tf 72.0 88.0 Td (* $10 Promotion.) Tj ET
+BT /F1 10 Tf 54.0 74.0 Td (* Sponsored post statistics can display:) Tj ET
+endstream
+endobj
+16 0 obj
+<< /Type /Page /Parent 23 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 1 0 R /F2 2 0 R >> >> /Contents 15 0 R >>
+endobj
+17 0 obj
+<< /Length 3031 >>
+stream
+BT /F1 10 Tf 72.0 738.0 Td (* Supporters.) Tj ET
+BT /F1 10 Tf 72.0 724.0 Td (* Comments.) Tj ET
+BT /F1 10 Tf 72.0 710.0 Td (* Shares.) Tj ET
+BT /F1 10 Tf 72.0 696.0 Td (* Sponsored by number of players.) Tj ET
+BT /F1 10 Tf 72.0 682.0 Td (* Clips Gifted.) Tj ET
+BT /F1 10 Tf 54.0 668.0 Td (* Product value.) Tj ET
+BT /F1 10 Tf 72.0 654.0 Td (* Great posts can receive support, gifts, shares, and sponsored promotion from other players.) Tj ET
+BT /F1 10 Tf 72.0 640.0 Td (* The original creator can gain reach without personally spending money.) Tj ET
+BT /F2 15 Tf 54.0 619.0 Td (12. A.I. Prime Chat Room Integration) Tj ET
+BT /F1 10 Tf 54.0 588.0 Td (* A.I. Prime should be built into every chat and message screen as a visible AI button.) Tj ET
+BT /F1 10 Tf 54.0 574.0 Td (* Placement.) Tj ET
+BT /F1 10 Tf 72.0 560.0 Td (* Near the message input area.) Tj ET
+BT /F1 10 Tf 72.0 546.0 Td (* Suggested layout: Message Box | Emoji | A.I. Prime | Send.) Tj ET
+BT /F1 10 Tf 72.0 532.0 Td (* Also available when a user taps or long-presses a message.) Tj ET
+BT /F1 10 Tf 54.0 518.0 Td (* Core capabilities.) Tj ET
+BT /F1 10 Tf 72.0 504.0 Td (* Real-time translation.) Tj ET
+BT /F1 10 Tf 72.0 490.0 Td (* Show Original / Show Translation / Show Both.) Tj ET
+BT /F1 10 Tf 72.0 476.0 Td (* Message rewriting.) Tj ET
+BT /F1 10 Tf 72.0 462.0 Td (* Punctuation correction.) Tj ET
+BT /F1 10 Tf 72.0 448.0 Td (* Summarizing long chats.) Tj ET
+BT /F1 10 Tf 72.0 434.0 Td (* Explaining game rules.) Tj ET
+BT /F1 10 Tf 72.0 420.0 Td (* Helping create posts.) Tj ET
+BT /F1 10 Tf 72.0 406.0 Td (* Helping create table invites.) Tj ET
+BT /F1 10 Tf 72.0 392.0 Td (* Recommending friends.) Tj ET
+BT /F1 10 Tf 72.0 378.0 Td (* Recommending tables on The Floor.) Tj ET
+BT /F1 10 Tf 72.0 364.0 Td (* Helping users understand clip packages, statuses, and platform features.) Tj ET
+BT /F1 10 Tf 54.0 350.0 Td (* Translation controls.) Tj ET
+BT /F1 10 Tf 72.0 336.0 Td (* Translate This Message.) Tj ET
+BT /F1 10 Tf 72.0 322.0 Td (* Auto-Translate Chat.) Tj ET
+BT /F1 10 Tf 72.0 308.0 Td (* Show Original.) Tj ET
+BT /F1 10 Tf 72.0 294.0 Td (* Show Both.) Tj ET
+BT /F1 10 Tf 72.0 280.0 Td (* Change Language.) Tj ET
+BT /F1 10 Tf 54.0 266.0 Td (* User language support.) Tj ET
+BT /F1 10 Tf 72.0 252.0 Td (* Each user should have a preferred language setting.) Tj ET
+BT /F1 10 Tf 72.0 238.0 Td (* Messages can be translated into each user's selected language.) Tj ET
+BT /F1 10 Tf 54.0 224.0 Td (* AI actions on selected messages.) Tj ET
+BT /F1 10 Tf 72.0 210.0 Td (* Translate.) Tj ET
+BT /F1 10 Tf 72.0 196.0 Td (* Explain.) Tj ET
+BT /F1 10 Tf 72.0 182.0 Td (* Summarize.) Tj ET
+BT /F1 10 Tf 72.0 168.0 Td (* Rewrite.) Tj ET
+BT /F1 10 Tf 72.0 154.0 Td (* Report.) Tj ET
+BT /F1 10 Tf 72.0 140.0 Td (* Ask A.I. Prime.) Tj ET
+BT /F1 10 Tf 54.0 126.0 Td (* AI moderation scope.) Tj ET
+BT /F1 10 Tf 72.0 112.0 Td (* Spam.) Tj ET
+BT /F1 10 Tf 72.0 98.0 Td (* Scams.) Tj ET
+BT /F1 10 Tf 72.0 84.0 Td (* Harassment.) Tj ET
+BT /F1 10 Tf 72.0 70.0 Td (* Hate speech.) Tj ET
+endstream
+endobj
+18 0 obj
+<< /Type /Page /Parent 23 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 1 0 R /F2 2 0 R >> >> /Contents 17 0 R >>
+endobj
+19 0 obj
+<< /Length 3401 >>
+stream
+BT /F1 10 Tf 72.0 738.0 Td (* Impersonation.) Tj ET
+BT /F1 10 Tf 72.0 724.0 Td (* Porn or explicit content.) Tj ET
+BT /F1 10 Tf 72.0 710.0 Td (* Unsafe advertising.) Tj ET
+BT /F1 10 Tf 72.0 696.0 Td (* Suspicious behavior.) Tj ET
+BT /F1 10 Tf 72.0 682.0 Td (* Bot-like abuse.) Tj ET
+BT /F1 10 Tf 54.0 668.0 Td (* Moderation approach.) Tj ET
+BT /F1 10 Tf 72.0 654.0 Td (* Flagged content should go to admin review.) Tj ET
+BT /F1 10 Tf 72.0 640.0 Td (* Automatic punishment should be reserved for severe violations.) Tj ET
+BT /F1 10 Tf 54.0 626.0 Td (* Table discovery support.) Tj ET
+BT /F1 10 Tf 72.0 612.0 Td (* A.I. Prime should help players find tables using preferred games, clip balance, player status,) Tj ET
+BT /F1 10 Tf 72.0 598.0 Td (  open seats, friend activity, chat room activity, recommended tables, and AI-monitored table) Tj ET
+BT /F1 10 Tf 72.0 584.0 Td (  health.) Tj ET
+BT /F1 10 Tf 72.0 570.0 Td (* Example prompt: "Find me a 357 table with open seats.") Tj ET
+BT /F1 10 Tf 72.0 556.0 Td (* A.I. Prime should return matching active tables and allow the player to join or invite) Tj ET
+BT /F1 10 Tf 72.0 542.0 Td (  friends.) Tj ET
+BT /F1 10 Tf 54.0 528.0 Td (* Chat room to table support.) Tj ET
+BT /F1 10 Tf 72.0 514.0 Td (* A.I. Prime can help users invite players, create tables, share table links, promote tables,) Tj ET
+BT /F1 10 Tf 72.0 500.0 Td (  gift clips, and set up games.) Tj ET
+BT /F1 10 Tf 54.0 486.0 Td (* Product positioning.) Tj ET
+BT /F1 10 Tf 72.0 472.0 Td (* A.I. Prime should be a platform-wide assistant, not just a chatbot.) Tj ET
+BT /F1 10 Tf 72.0 458.0 Td (* It should connect chat rooms, The Floor, player profiles, posts, table invites, translation,) Tj ET
+BT /F1 10 Tf 72.0 444.0 Td (  moderation, and recommendations.) Tj ET
+BT /F2 15 Tf 54.0 423.0 Td (13. Notifications and Messages) Tj ET
+BT /F1 10 Tf 54.0 392.0 Td (* The client specifically requested notifications to messages.) Tj ET
+BT /F1 10 Tf 54.0 378.0 Td (* Expected notification areas.) Tj ET
+BT /F1 10 Tf 72.0 364.0 Td (* New chat room messages.) Tj ET
+BT /F1 10 Tf 72.0 350.0 Td (* Chat invites.) Tj ET
+BT /F1 10 Tf 72.0 336.0 Td (* Table invites.) Tj ET
+BT /F1 10 Tf 72.0 322.0 Td (* Friend requests.) Tj ET
+BT /F1 10 Tf 72.0 308.0 Td (* Post comments.) Tj ET
+BT /F1 10 Tf 72.0 294.0 Td (* Supporter activity.) Tj ET
+BT /F1 10 Tf 72.0 280.0 Td (* Gift Clip activity.) Tj ET
+BT /F1 10 Tf 72.0 266.0 Td (* Promotion or sponsored post activity.) Tj ET
+BT /F1 10 Tf 72.0 252.0 Td (* Admin broadcast messages where appropriate.) Tj ET
+BT /F1 10 Tf 54.0 238.0 Td (* Notifications should help connect the full loop.) Tj ET
+BT /F1 10 Tf 72.0 224.0 Td (* Feed activity can pull users into profiles.) Tj ET
+BT /F1 10 Tf 72.0 210.0 Td (* Profile and friend activity can pull users into chat rooms.) Tj ET
+BT /F1 10 Tf 72.0 196.0 Td (* Chat activity can pull users into tables.) Tj ET
+BT /F2 15 Tf 54.0 175.0 Td (14. Implementation Priority Recommendation) Tj ET
+BT /F1 10 Tf 54.0 144.0 Td (* Phase 1: Chat-room-first social hub.) Tj ET
+BT /F1 10 Tf 72.0 130.0 Td (* Chat room list and room UI.) Tj ET
+BT /F1 10 Tf 72.0 116.0 Td (* Player list.) Tj ET
+BT /F1 10 Tf 72.0 102.0 Td (* Message notifications.) Tj ET
+BT /F1 10 Tf 72.0 88.0 Td (* Create Table and Invite to Table controls inside the chat room.) Tj ET
+BT /F1 10 Tf 72.0 74.0 Td (* Direct navigation from chat room to live table UI.) Tj ET
+endstream
+endobj
+20 0 obj
+<< /Type /Page /Parent 23 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 1 0 R /F2 2 0 R >> >> /Contents 19 0 R >>
+endobj
+21 0 obj
+<< /Length 2433 >>
+stream
+BT /F1 10 Tf 54.0 738.0 Td (* Phase 2: Feed and social actions.) Tj ET
+BT /F1 10 Tf 72.0 724.0 Td (* Post box.) Tj ET
+BT /F1 10 Tf 72.0 710.0 Td (* Scrolling post cards.) Tj ET
+BT /F1 10 Tf 72.0 696.0 Td (* Supporters, comments, shares, Gift Clips, and Invite to Table.) Tj ET
+BT /F1 10 Tf 72.0 682.0 Td (* Share menu with Copy Link and Share to Facebook.) Tj ET
+BT /F1 10 Tf 54.0 668.0 Td (* Phase 3: Friends search and profiles.) Tj ET
+BT /F1 10 Tf 72.0 654.0 Td (* Online friends default view.) Tj ET
+BT /F1 10 Tf 72.0 640.0 Td (* Search by name / username.) Tj ET
+BT /F1 10 Tf 72.0 626.0 Td (* Profile viewing, friend requests, chat invites, and table invites.) Tj ET
+BT /F1 10 Tf 54.0 612.0 Td (* Phase 4: Admin broadcast system.) Tj ET
+BT /F1 10 Tf 72.0 598.0 Td (* Admin-only backend UI or endpoint.) Tj ET
+BT /F1 10 Tf 72.0 584.0 Td (* Global/table-specific chat broadcast.) Tj ET
+BT /F1 10 Tf 72.0 570.0 Td (* Socket.IO delivery, audit logs, rate limits, and moderation filters.) Tj ET
+BT /F1 10 Tf 54.0 556.0 Td (* Phase 5: Promotions and monetization.) Tj ET
+BT /F1 10 Tf 72.0 542.0 Td (* Table promotion campaigns.) Tj ET
+BT /F1 10 Tf 72.0 528.0 Td (* Promote for Creator.) Tj ET
+BT /F1 10 Tf 72.0 514.0 Td (* Gift Clip promotions and incentives.) Tj ET
+BT /F1 10 Tf 72.0 500.0 Td (* Automatic campaign shutoff when a table fills.) Tj ET
+BT /F1 10 Tf 54.0 486.0 Td (* Phase 6: A.I. Prime and advanced moderation.) Tj ET
+BT /F1 10 Tf 72.0 472.0 Td (* Translation.) Tj ET
+BT /F1 10 Tf 72.0 458.0 Td (* Message assistance.) Tj ET
+BT /F1 10 Tf 72.0 444.0 Td (* AI table recommendations.) Tj ET
+BT /F1 10 Tf 72.0 430.0 Td (* Moderation queues.) Tj ET
+BT /F1 10 Tf 72.0 416.0 Td (* Bot and table-health monitoring.) Tj ET
+BT /F2 15 Tf 54.0 395.0 Td (15. Key Takeaway) Tj ET
+BT /F1 10 Tf 54.0 364.0 Td (* The client does not expect everything to be completed overnight.) Tj ET
+BT /F1 10 Tf 54.0 350.0 Td (* The biggest immediate direction is to make Jshouseofpoker App feel like a community-first social) Tj ET
+BT /F1 10 Tf 54.0 336.0 Td (  poker platform.) Tj ET
+BT /F1 10 Tf 54.0 322.0 Td (* The strongest product loop is:) Tj ET
+BT /F1 10 Tf 72.0 308.0 Td (* Player Feed -> Player Profile -> Chat Room -> Live Table.) Tj ET
+BT /F1 10 Tf 54.0 294.0 Td (* Chat rooms should be the first major focus because they create the social bridge between casual) Tj ET
+BT /F1 10 Tf 54.0 280.0 Td (  conversation and live gameplay.) Tj ET
+endstream
+endobj
+22 0 obj
+<< /Type /Page /Parent 23 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 1 0 R /F2 2 0 R >> >> /Contents 21 0 R >>
+endobj
+23 0 obj
+<< /Type /Pages /Kids [4 0 R 6 0 R 8 0 R 10 0 R 12 0 R 14 0 R 16 0 R 18 0 R 20 0 R 22 0 R] /Count 10 >>
+endobj
+24 0 obj
+<< /Type /Catalog /Pages 23 0 R >>
+endobj
+xref
+0 25
+0000000000 65535 f 
+0000000015 00000 n 
+0000000085 00000 n 
+0000000160 00000 n 
+0000003740 00000 n 
+0000003877 00000 n 
+0000007078 00000 n 
+0000007215 00000 n 
+0000010330 00000 n 
+0000010467 00000 n 
+0000013765 00000 n 
+0000013903 00000 n 
+0000017356 00000 n 
+0000017495 00000 n 
+0000020446 00000 n 
+0000020585 00000 n 
+0000023899 00000 n 
+0000024038 00000 n 
+0000027122 00000 n 
+0000027261 00000 n 
+0000030715 00000 n 
+0000030854 00000 n 
+0000033340 00000 n 
+0000033479 00000 n 
+0000033599 00000 n 
+trailer
+<< /Size 25 /Root 24 0 R >>
+startxref
+33650
+%%EOF
