@@ -15,6 +15,7 @@ const adminTableRoutes = require("./routes/adminTableRoutes");
 
 const adminTransactionRoutes = require("./routes/adminTransactionRoutes");
 const adminLiveRoutes = require("./routes/adminLiveRoutes");
+const chatRoomRoutes = require("./routes/chatRoomRoutes");
 
 const { setIO } = require("./sockets/socketRegistry");
 const { initAdminLiveSocket } = require("./sockets/adminLiveSocket");
@@ -92,6 +93,7 @@ app.get("/", (req, res) => {
 |--------------------------------------------------------------------------
 */
 app.use("/api/auth", authRoutes);
+app.use("/api/chat-rooms", chatRoomRoutes);
 
 /*
 |--------------------------------------------------------------------------
