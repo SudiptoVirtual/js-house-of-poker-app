@@ -4,6 +4,13 @@ const ChatRoom = require("../models/ChatRoom");
 const ChatRoomMessage = require("../models/ChatRoomMessage");
 const User = require("../models/User");
 const { getChatRoomPresenceService } = require("./chatRoomPresenceService");
+const {
+  createMessageNotifications,
+  createTableInviteNotifications,
+  createTableLaunchNotifications,
+  markRoomNotificationsRead,
+  serializeNotification,
+} = require("./chatRoomNotificationService");
 
 const CHAT_ROOM_PREFIX = "chat:room";
 const SOCIAL_CHAT_HISTORY_LIMIT = Math.max(
@@ -534,6 +541,10 @@ class ChatRoomRealtimeService {
     this.trackSocketRoom(socket, roomId);
     this.addPresence(roomId, user, socket);
     await this.touchParticipant(roomId, user._id);
+    const readState = await markRoomNotificationsRead({
+      chatRoomId: roomId,
+      userId: user._id,
+    });
 
     await this.syncActivePlayerCount(roomId);
     const activePlayers = this.emitActivePlayers(roomId);
@@ -545,10 +556,18 @@ class ChatRoomRealtimeService {
       playerId: String(user._id),
       players: activePlayers.players,
       presenceSnapshot: activePlayers,
+      readAt: readState.readAt,
       roomId,
+      unreadCount: 0,
       success: true,
     };
 
+    socket.emit("chat:notificationsRead", {
+      modifiedCount: readState.modifiedCount,
+      readAt: readState.readAt,
+      roomId,
+      unreadCount: 0,
+    });
     socket.emit("chat:joinedRoom", response);
     return response;
   }
@@ -637,7 +656,17 @@ class ChatRoomRealtimeService {
     };
 
     this.io.to(getChatRoomChannel(roomId)).emit("chat:newMessage", eventPayload);
-    this.emitMessageNotification(roomId, serializedMessage);
+
+    const notificationRecords = await createMessageNotifications({
+      message,
+      presenceSnapshot: this.getPresenceSnapshot(roomId),
+      room,
+      sender: user,
+    });
+    this.emitNotificationRecords(notificationRecords, {
+      fallbackMessage: serializedMessage,
+      roomId,
+    });
 
     return {
       ok: true,
@@ -755,6 +784,15 @@ class ChatRoomRealtimeService {
       tableTier,
       visibility,
     };
+
+    const launchNotifications = await createTableLaunchNotifications({
+      chatRoom,
+      invitedPlayerIds,
+      launchPayload,
+      presenceSnapshot: this.getPresenceSnapshot(chatRoomId),
+      user,
+    });
+    this.emitNotificationRecords(launchNotifications, { roomId: chatRoomId });
 
     this.io.to(getChatRoomChannel(chatRoomId)).emit("table:launchFromChatRoom", launchPayload);
     if (!socket.rooms.has(getChatRoomChannel(chatRoomId))) {
@@ -997,6 +1035,14 @@ class ChatRoomRealtimeService {
       );
     }
 
+    const inviteNotifications = await createTableInviteNotifications({
+      chatRoom,
+      inviteRecords: invitePersistence.invites,
+      sender,
+      table: invitePersistence.table,
+    });
+    this.emitNotificationRecords(inviteNotifications, { roomId: chatRoomId });
+
     const deliveredPlayerIds = this.emitInviteNotifications({
       chatRoomId,
       invites: invitePersistence.invites,
@@ -1032,29 +1078,41 @@ class ChatRoomRealtimeService {
     };
   }
 
+  emitNotificationRecords(notificationRecords = [], { fallbackMessage = null, roomId = null } = {}) {
+    const notifications = notificationRecords.map(serializeNotification);
+
+    notifications.forEach((notification) => {
+      const payload = {
+        message: fallbackMessage,
+        notification,
+        preview: notification.body,
+        roomId: notification.chatRoomId || roomId,
+        type: notification.type,
+        unreadCount: 1,
+      };
+
+      this.io.sockets.sockets.forEach((candidateSocket) => {
+        const userId = candidateSocket.data?.userId;
+
+        if (userId && String(userId) === String(notification.userId)) {
+          candidateSocket.emit("chat:messageNotification", payload);
+        }
+      });
+    });
+
+    return notifications;
+  }
+
   emitMessageNotification(roomId, message) {
-    const roomKey = String(roomId);
     const notification = {
       message,
       preview: `${message.authorName || message.playerName}: ${message.body || message.text}`.slice(0, 240),
-      roomId: roomKey,
+      roomId: String(roomId),
+      type: "chat_message",
       unreadCount: 1,
     };
 
-    const roomChannel = getChatRoomChannel(roomKey);
-
-    this.io.sockets.sockets.forEach((candidateSocket) => {
-      const userId = candidateSocket.data?.userId;
-
-      if (
-        userId &&
-        String(userId) !== String(message.authorId) &&
-        candidateSocket.rooms.has(roomChannel)
-      ) {
-        candidateSocket.emit("chat:messageNotification", notification);
-      }
-    });
-
+    this.io.to(getChatRoomChannel(roomId)).emit("chat:messageNotification", notification);
     return notification;
   }
 
