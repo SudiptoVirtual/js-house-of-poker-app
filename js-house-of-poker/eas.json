@@ -18,6 +18,9 @@
       "distribution": "internal",
       "env": {
         "APP_ENV": "preview",
+        "EXPO_PUBLIC_BASE_URL": "@poker_backend_url",
+        "EXPO_PUBLIC_POKER_BACKEND_URL": "@poker_backend_url",
+        "EXPO_PUBLIC_POKER_SOCKET_URL": "@poker_backend_url",
         "EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID": "@google_android_client_id",
         "EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID": "@google_ios_client_id",
         "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "@google_web_client_id"
@@ -30,7 +33,9 @@
       "env": {
         "APP_ENV": "production",
         "EXPO_PUBLIC_POKER_TRANSPORT": "socket",
-        "EXPO_PUBLIC_POKER_SOCKET_URL": "https://www.jshouseofpoker.com",
+        "EXPO_PUBLIC_BASE_URL": "@poker_backend_url",
+        "EXPO_PUBLIC_POKER_BACKEND_URL": "@poker_backend_url",
+        "EXPO_PUBLIC_POKER_SOCKET_URL": "@poker_backend_url",
         "EXPO_PUBLIC_POKER_SOCKET_PROTOCOL": "table-v1",
         "EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID": "@google_android_client_id",
         "EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID": "@google_ios_client_id",

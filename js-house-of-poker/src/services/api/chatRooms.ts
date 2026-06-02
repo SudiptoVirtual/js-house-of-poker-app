@@ -98,7 +98,7 @@ function normalizeChatRoomApiError(error: unknown) {
     const configuredHost = env.apiBaseUrl || 'the configured API host';
 
     return new Error(
-      `Chat room API route was not found on ${configuredHost}. Set EXPO_PUBLIC_API_BASE_URL to the poker-backend server, or share the backend host through EXPO_PUBLIC_POKER_SOCKET_URL / EXPO_PUBLIC_POKER_BACKEND_URL.`,
+      `Chat room API route was not found on ${configuredHost}. Set EXPO_PUBLIC_BASE_URL to the poker-backend server.`,
     );
   }
 
