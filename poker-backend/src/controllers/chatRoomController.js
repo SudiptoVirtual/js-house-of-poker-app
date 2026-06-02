@@ -1,6 +1,8 @@
 const mongoose = require("mongoose");
 
+const ChatRoom = require("../models/ChatRoom");
 const GameTable = require("../models/GameTable");
+const { seedChatRooms } = require("../scripts/seedChatRooms");
 const { getChatRoomPresenceService } = require("../services/chatRoomPresenceService");
 
 const DEFAULT_RECENT_MESSAGE_LIMIT = 25;
@@ -8,59 +10,6 @@ const MAX_RECENT_MESSAGE_LIMIT = 100;
 const DEFAULT_ROOM_LIST_LIMIT = 50;
 const MAX_ROOM_LIST_LIMIT = 100;
 
-const DEFAULT_PUBLIC_ROOMS = [
-  {
-    tableCode: "HOLDM",
-    tableName: "Hold'em Public Lounge",
-    gameType: "holdem",
-    smallBlind: 10,
-    bigBlind: 20,
-    buyInAmount: 1000,
-  },
-  {
-    tableCode: "THR57",
-    tableName: "357 Public Lounge",
-    gameType: "357",
-    smallBlind: 0,
-    bigBlind: 0,
-    buyInAmount: 1000,
-    maxPlayers: 7,
-    gameSettings: {
-      game: "357",
-      locked: false,
-      lowRule: "8-or-better",
-      mode: "BEST_FIVE",
-      stips: {
-        bestFiveCards: true,
-        hostestWithTheMostest: false,
-        suitedBeatsUnsuited: false,
-        wildCards: false,
-      },
-      wildCards: [],
-    },
-  },
-  {
-    tableCode: "SHANG",
-    tableName: "Shanghai Public Lounge",
-    gameType: "shanghai",
-    smallBlind: 10,
-    bigBlind: 20,
-    buyInAmount: 1000,
-    gameSettings: {
-      game: "shanghai",
-      locked: false,
-      lowRule: "8-or-better",
-      mode: "high-only",
-      stips: {
-        bestFiveCards: false,
-        hostestWithTheMostest: false,
-        suitedBeatsUnsuited: false,
-        wildCards: false,
-      },
-      wildCards: [],
-    },
-  },
-];
 
 function parsePositiveInteger(value, fallback, maximum) {
   const parsed = Number.parseInt(value, 10);
@@ -262,6 +211,15 @@ const getChatRooms = async (req, res) => {
       MAX_ROOM_LIST_LIMIT
     );
 
+    const seededRooms = await ChatRoom.findRoomList({ limit });
+
+    if (seededRooms.length > 0) {
+      return res.status(200).json({
+        count: seededRooms.length,
+        rooms: seededRooms,
+      });
+    }
+
     const rooms = await GameTable.find(buildOpenRoomFilter())
       .sort({ updatedAt: -1, createdAt: -1 })
       .limit(limit)
@@ -313,54 +271,16 @@ const seedDefaultChatRooms = async (req, res) => {
       });
     }
 
-    const seededRooms = [];
-
-    for (const room of DEFAULT_PUBLIC_ROOMS) {
-      const defaults = {
-        actionLog: [`${room.tableName} seeded as a public room.`],
-        bigBlind: room.bigBlind,
-        buyInAmount: room.buyInAmount,
-        gameSettings: room.gameSettings || {
-          game: room.gameType,
-          locked: false,
-          lowRule: "8-or-better",
-          mode: "high-only",
-          stips: {
-            bestFiveCards: false,
-            hostestWithTheMostest: false,
-            suitedBeatsUnsuited: false,
-            wildCards: false,
-          },
-          wildCards: [],
-        },
-        gameType: room.gameType,
-        maxPlayers: room.maxPlayers || 6,
-        minPlayersToStart: 2,
-        phase: "waiting",
-        smallBlind: room.smallBlind,
-        status: "waiting",
-        tableName: room.tableName,
-      };
-
-      const seededRoom = await GameTable.findOneAndUpdate(
-        { tableCode: room.tableCode },
-        {
-          $setOnInsert: {
-            ...defaults,
-            chatMessages: [],
-            players: [],
-            tableCode: room.tableCode,
-          },
-        },
-        { new: true, upsert: true }
-      ).lean();
-
-      seededRooms.push(serializeRoomListItem(seededRoom));
-    }
+    const { rooms, upsertedCount, modifiedCount, matchedCount } = await seedChatRooms({
+      logger: { log: () => {} },
+    });
 
     return res.status(201).json({
-      count: seededRooms.length,
-      rooms: seededRooms,
+      count: rooms.length,
+      matchedCount,
+      modifiedCount,
+      upsertedCount,
+      rooms,
     });
   } catch (error) {
     return res.status(500).json({
