@@ -69,6 +69,22 @@ const chatRoomMessageSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.Mixed,
       default: null,
     },
+    deletedAt: {
+      type: Date,
+      default: null,
+      index: true,
+    },
+    deletedByAdminId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Admin",
+      default: null,
+    },
+    deletionReason: {
+      type: String,
+      default: "",
+      trim: true,
+      maxlength: 500,
+    },
   },
   {
     timestamps: { createdAt: true, updatedAt: false },
@@ -86,7 +102,7 @@ function buildMessagePreview(message) {
 }
 
 chatRoomMessageSchema.post("save", function updateRoomPreview(message) {
-  if (message.moderation?.status === "blocked") {
+  if (message.deletedAt || message.moderation?.status === "blocked") {
     return undefined;
   }
 

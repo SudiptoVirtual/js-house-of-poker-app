@@ -444,7 +444,7 @@ class ChatRoomRealtimeService {
     this.chatRoomRateBuckets = new Map();
   }
 
-  async findRoom(roomId) {
+  async findRoom(roomId, { allowDisabled = false } = {}) {
     const normalizedRoomId = normalizeRoomId(roomId);
 
     if (!normalizedRoomId) {
@@ -461,6 +461,10 @@ class ChatRoomRealtimeService {
 
     if (!room) {
       throw new Error("Chat room not found.");
+    }
+
+    if (!allowDisabled && room.isDisabled) {
+      throw new Error("Chat room is disabled.");
     }
 
     return room;
@@ -507,6 +511,7 @@ class ChatRoomRealtimeService {
   async getRecentMessages(roomId) {
     const messages = await ChatRoomMessage.find({
       roomId,
+      deletedAt: null,
       "moderation.status": { $ne: "blocked" },
     })
       .sort({ createdAt: -1 })
@@ -620,7 +625,7 @@ class ChatRoomRealtimeService {
       throw new Error("Chat room id is required.");
     }
 
-    const room = await this.findRoom(requestedRoomId);
+    const room = await this.findRoom(requestedRoomId, { allowDisabled: true });
     const roomId = String(room._id);
 
     socket.leave(getChatRoomChannel(roomId));
