@@ -164,6 +164,16 @@ const chatRoomSchema = new mongoose.Schema(
       default: true,
       index: true,
     },
+    visibility: {
+      type: String,
+      enum: ["public", "private"],
+      default: "public",
+      index: true,
+    },
+    sortOrder: {
+      type: Number,
+      default: 0,
+      index: true,
     isDisabled: {
       type: Boolean,
       default: false,
@@ -224,6 +234,7 @@ const chatRoomSchema = new mongoose.Schema(
   }
 );
 
+chatRoomSchema.index({ isPublic: 1, sortOrder: 1, lastMessageAt: -1, updatedAt: -1 });
 chatRoomSchema.index({ isPublic: 1, isDisabled: 1, lastMessageAt: -1, updatedAt: -1 });
 chatRoomSchema.index({ "participantStates.userId": 1 });
 
@@ -250,6 +261,8 @@ chatRoomSchema.methods.toRoomListItem = function toRoomListItem(userId, unreadCo
     description: this.description,
     topic: this.topic,
     isPublic: this.isPublic,
+    visibility: this.visibility || (this.isPublic ? "public" : "private"),
+    sortOrder: this.sortOrder,
     isDisabled: this.isDisabled,
     disabledAt: this.disabledAt,
     disabledReason: this.disabledReason,
@@ -281,7 +294,7 @@ chatRoomSchema.statics.findRoomList = async function findRoomList({
       };
 
   const rooms = await this.find(visibilityFilter)
-    .sort({ lastMessageAt: -1, updatedAt: -1 })
+    .sort({ sortOrder: 1, lastMessageAt: -1, updatedAt: -1 })
     .limit(limit);
 
   if (!userId || rooms.length === 0 || !mongoose.Types.ObjectId.isValid(String(userId))) {

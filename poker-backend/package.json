@@ -6,7 +6,8 @@
     "dev": "nodemon src/index.js",
     "start": "node src/index.js",
     "seed:admin": "node src/scripts/seedAdmin.js",
-    "test": "node --test tests/*.test.js"
+    "test": "node --test tests/*.test.js",
+    "seed:chat-rooms": "node src/scripts/seedChatRooms.js"
   },
   "keywords": [],
   "author": "",
