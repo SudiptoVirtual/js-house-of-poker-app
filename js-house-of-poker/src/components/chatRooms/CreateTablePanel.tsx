@@ -92,7 +92,7 @@ export function CreateTablePanel({
           compact
           disabled={selectedPlayerIds.length === 0}
           icon="email-fast-outline"
-          label={`Invite to Table (${selectedPlayerIds.length})`}
+          label={`Queue Invites (${selectedPlayerIds.length})`}
           onPress={onInviteSelectedPlayers}
           tone="accent"
           variant="secondary"
