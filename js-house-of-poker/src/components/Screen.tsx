@@ -3,15 +3,17 @@ import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { MainPlatformNavigation } from './navigation/MainPlatformNavigation';
 import { colors } from '../theme/colors';
 
 type ScreenProps = PropsWithChildren<{
   eyebrow?: string;
   subtitle?: string;
+  showPlatformNavigation?: boolean;
   title: string;
 }>;
 
-export function Screen({ eyebrow, subtitle, title, children }: ScreenProps) {
+export function Screen({ eyebrow, showPlatformNavigation = false, subtitle, title, children }: ScreenProps) {
   return (
     <SafeAreaView edges={['top', 'left', 'right']} style={styles.safeArea}>
       <StatusBar style="light" />
@@ -21,6 +23,7 @@ export function Screen({ eyebrow, subtitle, title, children }: ScreenProps) {
           <Text style={styles.title}>{title}</Text>
           {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
         </View>
+        {showPlatformNavigation ? <MainPlatformNavigation /> : null}
         <View style={styles.body}>{children}</View>
       </ScrollView>
     </SafeAreaView>

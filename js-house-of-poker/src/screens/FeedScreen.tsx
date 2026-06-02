@@ -31,6 +31,7 @@ export function FeedScreen({ navigation }: Props) {
 
   return (
     <Screen
+      showPlatformNavigation
       eyebrow="Player feed"
       title="Social posts"
       subtitle="Use public posts as lightweight discovery, then send the actual invite from the shared table flow."

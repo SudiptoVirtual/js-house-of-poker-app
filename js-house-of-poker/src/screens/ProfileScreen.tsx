@@ -24,6 +24,7 @@ export function ProfileScreen({ navigation }: Props) {
 
   return (
     <Screen
+      showPlatformNavigation
       eyebrow="Player profile"
       title={currentPlayerProfile.name}
       subtitle={`${currentPlayerProfile.handle} | ${currentPlayerProfile.socialLine}`}
