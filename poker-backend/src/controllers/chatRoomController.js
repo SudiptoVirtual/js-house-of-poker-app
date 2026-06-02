@@ -1,6 +1,7 @@
 const mongoose = require("mongoose");
 
 const GameTable = require("../models/GameTable");
+const { getChatRoomPresenceService } = require("../services/chatRoomPresenceService");
 
 const DEFAULT_RECENT_MESSAGE_LIMIT = 25;
 const MAX_RECENT_MESSAGE_LIMIT = 100;
@@ -139,7 +140,32 @@ function getActivePlayers(table) {
     }));
 }
 
+function getRuntimePresenceSnapshot(table) {
+  const presenceService = getChatRoomPresenceService();
+  const roomIds = [getRoomId(table), table._id ? String(table._id) : null].filter(Boolean);
+
+  for (const roomId of roomIds) {
+    const snapshot = presenceService.getPresenceSnapshot(roomId);
+
+    if (snapshot.players.length > 0) {
+      return {
+        ...snapshot,
+        maxPlayers: table.maxPlayers,
+        roomId: getRoomId(table),
+      };
+    }
+  }
+
+  return null;
+}
+
 function getPresenceSnapshot(table) {
+  const runtimePresence = getRuntimePresenceSnapshot(table);
+
+  if (runtimePresence) {
+    return runtimePresence;
+  }
+
   const players = Array.isArray(table.players) ? table.players : [];
   const connectedPlayers = players.filter(
     (player) => player.isConnected && !player.pendingRemoval
@@ -155,7 +181,8 @@ function getPresenceSnapshot(table) {
 }
 
 function serializeRoomListItem(table) {
-  const activePlayerCount = getActivePlayers(table).length;
+  const runtimePresence = getRuntimePresenceSnapshot(table);
+  const activePlayerCount = runtimePresence?.activePlayerCount ?? getActivePlayers(table).length;
   const recentMessagePreview = getRecentMessagePreview(table);
 
   return {
