@@ -15,18 +15,29 @@ type ScreenProps = PropsWithChildren<{
 
 export function Screen({ eyebrow, showPlatformNavigation = false, subtitle, title, children }: ScreenProps) {
   return (
-    <SafeAreaView edges={['top', 'left', 'right']} style={styles.safeArea}>
-      <StatusBar style="light" />
-      <ScrollView contentContainerStyle={styles.content}>
-        <View style={styles.header}>
-          {eyebrow ? <Text style={styles.eyebrow}>{eyebrow}</Text> : null}
-          <Text style={styles.title}>{title}</Text>
-          {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
-        </View>
-        {showPlatformNavigation ? <MainPlatformNavigation /> : null}
-        <View style={styles.body}>{children}</View>
-      </ScrollView>
-    </SafeAreaView>
+    <View style={styles.root}>
+      <SafeAreaView edges={['top', 'left', 'right']} style={styles.safeArea}>
+        <StatusBar style="light" />
+        <ScrollView
+          contentContainerStyle={[
+            styles.content,
+            showPlatformNavigation ? styles.contentWithBottomNavigation : null,
+          ]}
+        >
+          <View style={styles.header}>
+            {eyebrow ? <Text style={styles.eyebrow}>{eyebrow}</Text> : null}
+            <Text style={styles.title}>{title}</Text>
+            {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
+          </View>
+          <View style={styles.body}>{children}</View>
+        </ScrollView>
+      </SafeAreaView>
+      {showPlatformNavigation ? (
+        <SafeAreaView edges={['bottom', 'left', 'right']} style={styles.bottomNavigationSafeArea}>
+          <MainPlatformNavigation />
+        </SafeAreaView>
+      ) : null}
+    </View>
   );
 }
 
@@ -34,10 +45,22 @@ const styles = StyleSheet.create({
   body: {
     gap: 16,
   },
+  bottomNavigationSafeArea: {
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderTopWidth: 1,
+    bottom: 0,
+    left: 0,
+    position: 'absolute',
+    right: 0,
+  },
   content: {
     flexGrow: 1,
     padding: 20,
     rowGap: 18,
+  },
+  contentWithBottomNavigation: {
+    paddingBottom: 112,
   },
   eyebrow: {
     color: colors.primary,
@@ -48,6 +71,10 @@ const styles = StyleSheet.create({
   },
   header: {
     gap: 8,
+  },
+  root: {
+    backgroundColor: colors.background,
+    flex: 1,
   },
   safeArea: {
     backgroundColor: colors.background,

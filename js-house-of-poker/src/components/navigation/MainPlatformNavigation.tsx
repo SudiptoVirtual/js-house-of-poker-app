@@ -10,17 +10,43 @@ import type { RootStackParamList } from '../../types/navigation';
 type PlatformRouteName = 'Home' | 'ChatRooms' | 'Feed' | 'Friends' | 'Profile';
 
 type NavigationItem = {
+  activeIcon: keyof typeof MaterialCommunityIcons.glyphMap;
   icon: keyof typeof MaterialCommunityIcons.glyphMap;
   label: string;
   route: PlatformRouteName;
 };
 
 const navigationItems: NavigationItem[] = [
-  { icon: 'cards-playing-outline', label: 'The Floor', route: routes.Home },
-  { icon: 'chat-outline', label: 'Chat Rooms', route: routes.ChatRooms },
-  { icon: 'post-outline', label: 'Social Feed', route: routes.Feed },
-  { icon: 'account-multiple-outline', label: 'Friends', route: routes.Friends },
-  { icon: 'account-circle-outline', label: 'Profile', route: routes.Profile },
+  {
+    activeIcon: 'home-variant',
+    icon: 'home-variant-outline',
+    label: 'Lobby',
+    route: routes.Home,
+  },
+  {
+    activeIcon: 'forum',
+    icon: 'forum-outline',
+    label: 'Chats',
+    route: routes.ChatRooms,
+  },
+  {
+    activeIcon: 'newspaper-variant',
+    icon: 'newspaper-variant-outline',
+    label: 'Feed',
+    route: routes.Feed,
+  },
+  {
+    activeIcon: 'account-group',
+    icon: 'account-group-outline',
+    label: 'Friends',
+    route: routes.Friends,
+  },
+  {
+    activeIcon: 'account-circle',
+    icon: 'account-circle-outline',
+    label: 'Profile',
+    route: routes.Profile,
+  },
 ];
 
 export function MainPlatformNavigation() {
@@ -36,6 +62,7 @@ export function MainPlatformNavigation() {
 
         return (
           <Pressable
+            accessibilityLabel={`${item.label} tab`}
             accessibilityRole="tab"
             accessibilityState={{ selected: isActive }}
             key={item.route}
@@ -51,9 +78,9 @@ export function MainPlatformNavigation() {
             ]}
           >
             <MaterialCommunityIcons
-              color={isActive ? colors.background : colors.secondary}
-              name={item.icon}
-              size={18}
+              color={isActive ? colors.secondary : colors.mutedText}
+              name={isActive ? item.activeIcon : item.icon}
+              size={24}
             />
             <Text style={[styles.label, isActive ? styles.labelActive : null]}>{item.label}</Text>
           </Pressable>
@@ -65,42 +92,36 @@ export function MainPlatformNavigation() {
 
 const styles = StyleSheet.create({
   container: {
-    alignItems: 'center',
+    alignItems: 'stretch',
     backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderRadius: 22,
-    borderWidth: 1,
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
+    gap: 4,
+    justifyContent: 'space-between',
+    paddingBottom: 8,
     paddingHorizontal: 10,
-    paddingVertical: 10,
+    paddingTop: 8,
   },
   item: {
     alignItems: 'center',
-    backgroundColor: colors.surfaceMuted,
-    borderColor: colors.border,
-    borderRadius: 999,
-    borderWidth: 1,
-    flexDirection: 'row',
-    gap: 6,
-    minHeight: 40,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    borderRadius: 16,
+    flex: 1,
+    gap: 4,
+    minHeight: 58,
+    paddingHorizontal: 4,
+    paddingTop: 7,
   },
   itemActive: {
-    backgroundColor: colors.secondary,
-    borderColor: colors.secondary,
+    backgroundColor: colors.surfaceMuted,
   },
   itemPressed: {
     opacity: 0.78,
   },
   label: {
-    color: colors.text,
-    fontSize: 13,
-    fontWeight: '800',
+    color: colors.mutedText,
+    fontSize: 11,
+    fontWeight: '700',
   },
   labelActive: {
-    color: colors.background,
+    color: colors.text,
   },
 });
