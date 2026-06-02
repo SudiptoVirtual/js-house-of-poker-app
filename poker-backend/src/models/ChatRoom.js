@@ -164,6 +164,26 @@ const chatRoomSchema = new mongoose.Schema(
       default: true,
       index: true,
     },
+    isDisabled: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+    disabledAt: {
+      type: Date,
+      default: null,
+    },
+    disabledByAdminId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Admin",
+      default: null,
+    },
+    disabledReason: {
+      type: String,
+      default: "",
+      trim: true,
+      maxlength: 500,
+    },
     activePlayerCount: {
       type: Number,
       default: 0,
@@ -204,7 +224,7 @@ const chatRoomSchema = new mongoose.Schema(
   }
 );
 
-chatRoomSchema.index({ isPublic: 1, lastMessageAt: -1, updatedAt: -1 });
+chatRoomSchema.index({ isPublic: 1, isDisabled: 1, lastMessageAt: -1, updatedAt: -1 });
 chatRoomSchema.index({ "participantStates.userId": 1 });
 
 chatRoomSchema.methods.getUnreadCountForUser = function getUnreadCountForUser(userId) {
@@ -230,6 +250,9 @@ chatRoomSchema.methods.toRoomListItem = function toRoomListItem(userId, unreadCo
     description: this.description,
     topic: this.topic,
     isPublic: this.isPublic,
+    isDisabled: this.isDisabled,
+    disabledAt: this.disabledAt,
+    disabledReason: this.disabledReason,
     activePlayerCount: this.activePlayerCount,
     lastMessagePreview: this.lastMessagePreview,
     lastMessageAt: this.lastMessageAt,
@@ -246,9 +269,11 @@ chatRoomSchema.statics.findRoomList = async function findRoomList({
   includePrivate = false,
   limit = 50,
 } = {}) {
+  const baseFilter = { isDisabled: { $ne: true } };
   const visibilityFilter = includePrivate
-    ? {}
+    ? baseFilter
     : {
+        ...baseFilter,
         $or: [
           { isPublic: true },
           ...(userId ? [{ "participantStates.userId": userId }] : []),
