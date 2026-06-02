@@ -212,7 +212,9 @@ chatRoomSchema.methods.getUnreadCountForUser = function getUnreadCountForUser(us
   return participantState ? participantState.unreadCount : 0;
 };
 
-chatRoomSchema.methods.toRoomListItem = function toRoomListItem(userId) {
+chatRoomSchema.methods.toRoomListItem = function toRoomListItem(userId, unreadCountOverride = null) {
+  const unreadCount = unreadCountOverride ?? this.getUnreadCountForUser(userId);
+
   return {
     id: this._id,
     name: this.name,
@@ -223,14 +225,15 @@ chatRoomSchema.methods.toRoomListItem = function toRoomListItem(userId) {
     activePlayerCount: this.activePlayerCount,
     lastMessagePreview: this.lastMessagePreview,
     lastMessageAt: this.lastMessageAt,
-    unreadCount: this.getUnreadCountForUser(userId),
+    hasUnread: unreadCount > 0,
+    unreadCount,
     createdByUserId: this.createdByUserId,
     createdAt: this.createdAt,
     updatedAt: this.updatedAt,
   };
 };
 
-chatRoomSchema.statics.findRoomList = function findRoomList({
+chatRoomSchema.statics.findRoomList = async function findRoomList({
   userId = null,
   includePrivate = false,
   limit = 50,
@@ -244,10 +247,37 @@ chatRoomSchema.statics.findRoomList = function findRoomList({
         ],
       };
 
-  return this.find(visibilityFilter)
+  const rooms = await this.find(visibilityFilter)
     .sort({ lastMessageAt: -1, updatedAt: -1 })
-    .limit(limit)
-    .then((rooms) => rooms.map((room) => room.toRoomListItem(userId)));
+    .limit(limit);
+
+  if (!userId || rooms.length === 0 || !mongoose.Types.ObjectId.isValid(String(userId))) {
+    return rooms.map((room) => room.toRoomListItem(userId));
+  }
+
+  const Notification = require("./Notification");
+  const notificationUserId = new mongoose.Types.ObjectId(String(userId));
+  const roomIds = rooms.map((room) => room._id);
+  const notificationCounts = await Notification.aggregate([
+    {
+      $match: {
+        chatRoomId: { $in: roomIds },
+        readAt: null,
+        userId: notificationUserId,
+      },
+    },
+    { $group: { _id: "$chatRoomId", unreadCount: { $sum: 1 } } },
+  ]);
+  const unreadCountByRoomId = new Map(
+    notificationCounts.map((count) => [String(count._id), count.unreadCount])
+  );
+
+  return rooms.map((room) => ({
+    ...room.toRoomListItem(
+      userId,
+      unreadCountByRoomId.get(String(room._id)) ?? room.getUnreadCountForUser(userId)
+    ),
+  }));
 };
 
 module.exports = mongoose.model("ChatRoom", chatRoomSchema);
