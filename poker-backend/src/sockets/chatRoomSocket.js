@@ -4,6 +4,7 @@ const GameTable = require("../models/GameTable");
 const User = require("../models/User");
 const { mapRealtimeError } = require("./socketErrorUtils");
 const { createChatRoomRealtimeService } = require("../services/chatRoomRealtimeService");
+const { getChatRoomPresenceService } = require("../services/chatRoomPresenceService");
 const { getPlayerRealtimeService } = require("./playerGameSocket");
 
 const CHAT_ROOM_PREFIX = "chat:room";
@@ -334,6 +335,17 @@ async function inviteRoomPlayers({ io, realtimeService, socket, payload, ack }) 
     throw new Error("At least one player id is required.");
   }
 
+  const presenceSnapshot = getChatRoomPresenceService().getPresenceSnapshot(chatRoomId, {
+    excludedUserIds: [sender._id.toString()],
+    invitedPlayerIds: normalizePlayerIds(payload.alreadyInvitedPlayerIds),
+  });
+  const eligiblePlayerIds = new Set(presenceSnapshot.inviteEligibility.eligiblePlayerIds);
+  const ineligiblePlayerIds = playerIds.filter((playerId) => !eligiblePlayerIds.has(playerId));
+
+  if (ineligiblePlayerIds.length > 0) {
+    throw new Error("Selected players must be online in the chat room and eligible for invites.");
+  }
+
   const tableId = normalizeTableId(payload);
   const invites = await appendTableInvites({ playerIds, sender, tableId });
   await User.findByIdAndUpdate(sender._id, {
@@ -344,6 +356,7 @@ async function inviteRoomPlayers({ io, realtimeService, socket, payload, ack }) 
   const eventPayload = {
     chatRoomId,
     invitedPlayerIds: playerIds,
+    inviteEligibility: presenceSnapshot.inviteEligibility,
     invites,
     playerIds,
     senderPlayerId: sender._id.toString(),

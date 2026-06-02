@@ -2,6 +2,7 @@ const mongoose = require("mongoose");
 
 const ChatRoom = require("../models/ChatRoom");
 const ChatRoomMessage = require("../models/ChatRoomMessage");
+const { getChatRoomPresenceService } = require("./chatRoomPresenceService");
 
 const CHAT_ROOM_PREFIX = "chat:room";
 const SOCIAL_CHAT_HISTORY_LIMIT = Math.max(
@@ -191,14 +192,15 @@ function buildChatRoomPlayer(user, joinedAt = new Date(), socketCount = 1) {
 }
 
 class ChatRoomRealtimeService {
-  constructor(io, { authenticateSocketUser } = {}) {
+  constructor(io, options = {}) {
+    const { authenticateSocketUser } = options;
     if (typeof authenticateSocketUser !== "function") {
       throw new Error("ChatRoomRealtimeService requires authenticateSocketUser.");
     }
 
     this.io = io;
     this.authenticateSocketUser = authenticateSocketUser;
-    this.presenceByRoomId = new Map();
+    this.presenceService = options.presenceService || getChatRoomPresenceService();
     this.chatUserRateBuckets = new Map();
     this.chatRoomRateBuckets = new Map();
   }
@@ -226,19 +228,7 @@ class ChatRoomRealtimeService {
   }
 
   getPresenceSnapshot(roomId) {
-    const presence = this.presenceByRoomId.get(String(roomId));
-    const players = presence
-      ? [...presence.values()]
-          .sort((left, right) => left.displayName.localeCompare(right.displayName))
-          .map((entry) => ({ ...entry.player, socketCount: entry.socketIds.size }))
-      : [];
-
-    return {
-      activePlayerCount: players.length,
-      players,
-      roomId: String(roomId),
-      updatedAt: new Date().toISOString(),
-    };
+    return this.presenceService.getPresenceSnapshot(roomId);
   }
 
   async syncActivePlayerCount(roomId) {
@@ -299,50 +289,13 @@ class ChatRoomRealtimeService {
   }
 
   addPresence(roomId, user, socket) {
-    const roomKey = String(roomId);
-    const userId = String(user._id);
-    const presence = this.presenceByRoomId.get(roomKey) || new Map();
-    const existing = presence.get(userId);
-
-    if (existing) {
-      existing.socketIds.add(socket.id);
-      existing.lastSeenAt = new Date();
-    } else {
-      const joinedAt = new Date();
-      presence.set(userId, {
-        displayName: getDisplayName(user),
-        joinedAt,
-        lastSeenAt: joinedAt,
-        player: buildChatRoomPlayer(user, joinedAt),
-        socketIds: new Set([socket.id]),
-        userId,
-      });
-    }
-
-    this.presenceByRoomId.set(roomKey, presence);
+    return this.presenceService.addPresence(roomId, user, socket);
   }
 
   removePresence(roomId, socket) {
-    const roomKey = String(roomId);
-    const presence = this.presenceByRoomId.get(roomKey);
-
-    if (!presence) {
-      return;
-    }
-
-    [...presence.entries()].forEach(([userId, entry]) => {
-      entry.socketIds.delete(socket.id);
-      entry.lastSeenAt = new Date();
-
-      if (entry.socketIds.size === 0) {
-        presence.delete(userId);
-      }
-    });
-
-    if (presence.size === 0) {
-      this.presenceByRoomId.delete(roomKey);
-    }
+    return this.presenceService.removePresence(roomId, socket);
   }
+
 
   enforceRateLimit(roomId, userId) {
     const now = Date.now();
