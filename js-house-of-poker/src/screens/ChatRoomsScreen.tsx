@@ -84,7 +84,7 @@ export function ChatRoomsScreen({ navigation }: Props) {
         </View>
       </SectionCard>
 
-      <ComplianceNotice />
+      {/* <ComplianceNotice /> */}
     </Screen>
   );
 }

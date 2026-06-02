@@ -25,7 +25,7 @@ export function WelcomeScreen({ navigation }: Props) {
       title="J's House of Poker"
       subtitle="Create private tables, discover players, and keep every invite inside one free-play social poker flow."
     >
-      <ComplianceNotice />
+      {/* <ComplianceNotice /> */}
 
       <SectionCard title="What this app is for">
         <Image source={legacySplash} style={styles.logo} resizeMode="contain" />

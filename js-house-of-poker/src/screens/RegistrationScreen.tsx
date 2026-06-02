@@ -143,7 +143,7 @@ export function RegistrationScreen({ navigation }: Props) {
         title="Claim Your Seat"
       />
 
-      <ComplianceNotice />
+      {/* <ComplianceNotice /> */}
 
       <SectionCard title="Registration details">
         <AuthTextField

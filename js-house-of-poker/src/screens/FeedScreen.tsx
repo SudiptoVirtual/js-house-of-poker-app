@@ -77,7 +77,7 @@ export function FeedScreen({ navigation }: Props) {
         </View>
       </SectionCard>
 
-      <ComplianceNotice />
+      {/* <ComplianceNotice /> */}
     </Screen>
   );
 }
