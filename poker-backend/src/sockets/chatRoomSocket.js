@@ -415,9 +415,14 @@ function initChatRoomSocket(io) {
     });
 
     socket.on("table:inviteRoomPlayers", (payload = {}, ack) => {
-      withChatRoomErrorBoundary(socket, ack, () =>
-        inviteRoomPlayers({ io, realtimeService, socket, payload, ack })
-      );
+      withChatRoomErrorBoundary(socket, ack, async () => {
+        const response = await chatRoomRealtimeService.inviteRoomPlayers(
+          socket,
+          payload,
+          realtimeService
+        );
+        emitAck(ack, response);
+      });
     });
 
     socket.on("disconnect", () => {
