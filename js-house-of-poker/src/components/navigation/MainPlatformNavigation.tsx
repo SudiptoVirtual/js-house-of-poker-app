@@ -30,7 +30,9 @@ export function MainPlatformNavigation() {
   return (
     <View accessibilityRole="tablist" style={styles.container}>
       {navigationItems.map((item) => {
-        const isActive = route.name === item.route;
+        const isActive =
+          route.name === item.route ||
+          (route.name === routes.ChatRoomDetail && item.route === routes.ChatRooms);
 
         return (
           <Pressable
