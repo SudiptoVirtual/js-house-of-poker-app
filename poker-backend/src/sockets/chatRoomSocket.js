@@ -3,6 +3,7 @@ const mongoose = require("mongoose");
 const GameTable = require("../models/GameTable");
 const User = require("../models/User");
 const { mapRealtimeError } = require("./socketErrorUtils");
+const { createChatRoomRealtimeService } = require("../services/chatRoomRealtimeService");
 const { getPlayerRealtimeService } = require("./playerGameSocket");
 
 const CHAT_ROOM_PREFIX = "chat:room";
@@ -356,30 +357,37 @@ async function inviteRoomPlayers({ io, realtimeService, socket, payload, ack }) 
 
 function initChatRoomSocket(io) {
   const realtimeService = getPlayerRealtimeService(io);
+  const chatRoomRealtimeService = createChatRoomRealtimeService(io, {
+    authenticateSocketUser: realtimeService.authenticateSocketUser.bind(realtimeService),
+  });
 
   io.on("connection", (socket) => {
     socket.on("chat:joinRoom", (payload = {}, ack) => {
-      withChatRoomErrorBoundary(socket, ack, () =>
-        joinChatRoom({ realtimeService, socket, payload, ack })
-      );
+      withChatRoomErrorBoundary(socket, ack, async () => {
+        const response = await chatRoomRealtimeService.joinRoom(socket, payload);
+        emitAck(ack, response);
+      });
     });
 
     socket.on("chat:leaveRoom", (payload = {}, ack) => {
-      withChatRoomErrorBoundary(socket, ack, () =>
-        leaveChatRoom({ socket, payload, ack })
-      );
+      withChatRoomErrorBoundary(socket, ack, async () => {
+        const response = await chatRoomRealtimeService.leaveRoom(socket, payload);
+        emitAck(ack, response);
+      });
     });
 
     socket.on("chat:sendMessage", (payload = {}, ack) => {
-      withChatRoomErrorBoundary(socket, ack, () =>
-        sendChatRoomMessage({ io, realtimeService, socket, payload, ack })
-      );
+      withChatRoomErrorBoundary(socket, ack, async () => {
+        const response = await chatRoomRealtimeService.sendMessage(socket, payload);
+        emitAck(ack, response);
+      });
     });
 
     socket.on("chat:typing", (payload = {}, ack) => {
-      withChatRoomErrorBoundary(socket, ack, () =>
-        sendTypingEvent({ realtimeService, socket, payload, ack })
-      );
+      withChatRoomErrorBoundary(socket, ack, async () => {
+        const response = await chatRoomRealtimeService.sendTyping(socket, payload);
+        emitAck(ack, response);
+      });
     });
 
     socket.on("table:createFromChatRoom", (payload = {}, ack) => {
@@ -395,10 +403,7 @@ function initChatRoomSocket(io) {
     });
 
     socket.on("disconnect", () => {
-      (socket.data.chatRoomIds || []).forEach((roomId) => {
-        socket.leave(getChatRoomChannel(roomId));
-      });
-      socket.data.chatRoomIds = [];
+      chatRoomRealtimeService.leaveAllRooms(socket);
     });
   });
 }
