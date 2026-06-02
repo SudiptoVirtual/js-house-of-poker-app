@@ -19,6 +19,7 @@ const defaultPublicEnv = {
   EXPO_PUBLIC_API_TIMEOUT: DEFAULT_API_TIMEOUT,
   EXPO_PUBLIC_POKER_TRANSPORT: 'local',
   EXPO_PUBLIC_POKER_SOCKET_URL: '',
+  EXPO_PUBLIC_POKER_BACKEND_URL: '',
   EXPO_PUBLIC_POKER_SOCKET_PROTOCOL: DEFAULT_POKER_SOCKET_PROTOCOL,
   EXPO_PUBLIC_FIREBASE_API_KEY: 'AIzaSyBQjIklN4IJAQCh-U8NxHmxQnl2KyCcazA',
   EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN: 'j-s-house-of-poker-2f734.firebaseapp.com',
@@ -49,15 +50,19 @@ function resolveAppEnvironment(): AppEnvironment {
 }
 
 const appEnvironment = resolveAppEnvironment();
+const configuredPokerBackendUrl =
+  readEnv('EXPO_PUBLIC_POKER_SOCKET_URL') ||
+  readEnv('EXPO_PUBLIC_POKER_BACKEND_URL') ||
+  defaultPublicEnv.EXPO_PUBLIC_POKER_SOCKET_URL;
 const apiBaseUrl =
   readEnv('EXPO_PUBLIC_API_BASE_URL') ||
   readEnv('EXPO_PUBLIC_BASE_URL') ||
+  configuredPokerBackendUrl ||
   defaultApiBaseUrls[appEnvironment];
 const pokerTransport =
   readEnv('EXPO_PUBLIC_POKER_TRANSPORT') ||
   (appEnvironment === 'production' ? 'socket' : defaultPublicEnv.EXPO_PUBLIC_POKER_TRANSPORT);
-const pokerSocketUrl =
-  readEnv('EXPO_PUBLIC_POKER_SOCKET_URL') || defaultPublicEnv.EXPO_PUBLIC_POKER_SOCKET_URL;
+const pokerSocketUrl = configuredPokerBackendUrl;
 const pokerSocketProtocol =
   readEnv('EXPO_PUBLIC_POKER_SOCKET_PROTOCOL') ||
   defaultPublicEnv.EXPO_PUBLIC_POKER_SOCKET_PROTOCOL;
@@ -75,6 +80,7 @@ const publicEnv = {
   EXPO_PUBLIC_API_TIMEOUT: readEnv('EXPO_PUBLIC_API_TIMEOUT') || DEFAULT_API_TIMEOUT,
   EXPO_PUBLIC_POKER_TRANSPORT: pokerTransport,
   EXPO_PUBLIC_POKER_SOCKET_URL: pokerSocketUrl,
+  EXPO_PUBLIC_POKER_BACKEND_URL: pokerSocketUrl,
   EXPO_PUBLIC_POKER_SOCKET_PROTOCOL: pokerSocketProtocol,
   EXPO_PUBLIC_FIREBASE_API_KEY:
     readEnv('EXPO_PUBLIC_FIREBASE_API_KEY') || defaultPublicEnv.EXPO_PUBLIC_FIREBASE_API_KEY,

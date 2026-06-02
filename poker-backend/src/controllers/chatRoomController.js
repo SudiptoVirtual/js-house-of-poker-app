@@ -1,6 +1,7 @@
 const mongoose = require("mongoose");
 
 const ChatRoom = require("../models/ChatRoom");
+const ChatRoomMessage = require("../models/ChatRoomMessage");
 const GameTable = require("../models/GameTable");
 const { seedChatRooms } = require("../scripts/seedChatRooms");
 const { getChatRoomPresenceService } = require("../services/chatRoomPresenceService");
@@ -10,6 +11,106 @@ const MAX_RECENT_MESSAGE_LIMIT = 100;
 const DEFAULT_ROOM_LIST_LIMIT = 50;
 const MAX_ROOM_LIST_LIMIT = 100;
 
+
+
+function buildChatRoomIdentifiers(roomId) {
+  const normalizedRoomId = String(roomId || "").trim();
+
+  if (!normalizedRoomId) {
+    return [];
+  }
+
+  const identifiers = [{ slug: normalizedRoomId.toLowerCase() }];
+
+  if (mongoose.Types.ObjectId.isValid(normalizedRoomId)) {
+    identifiers.push({ _id: normalizedRoomId });
+  }
+
+  return identifiers;
+}
+
+function serializeChatRoomPlayer(player) {
+  const userId = String(player.userId || player.id || "");
+  const displayName = player.displayName || player.playerName || "Player";
+  const avatarInitials =
+    player.avatarInitials ||
+    displayName
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part[0]?.toUpperCase())
+      .join("") ||
+    "P";
+
+  return {
+    avatarInitials,
+    chipStackLabel: player.chipStackLabel || "Online now",
+    displayName,
+    handle: player.handle || displayName,
+    id: userId,
+    isConnected: player.isConnected !== false,
+    socketCount: player.socketCount || 1,
+    status: player.status || "available",
+    userId,
+  };
+}
+
+function serializeChatRoomMessage(message) {
+  const createdAt = message.createdAt || new Date();
+  const roomId = String(message.roomId);
+  const authorId = message.senderUserId ? String(message.senderUserId) : null;
+
+  return {
+    authorId,
+    authorName: message.senderDisplayName,
+    body: message.text,
+    createdAt: createdAt instanceof Date ? createdAt.toISOString() : new Date(createdAt).toISOString(),
+    id: String(message._id),
+    playerId: authorId,
+    playerName: message.senderDisplayName,
+    roomId,
+    text: message.text,
+    tone: message.tone || "player",
+  };
+}
+
+async function findSocialChatRoom(roomId) {
+  const identifiers = buildChatRoomIdentifiers(roomId);
+
+  if (identifiers.length === 0) {
+    return null;
+  }
+
+  return ChatRoom.findOne({
+    isDisabled: { $ne: true },
+    $or: identifiers,
+  });
+}
+
+async function serializeSocialChatRoomDetail(room, recentMessageLimit) {
+  const roomId = String(room._id);
+  const presenceSnapshot = getChatRoomPresenceService().getPresenceSnapshot(roomId);
+  const messages = await ChatRoomMessage.find({
+    deletedAt: null,
+    "moderation.status": { $ne: "blocked" },
+    roomId,
+  })
+    .sort({ createdAt: -1 })
+    .limit(recentMessageLimit);
+
+  const serializedMessages = messages.reverse().map(serializeChatRoomMessage);
+
+  return {
+    ...room.toRoomListItem(null),
+    activePlayerCount: presenceSnapshot.activePlayerCount || room.activePlayerCount || 0,
+    activePlayers: (presenceSnapshot.players || []).map(serializeChatRoomPlayer),
+    messages: serializedMessages,
+    players: (presenceSnapshot.players || []).map(serializeChatRoomPlayer),
+    presenceSnapshot,
+    recentMessages: serializedMessages,
+    roomId,
+  };
+}
 
 function parsePositiveInteger(value, fallback, maximum) {
   const parsed = Number.parseInt(value, 10);
@@ -244,6 +345,14 @@ const getChatRoomById = async (req, res) => {
       DEFAULT_RECENT_MESSAGE_LIMIT,
       MAX_RECENT_MESSAGE_LIMIT
     );
+    const socialRoom = await findSocialChatRoom(req.params.roomId);
+
+    if (socialRoom) {
+      return res.status(200).json({
+        room: await serializeSocialChatRoomDetail(socialRoom, recentMessageLimit),
+      });
+    }
+
     const room = await findRoomById(req.params.roomId);
 
     if (!room) {

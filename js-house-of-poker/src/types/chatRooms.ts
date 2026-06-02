@@ -2,6 +2,7 @@ export type ChatRoomPlayerStatus = 'available' | 'inTable' | 'away';
 
 export interface ChatRoomPlayer {
   id: string;
+  userId?: string;
   displayName: string;
   handle: string;
   avatarInitials: string;
@@ -13,9 +14,12 @@ export interface ChatRoomPlayer {
 export interface ChatRoomMessage {
   id: string;
   roomId: string;
-  authorId: string;
+  authorId: string | null;
   authorName: string;
   body: string;
+  playerId?: string | null;
+  playerName?: string;
+  text?: string;
   createdAt: string;
   tone?: 'system' | 'player';
 }
