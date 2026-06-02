@@ -36,6 +36,7 @@ type TouchPoint = {
 
 const maxTableViewZoom = 1.55;
 const minTableViewZoom = 0.72;
+const initialTableViewZoom = 1.1;
 
 function clamp(value: number, min: number, max: number) {
   return Math.max(min, Math.min(max, value));
@@ -93,15 +94,15 @@ export function useGameplayAnimations({
   const focusProgress = useRef(new Animated.Value(0)).current;
   const showdownProgress = useRef(new Animated.Value(0)).current;
   const tablePan = useRef(new Animated.ValueXY({ x: 0, y: 0 })).current;
-  const tableViewZoom = useRef(new Animated.Value(1)).current;
+  const tableViewZoom = useRef(new Animated.Value(initialTableViewZoom)).current;
 
   const tableLayoutRef = useRef<TableLayout>({ height: 0, width: 0 });
   const tablePanOffsetRef = useRef<Point>({ x: 0, y: 0 });
-  const tableViewZoomRef = useRef(1);
+  const tableViewZoomRef = useRef(initialTableViewZoom);
   const tableGestureRef = useRef<TableGestureState>({
     panStart: { x: 0, y: 0 },
     pinchStartDistance: 0,
-    pinchStartZoom: 1,
+    pinchStartZoom: initialTableViewZoom,
   });
 
   useEffect(() => {
@@ -168,13 +169,13 @@ export function useGameplayAnimations({
     tablePan.stopAnimation();
     tableViewZoom.stopAnimation();
     tablePan.setValue({ x: 0, y: 0 });
-    tableViewZoom.setValue(1);
+    tableViewZoom.setValue(initialTableViewZoom);
     tablePanOffsetRef.current = { x: 0, y: 0 };
-    tableViewZoomRef.current = 1;
+    tableViewZoomRef.current = initialTableViewZoom;
     tableGestureRef.current = {
       panStart: { x: 0, y: 0 },
       pinchStartDistance: 0,
-      pinchStartZoom: 1,
+      pinchStartZoom: initialTableViewZoom,
     };
   }, [shouldMaximizeTable, tablePan, tableViewZoom]);
 
@@ -182,11 +183,11 @@ export function useGameplayAnimations({
     tablePan.stopAnimation();
     tableViewZoom.stopAnimation();
     tablePanOffsetRef.current = { x: 0, y: 0 };
-    tableViewZoomRef.current = 1;
+    tableViewZoomRef.current = initialTableViewZoom;
     tableGestureRef.current = {
       panStart: { x: 0, y: 0 },
       pinchStartDistance: 0,
-      pinchStartZoom: 1,
+      pinchStartZoom: initialTableViewZoom,
     };
 
     Animated.parallel([
@@ -199,7 +200,7 @@ export function useGameplayAnimations({
       Animated.spring(tableViewZoom, {
         bounciness: 7,
         speed: 18,
-        toValue: 1,
+        toValue: initialTableViewZoom,
         useNativeDriver: true,
       }),
     ]).start();

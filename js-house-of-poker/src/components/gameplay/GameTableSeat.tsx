@@ -4,7 +4,6 @@ import {
   Easing,
   StyleSheet,
   Text,
-  useWindowDimensions,
   View,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -51,7 +50,10 @@ const MAX_LEG_SLOTS = 4;
 const SEAT_META_BADGE_SIZE = 24;
 const COMPACT_357_META_BADGE_SIZE = 16;
 const SELF_TABLE_SEAT_SIZE_SCALE = 0.88;
-const COMPACT_357_HERO_MAX_WIDTH = 480;
+const CARD_DIMENSIONS = {
+  md: { height: 72, width: 52 },
+  sm: { height: 58, width: 42 },
+} as const;
 
 function formatChipAmount(value: number) {
   if (value >= 1000000) {
@@ -63,6 +65,17 @@ function formatChipAmount(value: number) {
   }
 
   return value.toLocaleString('en-US');
+}
+
+function formatSelfAnchorChairName(name: string) {
+  const trimmedName = name.trim();
+  const words = trimmedName.split(/\s+/);
+
+  if (words.length <= 2) {
+    return trimmedName;
+  }
+
+  return `${words.slice(0, 2).join(' ')}...`;
 }
 
 function resolveCardCount(player: PokerPlayerState, displayCardCount?: number) {
@@ -262,14 +275,103 @@ function CardFan({
   compact?: boolean;
   count: number;
   hidden: boolean;
-  spread?: 'default' | 'wide';
+  spread?: 'default' | 'wide' | 'anchor' | 'anchorSelf';
   size: 'md' | 'sm';
 }) {
   const wideSpread = spread === 'wide';
-  const overlap = wideSpread ? 32 : compact ? 33 : size === 'md' ? 24 : 18;
-  const angleSpread = wideSpread ? 5 : compact ? 4.5 : size === 'md' ? 14 : 10;
-  const cardScale = wideSpread ? 0.62 : compact ? 0.6 : 1;
+  const anchorSpread = spread === 'anchor' || spread === 'anchorSelf';
+  const anchorSelfSpread = spread === 'anchorSelf';
+  const overlap = wideSpread ? 32 : size === 'md' ? 24 : 18;
+  const angleSpread = wideSpread ? 5 : size === 'md' ? 14 : 10;
   const slots = Array.from({ length: count });
+
+  if (compact) {
+    const dimensions = CARD_DIMENSIONS[size];
+    const compactScale = anchorSelfSpread
+      ? 0.55
+      : anchorSpread
+        ? 0.5
+        : wideSpread
+          ? 0.58
+          : 0.55;
+    const baseCompactStep = anchorSpread
+      ? anchorSelfSpread
+        ? count >= 7
+          ? 6
+          : count >= 5
+            ? 7
+            : 9
+        : count >= 7
+          ? 5.5
+          : count >= 5
+            ? 6.5
+            : 8
+      : count >= 7
+        ? 7
+        : count >= 5
+          ? 8
+          : 10;
+    const compactStep = anchorSelfSpread
+      ? baseCompactStep * 1.2
+      : baseCompactStep;
+    const compactWidth = Math.ceil(
+      dimensions.width * compactScale +
+        compactStep * Math.max(0, count - 1) +
+        (anchorSpread ? 4 : 6),
+    );
+    const compactHeight = Math.ceil(
+      dimensions.height * compactScale +
+        (anchorSelfSpread ? 11 : anchorSpread ? 7 : 18),
+    );
+    const compactAngleSpread = anchorSpread ? 3 : wideSpread ? 4 : 4.5;
+
+    return (
+      <View
+        style={[
+          styles.cardFan,
+          styles.cardFanCompactAbsolute,
+          { height: compactHeight, width: compactWidth },
+        ]}
+      >
+        {slots.map((_, index) => {
+          const card = cards[index];
+          const rotate = (index - (count - 1) / 2) * compactAngleSpread;
+          const topOffset =
+            Math.abs(index - (count - 1) / 2) *
+            (anchorSpread && !anchorSelfSpread ? 0.4 : 0.6);
+
+          return (
+            <View
+              key={`fan-${index}`}
+              style={[
+                styles.cardFanSlot,
+                styles.cardFanSlotAbsolute,
+                {
+                  height: dimensions.height,
+                  left: index * compactStep,
+                  top: topOffset,
+                  transform: [
+                    { rotate: `${rotate}deg` },
+                    { scale: compactScale },
+                  ],
+                  width: dimensions.width,
+                  zIndex: index + 1,
+                },
+              ]}
+            >
+              <AnimatedCard
+                animateOnMount="none"
+                card={card}
+                hidden={hidden || !card}
+                size={size}
+                style={styles.compactFanCard}
+              />
+            </View>
+          );
+        })}
+      </View>
+    );
+  }
 
   return (
     <View style={styles.cardFan}>
@@ -285,12 +387,10 @@ function CardFan({
             style={[
               styles.cardFanSlot,
               index > 0 ? { marginLeft: -overlap } : null,
-              compact && !wideSpread ? styles.cardFanSlotCompact : null,
               {
                 transform: [
                   { rotate: `${rotate}deg` },
                   { translateY },
-                  { scale: cardScale },
                 ],
               },
             ]}
@@ -300,7 +400,6 @@ function CardFan({
               card={card}
               hidden={hidden || !card}
               size={size}
-              style={compact && !wideSpread ? styles.compactFanCard : null}
             />
           </View>
         );
@@ -312,10 +411,12 @@ function CardFan({
 function LegsPips({
   compact = false,
   legs,
+  mini = false,
   pulseKey = null,
 }: {
   compact?: boolean;
   legs: number;
+  mini?: boolean;
   pulseKey?: string | null;
 }) {
   const previousLegs = useRef(legs);
@@ -357,6 +458,7 @@ function LegsPips({
       style={[
         styles.legsPipsShell,
         compact ? styles.legsPipsShellCompact : null,
+        mini ? styles.legsPipsShellMini : null,
         {
           transform: [
             {
@@ -369,15 +471,17 @@ function LegsPips({
         },
       ]}
     >
-      <Text
-        style={[
-          styles.legsPipsLabel,
-          compact ? styles.legsPipsLabelCompact : null,
-        ]}
-      >
-        {visibleLegs}/{MAX_LEG_SLOTS}
-      </Text>
-      <View style={styles.legsPipsRow}>
+      {mini ? null : (
+        <Text
+          style={[
+            styles.legsPipsLabel,
+            compact ? styles.legsPipsLabelCompact : null,
+          ]}
+        >
+          {visibleLegs}/{MAX_LEG_SLOTS}
+        </Text>
+      )}
+      <View style={[styles.legsPipsRow, mini ? styles.legsPipsRowMini : null]}>
         {Array.from({ length: MAX_LEG_SLOTS }).map((_, index) => {
           const filled = index < visibleLegs;
           const justGained =
@@ -389,6 +493,7 @@ function LegsPips({
               style={[
                 styles.legsPip,
                 compact ? styles.legsPipCompact : null,
+                mini ? styles.legsPipMini : null,
                 filled ? styles.legsPipFilled : null,
                 justGained
                   ? {
@@ -412,7 +517,7 @@ function LegsPips({
                 <MaterialCommunityIcons
                   color="#12091A"
                   name="check"
-                  size={compact ? 4 : 7}
+                  size={mini ? 3 : compact ? 4 : 7}
                 />
               ) : null}
             </Animated.View>
@@ -426,7 +531,7 @@ function LegsPips({
 export const GameTableSeat = memo(function GameTableSeat({
   align = 'center',
   anteAmount = 0,
-  compact357Layout = false,
+  compact357Layout: _compact357Layout = false,
   decision = null,
   displayCardCount,
   game,
@@ -442,7 +547,6 @@ export const GameTableSeat = memo(function GameTableSeat({
   showdownDescription = null,
   showDecisionMode = false,
 }: Props) {
-  const { width: viewportWidth } = useWindowDimensions();
   const turnGlow = useRef(new Animated.Value(player.isTurn ? 0.55 : 0)).current;
   const winnerGlow = useRef(new Animated.Value(isWinner ? 0.7 : 0)).current;
   const folded = useRef(
@@ -485,16 +589,15 @@ export const GameTableSeat = memo(function GameTableSeat({
         ? styles.alignRight
         : styles.alignCenter;
   const is357Game = game === '357';
-  const useCompact357Seat =
-    is357Game &&
-    (compact357Layout || !isSelf || viewportWidth <= COMPACT_357_HERO_MAX_WIDTH);
+  const useCompact357Seat = is357Game;
   const useCompactDecisionSeat =
     useCompact357Seat || (showDecisionMode && !isSelf);
   const playerName = player.name;
+  const anchorChairPlayerName = isSelf
+    ? formatSelfAnchorChairName(playerName)
+    : playerName;
   const selfTag = isSelf ? 'YOU' : null;
   const tableSeatSizeScale = isSelf ? SELF_TABLE_SEAT_SIZE_SCALE : 1;
-  const showQuestionBadge =
-    showDecisionMode && !revealCards && !isSelf && !decision;
   const useCompactSelfSeat = isBottomSeat && isSelf;
   const useSelf357MetaLayout = useCompactSelfSeat && is357Game;
   const showSelfSideCards = isBottomSeat && isSelf && cardCount > 0;
@@ -504,7 +607,6 @@ export const GameTableSeat = memo(function GameTableSeat({
     (isWinner ||
       isLoser ||
       Boolean(decision) ||
-      player.isTurn ||
       player.hasFolded ||
       !player.isConnected ||
       player.isAllIn);
@@ -645,7 +747,7 @@ export const GameTableSeat = memo(function GameTableSeat({
   const renderCardFan = (
     size: 'md' | 'sm',
     compact = false,
-    spread: 'default' | 'wide' = 'default',
+    spread: 'default' | 'wide' | 'anchor' | 'anchorSelf' = 'default',
   ) => (
     <View
       style={[
@@ -662,6 +764,158 @@ export const GameTableSeat = memo(function GameTableSeat({
         size={size}
       />
       {showShowdownConnector ? renderShowdownConnector(compact) : null}
+    </View>
+  );
+
+  const anchorChairSeatNode = (
+    <View
+      style={[
+        styles.anchorChairSeat,
+        !isSelf ? styles.anchorChairSeatOpponentCompact : null,
+      ]}
+    >
+      <View style={styles.anchorChairTopRow}>
+        {renderAvatarStack('sm', true)}
+        <View style={styles.anchorChairIdentityColumn}>
+          <View style={styles.anchorChairNameRow}>
+            <Text
+              adjustsFontSizeToFit={!isSelf}
+              ellipsizeMode="tail"
+              minimumFontScale={isSelf ? 1 : 0.68}
+              numberOfLines={1}
+              style={[
+                styles.anchorChairName,
+                isSelf ? styles.anchorChairNameRowTextSelf : null,
+                isSelf ? styles.anchorChairSelfName : null,
+              ]}
+            >
+              {anchorChairPlayerName}
+            </Text>
+          </View>
+          <View style={styles.anchorChairAmountsRow}>
+            <View style={styles.anchorChairChipsPill}>
+              <MaterialCommunityIcons
+                color="#FFD88A"
+                name="poker-chip"
+                size={7}
+              />
+              <Text
+                adjustsFontSizeToFit
+                minimumFontScale={0.7}
+                numberOfLines={1}
+                style={styles.anchorChairChipsText}
+              >
+                {formatChipAmount(player.chips)}
+              </Text>
+            </View>
+            {selfTag ? (
+              <View style={[styles.selfTag, styles.anchorChairSelfTag]}>
+                <Text style={[styles.selfTagText, styles.anchorChairSelfTagText]}>
+                  {selfTag}
+                </Text>
+              </View>
+            ) : null}
+          </View>
+        </View>
+      </View>
+
+      {showCompactActionPill ? (
+        <View
+          style={[
+            styles.anchorChairActionRow,
+            !isSelf ? styles.anchorChairActionRowOverlay : null,
+          ]}
+        >
+          <View
+            style={[
+              styles.compactActionPill,
+              styles.anchorChairActionPill,
+              {
+                backgroundColor: actionBadge.backgroundColor,
+                borderColor: actionBadge.borderColor,
+              },
+            ]}
+          >
+            <Text
+              adjustsFontSizeToFit
+              minimumFontScale={0.72}
+              numberOfLines={1}
+              style={[
+                styles.compactActionPillText,
+                styles.anchorChairActionPillText,
+                { color: actionBadge.color },
+              ]}
+            >
+              {actionBadge.label}
+            </Text>
+          </View>
+        </View>
+      ) : null}
+
+      {isSelf ? (
+        <View style={styles.anchorChairLegsRow}>
+          <LegsPips
+            compact
+            legs={visibleLegCount}
+            pulseKey={legPulseKey}
+          />
+        </View>
+      ) : null}
+
+      <View
+        style={[
+          styles.anchorChairHandRow,
+          !isSelf ? styles.anchorChairHandRowOpponentCompact : null,
+        ]}
+      >
+        {isSelf ? (
+          <View style={styles.anchorChairStakePill}>
+            <Text
+              adjustsFontSizeToFit
+              minimumFontScale={0.72}
+              numberOfLines={1}
+              style={styles.anchorChairStakeText}
+            >
+              ${formatChipAmount(labelAmount)}
+            </Text>
+          </View>
+        ) : (
+          <View style={styles.anchorChairMetaStack}>
+            <LegsPips
+              compact
+              mini
+              legs={visibleLegCount}
+              pulseKey={legPulseKey}
+            />
+            <View
+              style={[
+                styles.anchorChairStakePill,
+                styles.anchorChairStakePillOpponentCompact,
+              ]}
+            >
+              <Text
+                adjustsFontSizeToFit
+                minimumFontScale={0.72}
+                numberOfLines={1}
+                style={styles.anchorChairStakeText}
+              >
+                ${formatChipAmount(labelAmount)}
+              </Text>
+            </View>
+          </View>
+        )}
+        <View
+          style={[
+            styles.anchorChairCardsTray,
+            !isSelf ? styles.anchorChairCardsTrayOpponentCompact : null,
+            cardCount === 0 ? styles.anchorChairCardsTrayEmpty : null,
+          ]}
+        >
+          {cardCount > 0
+            ? renderCardFan('sm', true, isSelf ? 'anchorSelf' : 'anchor')
+            : null}
+        </View>
+      </View>
     </View>
   );
 
@@ -704,6 +958,8 @@ export const GameTableSeat = memo(function GameTableSeat({
       <View style={styles.self357InfoColumn}>
         <View style={styles.self357NameRow}>
           <Text
+            adjustsFontSizeToFit
+            minimumFontScale={0.7}
             numberOfLines={1}
             style={[
               styles.playerName,
@@ -721,32 +977,39 @@ export const GameTableSeat = memo(function GameTableSeat({
             </View>
           ) : null}
         </View>
-        <View style={styles.self357MetaRow}>
-          {renderAvatarStack('sm', true)}
-          <View style={styles.self357LegsChipColumn}>
-            <LegsPips
-              compact
-              legs={visibleLegCount}
-              pulseKey={legPulseKey}
-            />
-            <View style={[styles.amountBubble, styles.amountBubbleSelfCompact]}>
-              <Text
-                style={[
-                  styles.amountBubbleText,
-                  styles.amountBubbleTextSelfCompact,
-                ]}
+        <View style={styles.self357AnchorBody}>
+          <View style={styles.self357MetaRow}>
+            {renderAvatarStack('sm', true)}
+            <View style={styles.self357LegsChipColumn}>
+              <LegsPips
+                compact
+                legs={visibleLegCount}
+                pulseKey={legPulseKey}
+              />
+              <View
+                style={[styles.amountBubble, styles.amountBubbleSelfCompact]}
               >
-                ${formatChipAmount(labelAmount)}
-              </Text>
+                <Text
+                  adjustsFontSizeToFit
+                  minimumFontScale={0.72}
+                  numberOfLines={1}
+                  style={[
+                    styles.amountBubbleText,
+                    styles.amountBubbleTextSelfCompact,
+                  ]}
+                >
+                  ${formatChipAmount(labelAmount)}
+                </Text>
+              </View>
             </View>
           </View>
+          {cardCount > 0 ? (
+            <View style={styles.self357CardsRow}>
+              {renderCardFan('sm', true, 'wide')}
+            </View>
+          ) : null}
         </View>
       </View>
-      {cardCount > 0 ? (
-        <View style={styles.self357CardsRow}>
-          {renderCardFan('sm', true, 'wide')}
-        </View>
-      ) : null}
     </View>
   );
 
@@ -771,16 +1034,20 @@ export const GameTableSeat = memo(function GameTableSeat({
         },
       ]}
     >
-      <Animated.View
-        pointerEvents="none"
-        style={[styles.turnGlow, { opacity: turnGlow }]}
-      />
-      <Animated.View
-        pointerEvents="none"
-        style={[styles.winnerGlow, { opacity: winnerGlow }]}
-      />
+      {!is357Game ? (
+        <>
+          <Animated.View
+            pointerEvents="none"
+            style={[styles.turnGlow, { opacity: turnGlow }]}
+          />
+          <Animated.View
+            pointerEvents="none"
+            style={[styles.winnerGlow, { opacity: winnerGlow }]}
+          />
+        </>
+      ) : null}
 
-      {statusRibbon && !showDecisionMode && !useCompact357Seat ? (
+      {statusRibbon && !showDecisionMode && !is357Game ? (
         <View
           style={[
             styles.statusRibbon,
@@ -804,7 +1071,7 @@ export const GameTableSeat = memo(function GameTableSeat({
         </View>
       ) : null}
 
-      {player.isTurn && !useCompact357Seat ? (
+      {player.isTurn && !is357Game ? (
         <TurnIndicator active style={styles.turnIndicator} />
       ) : null}
 
@@ -815,12 +1082,37 @@ export const GameTableSeat = memo(function GameTableSeat({
         style={[
           styles.shell,
           showDecisionMode ? styles.shellDecision : styles.shellLive,
-          isBottomSeat ? styles.shellBottom : null,
-          useCompactSelfSeat ? styles.shellBottomCompact : null,
-          useCompact357Seat ? styles.shell357Compact : null,
-          useSelf357MetaLayout ? styles.shellSelf357Meta : null,
+          is357Game ? styles.shell357Compact : null,
+          is357Game ? styles.shellAnchorChair : null,
+          is357Game && isSelf ? styles.shellAnchorChairSelf : null,
+          !is357Game && isBottomSeat ? styles.shellBottom : null,
+          !is357Game && useCompactSelfSeat ? styles.shellBottomCompact : null,
+          !is357Game && useSelf357MetaLayout
+            ? styles.shellSelf357Meta
+            : null,
         ]}
       >
+        {is357Game ? (
+          <>
+            <Animated.View
+              pointerEvents="none"
+              style={[
+                styles.turnGlow,
+                styles.anchorChairTurnGlow,
+                { opacity: turnGlow },
+              ]}
+            />
+            <Animated.View
+              pointerEvents="none"
+              style={[
+                styles.winnerGlow,
+                styles.anchorChairWinnerGlow,
+                { opacity: winnerGlow },
+              ]}
+            />
+          </>
+        ) : null}
+
         <View
           style={[
             styles.shellBorder,
@@ -828,7 +1120,8 @@ export const GameTableSeat = memo(function GameTableSeat({
           ]}
         />
 
-        {!useSelf357MetaLayout &&
+        {!is357Game &&
+        !useSelf357MetaLayout &&
         !useCompactDecisionSeat &&
         (showDecisionMode || isBottomSeat) ? (
           <View
@@ -866,7 +1159,9 @@ export const GameTableSeat = memo(function GameTableSeat({
           </View>
         ) : null}
 
-        {useSelf357MetaLayout ? (
+        {is357Game ? (
+          anchorChairSeatNode
+        ) : useSelf357MetaLayout ? (
           self357MetaNode
         ) : useCompactDecisionSeat ? (
           <View
@@ -888,13 +1183,30 @@ export const GameTableSeat = memo(function GameTableSeat({
                   align === 'right' ? styles.compactNameStackRight : null,
                 ]}
               >
-                <Text numberOfLines={1} style={styles.compactName}>
+                <Text
+                  adjustsFontSizeToFit
+                  minimumFontScale={0.72}
+                  numberOfLines={1}
+                  style={styles.compactName}
+                >
                   {player.name}
                 </Text>
                 <View style={styles.compactStackLegsRow}>
-                  <Text numberOfLines={1} style={styles.compactStackText}>
-                    {formatChipAmount(player.chips)}
-                  </Text>
+                  <View style={styles.compactChipsPill}>
+                    <MaterialCommunityIcons
+                      color="#FFD88A"
+                      name="poker-chip"
+                      size={7}
+                    />
+                    <Text
+                      adjustsFontSizeToFit
+                      minimumFontScale={0.72}
+                      numberOfLines={1}
+                      style={styles.compactStackText}
+                    >
+                      {formatChipAmount(player.chips)}
+                    </Text>
+                  </View>
                   <LegsPips
                     compact
                     legs={visibleLegCount}
@@ -911,22 +1223,6 @@ export const GameTableSeat = memo(function GameTableSeat({
                 ]}
               >
                 {renderCardFan('sm', true)}
-                {showQuestionBadge ? (
-                  <View
-                    style={[
-                      styles.compactQuestionBadge,
-                      align === 'right'
-                        ? styles.compactQuestionBadgeLeft
-                        : null,
-                    ]}
-                  >
-                    <MaterialCommunityIcons
-                      color="#F6F2FF"
-                      name="help"
-                      size={12}
-                    />
-                  </View>
-                ) : null}
               </View>
             ) : null}
             <View
@@ -1030,73 +1326,69 @@ export const GameTableSeat = memo(function GameTableSeat({
           </View>
         )}
 
-        {useCompactDecisionSeat && !useSelf357MetaLayout ? null : showDecisionMode ? (
-          useSelf357MetaLayout ? null : (
+        {!is357Game ? (
+          useCompactDecisionSeat && !useSelf357MetaLayout ? null : showDecisionMode ? (
+            useSelf357MetaLayout ? null : (
+              <View
+                style={[
+                  styles.decisionRail,
+                  useCompactSelfSeat ? styles.decisionRailSelfCompact : null,
+                ]}
+              >
+                <View
+                  style={[
+                    styles.amountBubble,
+                    useCompactSelfSeat
+                      ? styles.amountBubbleSelfCompact
+                      : null,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.amountBubbleText,
+                      useCompactSelfSeat
+                        ? styles.amountBubbleTextSelfCompact
+                        : null,
+                    ]}
+                  >
+                    ${formatChipAmount(labelAmount)}
+                  </Text>
+                </View>
+              </View>
+            )
+          ) : (
             <View
               style={[
-                styles.decisionRail,
-                useCompactSelfSeat ? styles.decisionRailSelfCompact : null,
+                styles.liveFooter,
+                useCompactSelfSeat ? styles.liveFooterCompact : null,
               ]}
             >
               <View
                 style={[
-                  styles.amountBubble,
-                  useCompactSelfSeat ? styles.amountBubbleSelfCompact : null,
+                  styles.actionBadge,
+                  useCompactSelfSeat ? styles.actionBadgeCompact : null,
+                  {
+                    backgroundColor: actionBadge.backgroundColor,
+                    borderColor: actionBadge.borderColor,
+                  },
                 ]}
               >
                 <Text
                   style={[
-                    styles.amountBubbleText,
-                    useCompactSelfSeat
-                      ? styles.amountBubbleTextSelfCompact
-                      : null,
+                    styles.actionBadgeText,
+                    useCompactSelfSeat ? styles.actionBadgeTextCompact : null,
+                    { color: actionBadge.color },
                   ]}
                 >
-                  ${formatChipAmount(labelAmount)}
+                  {actionBadge.label}
                 </Text>
               </View>
             </View>
           )
         ) : (
-          <View
-            style={[
-              styles.liveFooter,
-              useCompactSelfSeat ? styles.liveFooterCompact : null,
-            ]}
-          >
-            <View
-              style={[
-                styles.actionBadge,
-                useCompactSelfSeat ? styles.actionBadgeCompact : null,
-                {
-                  backgroundColor: actionBadge.backgroundColor,
-                  borderColor: actionBadge.borderColor,
-                },
-              ]}
-            >
-              <Text
-                style={[
-                  styles.actionBadgeText,
-                  useCompactSelfSeat ? styles.actionBadgeTextCompact : null,
-                  { color: actionBadge.color },
-                ]}
-              >
-                {actionBadge.label}
-              </Text>
-            </View>
-          </View>
+          null
         )}
 
-        {showQuestionBadge && !useCompactDecisionSeat ? (
-          <View
-            style={[
-              styles.questionBadge,
-              align === 'right' ? styles.questionBadgeLeft : null,
-            ]}
-          >
-            <MaterialCommunityIcons color="#F6F2FF" name="help" size={14} />
-          </View>
-        ) : null}
       </LinearGradient>
     </Animated.View>
   );
@@ -1129,6 +1421,181 @@ const styles = StyleSheet.create({
   },
   alignRight: {
     alignItems: 'flex-end',
+  },
+  anchorChairActionPill: {
+    flexShrink: 1,
+    maxWidth: 52,
+    minWidth: 30,
+    paddingHorizontal: 4,
+    paddingVertical: 1,
+  },
+  anchorChairActionPillText: {
+    fontSize: 7,
+    letterSpacing: 0.2,
+  },
+  anchorChairActionRow: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 11,
+  },
+  anchorChairActionRowOverlay: {
+    minHeight: 0,
+    position: 'absolute',
+    right: 0,
+    top: 28,
+    zIndex: 7,
+  },
+  anchorChairAmountsRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 2,
+    minWidth: 0,
+  },
+  anchorChairCardsTray: {
+    alignItems: 'center',
+    flex: 1,
+    justifyContent: 'center',
+    minHeight: 44,
+    minWidth: 0,
+    overflow: 'visible',
+    paddingHorizontal: 0,
+    paddingVertical: 0,
+  },
+  anchorChairCardsTrayOpponentCompact: {
+    minHeight: 33,
+  },
+  anchorChairCardsTrayEmpty: {
+    minHeight: 12,
+  },
+  anchorChairChipsPill: {
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(255, 203, 107, 0.1)',
+    borderColor: 'rgba(255, 216, 138, 0.2)',
+    borderRadius: 999,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 2,
+    flexShrink: 1,
+    maxWidth: 50,
+    minWidth: 36,
+    paddingHorizontal: 3,
+    paddingVertical: 1,
+  },
+  anchorChairChipsText: {
+    color: '#FFF5D8',
+    flexShrink: 1,
+    fontSize: 8,
+    fontWeight: '900',
+  },
+  anchorChairIdentityColumn: {
+    flex: 1,
+    gap: 1,
+    justifyContent: 'center',
+    minWidth: 0,
+  },
+  anchorChairHandRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 3,
+    justifyContent: 'center',
+    minHeight: 46,
+    minWidth: 0,
+  },
+  anchorChairHandRowOpponentCompact: {
+    gap: 2,
+    minHeight: 35,
+  },
+  anchorChairLegsRow: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 10,
+  },
+  anchorChairMetaStack: {
+    alignItems: 'center',
+    flexShrink: 0,
+    gap: 1,
+    justifyContent: 'center',
+    minWidth: 30,
+  },
+  anchorChairName: {
+    color: '#F7F4FF',
+    flexShrink: 1,
+    fontSize: 8,
+    fontWeight: '900',
+  },
+  anchorChairNameRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 3,
+    minWidth: 0,
+  },
+  anchorChairNameRowTextSelf: {
+    flexShrink: 0,
+    maxWidth: 80,
+  },
+  anchorChairSeat: {
+    alignItems: 'stretch',
+    gap: 2,
+    justifyContent: 'center',
+    minHeight: 84,
+    minWidth: 0,
+    width: '100%',
+  },
+  anchorChairSeatOpponentCompact: {
+    gap: 1,
+    minHeight: 68,
+  },
+  anchorChairSelfTag: {
+    flexShrink: 0,
+    paddingHorizontal: 3,
+    paddingVertical: 0,
+  },
+  anchorChairSelfTagText: {
+    fontSize: 5,
+    letterSpacing: 0.1,
+  },
+  anchorChairSelfName: {
+    fontSize: 10,
+    lineHeight: 13,
+  },
+  anchorChairStakePill: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(48, 17, 37, 0.82)',
+    borderColor: 'rgba(255, 139, 210, 0.32)',
+    borderRadius: 999,
+    borderWidth: 1,
+    flexShrink: 0,
+    minWidth: 30,
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+  },
+  anchorChairStakePillOpponentCompact: {
+    maxWidth: 38,
+    minWidth: 28,
+    paddingHorizontal: 4,
+  },
+  anchorChairStakeText: {
+    color: '#FFF6FB',
+    fontSize: 8,
+    fontWeight: '900',
+  },
+  anchorChairTopRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 3,
+    minHeight: 30,
+    minWidth: 0,
+  },
+  anchorChairTurnGlow: {
+    backgroundColor: 'rgba(255, 203, 107, 0.08)',
+    borderColor: 'rgba(255, 211, 118, 0.95)',
+    borderRadius: 10,
+    borderWidth: 2,
+    zIndex: 2,
+  },
+  anchorChairWinnerGlow: {
+    borderRadius: 12,
   },
   amountBubble: {
     alignItems: 'center',
@@ -1179,9 +1646,9 @@ const styles = StyleSheet.create({
     width: 44,
   },
   seatAvatarStack357Compact: {
-    height: 34,
-    transform: [{ scale: 0.82 }],
-    width: 36,
+    height: 30,
+    transform: [{ scale: 0.76 }],
+    width: 32,
   },
   seatAvatarStatusBubble: {
     bottom: -4,
@@ -1219,13 +1686,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
   },
+  cardFanCompactAbsolute: {
+    overflow: 'visible',
+    position: 'relative',
+  },
   cardFanSlot: {
     alignItems: 'center',
     justifyContent: 'center',
   },
-  cardFanSlotCompact: {
-    height: 36,
-    width: 29,
+  cardFanSlotAbsolute: {
+    position: 'absolute',
   },
   centerCluster: {
     alignItems: 'center',
@@ -1241,21 +1711,6 @@ const styles = StyleSheet.create({
     gap: 5,
     minHeight: 58,
   },
-  compactAmountBubble: {
-    alignItems: 'center',
-    backgroundColor: 'rgba(10, 10, 16, 0.72)',
-    borderColor: 'rgba(255, 139, 210, 0.22)',
-    borderRadius: 999,
-    borderWidth: 1,
-    minWidth: 38,
-    paddingHorizontal: 5,
-    paddingVertical: 2,
-  },
-  compactAmountBubbleText: {
-    color: '#FFF6FB',
-    fontSize: 9,
-    fontWeight: '900',
-  },
   compactActionPill: {
     alignItems: 'center',
     borderRadius: 999,
@@ -1269,22 +1724,38 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     letterSpacing: 0.35,
   },
+  compactChipsPill: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 203, 107, 0.1)',
+    borderColor: 'rgba(255, 216, 138, 0.2)',
+    borderRadius: 999,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 2,
+    maxWidth: 44,
+    minWidth: 30,
+    paddingHorizontal: 4,
+    paddingVertical: 1,
+  },
   compactDecisionRail: {
     alignItems: 'center',
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 3,
     justifyContent: 'center',
-    marginTop: -5,
+    marginTop: 2,
+    minHeight: 14,
   },
   compactDecisionRailRight: {
     justifyContent: 'center',
   },
   compactDecisionSeat: {
     alignItems: 'center',
-    gap: 0,
+    alignSelf: 'stretch',
+    gap: 2,
     justifyContent: 'center',
-    minHeight: 40,
+    minHeight: 120,
+    minWidth: 0,
   },
   compactDecisionSeatRight: {
     alignItems: 'flex-end',
@@ -1295,64 +1766,63 @@ const styles = StyleSheet.create({
   compactFanWrap: {
     alignItems: 'center',
     alignSelf: 'center',
-    height: 24,
     justifyContent: 'center',
-    marginTop: -10,
+    minHeight: 66,
+    overflow: 'visible',
     position: 'relative',
-    width: 72,
+    width: '100%',
   },
   compactFanWrapRight: {
     alignSelf: 'center',
   },
   compactIdentityRow: {
     alignItems: 'center',
+    alignSelf: 'stretch',
     flexDirection: 'row',
-    gap: 2,
-    justifyContent: 'flex-start',
+    gap: 3,
+    justifyContent: 'center',
+    minHeight: 34,
+    minWidth: 0,
   },
   compactIdentityRowRight: {
     flexDirection: 'row-reverse',
-    justifyContent: 'flex-end',
   },
   compactName: {
     color: '#F7F4FF',
+    flexShrink: 1,
     fontSize: 8,
     fontWeight: '800',
-    maxWidth: 46,
+    maxWidth: 62,
   },
   compactNameStack: {
     alignItems: 'flex-start',
-    maxWidth: 82,
+    backgroundColor: 'rgba(5, 5, 10, 0.58)',
+    borderColor: 'rgba(196, 119, 255, 0.14)',
+    borderRadius: 8,
+    borderWidth: 1,
+    flexShrink: 1,
+    gap: 2,
+    justifyContent: 'center',
+    maxWidth: 76,
+    minWidth: 0,
+    paddingHorizontal: 5,
+    paddingVertical: 3,
   },
   compactNameStackRight: {
     alignItems: 'flex-end',
   },
-  compactQuestionBadge: {
-    alignItems: 'center',
-    backgroundColor: 'rgba(19, 15, 30, 0.98)',
-    borderColor: 'rgba(255, 131, 203, 0.36)',
-    borderRadius: 999,
-    borderWidth: 1,
-    height: 18,
-    justifyContent: 'center',
-    position: 'absolute',
-    right: 0,
-    top: 1,
-    width: 18,
-  },
-  compactQuestionBadgeLeft: {
-    left: -3,
-    right: undefined,
-  },
   compactStackText: {
-    color: 'rgba(244, 241, 255, 0.78)',
+    color: '#FFF5D8',
+    flexShrink: 1,
     fontSize: 8,
-    fontWeight: '800',
+    fontWeight: '900',
   },
   compactStackLegsRow: {
     alignItems: 'center',
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 3,
+    maxWidth: '100%',
   },
   decisionRail: {
     alignItems: 'center',
@@ -1377,6 +1847,11 @@ const styles = StyleSheet.create({
     height: 6,
     width: 6,
   },
+  legsPipMini: {
+    borderWidth: 0,
+    height: 4,
+    width: 4,
+  },
   legsPipFilled: {
     backgroundColor: '#FFCB6B',
     borderColor: 'rgba(255, 245, 216, 0.88)',
@@ -1394,6 +1869,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 2,
   },
+  legsPipsRowMini: {
+    gap: 1,
+  },
   legsPipsShell: {
     alignItems: 'center',
     backgroundColor: 'rgba(255, 255, 255, 0.045)',
@@ -1410,6 +1888,13 @@ const styles = StyleSheet.create({
     gap: 2,
     paddingHorizontal: 3,
     paddingVertical: 2,
+  },
+  legsPipsShellMini: {
+    backgroundColor: 'transparent',
+    borderColor: 'transparent',
+    gap: 0,
+    paddingHorizontal: 0,
+    paddingVertical: 0,
   },
   leftCluster: {
     alignItems: 'center',
@@ -1469,23 +1954,6 @@ const styles = StyleSheet.create({
   playerNameCompact: {
     fontSize: 10,
   },
-  questionBadge: {
-    alignItems: 'center',
-    backgroundColor: 'rgba(19, 15, 30, 0.98)',
-    borderColor: 'rgba(255, 131, 203, 0.26)',
-    borderRadius: 12,
-    borderWidth: 1,
-    height: 32,
-    justifyContent: 'center',
-    position: 'absolute',
-    right: -8,
-    top: 28,
-    width: 32,
-  },
-  questionBadgeLeft: {
-    left: -8,
-    right: undefined,
-  },
   rightCluster: {
     alignItems: 'center',
     flexDirection: 'row',
@@ -1523,20 +1991,27 @@ const styles = StyleSheet.create({
   },
   self357CardsRow: {
     alignItems: 'center',
-    flexShrink: 0,
     justifyContent: 'center',
-    minHeight: 34,
-    width: 66,
+    minHeight: 39,
+    overflow: 'visible',
+    width: '100%',
+  },
+  self357AnchorBody: {
+    alignItems: 'center',
+    alignSelf: 'stretch',
+    gap: 2,
+    justifyContent: 'center',
+    minWidth: 0,
   },
   self357InfoColumn: {
-    alignItems: 'flex-start',
-    flexShrink: 1,
+    alignItems: 'center',
+    alignSelf: 'stretch',
     gap: 2,
     justifyContent: 'center',
     minWidth: 0,
   },
   self357LegsChipColumn: {
-    alignItems: 'flex-start',
+    alignItems: 'center',
     gap: 2,
     justifyContent: 'center',
     minWidth: 0,
@@ -1544,31 +2019,30 @@ const styles = StyleSheet.create({
   self357MetaLayout: {
     alignItems: 'center',
     alignSelf: 'stretch',
-    flexDirection: 'row',
-    gap: 4,
-    justifyContent: 'space-between',
+    gap: 2,
+    justifyContent: 'center',
     maxWidth: '100%',
-    minHeight: 42,
+    minHeight: 104,
     minWidth: 0,
   },
   self357MetaRow: {
     alignItems: 'center',
     flexDirection: 'row',
-    gap: 1,
-    justifyContent: 'flex-start',
+    gap: 4,
+    justifyContent: 'center',
     maxWidth: '100%',
     minWidth: 0,
   },
   self357PlayerName: {
     flexShrink: 1,
-    maxWidth: 72,
+    maxWidth: 108,
   },
   self357NameRow: {
     alignItems: 'center',
     alignSelf: 'stretch',
     flexDirection: 'row',
     gap: 3,
-    justifyContent: 'flex-start',
+    justifyContent: 'center',
     minWidth: 0,
   },
   shell: {
@@ -1599,8 +2073,18 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(7, 6, 13, 0.42)',
     borderRadius: 10,
     gap: 1,
-    paddingHorizontal: 4,
+    paddingHorizontal: 3,
     paddingVertical: 3,
+  },
+  shellAnchorChair: {
+    maxWidth: 108,
+    minWidth: 94,
+    paddingHorizontal: 3,
+    paddingVertical: 3,
+  },
+  shellAnchorChairSelf: {
+    maxWidth: 120,
+    minWidth: 108,
   },
   shellSelf357Meta: {
     gap: 0,
@@ -1628,11 +2112,10 @@ const styles = StyleSheet.create({
   },
   showdownConnectorCompact: {
     borderRadius: 999,
-    bottom: -10,
+    marginTop: 1,
     minWidth: 72,
     paddingHorizontal: 5,
     paddingVertical: 2,
-    position: 'absolute',
   },
   showdownConnectorLabel: {
     fontSize: 9,

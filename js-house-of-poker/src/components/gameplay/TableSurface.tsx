@@ -278,7 +278,7 @@ export function TableSurface({
     ? -clamp(height * 0.18, 45, 96)
     : clamp(boardTop - 44, height * 0.08, height * 0.22);
   const threeFiveSevenHeaderWidth = Math.max(ruleBadgeWidth, boardWidth);
-  const threeFiveSevenBoardLift = height * 0.05;
+  const threeFiveSevenBoardLift = ruleBadgeNode ? 0 : height * 0.05;
 
   return (
     <View

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
+  Pressable,
   StyleSheet,
   Text,
   View,
@@ -667,8 +668,11 @@ export function GameScreen({ navigation }: Props) {
     ambientA,
     ambientB,
     animateShowdownBanner,
+    focusProgress,
     handleTableLayout,
+    isTableFocused,
     resetTableView,
+    setIsTableFocused,
     showdownProgress,
     tableLayout,
     tablePan,
@@ -700,6 +704,7 @@ export function GameScreen({ navigation }: Props) {
         resolvedLayout.width,
         resolvedLayout.height,
         {
+          avoidTopCenter: is357Table,
           availableStageHeight: availableTableStageHeight,
           compactTable: useCompactLandscape357,
         },
@@ -709,6 +714,7 @@ export function GameScreen({ navigation }: Props) {
       orderedPlayers,
       resolvedLayout.height,
       resolvedLayout.width,
+      is357Table,
       useCompactLandscape357,
     ],
   );
@@ -1372,6 +1378,17 @@ export function GameScreen({ navigation }: Props) {
     handleGameAction('raise', amount);
   }
 
+  function handleTablePress() {
+    if (!isLandscape) {
+      setIsTableFocused(true);
+    }
+  }
+
+  function handleCloseTableFocus() {
+    setIsTableFocused(false);
+    resetTableView();
+  }
+
   const connectedCount = currentTableState.players.filter(
     (player) => player.isConnected,
   ).length;
@@ -1481,7 +1498,7 @@ export function GameScreen({ navigation }: Props) {
     />
   ) : null;
 
-  const tableNode = (
+  const renderTableNode = (focused = false) => (
     <TableSurface
       ambientA={ambientA}
       ambientB={ambientB}
@@ -1496,7 +1513,7 @@ export function GameScreen({ navigation }: Props) {
       chipFlights={chipFlights}
       dealtCards={dealtCards}
       compact357Layout={useCompactLandscape357}
-      focusMode={isLandscape}
+      focusMode={isLandscape || focused}
       headlineText={headlineText}
       leftPanelGap={shouldEmbed357Panel ? embedded357PanelGap : undefined}
       leftPanelNode={
@@ -1509,7 +1526,7 @@ export function GameScreen({ navigation }: Props) {
       rightPanelNode={shouldEmbed357Panel ? threeFiveSevenActionRail : null}
       rightPanelWidth={embedded357ActionPanelWidth}
       onLayout={handleTableLayout}
-      onPressTable={() => undefined}
+      onPressTable={focused ? resetTableView : handleTablePress}
       onResetTableView={resetTableView}
       phaseTitle={phaseTitle}
       ruleBadgeNode={threeFiveSevenRuleBadge}
@@ -1541,6 +1558,8 @@ export function GameScreen({ navigation }: Props) {
       }
     />
   );
+  const tableNode = renderTableNode(false);
+  const showTableFocusOverlay = isTableFocused && !isLandscape;
 
   const topBar = (
     <TableChatBar
@@ -1639,6 +1658,39 @@ export function GameScreen({ navigation }: Props) {
         tableNode={tableNode}
         topBar={topBar}
       />
+
+      {showTableFocusOverlay ? (
+        <Animated.View
+          style={[
+            styles.focusLayer,
+            {
+              opacity: focusProgress.interpolate({
+                inputRange: [0, 1],
+                outputRange: [0, 1],
+              }),
+            },
+          ]}
+        >
+          <View style={styles.focusBackdrop} />
+          <View style={styles.focusOverlayHeader}>
+            <View style={styles.focusBadge}>
+              <Text style={styles.focusBadgeText}>Table</Text>
+            </View>
+            <Pressable
+              accessibilityLabel="Exit table focus"
+              accessibilityRole="button"
+              onPress={handleCloseTableFocus}
+              style={({ pressed }) => [
+                styles.focusExitButton,
+                pressed ? styles.focusExitButtonPressed : null,
+              ]}
+            >
+              <Text style={styles.focusExitText}>Exit</Text>
+            </Pressable>
+          </View>
+          <View style={styles.focusedTableStage}>{renderTableNode(true)}</View>
+        </Animated.View>
+      ) : null}
 
       {showdownBanner ? (
         <Animated.View
@@ -1867,6 +1919,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     paddingHorizontal: 14,
     paddingVertical: 8,
+  },
+  focusExitButtonPressed: {
+    opacity: 0.78,
+    transform: [{ scale: 0.98 }],
   },
   focusExitText: {
     color: '#F6FCF9',
