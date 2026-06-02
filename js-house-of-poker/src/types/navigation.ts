@@ -13,6 +13,7 @@ export type RootStackParamList = {
   Registration: undefined;
   Home: undefined;
   ChatRooms: undefined;
+  ChatRoomDetail: { roomId: string };
   Profile: undefined;
   Friends: undefined;
   Feed: undefined;
