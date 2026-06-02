@@ -1640,6 +1640,63 @@ class PokerRealtimeService {
     return room;
   }
 
+  async createRoomFromChatRoom(socket, payload = {}, chatRoomContext = {}) {
+    const room = await this.createRoom(socket, payload);
+
+    if (!chatRoomContext.chatRoomId) {
+      throw new Error("Chat room id is required.");
+    }
+
+    const launchedAt = chatRoomContext.launchedAt || new Date();
+    const launchContext = {
+      chatRoomId: chatRoomContext.chatRoomId,
+      invitedPlayerIds: Array.isArray(chatRoomContext.invitedPlayerIds)
+        ? chatRoomContext.invitedPlayerIds
+        : [],
+      launchedAt,
+      launchedByUserId: chatRoomContext.launchedByUserId || null,
+      rules: chatRoomContext.rules || null,
+      tableCode: room.id,
+      tableId: room.tableDbId || null,
+      tableTier: chatRoomContext.tableTier || null,
+      visibility: chatRoomContext.visibility || "room",
+    };
+
+    room.chatRoomLaunchContext = {
+      ...launchContext,
+      chatRoomId: String(launchContext.chatRoomId),
+      launchedByUserId: launchContext.launchedByUserId
+        ? String(launchContext.launchedByUserId)
+        : null,
+      tableId: launchContext.tableId ? String(launchContext.tableId) : null,
+    };
+
+    if (room.tableDbId) {
+      await GameTable.findByIdAndUpdate(room.tableDbId, {
+        $set: { chatRoomLaunchContext: launchContext },
+      });
+    }
+
+    await logTableEvent({
+      createdById: launchContext.launchedByUserId
+        ? String(launchContext.launchedByUserId)
+        : null,
+      createdByType: "player",
+      eventType: "CHAT_ROOM_TABLE_LAUNCHED",
+      message: `Realtime table ${room.id} launched from chat room ${chatRoomContext.chatRoomId}`,
+      payload: {
+        chatRoomId: String(chatRoomContext.chatRoomId),
+        invitedPlayerIds: launchContext.invitedPlayerIds,
+        roomId: room.id,
+        tableName: room.tableName,
+        visibility: launchContext.visibility,
+      },
+      tableId: room.tableDbId,
+    });
+
+    return room;
+  }
+
   async loadRoom(roomId) {
     const normalizedRoomId = String(roomId || "").trim().toUpperCase();
     if (!normalizedRoomId) {

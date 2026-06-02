@@ -136,3 +136,63 @@ test('enforceRateLimit limits social chat per user and per room', () => {
     /receiving too many messages/,
   );
 });
+
+test('createTableFromChatRoom validates context, persists launch metadata, and emits acknowledgement payload', async () => {
+  const ChatRoom = require('../src/models/ChatRoom');
+  const originalUpdateOne = ChatRoom.updateOne;
+  const updates = [];
+  ChatRoom.updateOne = async function updateOneStub(query, update) {
+    updates.push({ query, update });
+    return { acknowledged: true };
+  };
+
+  try {
+    const io = createIoMock();
+    const service = createService(io);
+    service.findRoom = async () => ({
+      _id: '507f1f77bcf86cd799439012',
+      isPublic: false,
+      name: 'Strategy Lab',
+      participantStates: [{ userId: '507f1f77bcf86cd799439011' }],
+    });
+
+    const pokerRealtimeService = {
+      async createRoomFromChatRoom(socket, payload, context) {
+        assert.equal(payload.roomId, undefined);
+        assert.equal(payload.tableId, undefined);
+        assert.deepEqual(payload.gameSettings, { game: '357', mode: 'HOSTEST' });
+        assert.equal(String(context.chatRoomId), '507f1f77bcf86cd799439012');
+        assert.equal(String(context.launchedByUserId), '507f1f77bcf86cd799439011');
+        assert.deepEqual(context.invitedPlayerIds, ['507f1f77bcf86cd799439013']);
+        assert.equal(context.visibility, 'private');
+        return {
+          id: 'ABCD12',
+          tableDbId: '507f1f77bcf86cd799439014',
+          tableName: payload.tableName,
+        };
+      },
+    };
+
+    const socket = createSocketMock();
+    socket.rooms = new Set();
+    const response = await service.createTableFromChatRoom(socket, {
+      chatRoomId: '507f1f77bcf86cd799439012',
+      gameSettings: { game: '357', mode: 'HOSTEST' },
+      invitedPlayerIds: ['507f1f77bcf86cd799439013', '507f1f77bcf86cd799439013'],
+      tableName: 'Strategy Lab Table',
+      tableTier: 'private-study',
+      visibility: 'private',
+    }, pokerRealtimeService);
+
+    assert.equal(response.ok, true);
+    assert.equal(response.tableCode, 'ABCD12');
+    assert.equal(response.tableDbId, '507f1f77bcf86cd799439014');
+    assert.deepEqual(response.invitedPlayerIds, ['507f1f77bcf86cd799439013']);
+    assert.equal(updates.length, 1);
+    assert.equal(updates[0].update.$push.tableLaunches.$each[0].tableCode, 'ABCD12');
+    assert.equal(io.emissions[0].event, 'table:launchFromChatRoom');
+    assert.equal(io.emissions[0].payload.tableCode, 'ABCD12');
+  } finally {
+    ChatRoom.updateOne = originalUpdateOne;
+  }
+});
