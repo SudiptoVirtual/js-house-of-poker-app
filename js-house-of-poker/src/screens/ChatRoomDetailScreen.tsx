@@ -19,7 +19,7 @@ import { chatRooms } from '../constants/chatRooms';
 import { routes } from '../constants/routes';
 import { colors } from '../theme/colors';
 import type { PokerGameSettingsUpdate } from '../services/poker';
-import type { ChatRoomMessage } from '../types/chatRooms';
+import type { ChatRoomMessage, ChatRoomPlayer } from '../types/chatRooms';
 import type { RootStackParamList } from '../types/navigation';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ChatRoomDetail'>;
@@ -46,6 +46,29 @@ function getGameIdFromRoomLabel(gameLabel?: string) {
   return gameLabel?.toLowerCase().includes('3-5-7') ? '3-5-7' : 'texas-holdem';
 }
 
+function getInitialInvitedPlayerIds(room: (typeof chatRooms)[number] | undefined) {
+  if (!room) {
+    return [];
+  }
+
+  const pendingInviteHandles = new Set(room.inviteState.pendingInvites);
+
+  return room.players
+    .filter((player) => pendingInviteHandles.has(player.handle))
+    .map((player) => player.id);
+}
+
+function getInviteEligiblePlayerIds(players: ChatRoomPlayer[], playerIds: string[], invitedPlayerIds: string[]) {
+  const invitedIds = new Set(invitedPlayerIds);
+  const eligibleIds = new Set(
+    players
+      .filter((player) => player.status === 'available' && !invitedIds.has(player.id))
+      .map((player) => player.id),
+  );
+
+  return playerIds.filter((playerId) => eligibleIds.has(playerId));
+}
+
 function getTierIdFromRoomConfig(room: (typeof chatRooms)[number] | undefined) {
   if (room?.tableConfig.stakesLabel.toLowerCase().includes('5k')) {
     return '5k-casual';
@@ -58,7 +81,8 @@ export function ChatRoomDetailScreen({ navigation, route }: Props) {
   const room = chatRooms.find((candidate) => candidate.id === route.params.roomId);
   const { createRoom, errorMessage, roomState, transportKind } = usePoker();
   const [draft, setDraft] = useState('');
-  const [invitedPlayerIds, setInvitedPlayerIds] = useState<string[]>([]);
+  const [invitedPlayerIds, setInvitedPlayerIds] = useState<string[]>(() => getInitialInvitedPlayerIds(room));
+  const [selectedPlayerIds, setSelectedPlayerIds] = useState<string[]>([]);
   const [isPrivate, setIsPrivate] = useState(room?.tableConfig.isPrivate ?? true);
   const [localMessages, setLocalMessages] = useState<ChatRoomMessage[]>([]);
   const [selectedGameId, setSelectedGameId] = useState(() => getGameIdFromRoomLabel(room?.tableConfig.gameLabel));
@@ -68,6 +92,7 @@ export function ChatRoomDetailScreen({ navigation, route }: Props) {
     ...(getGameIdFromRoomLabel(room?.tableConfig.gameLabel) === '3-5-7' ? { mode: 'HOSTEST' } : {}),
   }));
   const [pendingTableLaunch, setPendingTableLaunch] = useState<{
+    invitedPlayerIds: string[];
     roomIdBefore: string | null;
   } | null>(null);
 
@@ -81,10 +106,11 @@ export function ChatRoomDetailScreen({ navigation, route }: Props) {
       chatRoomId: room?.id ?? route.params.roomId,
       invitedPlayerIds,
       isPrivate,
+      selectedPlayerIds,
       tableTierId: selectedTierId,
       transportKind,
     }),
-    [invitedPlayerIds, isPrivate, room?.id, route.params.roomId, selectedTierId, transportKind],
+    [invitedPlayerIds, isPrivate, room?.id, route.params.roomId, selectedPlayerIds, selectedTierId, transportKind],
   );
 
   useEffect(() => {
@@ -93,6 +119,16 @@ export function ChatRoomDetailScreen({ navigation, route }: Props) {
       roomState?.roomId &&
       roomState.roomId !== pendingTableLaunch.roomIdBefore
     ) {
+      const createdTableId = roomState.roomId;
+
+      // TODO(table:inviteRoomPlayers): emit pendingTableLaunch.invitedPlayerIds with createdTableId
+      // once createRoom returns a durable table ID through the realtime transport.
+      const invitePayloadForFutureSocket = {
+        playerIds: pendingTableLaunch.invitedPlayerIds,
+        tableId: createdTableId,
+      };
+      void invitePayloadForFutureSocket;
+
       navigation.navigate(routes.Game);
       setPendingTableLaunch(null);
     }
@@ -148,11 +184,41 @@ export function ChatRoomDetailScreen({ navigation, route }: Props) {
     setDraft('');
   }
 
-  function handleTogglePlayerInvite(playerId: string) {
-    setInvitedPlayerIds((currentIds) =>
-      currentIds.includes(playerId)
-        ? currentIds.filter((currentId) => currentId !== playerId)
-        : [...currentIds, playerId],
+  function handleTogglePlayerSelection(playerId: string) {
+    if (!room) {
+      return;
+    }
+
+    const [eligiblePlayerId] = getInviteEligiblePlayerIds(room.players, [playerId], invitedPlayerIds);
+
+    if (!eligiblePlayerId) {
+      return;
+    }
+
+    setSelectedPlayerIds((currentIds) =>
+      currentIds.includes(eligiblePlayerId)
+        ? currentIds.filter((currentId) => currentId !== eligiblePlayerId)
+        : [...currentIds, eligiblePlayerId],
+    );
+  }
+
+  function handleInviteSelectedPlayers() {
+    if (!room) {
+      return;
+    }
+
+    const eligibleSelectedPlayerIds = getInviteEligiblePlayerIds(room.players, selectedPlayerIds, invitedPlayerIds);
+
+    if (eligibleSelectedPlayerIds.length === 0) {
+      setSelectedPlayerIds([]);
+      return;
+    }
+
+    // TODO(table:inviteRoomPlayers): replace this local mock update with a socket emit for selected room players.
+    setInvitedPlayerIds((currentIds) => Array.from(new Set([...currentIds, ...eligibleSelectedPlayerIds])));
+    // TODO(table:playerInvited): listen for invite acknowledgements and reconcile invited/failed IDs from the server.
+    setSelectedPlayerIds((currentIds) =>
+      currentIds.filter((currentId) => !eligibleSelectedPlayerIds.includes(currentId)),
     );
   }
 
@@ -192,13 +258,14 @@ export function ChatRoomDetailScreen({ navigation, route }: Props) {
     };
 
     // TODO(table:createFromChatRoom): pass chat room launch context once backend/socket transports support it.
-    // TODO(table:inviteRoomPlayers): send invited room player IDs through the shared table invite rail when supported.
-    // TODO(table:playerInvited): surface per-player invite status updates back into this chat room UI.
     // TODO(table:launchFromChatRoom): replace isolated metadata with realtime chat-room table launch acknowledgement.
     const chatRoomMetadataForFutureTransport = isolatedLaunchMetadata;
     void chatRoomMetadataForFutureTransport;
 
-    setPendingTableLaunch({ roomIdBefore: roomState?.roomId ?? null });
+    setPendingTableLaunch({
+      invitedPlayerIds: Array.from(new Set([...invitedPlayerIds, ...selectedPlayerIds])),
+      roomIdBefore: roomState?.roomId ?? null,
+    });
     createRoom({
       gameSettings,
       name: currentUserName,
@@ -238,8 +305,9 @@ export function ChatRoomDetailScreen({ navigation, route }: Props) {
       <SectionCard title="Active players">
         <RoomPlayerList
           invitedPlayerIds={invitedPlayerIds}
-          onInvitePlayer={handleTogglePlayerInvite}
+          onTogglePlayer={handleTogglePlayerSelection}
           players={room.players}
+          selectedPlayerIds={selectedPlayerIds}
         />
       </SectionCard>
 
@@ -247,13 +315,15 @@ export function ChatRoomDetailScreen({ navigation, route }: Props) {
         gameOptions={defaultGameOptions}
         invitedPlayerIds={invitedPlayerIds}
         isPrivate={isPrivate}
+        onInviteSelectedPlayers={handleInviteSelectedPlayers}
         onLaunchTable={handleLaunchTable}
         onSelectGame={handleSelectGame}
         onSelectTier={handleSelectTier}
-        onTogglePlayerInvite={handleTogglePlayerInvite}
+        onTogglePlayerSelection={handleTogglePlayerSelection}
         onTogglePrivacy={setIsPrivate}
         players={room.players}
         rulesSummary={rulesSummary}
+        selectedPlayerIds={selectedPlayerIds}
         selectedGameId={selectedGameId}
         selectedTierId={selectedTierId}
       />
