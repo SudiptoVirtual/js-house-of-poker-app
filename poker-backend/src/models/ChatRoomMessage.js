@@ -67,6 +67,7 @@ const chatRoomMessageSchema = new mongoose.Schema(
 );
 
 chatRoomMessageSchema.index({ roomId: 1, createdAt: -1 });
+chatRoomMessageSchema.index({ "moderation.status": 1, createdAt: -1 });
 
 function buildMessagePreview(message) {
   const prefix = message.senderDisplayName ? `${message.senderDisplayName}: ` : "";
@@ -76,6 +77,10 @@ function buildMessagePreview(message) {
 }
 
 chatRoomMessageSchema.post("save", function updateRoomPreview(message) {
+  if (message.moderation?.status === "blocked") {
+    return undefined;
+  }
+
   const unreadIncrement = message.senderUserId
     ? {
         "participantStates.$[participant].unreadCount": 1,

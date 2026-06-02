@@ -413,8 +413,10 @@ class ChatRoomRealtimeService {
     });
 
     if (moderation.status === "blocked") {
+      await message.save();
       console.warn("Chat room message blocked", {
         flags: moderation.flags || [],
+        messageId: String(message._id),
         reason: moderation.reason,
         roomId,
         senderUserId: String(user._id),
@@ -526,6 +528,8 @@ module.exports = {
   ChatRoomRealtimeService,
   createChatRoomRealtimeService,
   getChatRoomChannel,
+  moderateChatRoomMessage,
   normalizeChatRoomId,
+  normalizeMessageText,
   serializeChatRoomMessage,
 };
