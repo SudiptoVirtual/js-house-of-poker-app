@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { io, type Socket } from 'socket.io-client';
 
 import { ActionButton } from '../components/ActionButton';
 import {
@@ -14,20 +15,30 @@ import {
 } from '../components/chatRooms';
 import { Screen } from '../components/Screen';
 import { SectionCard } from '../components/SectionCard';
+import { env } from '../config/env';
 import { usePoker } from '../context/PokerProvider';
-import { chatRooms } from '../constants/chatRooms';
 import { routes } from '../constants/routes';
+import { fetchChatRoom } from '../services/api/chatRooms';
+import { getAuthSession } from '../services/storage/sessionStorage';
 import { colors } from '../theme/colors';
 import type { PokerGameSettingsUpdate } from '../services/poker';
-import type { ChatRoomMessage, ChatRoomPlayer } from '../types/chatRooms';
+import type { ChatRoom, ChatRoomMessage, ChatRoomPlayer } from '../types/chatRooms';
 import type { RootStackParamList } from '../types/navigation';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ChatRoomDetail'>;
 
-const currentUserId = 'local-player';
-const currentUserName = 'Player';
-
 type ChatRoomTableRules = Pick<PokerGameSettingsUpdate, 'lowRule' | 'mode' | 'wildCards'>;
+type ChatRoomSocketAck = {
+  error?: string | { message?: string };
+  message?: ChatRoomMessage;
+  messages?: ChatRoomMessage[];
+  ok?: boolean;
+  players?: ChatRoomPlayer[];
+  roomId?: string;
+  success?: boolean;
+};
+
+const fallbackUser = { id: 'signed-in-player', name: 'Player' };
 
 const defaultRulesByTierId: Record<string, ChatRoomTableRules> = {
   '5k-casual': {
@@ -46,18 +57,6 @@ function getGameIdFromRoomLabel(gameLabel?: string) {
   return gameLabel?.toLowerCase().includes('3-5-7') ? '3-5-7' : 'texas-holdem';
 }
 
-function getInitialInvitedPlayerIds(room: (typeof chatRooms)[number] | undefined) {
-  if (!room) {
-    return [];
-  }
-
-  const pendingInviteHandles = new Set(room.inviteState.pendingInvites);
-
-  return room.players
-    .filter((player) => pendingInviteHandles.has(player.handle))
-    .map((player) => player.id);
-}
-
 function getInviteEligiblePlayerIds(players: ChatRoomPlayer[], playerIds: string[], invitedPlayerIds: string[]) {
   const invitedIds = new Set(invitedPlayerIds);
   const eligibleIds = new Set(
@@ -69,7 +68,7 @@ function getInviteEligiblePlayerIds(players: ChatRoomPlayer[], playerIds: string
   return playerIds.filter((playerId) => eligibleIds.has(playerId));
 }
 
-function getTierIdFromRoomConfig(room: (typeof chatRooms)[number] | undefined) {
+function getTierIdFromRoomConfig(room: ChatRoom | null) {
   if (room?.tableConfig.stakesLabel.toLowerCase().includes('5k')) {
     return '5k-casual';
   }
@@ -77,26 +76,177 @@ function getTierIdFromRoomConfig(room: (typeof chatRooms)[number] | undefined) {
   return room?.tableConfig.isPrivate ? 'private-study' : 'free-training';
 }
 
-export function ChatRoomDetailScreen({ navigation, route }: Props) {
-  const room = chatRooms.find((candidate) => candidate.id === route.params.roomId);
-  const { createTableFromChatRoom, errorMessage, transportKind } = usePoker();
-  const [draft, setDraft] = useState('');
-  const [invitedPlayerIds, setInvitedPlayerIds] = useState<string[]>(() => getInitialInvitedPlayerIds(room));
-  const [selectedPlayerIds, setSelectedPlayerIds] = useState<string[]>([]);
-  const [isPrivate, setIsPrivate] = useState(room?.tableConfig.isPrivate ?? true);
-  const [localMessages, setLocalMessages] = useState<ChatRoomMessage[]>([]);
-  const [selectedGameId, setSelectedGameId] = useState(() => getGameIdFromRoomLabel(room?.tableConfig.gameLabel));
-  const [selectedTierId, setSelectedTierId] = useState(() => getTierIdFromRoomConfig(room));
-  const [selectedRules, setSelectedRules] = useState<ChatRoomTableRules>(() => ({
-    ...(defaultRulesByTierId[getTierIdFromRoomConfig(room)] ?? {}),
-    ...(getGameIdFromRoomLabel(room?.tableConfig.gameLabel) === '3-5-7' ? { mode: 'HOSTEST' } : {}),
-  }));
-  const [isLaunchingTable, setIsLaunchingTable] = useState(false);
+function normalizeSocketError(error: ChatRoomSocketAck['error']) {
+  if (typeof error === 'string') {
+    return error;
+  }
 
-  const messages = useMemo(
-    () => (room ? [...room.messages, ...localMessages] : []),
-    [localMessages, room],
+  return error?.message ?? 'Realtime chat request failed.';
+}
+
+function mergeMessages(currentMessages: ChatRoomMessage[], incomingMessages: ChatRoomMessage[]) {
+  const messageById = new Map(currentMessages.map((message) => [message.id, message]));
+
+  incomingMessages.forEach((message) => {
+    messageById.set(message.id, message);
+  });
+
+  return [...messageById.values()].sort(
+    (left, right) => new Date(left.createdAt).getTime() - new Date(right.createdAt).getTime(),
   );
+}
+
+export function ChatRoomDetailScreen({ navigation, route }: Props) {
+  const { createTableFromChatRoom, errorMessage, transportKind } = usePoker();
+  const socketRef = useRef<Socket | null>(null);
+  const authRef = useRef<{ token: string | null; user: { id?: string; name?: string; email?: string } } | null>(null);
+  const [room, setRoom] = useState<ChatRoom | null>(null);
+  const [isLoadingRoom, setIsLoadingRoom] = useState(true);
+  const [roomError, setRoomError] = useState<string | null>(null);
+  const [realtimeError, setRealtimeError] = useState<string | null>(null);
+  const [isRealtimeConnected, setIsRealtimeConnected] = useState(false);
+  const [draft, setDraft] = useState('');
+  const [invitedPlayerIds, setInvitedPlayerIds] = useState<string[]>([]);
+  const [selectedPlayerIds, setSelectedPlayerIds] = useState<string[]>([]);
+  const [isPrivate, setIsPrivate] = useState(true);
+  const [selectedGameId, setSelectedGameId] = useState('texas-holdem');
+  const [selectedTierId, setSelectedTierId] = useState('free-training');
+  const [selectedRules, setSelectedRules] = useState<ChatRoomTableRules>({});
+  const [isLaunchingTable, setIsLaunchingTable] = useState(false);
+  const [isSendingMessage, setIsSendingMessage] = useState(false);
+  const currentUserId = authRef.current?.user.id ?? fallbackUser.id;
+  const currentUserName = authRef.current?.user.name ?? authRef.current?.user.email ?? fallbackUser.name;
+
+  const loadRoom = useCallback(async () => {
+    setIsLoadingRoom(true);
+    setRoomError(null);
+
+    try {
+      const nextRoom = await fetchChatRoom(route.params.roomId);
+      const nextGameId = getGameIdFromRoomLabel(nextRoom.tableConfig.gameLabel);
+      const nextTierId = getTierIdFromRoomConfig(nextRoom);
+
+      setRoom(nextRoom);
+      setIsPrivate(nextRoom.tableConfig.isPrivate);
+      setSelectedGameId(nextGameId);
+      setSelectedTierId(nextTierId);
+      setSelectedRules({
+        ...(defaultRulesByTierId[nextTierId] ?? {}),
+        ...(nextGameId === '3-5-7' ? { mode: 'HOSTEST' } : {}),
+      });
+    } catch (error) {
+      setRoomError(error instanceof Error ? error.message : 'Unable to load chat room.');
+    } finally {
+      setIsLoadingRoom(false);
+    }
+  }, [route.params.roomId]);
+
+  useEffect(() => {
+    void loadRoom();
+  }, [loadRoom]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function connectRealtime() {
+      const session = await getAuthSession();
+      authRef.current = session
+        ? { token: session.token, user: session.user as { id?: string; name?: string; email?: string } }
+        : { token: null, user: fallbackUser };
+
+      if (!session?.token) {
+        setRealtimeError('Sign in to send realtime chat messages.');
+        return;
+      }
+
+      if (!env.poker.socketUrl) {
+        setRealtimeError('Realtime chat socket URL is not configured.');
+        return;
+      }
+
+      const socket = io(env.poker.socketUrl, {
+        autoConnect: false,
+        reconnection: true,
+        transports: ['websocket', 'polling'],
+      });
+      socketRef.current = socket;
+
+      socket.on('connect', () => {
+        if (!isMounted) {
+          return;
+        }
+
+        setIsRealtimeConnected(true);
+        setRealtimeError(null);
+        socket.emit(
+          'chat:joinRoom',
+          { roomId: route.params.roomId, token: session.token },
+          (ack: ChatRoomSocketAck = {}) => {
+            if (!ack.ok && !ack.success) {
+              setRealtimeError(normalizeSocketError(ack.error));
+              return;
+            }
+
+            if (ack.roomId) {
+              setRoom((currentRoom) => currentRoom ? { ...currentRoom, id: ack.roomId ?? currentRoom.id } : currentRoom);
+            }
+
+            if (ack.messages?.length) {
+              setRoom((currentRoom) => currentRoom ? { ...currentRoom, messages: mergeMessages(currentRoom.messages, ack.messages ?? []) } : currentRoom);
+            }
+
+            if (ack.players) {
+              setRoom((currentRoom) => currentRoom ? { ...currentRoom, activePlayerCount: ack.players?.length ?? currentRoom.activePlayerCount, players: ack.players ?? currentRoom.players } : currentRoom);
+            }
+          },
+        );
+      });
+
+      socket.on('disconnect', () => {
+        if (isMounted) {
+          setIsRealtimeConnected(false);
+        }
+      });
+      socket.on('connect_error', (error) => {
+        if (isMounted) {
+          setRealtimeError(error.message);
+        }
+      });
+      socket.on('chat:error', (payload: { message?: string }) => {
+        setRealtimeError(payload?.message ?? 'Realtime chat error.');
+      });
+      socket.on('chat:newMessage', (payload: { message?: ChatRoomMessage }) => {
+        if (!payload.message) {
+          return;
+        }
+
+        setRoom((currentRoom) => currentRoom ? { ...currentRoom, messages: mergeMessages(currentRoom.messages, [payload.message!]), lastMessagePreview: payload.message!.body } : currentRoom);
+      });
+      socket.on('chat:activePlayers', (payload: { players?: ChatRoomPlayer[]; activePlayerCount?: number }) => {
+        setRoom((currentRoom) => currentRoom ? { ...currentRoom, activePlayerCount: payload.activePlayerCount ?? payload.players?.length ?? currentRoom.activePlayerCount, players: payload.players ?? currentRoom.players } : currentRoom);
+      });
+      socket.on('chat:presence', (payload: { players?: ChatRoomPlayer[]; activePlayerCount?: number }) => {
+        setRoom((currentRoom) => currentRoom ? { ...currentRoom, activePlayerCount: payload.activePlayerCount ?? payload.players?.length ?? currentRoom.activePlayerCount, players: payload.players ?? currentRoom.players } : currentRoom);
+      });
+      socket.on('table:playerInvited', (payload: { invitedPlayerIds?: string[]; playerIds?: string[] }) => {
+        const playerIds = payload.invitedPlayerIds ?? payload.playerIds ?? [];
+        setInvitedPlayerIds((currentIds) => Array.from(new Set([...currentIds, ...playerIds])));
+      });
+
+      socket.connect();
+    }
+
+    void connectRealtime();
+
+    return () => {
+      isMounted = false;
+      const socket = socketRef.current;
+      socketRef.current = null;
+      socket?.emit('chat:leaveRoom', { roomId: route.params.roomId, token: authRef.current?.token });
+      socket?.removeAllListeners();
+      socket?.disconnect();
+    };
+  }, [route.params.roomId]);
 
   const isolatedLaunchMetadata = useMemo(
     () => ({
@@ -116,9 +266,14 @@ export function ChatRoomDetailScreen({ navigation, route }: Props) {
     }
   }, [errorMessage, isLaunchingTable]);
 
-
   const selectedTier = defaultTableTierOptions.find((option) => option.id === selectedTierId);
   const rulesSummary = selectedTier?.rulesLabel ?? room?.tableConfig.stakesLabel ?? 'Room table rules';
+
+  if (isLoadingRoom) {
+    return (
+      <Screen showPlatformNavigation eyebrow="Chat room" title="Loading room" subtitle="Fetching live chat room data…" />
+    );
+  }
 
   if (!room) {
     return (
@@ -126,7 +281,7 @@ export function ChatRoomDetailScreen({ navigation, route }: Props) {
         showPlatformNavigation
         eyebrow="Chat room"
         title="Room not found"
-        subtitle="This social chat room is unavailable. Return to the chat room directory to pick another space."
+        subtitle={roomError ?? 'This social chat room is unavailable. Return to the chat room directory to pick another space.'}
       >
         <ActionButton
           fullWidth
@@ -139,26 +294,44 @@ export function ChatRoomDetailScreen({ navigation, route }: Props) {
     );
   }
 
-  function handleSendMessage() {
+  async function handleSendMessage() {
     const trimmedDraft = draft.trim();
+    const token = authRef.current?.token;
 
-    if (!trimmedDraft || !room) {
+    if (!trimmedDraft || !room || !token || !socketRef.current?.connected || isSendingMessage) {
       return;
     }
 
-    setLocalMessages((currentMessages) => [
-      ...currentMessages,
-      {
-        id: `local-${Date.now()}`,
-        roomId: room.id,
-        authorId: currentUserId,
-        authorName: 'You',
-        body: trimmedDraft,
-        createdAt: new Date().toISOString(),
-        tone: 'player',
-      },
-    ]);
-    setDraft('');
+    setIsSendingMessage(true);
+
+    try {
+      const ack = await new Promise<ChatRoomSocketAck>((resolve, reject) => {
+        socketRef.current?.timeout(10000).emit(
+          'chat:sendMessage',
+          { body: trimmedDraft, roomId: room.id, token },
+          (error: Error | null, response: ChatRoomSocketAck) => {
+            if (error) {
+              reject(error);
+              return;
+            }
+
+            resolve(response);
+          },
+        );
+      });
+
+      if (!ack.ok && !ack.success) {
+        setRealtimeError(normalizeSocketError(ack.error));
+        return;
+      }
+
+      setDraft('');
+      setRealtimeError(null);
+    } catch (error) {
+      setRealtimeError(error instanceof Error ? error.message : 'Unable to send chat message.');
+    } finally {
+      setIsSendingMessage(false);
+    }
   }
 
   function handleTogglePlayerSelection(playerId: string) {
@@ -191,9 +364,7 @@ export function ChatRoomDetailScreen({ navigation, route }: Props) {
       return;
     }
 
-    // TODO(table:inviteRoomPlayers): replace this local mock update with a socket emit for selected room players.
     setInvitedPlayerIds((currentIds) => Array.from(new Set([...currentIds, ...eligibleSelectedPlayerIds])));
-    // TODO(table:playerInvited): listen for invite acknowledgements and reconcile invited/failed IDs from the server.
     setSelectedPlayerIds((currentIds) =>
       currentIds.filter((currentId) => !eligibleSelectedPlayerIds.includes(currentId)),
     );
@@ -267,21 +438,28 @@ export function ChatRoomDetailScreen({ navigation, route }: Props) {
         activePlayerCount={room.activePlayerCount}
         description={room.description}
         notificationsEnabled={room.unreadCount > 0}
-        statusLabel={room.topic}
+        statusLabel={`${room.topic} • ${isRealtimeConnected ? 'Live' : 'Connecting'}`}
         title={room.title}
       />
 
       <SectionCard title="Room messages">
         <Text style={styles.helperText}>
-          Social-chat mock messages are isolated from gameplay chat. TableChatBar remains reserved for live
-          table play only.
+          Messages are loaded from the backend and streamed over the chat room socket in realtime. Gameplay chat
+          remains isolated inside active tables.
         </Text>
+        {realtimeError ? <Text style={styles.errorText}>{realtimeError}</Text> : null}
         <View style={styles.messageStack}>
-          {messages.map((message) => (
+          {room.messages.length === 0 ? <Text style={styles.helperText}>No messages yet. Start the conversation.</Text> : null}
+          {room.messages.map((message) => (
             <ChatMessageItem currentUserId={currentUserId} key={message.id} message={message} />
           ))}
         </View>
-        <ChatInputBar draft={draft} onChangeDraft={setDraft} onSend={handleSendMessage} />
+        <ChatInputBar
+          draft={draft}
+          onChangeDraft={setDraft}
+          onSend={() => { void handleSendMessage(); }}
+          placeholder={isSendingMessage ? 'Sending…' : 'Message the live room…'}
+        />
       </SectionCard>
 
       <SectionCard title="Active players">
@@ -315,6 +493,12 @@ export function ChatRoomDetailScreen({ navigation, route }: Props) {
 }
 
 const styles = StyleSheet.create({
+  errorText: {
+    color: colors.danger,
+    fontSize: 13,
+    fontWeight: '800',
+    lineHeight: 19,
+  },
   helperText: {
     color: colors.mutedText,
     fontSize: 14,

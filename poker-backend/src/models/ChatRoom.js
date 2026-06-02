@@ -174,6 +174,7 @@ const chatRoomSchema = new mongoose.Schema(
       type: Number,
       default: 0,
       index: true,
+    },
     isDisabled: {
       type: Boolean,
       default: false,
