@@ -60,6 +60,15 @@ const chatRoomMessageSchema = new mongoose.Schema(
       type: moderationSchema,
       default: () => ({}),
     },
+    tone: {
+      type: String,
+      enum: ["player", "system"],
+      default: "player",
+    },
+    launchContext: {
+      type: mongoose.Schema.Types.Mixed,
+      default: null,
+    },
   },
   {
     timestamps: { createdAt: true, updatedAt: false },

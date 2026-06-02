@@ -5,6 +5,8 @@ import { normalizeTableChatText } from '../../utils/tableChat';
 import { playerStatusTierToPokerPlayerStatus } from '../../utils/playerStatus';
 import { getAuthSession } from '../storage/sessionStorage';
 import type {
+  CreatePokerTableFromChatRoomAck,
+  CreatePokerTableFromChatRoomInput,
   CreatePokerTableInput,
   JoinPokerTableInput,
   PokerConnectionState,
@@ -378,6 +380,61 @@ export function createSocketPokerTransport(
     );
   }
 
+
+  async function createTableFromChatRoom(input: CreatePokerTableFromChatRoomInput) {
+    const playerName = trimName(input.name);
+    if (!playerName) {
+      pushError('Player name is required.');
+      throw new Error('Player name is required.');
+    }
+
+    const chatRoomId = input.chatRoomId.trim();
+    if (!chatRoomId) {
+      pushError('Chat room id is required.');
+      throw new Error('Chat room id is required.');
+    }
+
+    await requireRealtimeToken();
+    await ensureConnected();
+    pushSession({
+      playerName,
+      seatIndex: input.seatIndex ?? 0,
+      shouldResume: true,
+      tableId: null,
+    });
+
+    const payload = await withAuthToken({
+      chatRoomId,
+      gameSettings: input.gameSettings,
+      invitedPlayerIds: input.invitedPlayerIds ?? [],
+      name: playerName,
+      seatIndex: input.seatIndex,
+      tableName: input.tableName,
+      tableTierId: input.tableTierId,
+      visibility: input.visibility,
+    });
+    const response = await socketManager.emitWithAck<typeof payload, CreatePokerTableFromChatRoomAck>(
+      'table:createFromChatRoom',
+      payload,
+    );
+
+    if (!response?.ok && !response?.success) {
+      const message = typeof response?.error === 'string' ? response.error : 'Unable to launch table from chat room.';
+      pushError(message);
+      throw new Error(message);
+    }
+
+    pushError(null);
+    if (response.tableCode || response.tableId || response.roomId) {
+      pushSession({
+        shouldResume: true,
+        tableId: response.tableCode ?? response.tableId ?? response.roomId ?? null,
+      });
+    }
+
+    return response;
+  }
+
   async function joinTable(input: JoinPokerTableInput) {
     const playerName = trimName(input.name);
     const tableId = trimTableId(input.tableId);
@@ -568,6 +625,7 @@ export function createSocketPokerTransport(
       return ensureConnected();
     },
     createTable,
+    createTableFromChatRoom,
     destroy() {
       isDestroyed = true;
       listeners.clear();

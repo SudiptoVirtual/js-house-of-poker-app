@@ -69,8 +69,17 @@ export type CreateTableFromChatRoomRequest = {
 };
 
 export type CreateTableFromChatRoomResponse = ChatRoomSocketAck & {
+  chatRoomId?: string;
+  createdAt?: string;
+  deliveredPlayerIds?: string[];
+  gameSettings?: PokerGameSettingsUpdate;
+  invitedPlayerIds?: string[];
+  launchedByUserId?: string;
   roomId: string;
+  tableCode?: string;
+  tableDbId?: string;
   tableId?: string;
+  tableName?: string;
 };
 
 export type InviteRoomPlayersRequest = {
@@ -87,9 +96,11 @@ export type InviteRoomPlayersResponse = ChatRoomSocketAck & {
 };
 
 export type ChatRoomPlayerInvitedPayload = {
-  invitedByUserId: string;
-  invitedPlayerId: string;
+  invitedByUserId?: string;
+  invitedPlayerId?: string;
+  invitedPlayerIds?: string[];
   roomId: string;
+  tableCode?: string;
   tableId: string;
 };
 
@@ -100,7 +111,16 @@ export type LaunchFromChatRoomRequest = {
 };
 
 export type LaunchFromChatRoomResponse = ChatRoomSocketAck & {
+  chatRoomId?: string;
+  createdAt?: string;
+  deliveredPlayerIds?: string[];
+  gameSettings?: PokerGameSettingsUpdate;
+  invitedPlayerIds?: string[];
+  launchedByUserId?: string;
   launchUrl?: string;
   roomId: string;
+  tableCode?: string;
+  tableDbId?: string;
   tableId: string;
+  tableName?: string;
 };

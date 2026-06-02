@@ -284,6 +284,18 @@ export function createSocketManager(options: CreateSocketManagerOptions) {
     emit<TPayload>(eventName: string, payload?: TPayload) {
       socket.emit(eventName, payload);
     },
+    emitWithAck<TPayload, TAck>(eventName: string, payload?: TPayload, timeoutMs = 10000) {
+      return new Promise<TAck>((resolve, reject) => {
+        socket.timeout(timeoutMs).emit(eventName, payload, (error: Error | null, response: TAck) => {
+          if (error) {
+            reject(error);
+            return;
+          }
+
+          resolve(response);
+        });
+      });
+    },
     getConnectionState() {
       return cloneConnectionState(connectionState);
     },

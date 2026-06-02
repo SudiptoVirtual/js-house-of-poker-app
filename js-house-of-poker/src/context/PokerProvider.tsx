@@ -10,6 +10,8 @@ import {
 
 import {
   createPokerTransport,
+  type CreatePokerTableFromChatRoomAck,
+  type CreatePokerTableFromChatRoomInput,
   type CreatePokerRoomInput,
   type JoinPokerRoomInput,
   type PokerConnectionState,
@@ -32,6 +34,7 @@ type PokerActions = {
   connect: () => void;
   createRoom: (input: CreatePokerRoomInput) => void;
   createTable: (input: CreatePokerRoomInput) => void;
+  createTableFromChatRoom: (input: CreatePokerTableFromChatRoomInput) => Promise<CreatePokerTableFromChatRoomAck>;
   disconnect: () => void;
   fold: () => void;
   joinRoom: (input: JoinPokerRoomInput) => void;
@@ -141,6 +144,15 @@ export function PokerProvider({ children }: PropsWithChildren) {
       },
       createTable(input) {
         run(transportRef.current!.createTable(input));
+      },
+      createTableFromChatRoom(input) {
+        return transportRef.current!.createTableFromChatRoom(input).catch((error) => {
+          dispatch({
+            errorMessage: toErrorMessage(error, 'Unable to launch table from chat room.'),
+            type: 'set-error',
+          });
+          throw error;
+        });
       },
       disconnect() {
         run(transportRef.current!.disconnect());
