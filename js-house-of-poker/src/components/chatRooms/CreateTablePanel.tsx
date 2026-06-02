@@ -16,12 +16,14 @@ type CreateTablePanelProps = {
   gameOptions?: GameSelectorOption[];
   invitedPlayerIds: string[];
   isPrivate: boolean;
+  onInviteSelectedPlayers: () => void;
   onLaunchTable: () => void;
   onSelectGame: (gameId: string) => void;
   onSelectTier: (tierId: string) => void;
-  onTogglePlayerInvite: (playerId: string) => void;
+  onTogglePlayerSelection: (playerId: string) => void;
   onTogglePrivacy: (isPrivate: boolean) => void;
   players: ChatRoomPlayer[];
+  selectedPlayerIds: string[];
   rulesSummary: string;
   selectedGameId: string;
   selectedTierId: string;
@@ -32,12 +34,14 @@ export function CreateTablePanel({
   gameOptions = defaultGameOptions,
   invitedPlayerIds,
   isPrivate,
+  onInviteSelectedPlayers,
   onLaunchTable,
   onSelectGame,
   onSelectTier,
-  onTogglePlayerInvite,
+  onTogglePlayerSelection,
   onTogglePrivacy,
   players,
+  selectedPlayerIds,
   rulesSummary,
   selectedGameId,
   selectedTierId,
@@ -73,9 +77,23 @@ export function CreateTablePanel({
       <View style={styles.group}>
         <Text style={styles.groupLabel}>Invite room players</Text>
         <InvitePlayerSelector
+          invitedPlayerIds={invitedPlayerIds}
           players={players}
-          selectedPlayerIds={invitedPlayerIds}
-          onTogglePlayer={onTogglePlayerInvite}
+          selectedPlayerIds={selectedPlayerIds}
+          onTogglePlayer={onTogglePlayerSelection}
+        />
+        <Text style={styles.inviteHelper}>
+          Select available room players, then invite them when the table plan is ready. Away and seated players
+          stay unavailable until their presence changes.
+        </Text>
+        <ActionButton
+          compact
+          disabled={selectedPlayerIds.length === 0}
+          icon="email-fast-outline"
+          label={`Invite to Table (${selectedPlayerIds.length})`}
+          onPress={onInviteSelectedPlayers}
+          tone="accent"
+          variant="secondary"
         />
       </View>
 
@@ -84,7 +102,8 @@ export function CreateTablePanel({
         <Text style={styles.summaryText}>{selectedGame?.label ?? 'Game'} • {selectedTier?.stakesLabel ?? 'Tier'}</Text>
         <Text style={styles.summaryMuted}>{rulesSummary}</Text>
         <Text style={styles.summaryMuted}>
-          {isPrivate ? 'Private invite table' : 'Public room table'} • {invitedPlayerIds.length} invited
+          {isPrivate ? 'Private invite table' : 'Public room table'} • {selectedPlayerIds.length} selected •{' '}
+          {invitedPlayerIds.length} invited
         </Text>
       </View>
 
@@ -120,6 +139,11 @@ const styles = StyleSheet.create({
     color: colors.mutedText,
     fontSize: 14,
     lineHeight: 21,
+  },
+  inviteHelper: {
+    color: colors.mutedText,
+    fontSize: 12,
+    lineHeight: 17,
   },
   pressed: {
     opacity: 0.78,

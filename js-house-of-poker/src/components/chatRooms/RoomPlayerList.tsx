@@ -7,15 +7,41 @@ import { getPlayerStatusColor, getPlayerStatusLabel } from './chatRoomUtils';
 
 type RoomPlayerListProps = {
   invitedPlayerIds?: string[];
-  onInvitePlayer?: (playerId: string) => void;
+  onTogglePlayer?: (playerId: string) => void;
   players: ChatRoomPlayer[];
+  selectedPlayerIds?: string[];
 };
 
-export function RoomPlayerList({ invitedPlayerIds = [], onInvitePlayer, players }: RoomPlayerListProps) {
+function getInviteToggleState(player: ChatRoomPlayer, selectedPlayerIds: string[], invitedPlayerIds: string[]) {
+  const isInvited = invitedPlayerIds.includes(player.id);
+  const isSelected = selectedPlayerIds.includes(player.id);
+  const isAvailable = player.status === 'available';
+
+  if (isInvited) {
+    return { disabled: true, icon: 'email-check' as const, label: 'Invited', state: 'invited' as const };
+  }
+
+  if (!isAvailable) {
+    return { disabled: true, icon: 'account-cancel' as const, label: 'Unavailable', state: 'unavailable' as const };
+  }
+
+  if (isSelected) {
+    return { disabled: false, icon: 'check-circle' as const, label: 'Selected', state: 'selected' as const };
+  }
+
+  return { disabled: false, icon: 'account-plus' as const, label: 'Select', state: 'selectable' as const };
+}
+
+export function RoomPlayerList({
+  invitedPlayerIds = [],
+  onTogglePlayer,
+  players,
+  selectedPlayerIds = [],
+}: RoomPlayerListProps) {
   return (
     <View style={styles.playerStack}>
       {players.map((player) => {
-        const isInvited = invitedPlayerIds.includes(player.id);
+        const inviteState = getInviteToggleState(player, selectedPlayerIds, invitedPlayerIds);
 
         return (
           <View key={player.id} style={styles.playerCard}>
@@ -33,23 +59,33 @@ export function RoomPlayerList({ invitedPlayerIds = [], onInvitePlayer, players 
                 <Text style={styles.statusText}>{getPlayerStatusLabel(player.status)}</Text>
               </View>
             </View>
-            {onInvitePlayer ? (
+            {onTogglePlayer ? (
               <Pressable
-                accessibilityLabel={`${isInvited ? 'Invited' : 'Invite'} ${player.displayName}`}
+                accessibilityLabel={`${inviteState.label} ${player.displayName}`}
                 accessibilityRole="button"
-                disabled={isInvited}
-                onPress={() => onInvitePlayer(player.id)}
+                disabled={inviteState.disabled}
+                onPress={() => onTogglePlayer(player.id)}
                 style={({ pressed }) => [
                   styles.inviteButton,
-                  isInvited ? styles.invitedButton : null,
+                  inviteState.state === 'selected' ? styles.selectedButton : null,
+                  inviteState.state === 'invited' ? styles.invitedButton : null,
+                  inviteState.state === 'unavailable' ? styles.unavailableButton : null,
                   pressed ? styles.pressed : null,
                 ]}
               >
                 <MaterialCommunityIcons
-                  color={isInvited ? colors.success : colors.background}
-                  name={isInvited ? 'check' : 'account-plus'}
+                  color={inviteState.state === 'selectable' ? colors.background : colors.text}
+                  name={inviteState.icon}
                   size={17}
                 />
+                <Text
+                  style={[
+                    styles.inviteButtonLabel,
+                    inviteState.state === 'selectable' ? styles.inviteButtonLabelDark : null,
+                  ]}
+                >
+                  {inviteState.label}
+                </Text>
               </Pressable>
             ) : null}
           </View>
@@ -89,9 +125,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: colors.secondary,
     borderRadius: 14,
-    height: 38,
+    flexDirection: 'row',
+    gap: 5,
     justifyContent: 'center',
-    width: 38,
+    minHeight: 38,
+    minWidth: 38,
+    paddingHorizontal: 10,
+  },
+  inviteButtonLabel: {
+    color: colors.text,
+    fontSize: 11,
+    fontWeight: '900',
+  },
+  inviteButtonLabelDark: {
+    color: colors.background,
   },
   invitedButton: {
     backgroundColor: 'rgba(77,243,199,0.14)',
@@ -133,6 +180,11 @@ const styles = StyleSheet.create({
   pressed: {
     opacity: 0.78,
   },
+  selectedButton: {
+    backgroundColor: 'rgba(255,198,108,0.18)',
+    borderColor: colors.gold,
+    borderWidth: 1,
+  },
   statusDot: {
     borderRadius: 999,
     height: 8,
@@ -142,6 +194,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flexDirection: 'row',
     gap: 6,
+  },
+  unavailableButton: {
+    backgroundColor: 'rgba(149,159,183,0.12)',
+    borderColor: colors.border,
+    borderWidth: 1,
+    opacity: 0.72,
   },
   statusText: {
     color: colors.mutedText,
