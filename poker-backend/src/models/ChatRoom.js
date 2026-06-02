@@ -24,6 +24,56 @@ const participantStateSchema = new mongoose.Schema(
   { _id: false }
 );
 
+
+const tableLaunchSchema = new mongoose.Schema(
+  {
+    tableId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "GameTable",
+      required: true,
+    },
+    tableCode: {
+      type: String,
+      required: true,
+      trim: true,
+      uppercase: true,
+    },
+    tableName: {
+      type: String,
+      default: "",
+      trim: true,
+      maxlength: 120,
+    },
+    launchedByUserId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
+    invitedPlayerIds: {
+      type: [String],
+      default: [],
+    },
+    visibility: {
+      type: String,
+      default: "room",
+      trim: true,
+    },
+    tableTier: {
+      type: mongoose.Schema.Types.Mixed,
+      default: null,
+    },
+    rules: {
+      type: mongoose.Schema.Types.Mixed,
+      default: null,
+    },
+    launchedAt: {
+      type: Date,
+      default: Date.now,
+    },
+  },
+  { _id: false }
+);
+
 const chatRoomSchema = new mongoose.Schema(
   {
     name: {
@@ -82,6 +132,10 @@ const chatRoomSchema = new mongoose.Schema(
     },
     participantStates: {
       type: [participantStateSchema],
+      default: [],
+    },
+    tableLaunches: {
+      type: [tableLaunchSchema],
       default: [],
     },
   },

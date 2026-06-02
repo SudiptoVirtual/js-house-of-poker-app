@@ -404,9 +404,14 @@ function initChatRoomSocket(io) {
     });
 
     socket.on("table:createFromChatRoom", (payload = {}, ack) => {
-      withChatRoomErrorBoundary(socket, ack, () =>
-        createTableFromChatRoom({ io, realtimeService, socket, payload, ack })
-      );
+      withChatRoomErrorBoundary(socket, ack, async () => {
+        const response = await chatRoomRealtimeService.createTableFromChatRoom(
+          socket,
+          payload,
+          realtimeService
+        );
+        emitAck(ack, response);
+      });
     });
 
     socket.on("table:inviteRoomPlayers", (payload = {}, ack) => {

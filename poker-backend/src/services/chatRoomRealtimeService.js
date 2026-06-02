@@ -30,6 +30,44 @@ const SOCIAL_CHAT_ROOM_RATE_WINDOW_MS = Math.max(
   Number.parseInt(process.env.SOCIAL_CHAT_ROOM_RATE_WINDOW_MS || "60000", 10)
 );
 
+const CHAT_ROOM_TABLE_LAUNCH_LIMIT = Math.max(
+  1,
+  Number.parseInt(process.env.CHAT_ROOM_TABLE_LAUNCH_LIMIT || "25", 10)
+);
+const VALID_CHAT_ROOM_TABLE_GAMES = new Set([
+  "7/27",
+  "7-27",
+  "55 Little Red",
+  "357",
+  "holdem",
+  "shanghai",
+  "in-between-the-sheets",
+]);
+const VALID_CHAT_ROOM_TABLE_MODES = new Set([
+  "high-only",
+  "high-low",
+  "low-only",
+  "HOSTEST",
+  "BEST_FIVE",
+]);
+const VALID_CHAT_ROOM_LOW_RULES = new Set(["8-or-better", "wheel", "any-low"]);
+const VALID_CHAT_ROOM_WILD_CARDS = new Set([
+  "A",
+  "K",
+  "Q",
+  "J",
+  "T",
+  "9",
+  "8",
+  "7",
+  "6",
+  "5",
+  "4",
+  "3",
+  "2",
+]);
+const VALID_CHAT_ROOM_VISIBILITIES = new Set(["room", "private", "public", "invite-only"]);
+
 function getChatRoomChannel(roomId) {
   return `${CHAT_ROOM_PREFIX}:${roomId}`;
 }
@@ -53,6 +91,96 @@ function normalizeMessageText(value) {
     .trim()
     .replace(/\s+/g, " ")
     .slice(0, SOCIAL_CHAT_MESSAGE_CHAR_LIMIT);
+}
+
+function normalizePlayerIds(value) {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return [...new Set(value.map((playerId) => String(playerId || "").trim()).filter(Boolean))];
+}
+
+function normalizeLaunchVisibility(value) {
+  const visibility = String(value || "room").trim().toLowerCase();
+  return VALID_CHAT_ROOM_VISIBILITIES.has(visibility) ? visibility : "room";
+}
+
+function normalizeTableTier(value) {
+  if (value == null) {
+    return null;
+  }
+
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    return trimmed || null;
+  }
+
+  if (typeof value === "object") {
+    return value;
+  }
+
+  throw new Error("Table tier must be a string or object.");
+}
+
+function validateChatRoomGameSettings(gameSettings = {}) {
+  if (gameSettings == null) {
+    return {};
+  }
+
+  if (typeof gameSettings !== "object" || Array.isArray(gameSettings)) {
+    throw new Error("Game settings must be an object.");
+  }
+
+  const settings = { ...gameSettings };
+
+  if (settings.game !== undefined && !VALID_CHAT_ROOM_TABLE_GAMES.has(settings.game)) {
+    throw new Error("Unsupported poker game for chat room table launch.");
+  }
+
+  if (settings.mode !== undefined && !VALID_CHAT_ROOM_TABLE_MODES.has(settings.mode)) {
+    throw new Error("Unsupported poker game mode for chat room table launch.");
+  }
+
+  if (settings.lowRule !== undefined && !VALID_CHAT_ROOM_LOW_RULES.has(settings.lowRule)) {
+    throw new Error("Unsupported low hand rule for chat room table launch.");
+  }
+
+  if (settings.stips !== undefined && (typeof settings.stips !== "object" || Array.isArray(settings.stips))) {
+    throw new Error("Game stipulations must be an object.");
+  }
+
+  if (Array.isArray(settings.wildCards)) {
+    const invalidWildCards = settings.wildCards.filter(
+      (card) => !VALID_CHAT_ROOM_WILD_CARDS.has(String(card || "").toUpperCase())
+    );
+
+    if (invalidWildCards.length > 0) {
+      throw new Error("Unsupported wild card in chat room table launch settings.");
+    }
+
+    settings.wildCards = settings.wildCards.map((card) => String(card).toUpperCase());
+  } else if (settings.wildCards !== undefined) {
+    throw new Error("Wild cards must be an array.");
+  }
+
+  return settings;
+}
+
+function assertUserCanLaunchFromRoom(room, userId) {
+  if (room.isPublic) {
+    return;
+  }
+
+  const userIdString = String(userId);
+  const isCreator = room.createdByUserId && String(room.createdByUserId) === userIdString;
+  const isParticipant = (room.participantStates || []).some(
+    (state) => String(state.userId) === userIdString
+  );
+
+  if (!isCreator && !isParticipant) {
+    throw new Error("You are not allowed to launch a table from this chat room.");
+  }
 }
 
 function getDisplayName(user) {
@@ -472,6 +600,107 @@ class ChatRoomRealtimeService {
       ok: true,
       success: true,
       ...eventPayload,
+    };
+  }
+
+  async createTableFromChatRoom(socket, payload = {}, pokerRealtimeService) {
+    if (!pokerRealtimeService || typeof pokerRealtimeService.createRoomFromChatRoom !== "function") {
+      throw new Error("Poker realtime service is required to launch a table from a chat room.");
+    }
+
+    const user = await this.authenticateSocketUser(socket, payload);
+    const chatRoom = await this.findRoom(normalizeChatRoomId(payload));
+    const chatRoomId = String(chatRoom._id);
+
+    assertUserCanLaunchFromRoom(chatRoom, user._id);
+
+    const gameSettings = validateChatRoomGameSettings(payload.gameSettings || {});
+    const invitedPlayerIds = normalizePlayerIds(payload.invitedPlayerIds);
+    const invalidInvitedPlayerIds = invitedPlayerIds.filter(
+      (playerId) => !mongoose.Types.ObjectId.isValid(playerId)
+    );
+
+    if (invalidInvitedPlayerIds.length > 0) {
+      throw new Error("Invited player ids must be valid user ids.");
+    }
+
+    const visibility = normalizeLaunchVisibility(payload.visibility);
+    const tableTier = normalizeTableTier(payload.tableTier ?? payload.tableTierId);
+    const launchedAt = new Date();
+    const tableName =
+      typeof payload.tableName === "string" && payload.tableName.trim()
+        ? payload.tableName
+        : `${chatRoom.name} Table`;
+
+    const createdRoom = await pokerRealtimeService.createRoomFromChatRoom(
+      socket,
+      {
+        ...payload,
+        gameSettings,
+        roomId: undefined,
+        tableCode: undefined,
+        tableId: undefined,
+        tableName,
+      },
+      {
+        chatRoomId: chatRoom._id,
+        invitedPlayerIds,
+        launchedAt,
+        launchedByUserId: user._id,
+        rules: payload.rules || null,
+        tableTier,
+        visibility,
+      }
+    );
+
+    const launchRecord = {
+      invitedPlayerIds,
+      launchedAt,
+      launchedByUserId: user._id,
+      rules: payload.rules || null,
+      tableCode: createdRoom.id,
+      tableId: createdRoom.tableDbId,
+      tableName: createdRoom.tableName,
+      tableTier,
+      visibility,
+    };
+
+    await ChatRoom.updateOne(
+      { _id: chatRoom._id },
+      {
+        $push: {
+          tableLaunches: {
+            $each: [launchRecord],
+            $slice: -CHAT_ROOM_TABLE_LAUNCH_LIMIT,
+          },
+        },
+      }
+    );
+
+    const launchPayload = {
+      chatRoomId,
+      createdByPlayerId: String(user._id),
+      invitedPlayerIds,
+      launchedAt: launchedAt.toISOString(),
+      launchedByUserId: String(user._id),
+      roomId: createdRoom.id,
+      success: true,
+      tableCode: createdRoom.id,
+      tableDbId: createdRoom.tableDbId,
+      tableId: createdRoom.id,
+      tableName: createdRoom.tableName,
+      tableTier,
+      visibility,
+    };
+
+    this.io.to(getChatRoomChannel(chatRoomId)).emit("table:launchFromChatRoom", launchPayload);
+    if (!socket.rooms.has(getChatRoomChannel(chatRoomId))) {
+      socket.emit("table:launchFromChatRoom", launchPayload);
+    }
+
+    return {
+      ok: true,
+      ...launchPayload,
     };
   }
 

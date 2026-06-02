@@ -293,6 +293,56 @@ const tablePlayerSchema = new mongoose.Schema(
   { _id: false }
 );
 
+
+const chatRoomLaunchContextSchema = new mongoose.Schema(
+  {
+    chatRoomId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "ChatRoom",
+      default: null,
+      index: true,
+    },
+    launchedByUserId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+      index: true,
+    },
+    invitedPlayerIds: {
+      type: [String],
+      default: [],
+    },
+    visibility: {
+      type: String,
+      default: "room",
+      trim: true,
+    },
+    tableTier: {
+      type: mongoose.Schema.Types.Mixed,
+      default: null,
+    },
+    rules: {
+      type: mongoose.Schema.Types.Mixed,
+      default: null,
+    },
+    tableCode: {
+      type: String,
+      default: null,
+      trim: true,
+      uppercase: true,
+    },
+    tableId: {
+      type: mongoose.Schema.Types.ObjectId,
+      default: null,
+    },
+    launchedAt: {
+      type: Date,
+      default: Date.now,
+    },
+  },
+  { _id: false }
+);
+
 const gameTableSchema = new mongoose.Schema(
   {
     tableCode: {
@@ -401,6 +451,10 @@ const gameTableSchema = new mongoose.Schema(
     tableInvites: {
       type: [tableInviteSchema],
       default: [],
+    },
+    chatRoomLaunchContext: {
+      type: chatRoomLaunchContextSchema,
+      default: null,
     },
     players: {
       type: [tablePlayerSchema],
