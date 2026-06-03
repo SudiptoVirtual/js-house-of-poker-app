@@ -31,6 +31,18 @@ const feedGiftClipSchema = new mongoose.Schema(
       required: true,
       index: true,
     },
+    recipientTransactionId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Transaction",
+      default: null,
+      index: true,
+    },
+    senderTransactionId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Transaction",
+      default: null,
+      index: true,
+    },
     transactionId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Transaction",
@@ -56,7 +68,13 @@ feedGiftClipSchema.methods.toClient = function toClient() {
     postId: String(this.postId),
     recipientUserId: String(this.recipientUserId),
     senderUserId: String(this.senderUserId),
+    recipientTransactionId: this.recipientTransactionId ? String(this.recipientTransactionId) : null,
+    senderTransactionId: this.senderTransactionId ? String(this.senderTransactionId) : null,
     transactionId: this.transactionId ? String(this.transactionId) : null,
+    transactionIds: {
+      recipient: this.recipientTransactionId ? String(this.recipientTransactionId) : null,
+      sender: this.senderTransactionId || this.transactionId ? String(this.senderTransactionId || this.transactionId) : null,
+    },
   };
 };
 

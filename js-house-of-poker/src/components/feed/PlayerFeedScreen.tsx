@@ -8,7 +8,7 @@ import { currentFeedPlayer, mockFeedPosts } from '../../constants/playerFeedMock
 import { routes } from '../../constants/routes';
 import { buildSocialInvitePreset } from '../../constants/social';
 import { usePoker } from '../../context/PokerProvider';
-import { createFeedComment, createFeedShare, getApiErrorDetails, toggleFeedSupport } from '../../services/api';
+import { createFeedComment, createFeedShare, getApiErrorDetails, sendFeedGiftClip, toggleFeedSupport } from '../../services/api';
 import { getAuthSession } from '../../services/storage/sessionStorage';
 import { colors } from '../../theme/colors';
 import type { RootStackParamList } from '../../types/navigation';
@@ -183,24 +183,29 @@ export function PlayerFeedScreen({ navigation }: PlayerFeedScreenProps) {
     }
   }
 
-  function handleSendGift(amount: number) {
+  async function handleSendGift(amount: number, message: string) {
     if (!giftPost) {
       return;
     }
 
-    setPosts((currentPosts) =>
-      currentPosts.map((post) =>
-        post.id === giftPost.id
-          ? {
-              ...post,
-              giftClipsCount: (post.giftClipsCount ?? 0) + 1,
-              giftClipsTotal: (post.giftClipsTotal ?? 0) + amount,
-            }
-          : post,
-      ),
-    );
-    Alert.alert('Gift Clips placeholder', `${amount.toLocaleString()} clips staged locally for ${giftPost.player.name}.`);
-    setGiftPost(null);
+    const targetPost = giftPost;
+    const session = await getAuthSession();
+
+    if (!session?.token || targetPost.id.startsWith('local-feed-')) {
+      Alert.alert('Sign in required', 'Sign in and refresh persisted feed posts before sending Gift Clips.');
+      return;
+    }
+
+    try {
+      const response = await sendFeedGiftClip(targetPost.id, { amount, message }, session.token);
+
+      setPosts((currentPosts) => currentPosts.map((post) => (post.id === targetPost.id ? response.post : post)));
+      Alert.alert('Gift Clips sent', `${amount.toLocaleString()} clips sent to ${targetPost.player.name}.`);
+      setGiftPost(null);
+    } catch (error) {
+      const details = getApiErrorDetails(error, 'Unable to send Gift Clips right now.');
+      Alert.alert('Gift Clips not sent', details.message);
+    }
   }
 
   function handlePromote() {

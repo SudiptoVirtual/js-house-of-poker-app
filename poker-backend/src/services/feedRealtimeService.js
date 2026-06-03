@@ -1,12 +1,12 @@
 const mongoose = require("mongoose");
 
 const FeedComment = require("../models/FeedComment");
-const FeedGiftClip = require("../models/FeedGiftClip");
 const FeedPost = require("../models/FeedPost");
 const FeedPromotion = require("../models/FeedPromotion");
 const FeedReaction = require("../models/FeedReaction");
 const FeedShare = require("../models/FeedShare");
 const GameTable = require("../models/GameTable");
+const { sendFeedGiftClip } = require("./feedGiftClipService");
 const User = require("../models/User");
 const {
   PLAYER_STATUSES,
@@ -602,36 +602,30 @@ class FeedRealtimeService {
   async sendGiftClips(socket, payload = {}) {
     const user = await this.authenticate(socket, payload);
     const postId = normalizePostId(payload);
-    const amount = Math.max(1, Number.parseInt(payload.amount || payload.clips, 10));
 
-    if (!Number.isFinite(amount)) {
-      throw new Error("Gift Clip amount is required.");
-    }
-
-    const post = await findVisiblePost(postId, user._id);
-    if (!post) {
-      throw new Error("Feed post not found.");
-    }
-
-    const giftClip = await FeedGiftClip.create({
-      amount,
-      message: normalizeText(payload.message, 500),
+    const result = await sendFeedGiftClip({
+      amount: payload.amount || payload.clips,
+      currentUserId: user._id,
+      message: payload.message,
       postId,
-      recipientUserId: post.authorUserId,
-      senderUserId: user._id,
-      transactionId: isValidObjectId(payload.transactionId) ? payload.transactionId : null,
+      recipientUserId: payload.recipientUserId,
     });
 
-    post.counters.giftClipsCount = (post.counters.giftClipsCount || 0) + 1;
-    post.counters.giftClipsTotal = (post.counters.giftClipsTotal || 0) + amount;
-    await post.save();
-    await hydrateCurrentUserReaction(post, user._id);
+    await hydrateCurrentUserReaction(result.post, user._id);
 
-    const eventPayload = { giftClip: giftClip.toClient(), ok: true, post: serializePost(post, user._id) };
+    const eventPayload = {
+      balances: result.balances,
+      giftClip: result.giftClip.toClient(),
+      ok: true,
+      post: serializePost(result.post, user._id),
+      transactionIds: result.transactionIds,
+      transactions: result.transactionIds,
+    };
     this.broadcastGiftClipsSent(postId, eventPayload);
     this.broadcastPostUpdated(postId, { ok: true, post: eventPayload.post });
     return eventPayload;
   }
+
 
   async createPromotion(socket, payload = {}) {
     const user = await this.authenticate(socket, payload);
