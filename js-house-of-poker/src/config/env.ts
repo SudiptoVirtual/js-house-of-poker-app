@@ -1,6 +1,8 @@
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 
+type AppEnvironment = 'development' | 'preview' | 'production';
+
 type PublicEnvName =
   | 'EXPO_PUBLIC_BASE_URL'
   | 'EXPO_PUBLIC_API_TIMEOUT'
@@ -72,6 +74,28 @@ function readEmbeddedEnv(name: PublicEnvName) {
   }
 
   return '';
+}
+
+function readEmbeddedAppEnvironment(): AppEnvironment {
+  const extraSources = [
+    Constants.expoConfig?.extra,
+    Constants.manifest2?.extra,
+    (Constants as typeof Constants & { manifest?: { extra?: unknown } }).manifest?.extra,
+  ];
+
+  for (const source of extraSources) {
+    if (!isRecord(source)) {
+      continue;
+    }
+
+    const value = source.appEnvironment;
+
+    if (value === 'preview' || value === 'production') {
+      return value;
+    }
+  }
+
+  return 'development';
 }
 
 function readPublicEnv(name: string) {
@@ -148,10 +172,12 @@ const firebaseProjectId = readPublicEnv('EXPO_PUBLIC_FIREBASE_PROJECT_ID');
 const firebaseStorageBucket = readPublicEnv('EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET');
 const firebaseMessagingSenderId = readPublicEnv('EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID');
 const firebaseAppId = readPublicEnv('EXPO_PUBLIC_FIREBASE_APP_ID');
+const appEnvironment = readEmbeddedAppEnvironment();
 const expoScheme = Constants.expoConfig?.scheme;
 const googleRedirectScheme = Array.isArray(expoScheme) ? expoScheme[0] : expoScheme;
 
 export const env = {
+  appEnvironment,
   appName: Constants.expoConfig?.name ?? "J's House of Poker",
   appVersion: Constants.expoConfig?.version ?? '1.0.0',
   apiBaseUrl,

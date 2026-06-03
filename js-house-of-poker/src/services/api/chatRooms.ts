@@ -1,4 +1,5 @@
 import { env } from '../../config/env';
+import { chatRooms as previewChatRooms } from '../../constants/chatRooms';
 import type { ChatRoom, ChatRoomFriend, ChatRoomMessage, ChatRoomPlayer } from '../../types/chatRooms';
 import { ApiError, apiRequest } from './client';
 
@@ -312,6 +313,32 @@ function normalizeChatRoomApiError(error: unknown) {
   return error;
 }
 
+function isMissingChatRoomRoute(error: unknown) {
+  return error instanceof ApiError && error.status === 404;
+}
+
+function canUsePreviewFallback(error: unknown) {
+  return env.appEnvironment === 'preview' && isMissingChatRoomRoute(error);
+}
+
+function clonePreviewRoom(room: ChatRoom): ChatRoom {
+  return {
+    ...room,
+    inviteState: {
+      ...room.inviteState,
+      pendingInvites: [...room.inviteState.pendingInvites],
+      suggestedHandles: [...room.inviteState.suggestedHandles],
+    },
+    messages: room.messages.map((message) => ({ ...message })),
+    players: room.players.map((player) => ({ ...player })),
+    tableConfig: { ...room.tableConfig },
+  };
+}
+
+function getPreviewChatRooms() {
+  return previewChatRooms.map(clonePreviewRoom);
+}
+
 export async function fetchChatRooms(token?: string | null) {
   try {
     const response = await apiRequest<ChatRoomsResponse>('/api/chat-rooms', { token });
@@ -319,6 +346,14 @@ export async function fetchChatRooms(token?: string | null) {
 
     return (response.rooms ?? []).map((room, index) => toChatRoom(room, index, seenRoomIds));
   } catch (error) {
+    if (canUsePreviewFallback(error)) {
+      console.warn(
+        'Preview backend is missing /api/chat-rooms; using bundled preview chat rooms until poker-backend is deployed.',
+      );
+
+      return getPreviewChatRooms();
+    }
+
     throw normalizeChatRoomApiError(error);
   }
 }
@@ -333,47 +368,75 @@ export async function fetchChatRoom(roomId: string, token?: string | null) {
 
     return toChatRoom(response.room);
   } catch (error) {
+    if (canUsePreviewFallback(error)) {
+      const previewRoom = previewChatRooms.find((room) => room.id === roomId);
+
+      if (previewRoom) {
+        console.warn(
+          'Preview backend is missing /api/chat-rooms; using bundled preview chat room detail until poker-backend is deployed.',
+        );
+
+        return clonePreviewRoom(previewRoom);
+      }
+    }
+
     throw normalizeChatRoomApiError(error);
   }
 }
 
 export async function fetchActiveChatRoomFriends(token: string) {
-  const response = await apiRequest<ActiveChatRoomFriendsResponse>('/api/chat-rooms/active-friends', { token });
-  const seenFriendIds = new Set<string>();
+  try {
+    const response = await apiRequest<ActiveChatRoomFriendsResponse>('/api/chat-rooms/active-friends', { token });
+    const seenFriendIds = new Set<string>();
 
-  return (response.friends ?? []).map((friend, index) => toChatRoomFriend(friend, index, seenFriendIds));
+    return (response.friends ?? []).map((friend, index) => toChatRoomFriend(friend, index, seenFriendIds));
+  } catch (error) {
+    if (canUsePreviewFallback(error)) {
+      return [];
+    }
+
+    throw normalizeChatRoomApiError(error);
+  }
 }
 
 export async function createChatRoom(input: CreateChatRoomInput, token: string) {
-  const response = await apiRequest<CreateChatRoomResponse>('/api/chat-rooms', {
-    body: input,
-    method: 'POST',
-    token,
-  });
+  try {
+    const response = await apiRequest<CreateChatRoomResponse>('/api/chat-rooms', {
+      body: input,
+      method: 'POST',
+      token,
+    });
 
-  if (!response.room) {
-    throw new Error('Created chat room was not returned by the server.');
+    if (!response.room) {
+      throw new Error('Created chat room was not returned by the server.');
+    }
+
+    return {
+      invitedPlayerIds: response.invitedPlayerIds ?? [],
+      room: toChatRoom(response.room),
+    };
+  } catch (error) {
+    throw normalizeChatRoomApiError(error);
   }
-
-  return {
-    invitedPlayerIds: response.invitedPlayerIds ?? [],
-    room: toChatRoom(response.room),
-  };
 }
 
 export async function inviteChatRoomFriends(roomId: string, playerIds: string[], token: string) {
-  const response = await apiRequest<InviteChatRoomFriendsResponse>(
-    `/api/chat-rooms/${encodeURIComponent(roomId)}/invites`,
-    {
-      body: { playerIds },
-      method: 'POST',
-      token,
-    },
-  );
+  try {
+    const response = await apiRequest<InviteChatRoomFriendsResponse>(
+      `/api/chat-rooms/${encodeURIComponent(roomId)}/invites`,
+      {
+        body: { playerIds },
+        method: 'POST',
+        token,
+      },
+    );
 
-  return {
-    alreadyInRoomPlayerIds: response.alreadyInRoomPlayerIds ?? [],
-    invitedPlayerIds: response.invitedPlayerIds ?? [],
-    room: response.room ? toChatRoom(response.room) : null,
-  };
+    return {
+      alreadyInRoomPlayerIds: response.alreadyInRoomPlayerIds ?? [],
+      invitedPlayerIds: response.invitedPlayerIds ?? [],
+      room: response.room ? toChatRoom(response.room) : null,
+    };
+  } catch (error) {
+    throw normalizeChatRoomApiError(error);
+  }
 }
