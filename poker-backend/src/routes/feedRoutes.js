@@ -6,6 +6,7 @@ const {
   createReaction,
   createShare,
   createTableInvite,
+  deleteComment,
   deletePost,
   getDiscoveryPayload,
   getPost,
@@ -15,6 +16,7 @@ const {
   removeSupport,
   sendGiftClip,
   setSupport,
+  updateComment,
   updatePost,
 } = require("../controllers/feedController");
 const { optionalUser, protectUser } = require("../middleware/auth");
@@ -30,6 +32,8 @@ router.delete("/:postId", protectUser, deletePost);
 
 router.get("/:postId/comments", optionalUser, listComments);
 router.post("/:postId/comments", protectUser, addComment);
+router.patch("/:postId/comments/:commentId", protectUser, updateComment);
+router.delete("/:postId/comments/:commentId", protectUser, deleteComment);
 
 router.post("/:postId/support", protectUser, setSupport);
 router.delete("/:postId/support", protectUser, removeSupport);

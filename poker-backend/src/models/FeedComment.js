@@ -51,14 +51,19 @@ feedCommentSchema.index({ authorUserId: 1, createdAt: -1 });
 feedCommentSchema.index({ postId: 1, parentCommentId: 1, createdAt: 1 });
 feedCommentSchema.index({ "moderation.status": 1, createdAt: -1 });
 
-feedCommentSchema.methods.toClient = function toClient() {
+feedCommentSchema.methods.toClient = function toClient(options = {}) {
+  const moderationStatus = this.moderation?.status || "accepted";
+  const isDeleted = this.deletedAt instanceof Date;
+  const canExposeBody = !isDeleted && moderationStatus !== "blocked" && options.includeBody !== false;
+
   return {
     authorUserId: String(this.authorUserId),
-    body: this.body,
+    body: canExposeBody ? this.body : null,
     createdAt: this.createdAt instanceof Date ? this.createdAt.toISOString() : null,
-    deletedAt: this.deletedAt instanceof Date ? this.deletedAt.toISOString() : null,
+    deletedAt: isDeleted ? this.deletedAt.toISOString() : null,
     id: String(this._id),
-    moderationStatus: this.moderation?.status || "accepted",
+    isDeleted,
+    moderationStatus,
     parentCommentId: this.parentCommentId ? String(this.parentCommentId) : null,
     player: {
       ...(this.authorSnapshot?.avatarUrl ? { avatarUrl: this.authorSnapshot.avatarUrl } : {}),

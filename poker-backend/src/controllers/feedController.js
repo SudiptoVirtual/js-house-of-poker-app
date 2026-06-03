@@ -175,7 +175,7 @@ function normalizeMedia(value) {
     .filter((item) => item.type && item.url);
 }
 
-async function hydrateCurrentUserReaction(posts, currentUserId) {
+async function hydrateCurrentUserReaction(posts, currentUserId, session = null) {
   if (!currentUserId || posts.length === 0) {
     return posts;
   }
@@ -185,7 +185,9 @@ async function hydrateCurrentUserReaction(posts, currentUserId) {
     postId: { $in: posts.map((post) => post._id) },
     type: "support",
     userId: currentUserId,
-  }).select("postId userId type deletedAt");
+  })
+    .session(session)
+    .select("postId userId type deletedAt");
   const supportedPostIds = new Set(reactions.map((reaction) => String(reaction.postId)));
 
   posts.forEach((post) => {
@@ -199,7 +201,73 @@ function serializePost(post, currentUserId) {
   return post.toClient({ currentUserId });
 }
 
-async function findVisiblePost(postId, currentUserId = null) {
+function serializeComment(comment, currentUserId = null) {
+  const moderationStatus = comment?.moderation?.status || "accepted";
+  const isAuthor = currentUserId && String(comment.authorUserId) === String(currentUserId);
+
+  return comment.toClient({
+    includeBody: moderationStatus !== "blocked" && (!comment.deletedAt || isAuthor),
+  });
+}
+
+async function runCommentTransaction(callback) {
+  const session = await mongoose.startSession();
+
+  try {
+    let result;
+    await session.withTransaction(async () => {
+      result = await callback(session);
+    });
+    return result;
+  } finally {
+    await session.endSession();
+  }
+}
+
+async function createCommentAndIncrementPost({ body, currentUserId, parentCommentId = null, postId, user }) {
+  return runCommentTransaction(async (session) => {
+    const post = await findVisiblePost(postId, currentUserId, session);
+
+    if (!post) {
+      return null;
+    }
+
+    const [comment] = await FeedComment.create(
+      [
+        {
+          authorSnapshot: buildPlayerSnapshot(user),
+          authorUserId: user._id,
+          body,
+          parentCommentId,
+          postId,
+        },
+      ],
+      { session },
+    );
+
+    const updatedPost = await FeedPost.findOneAndUpdate(
+      { _id: post._id },
+      { $inc: { "counters.commentCount": 1 } },
+      { new: true, session },
+    );
+
+    if (updatedPost && currentUserId) {
+      await hydrateCurrentUserReaction([updatedPost], currentUserId, session);
+    }
+
+    return { comment, post: updatedPost };
+  });
+}
+
+async function decrementPostCommentCount(postId, session) {
+  return FeedPost.findOneAndUpdate(
+    { _id: postId },
+    { $inc: { "counters.commentCount": -1 } },
+    { new: true, session },
+  );
+}
+
+async function findVisiblePost(postId, currentUserId = null, session = null) {
   if (!isValidObjectId(postId)) {
     return null;
   }
@@ -216,9 +284,9 @@ async function findVisiblePost(postId, currentUserId = null) {
     query.visibility = "public";
   }
 
-  const post = await FeedPost.findOne(query);
+  const post = await FeedPost.findOne(query).session(session);
   if (post && currentUserId) {
-    await hydrateCurrentUserReaction([post], currentUserId);
+    await hydrateCurrentUserReaction([post], currentUserId, session);
   }
 
   return post;
@@ -439,7 +507,7 @@ async function listComments(req, res) {
     const page = comments.slice(0, limit);
 
     return res.json({
-      comments: page.map((comment) => comment.toClient()),
+      comments: page.map((comment) => serializeComment(comment, currentUserId)),
       pagination: {
         hasMore: comments.length > limit,
         limit,
@@ -462,33 +530,126 @@ async function addComment(req, res) {
       return res.status(400).json({ message: "Comment body is required" });
     }
 
+    const parentCommentId = req.body?.parentCommentId && isValidObjectId(req.body.parentCommentId)
+      ? req.body.parentCommentId
+      : null;
+
+    const result = await createCommentAndIncrementPost({
+      body,
+      currentUserId: req.user._id,
+      parentCommentId,
+      postId,
+      user: req.user,
+    });
+
+    if (!result?.post) {
+      return res.status(404).json({ message: "Feed post not found" });
+    }
+
+    return res.status(201).json({
+      comment: serializeComment(result.comment, req.user._id),
+      post: serializePost(result.post, req.user._id),
+    });
+  } catch (error) {
+    return sendServerError(res, error, "Unable to add feed comment");
+  }
+}
+
+async function updateComment(req, res) {
+  try {
+    const postId = requireObjectId(req.params.postId, res, "post id");
+    if (!postId) return null;
+
+    const commentId = requireObjectId(req.params.commentId, res, "comment id");
+    if (!commentId) return null;
+
+    const body = normalizeText(req.body?.comment || req.body?.body || req.body?.content, 2000);
+    if (!body) {
+      return res.status(400).json({ message: "Comment body is required" });
+    }
+
     const post = await findVisiblePost(postId, req.user._id);
     if (!post) {
       return res.status(404).json({ message: "Feed post not found" });
     }
 
-    const parentCommentId = req.body?.parentCommentId && isValidObjectId(req.body.parentCommentId)
-      ? req.body.parentCommentId
-      : null;
+    const comment = await FeedComment.findOne({ _id: commentId, deletedAt: null, postId });
+    if (!comment || comment.moderation?.status === "blocked") {
+      return res.status(404).json({ message: "Feed comment not found" });
+    }
 
-    const comment = await FeedComment.create({
-      authorSnapshot: buildPlayerSnapshot(req.user),
-      authorUserId: req.user._id,
-      body,
-      parentCommentId,
-      postId,
-    });
+    if (String(comment.authorUserId) !== String(req.user._id)) {
+      return res.status(403).json({ message: "You can only edit your own feed comments" });
+    }
 
-    post.counters.commentCount = (post.counters.commentCount || 0) + 1;
-    await post.save();
-    await hydrateCurrentUserReaction([post], req.user._id);
+    comment.body = body;
+    await comment.save();
 
-    return res.status(201).json({
-      comment: comment.toClient(),
+    return res.json({
+      comment: serializeComment(comment, req.user._id),
       post: serializePost(post, req.user._id),
     });
   } catch (error) {
-    return sendServerError(res, error, "Unable to add feed comment");
+    return sendServerError(res, error, "Unable to update feed comment");
+  }
+}
+
+async function deleteComment(req, res) {
+  try {
+    const postId = requireObjectId(req.params.postId, res, "post id");
+    if (!postId) return null;
+
+    const commentId = requireObjectId(req.params.commentId, res, "comment id");
+    if (!commentId) return null;
+
+    const result = await runCommentTransaction(async (session) => {
+      const visiblePost = await findVisiblePost(postId, req.user._id, session);
+      if (!visiblePost) {
+        return { status: "post_not_found" };
+      }
+
+      const comment = await FeedComment.findOne({ _id: commentId, deletedAt: null, postId }).session(session);
+
+      if (!comment || comment.moderation?.status === "blocked") {
+        return { status: "not_found" };
+      }
+
+      if (String(comment.authorUserId) !== String(req.user._id)) {
+        return { status: "forbidden" };
+      }
+
+      comment.deletedAt = new Date();
+      await comment.save({ session });
+
+      const post = await decrementPostCommentCount(postId, session);
+      if (post) {
+        post.counters.commentCount = Math.max(0, post.counters?.commentCount || 0);
+        await post.save({ session });
+        await hydrateCurrentUserReaction([post], req.user._id, session);
+      }
+
+      return { comment, post, status: "deleted" };
+    });
+
+    if (result.status === "not_found") {
+      return res.status(404).json({ message: "Feed comment not found" });
+    }
+
+    if (result.status === "post_not_found") {
+      return res.status(404).json({ message: "Feed post not found" });
+    }
+
+    if (result.status === "forbidden") {
+      return res.status(403).json({ message: "You can only delete your own feed comments" });
+    }
+
+    return res.json({
+      comment: serializeComment(result.comment, req.user._id),
+      deleted: true,
+      post: result.post ? serializePost(result.post, req.user._id) : null,
+    });
+  } catch (error) {
+    return sendServerError(res, error, "Unable to delete feed comment");
   }
 }
 
@@ -828,6 +989,7 @@ module.exports = {
   createReaction,
   createShare,
   createTableInvite,
+  deleteComment,
   deletePost,
   getDiscoveryPayload,
   getPost,
@@ -837,5 +999,6 @@ module.exports = {
   removeSupport,
   sendGiftClip,
   setSupport,
+  updateComment,
   updatePost,
 };

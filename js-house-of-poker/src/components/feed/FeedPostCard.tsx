@@ -5,10 +5,13 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
 import { FeedActionBar } from './FeedActionBar';
 import { FeedPlayerHeader } from './FeedPlayerHeader';
-import type { FeedPost } from '../../types/feed';
+import type { FeedComment, FeedCommentSubmitResult, FeedPost } from '../../types/feed';
 
 type FeedPostCardProps = {
-  onComment: (post: FeedPost, comment: string) => void;
+  onComment: (
+    post: FeedPost,
+    comment: string,
+  ) => Promise<FeedCommentSubmitResult | void> | FeedCommentSubmitResult | void;
   onGiftClips: (post: FeedPost) => void;
   onInviteToTable: (post: FeedPost) => void;
   onOpenProfile: (playerId: string) => void;
@@ -30,6 +33,8 @@ export function FeedPostCard({
 }: FeedPostCardProps) {
   const [commentDraft, setCommentDraft] = useState('');
   const [isCommentPanelVisible, setIsCommentPanelVisible] = useState(false);
+  const [latestComments, setLatestComments] = useState<FeedComment[]>([]);
+  const [isSubmittingComment, setIsSubmittingComment] = useState(false);
 
   const statsLine = useMemo(() => {
     const stats = [
@@ -49,16 +54,26 @@ export function FeedPostCard({
     return stats.join(' · ');
   }, [post.commentCount, post.giftClipsCount, post.promotedCount, post.shareCount, post.supportersCount]);
 
-  function handleSubmitComment() {
+  async function handleSubmitComment() {
     const trimmedComment = commentDraft.trim();
 
-    if (!trimmedComment) {
+    if (!trimmedComment || isSubmittingComment) {
       return;
     }
 
-    // TODO(feed:addComment): Replace this placeholder panel with persisted comments and live updates.
-    onComment(post, trimmedComment);
-    setCommentDraft('');
+    setIsSubmittingComment(true);
+
+    try {
+      const result = await onComment(post, trimmedComment);
+
+      if (result?.comment) {
+        setLatestComments((currentComments) => [result.comment, ...currentComments].slice(0, 3));
+      }
+
+      setCommentDraft('');
+    } finally {
+      setIsSubmittingComment(false);
+    }
   }
 
   return (
@@ -129,17 +144,35 @@ export function FeedPostCard({
       />
 
       {isCommentPanelVisible ? (
-        <View style={styles.commentPanel}>
-          <TextInput
-            onChangeText={setCommentDraft}
-            placeholder="Add a table-side comment..."
-            placeholderTextColor={colors.mutedText}
-            style={styles.commentInput}
-            value={commentDraft}
-          />
-          <Pressable accessibilityRole="button" onPress={handleSubmitComment} style={styles.commentSendButton}>
-            <MaterialCommunityIcons color={colors.text} name="send-outline" size={18} />
-          </Pressable>
+        <View style={styles.commentStack}>
+          {latestComments.length > 0 ? (
+            <View style={styles.persistedComments}>
+              {latestComments.map((comment) => (
+                <View key={comment.id} style={styles.persistedCommentRow}>
+                  <Text style={styles.persistedCommentAuthor}>{comment.player.handle}</Text>
+                  <Text style={styles.persistedCommentBody}>{comment.body ?? 'Comment hidden by moderation'}</Text>
+                </View>
+              ))}
+            </View>
+          ) : null}
+          <View style={styles.commentPanel}>
+            <TextInput
+              onChangeText={setCommentDraft}
+              placeholder="Add a table-side comment..."
+              placeholderTextColor={colors.mutedText}
+              editable={!isSubmittingComment}
+              style={styles.commentInput}
+              value={commentDraft}
+            />
+            <Pressable
+              accessibilityRole="button"
+              disabled={isSubmittingComment}
+              onPress={handleSubmitComment}
+              style={[styles.commentSendButton, isSubmittingComment ? styles.commentSendButtonDisabled : null]}
+            >
+              <MaterialCommunityIcons color={colors.text} name="send-outline" size={18} />
+            </Pressable>
+          </View>
         </View>
       ) : null}
     </View>
@@ -181,6 +214,12 @@ const styles = StyleSheet.create({
     marginRight: 5,
     width: 38,
   },
+  commentSendButtonDisabled: {
+    opacity: 0.55,
+  },
+  commentStack: {
+    gap: 8,
+  },
   content: {
     color: colors.text,
     fontSize: 15,
@@ -220,6 +259,29 @@ const styles = StyleSheet.create({
     color: colors.gold,
     fontSize: 12,
     fontWeight: '900',
+  },
+  persistedCommentAuthor: {
+    color: colors.primary,
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  persistedCommentBody: {
+    color: colors.text,
+    flex: 1,
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  persistedCommentRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  persistedComments: {
+    backgroundColor: colors.surfaceMuted,
+    borderColor: colors.border,
+    borderRadius: 16,
+    borderWidth: 1,
+    gap: 8,
+    padding: 10,
   },
   stats: {
     color: colors.mutedText,
