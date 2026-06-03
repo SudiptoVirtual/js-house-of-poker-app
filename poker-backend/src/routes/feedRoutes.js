@@ -2,6 +2,7 @@ const express = require("express");
 
 const {
   addComment,
+  completePromotion,
   createPost,
   createReaction,
   createShare,
@@ -13,6 +14,7 @@ const {
   listComments,
   listPosts,
   listReactionSummaries,
+  promotionPaymentWebhook,
   purchasePromotion,
   removeSupport,
   sendGiftClip,
@@ -25,6 +27,8 @@ const { optionalUser, protectUser } = require("../middleware/auth");
 const router = express.Router();
 
 router.get("/", optionalUser, listPosts);
+router.post("/promotions/webhook", promotionPaymentWebhook);
+router.post("/promotions/:promotionId/complete", protectUser, completePromotion);
 router.post("/", protectUser, createPost);
 router.get("/discovery", optionalUser, getDiscoveryPayload);
 router.get("/:postId", optionalUser, getPost);
@@ -45,6 +49,7 @@ router.delete("/:postId/reactions/support", protectUser, removeSupport);
 router.post("/:postId/shares", protectUser, createShare);
 router.post("/:postId/gift-clips", protectUser, sendGiftClip);
 router.post("/:postId/promotions", protectUser, purchasePromotion);
+router.post("/:postId/promotions/checkout", protectUser, purchasePromotion);
 router.post("/:postId/table-invites", protectUser, createTableInvite);
 
 module.exports = router;

@@ -27,6 +27,17 @@ export type FeedGameContext = {
   tableName?: string;
 };
 
+export type FeedPostPromotion = {
+  amount: number;
+  budgetClips: number;
+  durationDays: number;
+  endsAt: string | null;
+  id: string | null;
+  paymentStatus: string | null;
+  startsAt: string | null;
+  state: string;
+};
+
 export type FeedPost = {
   commentCount: number;
   content: string;
@@ -37,6 +48,7 @@ export type FeedPost = {
   isPromoted: boolean;
   isTableRelated: boolean;
   player: FeedPlayer;
+  promotion?: FeedPostPromotion;
   promotedCount?: number;
   reactionCounts?: Record<string, number>;
   shareCount: number;
