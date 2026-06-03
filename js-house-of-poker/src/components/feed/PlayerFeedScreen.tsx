@@ -15,7 +15,7 @@ import { FeedPostCard } from './FeedPostCard';
 import { GiftClipsModal } from './GiftClipsModal';
 import { PromoteForCreatorPanel } from './PromoteForCreatorPanel';
 import { ShareMenu } from './ShareMenu';
-import type { FeedPlayer, FeedPost } from './types';
+import type { FeedPlayer, FeedPost } from '../../types/feed';
 
 type PlayerFeedScreenProps = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'Feed'>;
@@ -43,11 +43,13 @@ export function PlayerFeedScreen({ navigation }: PlayerFeedScreenProps) {
       commentCount: 0,
       content,
       id: `local-feed-${Date.now()}`,
+      isPromoted: false,
+      isTableRelated: false,
       player: currentFeedPlayer,
       shareCount: 0,
       supportedByCurrentPlayer: false,
       supportersCount: 0,
-      timestampLabel: 'Now',
+      timestamp: 'Now',
     };
 
     setPosts((currentPosts) => [createdPost, ...currentPosts]);

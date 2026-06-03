@@ -4,16 +4,25 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
 import { FeedAvatar } from './FeedAvatar';
 import { PlayerStatusBadge } from './PlayerStatusBadge';
-import type { FeedPlayer } from './types';
+import type { FeedPlayer } from '../../types/feed';
 
 type FeedPlayerHeaderProps = {
   isPromoted?: boolean;
   onOpenProfile: (player: FeedPlayer) => void;
   player: FeedPlayer;
-  timestampLabel: string;
+  timestamp: string;
 };
 
-export function FeedPlayerHeader({ isPromoted = false, onOpenProfile, player, timestampLabel }: FeedPlayerHeaderProps) {
+function getPlayerInitials(name: string) {
+  return name
+    .split(' ')
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join('') || 'HP';
+}
+
+export function FeedPlayerHeader({ isPromoted = false, onOpenProfile, player, timestamp }: FeedPlayerHeaderProps) {
   return (
     <View style={styles.container}>
       <Pressable
@@ -21,7 +30,7 @@ export function FeedPlayerHeader({ isPromoted = false, onOpenProfile, player, ti
         accessibilityRole="button"
         onPress={() => onOpenProfile(player)}
       >
-        <FeedAvatar initials={player.avatarInitials} uri={player.avatarUri} />
+        <FeedAvatar initials={getPlayerInitials(player.name)} uri={player.avatarUrl} />
       </Pressable>
 
       <View style={styles.identity}>
@@ -36,7 +45,7 @@ export function FeedPlayerHeader({ isPromoted = false, onOpenProfile, player, ti
               {player.name}
             </Text>
           </Pressable>
-          <Text style={styles.timestamp}>· {timestampLabel}</Text>
+          <Text style={styles.timestamp}>· {timestamp}</Text>
         </View>
         <View style={styles.metaRow}>
           <Text numberOfLines={1} style={styles.handle}>

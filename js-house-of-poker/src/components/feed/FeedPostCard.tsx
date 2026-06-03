@@ -5,7 +5,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
 import { FeedActionBar } from './FeedActionBar';
 import { FeedPlayerHeader } from './FeedPlayerHeader';
-import type { FeedPlayer, FeedPost } from './types';
+import type { FeedPlayer, FeedPost } from '../../types/feed';
 
 type FeedPostCardProps = {
   onComment: (post: FeedPost, comment: string) => void;
@@ -67,7 +67,7 @@ export function FeedPostCard({
         isPromoted={post.isPromoted}
         onOpenProfile={onOpenProfile}
         player={post.player}
-        timestampLabel={post.timestampLabel}
+        timestamp={post.timestamp}
       />
 
       <Text style={styles.content}>{post.content}</Text>
@@ -83,6 +83,22 @@ export function FeedPostCard({
               {post.tableContext.gameLabel}
               {post.tableContext.seatsOpen != null ? ` · ${post.tableContext.seatsOpen} seats open` : ''}
               {post.tableContext.tableCode ? ` · ${post.tableContext.tableCode}` : ''}
+            </Text>
+          </View>
+        </View>
+      ) : null}
+
+      {post.gameContext ? (
+        <View style={styles.gameContext}>
+          <View style={styles.gameIconShell}>
+            <MaterialCommunityIcons color={colors.secondary} name="cards-playing-outline" size={22} />
+          </View>
+          <View style={styles.tableCopy}>
+            <Text style={styles.tableName}>{post.gameContext.headline}</Text>
+            <Text style={styles.tableMeta}>
+              {[post.gameContext.tableName, post.gameContext.resultLabel, post.gameContext.stakesLabel]
+                .filter(Boolean)
+                .join(' · ')}
             </Text>
           </View>
         </View>
@@ -168,6 +184,24 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: 15,
     lineHeight: 22,
+  },
+  gameContext: {
+    alignItems: 'center',
+    backgroundColor: colors.surfaceMuted,
+    borderColor: 'rgba(54,231,255,0.24)',
+    borderRadius: 18,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 10,
+    padding: 11,
+  },
+  gameIconShell: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(54,231,255,0.10)',
+    borderRadius: 14,
+    height: 42,
+    justifyContent: 'center',
+    width: 42,
   },
   giftStats: {
     alignItems: 'center',
