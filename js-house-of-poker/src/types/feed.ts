@@ -38,6 +38,7 @@ export type FeedPost = {
   isTableRelated: boolean;
   player: FeedPlayer;
   promotedCount?: number;
+  reactionCounts?: Record<string, number>;
   shareCount: number;
   supportedByCurrentPlayer?: boolean;
   supportersCount: number;
@@ -56,6 +57,13 @@ export type FeedComment = {
   parentCommentId: string | null;
   player: FeedPlayer;
   postId: string;
+};
+
+export type FeedReactionSummary = {
+  count: number;
+  reactionType: string;
+  supportedByCurrentPlayer?: boolean;
+  type: string;
 };
 
 export type FeedCommentSubmitResult = {

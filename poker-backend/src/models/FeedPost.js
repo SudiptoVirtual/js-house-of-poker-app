@@ -127,6 +127,9 @@ feedPostSchema.methods.toClient = function toClient(options = {}) {
   const tableContext = serializeTableContext(this);
   const gameContext = serializeGameContext(this);
   const supportedByCurrentPlayer = resolveSupportedByCurrentPlayer(this, options.currentUserId);
+  const reactionCounts = counters.reactionCounts instanceof Map
+    ? Object.fromEntries(counters.reactionCounts)
+    : counters.reactionCounts || {};
 
   return {
     commentCount: counters.commentCount || 0,
@@ -139,6 +142,7 @@ feedPostSchema.methods.toClient = function toClient(options = {}) {
     isTableRelated: Boolean(this.tableId || this.tableCode || tableContext),
     player: serializePlayerSnapshot(this),
     ...(counters.promotedCount ? { promotedCount: counters.promotedCount } : {}),
+    reactionCounts: { support: counters.supportersCount || 0, ...reactionCounts },
     shareCount: counters.shareCount || 0,
     ...(supportedByCurrentPlayer === undefined ? {} : { supportedByCurrentPlayer }),
     supportersCount: counters.supportersCount || 0,

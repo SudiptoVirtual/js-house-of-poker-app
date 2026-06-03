@@ -12,6 +12,7 @@ const {
   getPost,
   listComments,
   listPosts,
+  listReactionSummaries,
   purchasePromotion,
   removeSupport,
   sendGiftClip,
@@ -37,6 +38,7 @@ router.delete("/:postId/comments/:commentId", protectUser, deleteComment);
 
 router.post("/:postId/support", protectUser, setSupport);
 router.delete("/:postId/support", protectUser, removeSupport);
+router.get("/:postId/reactions", optionalUser, listReactionSummaries);
 router.post("/:postId/reactions", protectUser, createReaction);
 router.delete("/:postId/reactions/support", protectUser, removeSupport);
 

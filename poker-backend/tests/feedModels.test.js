@@ -115,6 +115,9 @@ const tests = [
           statusTier: "mid_roller",
         },
         promotedCount: 8,
+        reactionCounts: {
+          support: 250,
+        },
         shareCount: 7,
         supportersCount: 250,
         tableContext: {
@@ -140,7 +143,7 @@ const tests = [
   [
     "FeedReaction and FeedShare enforce per-user lookup uniqueness indexes",
     () => {
-      assert.ok(hasIndex(FeedReaction, { postId: 1, userId: 1, type: 1 }));
+      assert.ok(hasIndex(FeedReaction, { postId: 1, userId: 1, reactionType: 1 }));
       assert.ok(hasIndex(FeedShare, { postId: 1, userId: 1, destination: 1, targetId: 1 }));
     },
   ],
