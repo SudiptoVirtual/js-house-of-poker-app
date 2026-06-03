@@ -22,6 +22,16 @@ function trimTrailingSlash(value: string) {
   return value.replace(/\/+$/, '');
 }
 
+function isPlaceholderEnvValue(value: string) {
+  return /^@[A-Za-z0-9_-]+$/.test(value);
+}
+
+function normalizeEnvValue(value: string) {
+  const trimmedValue = value.trim();
+
+  return isPlaceholderEnvValue(trimmedValue) ? '' : trimmedValue;
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
 }
@@ -39,7 +49,7 @@ function readEmbeddedEnv(name: PublicEnvName) {
     }
 
     if (typeof source[name] === 'string') {
-      return source[name].trim();
+      return normalizeEnvValue(source[name]);
     }
 
     if (typeof source[name] === 'number') {
@@ -53,7 +63,7 @@ function readEmbeddedEnv(name: PublicEnvName) {
     }
 
     if (typeof publicEnv[name] === 'string') {
-      return publicEnv[name].trim();
+      return normalizeEnvValue(publicEnv[name]);
     }
 
     if (typeof publicEnv[name] === 'number') {
@@ -65,7 +75,7 @@ function readEmbeddedEnv(name: PublicEnvName) {
 }
 
 function readPublicEnv(name: string) {
-  const processValue = process.env[name]?.trim();
+  const processValue = normalizeEnvValue(process.env[name] ?? '');
 
   if (processValue) {
     return processValue;
@@ -120,11 +130,12 @@ function resolveApiBaseUrl(rawValue: string) {
   }
 }
 
+const apiBaseUrl = resolveApiBaseUrl(readPublicEnv('EXPO_PUBLIC_BASE_URL'));
 const configuredPokerBackendUrl = resolveApiBaseUrl(
   readPublicEnv('EXPO_PUBLIC_POKER_BACKEND_URL') ||
-    readPublicEnv('EXPO_PUBLIC_POKER_SOCKET_URL'),
+    readPublicEnv('EXPO_PUBLIC_POKER_SOCKET_URL') ||
+    apiBaseUrl,
 );
-const apiBaseUrl = resolveApiBaseUrl(readPublicEnv('EXPO_PUBLIC_BASE_URL'));
 const pokerTransport = readPublicEnv('EXPO_PUBLIC_POKER_TRANSPORT').toLowerCase();
 const pokerSocketUrl = configuredPokerBackendUrl;
 const pokerSocketProtocol = readPublicEnv('EXPO_PUBLIC_POKER_SOCKET_PROTOCOL').toLowerCase();
