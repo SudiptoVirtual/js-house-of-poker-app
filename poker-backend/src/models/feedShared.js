@@ -7,7 +7,24 @@ const POST_STATUSES = ["draft", "published", "archived", "deleted"];
 const PROMOTION_STATES = ["none", "pending", "active", "paused", "expired", "rejected"];
 const MEDIA_TYPES = ["image", "video", "clip", "link"];
 const REACTION_TYPES = ["support"];
-const SHARE_DESTINATIONS = ["copy-link", "chat-room", "table", "external"];
+const SHARE_DESTINATIONS = ["copy-link", "profile", "feed", "chat-room", "table", "facebook", "external"];
+const SHARE_DESTINATION_ALIASES = new Map([
+  ["copy", "copy-link"],
+  ["link", "copy-link"],
+  ["clipboard", "copy-link"],
+  ["chat", "chat-room"],
+  ["chatroom", "chat-room"],
+  ["room", "chat-room"],
+  ["poker-table", "table"],
+  ["fb", "facebook"],
+  ["social", "external"],
+]);
+
+function normalizeShareDestination(value, fallback = "copy-link") {
+  const destination = String(value || fallback).trim().toLowerCase();
+
+  return SHARE_DESTINATION_ALIASES.get(destination) || destination;
+}
 
 function nullableObjectIdToString(value) {
   return value ? String(value) : null;
@@ -351,12 +368,14 @@ module.exports = {
   PROMOTION_STATES,
   REACTION_TYPES,
   SHARE_DESTINATIONS,
+  SHARE_DESTINATION_ALIASES,
   countersSchema,
   dateToISOString,
   gameContextSchema,
   mediaSchema,
   moderationSchema,
   normalizeCount,
+  normalizeShareDestination,
   nullableObjectIdToString,
   playerSnapshotSchema,
   promotionStateSchema,

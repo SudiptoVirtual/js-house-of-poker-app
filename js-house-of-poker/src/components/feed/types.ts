@@ -5,4 +5,5 @@ export type {
   FeedPost,
   FeedTableContext,
   ShareDestination,
+  ShareDestinationId,
 } from '../../types/feed';

@@ -7,6 +7,7 @@ const FeedPost = require("../src/models/FeedPost");
 const FeedPromotion = require("../src/models/FeedPromotion");
 const FeedReaction = require("../src/models/FeedReaction");
 const FeedShare = require("../src/models/FeedShare");
+const { SHARE_DESTINATIONS, normalizeShareDestination } = require("../src/models/feedShared");
 
 function objectId(hex) {
   return new mongoose.Types.ObjectId(hex.padStart(24, "0"));
@@ -148,6 +149,29 @@ const tests = [
     },
   ],
   [
+    "FeedShare maps frontend destinations and serializes share metadata",
+    () => {
+      assert.deepEqual(SHARE_DESTINATIONS, ["copy-link", "profile", "feed", "chat-room", "table", "facebook", "external"]);
+      assert.equal(normalizeShareDestination("fb"), "facebook");
+      assert.equal(normalizeShareDestination("chatroom"), "chat-room");
+
+      const share = new FeedShare({
+        destination: "fb",
+        metadata: { source: "share-menu" },
+        postId: objectId("c"),
+        targetIdentifiers: { tableId: "NIGHT7" },
+        targetType: "table",
+        userId: objectId("d"),
+      });
+
+      assert.equal(share.validateSync(), undefined);
+      assert.equal(share.destination, "facebook");
+      assert.equal(share.channel, "facebook");
+      assert.deepEqual(share.toClient().metadata, { source: "share-menu" });
+      assert.deepEqual(share.toClient().targetIdentifiers, { tableId: "NIGHT7" });
+    },
+  ],
+  [
     "Related feed models validate and serialize client-facing fields",
     () => {
       const postId = objectId("4");
@@ -168,8 +192,11 @@ const tests = [
         _id: objectId("9"),
         createdAt,
         destination: "chat-room",
+        metadata: { source: "share-menu" },
         postId,
         targetId: "room-1",
+        targetIdentifiers: { roomId: "room-1" },
+        targetType: "room",
         userId,
       });
       const giftClip = new FeedGiftClip({
@@ -199,6 +226,7 @@ const tests = [
       assert.equal(comment.toClient().player.name, "Commenter");
       assert.equal(reaction.toClient().type, "support");
       assert.equal(share.toClient().targetId, "room-1");
+      assert.equal(share.toClient().targetType, "room");
       assert.equal(giftClip.toClient().amount, 250);
       assert.equal(promotion.toClient().state, "active");
     },

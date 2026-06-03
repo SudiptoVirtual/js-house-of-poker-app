@@ -1,5 +1,38 @@
-import type { FeedComment, FeedPost, FeedReactionSummary } from '../../types/feed';
+import type { BackendShareDestinationId, FeedComment, FeedPost, FeedReactionSummary } from '../../types/feed';
 import { apiRequest } from './client';
+
+
+export type FeedShare = {
+  channel: BackendShareDestinationId;
+  createdAt: string | null;
+  destination: BackendShareDestinationId;
+  id: string;
+  metadata: Record<string, unknown>;
+  postId: string;
+  targetId: string | null;
+  targetIdentifiers: {
+    roomId?: string;
+    tableId?: string;
+    userId?: string;
+  };
+  targetType: string | null;
+  userId: string;
+};
+
+export type FeedShareResponse = {
+  post: FeedPost;
+  share: FeedShare;
+};
+
+export type CreateFeedShareInput = {
+  destination: BackendShareDestinationId;
+  metadata?: Record<string, string | number | boolean | null>;
+  roomId?: string;
+  tableId?: string;
+  targetId?: string;
+  targetType?: string;
+  targetUserId?: string;
+};
 
 export type FeedCommentResponse = {
   comment: FeedComment;
@@ -91,4 +124,13 @@ export async function toggleFeedSupport(postId: string, supported: boolean, toke
 
 export async function fetchFeedReactionSummaries(postId: string, token?: string | null) {
   return apiRequest<FeedReactionSummariesResponse>(`/api/feed/${encodeURIComponent(postId)}/reactions`, { token });
+}
+
+
+export async function createFeedShare(postId: string, input: CreateFeedShareInput, token: string) {
+  return apiRequest<FeedShareResponse>(`/api/feed/${encodeURIComponent(postId)}/shares`, {
+    body: input,
+    method: 'POST',
+    token,
+  });
 }

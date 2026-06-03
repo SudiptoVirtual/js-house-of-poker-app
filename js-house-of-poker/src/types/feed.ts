@@ -71,8 +71,26 @@ export type FeedCommentSubmitResult = {
   post?: FeedPost;
 };
 
+export type BackendShareDestinationId = 'copy-link' | 'profile' | 'feed' | 'chat-room' | 'table' | 'facebook' | 'external';
+export type ShareMenuActionId = 'promote';
+export type ShareDestinationId = BackendShareDestinationId | ShareMenuActionId;
+
 export type ShareDestination = {
   icon: keyof typeof MaterialCommunityIcons.glyphMap;
-  id: string;
+  id: ShareDestinationId;
   label: string;
 };
+
+export const backendShareDestinations: readonly BackendShareDestinationId[] = [
+  'copy-link',
+  'profile',
+  'feed',
+  'chat-room',
+  'table',
+  'facebook',
+  'external',
+] as const;
+
+export function isBackendShareDestination(destinationId: ShareDestinationId | string): destinationId is BackendShareDestinationId {
+  return backendShareDestinations.includes(destinationId as BackendShareDestinationId);
+}
