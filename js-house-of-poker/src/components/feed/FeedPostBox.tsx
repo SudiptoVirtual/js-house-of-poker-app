@@ -4,9 +4,9 @@ import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { ActionButton } from '../ActionButton';
 import { colors } from '../../theme/colors';
 import { FeedAvatar } from './FeedAvatar';
-import type { FeedPlayer } from './types';
+import type { FeedPlayer } from '../../types/feed';
 
-export type FeedPostBoxProfile = Pick<FeedPlayer, 'avatarInitials' | 'avatarUri' | 'handle' | 'id' | 'name'>;
+export type FeedPostBoxProfile = Pick<FeedPlayer, 'avatarUrl' | 'handle' | 'id' | 'name'>;
 
 type FeedPostBoxProps = {
   currentPlayer?: FeedPostBoxProfile;
@@ -15,11 +15,19 @@ type FeedPostBoxProps = {
 };
 
 const placeholderPlayer: FeedPostBoxProfile = {
-  avatarInitials: 'HP',
   handle: '@houseplayer',
   id: 'local-placeholder-player',
   name: 'House Player',
 };
+
+function getPlayerInitials(name: string) {
+  return name
+    .split(' ')
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join('') || 'HP';
+}
 
 export function FeedPostBox({ currentPlayer, onOpenProfile, onPostCreated }: FeedPostBoxProps) {
   const [content, setContent] = useState('');
@@ -62,7 +70,7 @@ export function FeedPostBox({ currentPlayer, onOpenProfile, onPostCreated }: Fee
           onPress={handleOpenProfile}
           style={styles.avatarButton}
         >
-          <FeedAvatar initials={player.avatarInitials} uri={player.avatarUri} />
+          <FeedAvatar initials={getPlayerInitials(player.name)} uri={player.avatarUrl} />
         </Pressable>
         <View style={styles.inputStack}>
           <Text style={styles.playerLabel}>{player.handle}</Text>

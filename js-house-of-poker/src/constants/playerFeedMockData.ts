@@ -1,8 +1,7 @@
-import type { FeedPost, FeedPlayer } from '../components/feed/types';
+import type { FeedPost, FeedPlayer } from '../types/feed';
 
 // TODO(feed:getPosts): Replace this isolated mock data with the real feed API response.
 export const currentFeedPlayer: FeedPlayer = {
-  avatarInitials: 'AQ',
   handle: '@house-host',
   id: 'current-player',
   name: 'Avery Quinn',
@@ -17,7 +16,6 @@ export const mockFeedPosts: FeedPost[] = [
       'Settling in for a mellow free-play night. Who else is around and ready to talk through hands after the river?',
     id: 'feed-normal-river-check',
     player: {
-      avatarInitials: 'RR',
       handle: '@river-regular',
       id: 'river-regular',
       name: 'River Regular',
@@ -26,7 +24,14 @@ export const mockFeedPosts: FeedPost[] = [
     },
     shareCount: 7,
     supportersCount: 250,
-    timestampLabel: '12m',
+    gameContext: {
+      headline: 'River review queue',
+      resultLabel: 'Open discussion',
+      stakesLabel: 'Free-play',
+    },
+    isPromoted: false,
+    isTableRelated: false,
+    timestamp: '12m',
   },
   {
     commentCount: 6,
@@ -34,7 +39,6 @@ export const mockFeedPosts: FeedPost[] = [
       'Just finished reviewing a tricky 357 showdown spot. The middle card pressure changes everything when the table gets short-handed.',
     id: 'feed-normal-357-note',
     player: {
-      avatarInitials: 'SS',
       handle: '@stack-sprinter',
       id: 'stack-sprinter',
       name: 'Stack Sprinter',
@@ -44,7 +48,14 @@ export const mockFeedPosts: FeedPost[] = [
     shareCount: 4,
     supportedByCurrentPlayer: true,
     supportersCount: 91,
-    timestampLabel: '28m',
+    gameContext: {
+      headline: '357 showdown note',
+      resultLabel: 'Short-handed pressure spot',
+      stakesLabel: 'Practice table',
+    },
+    isPromoted: false,
+    isTableRelated: false,
+    timestamp: '28m',
   },
   {
     commentCount: 11,
@@ -52,7 +63,6 @@ export const mockFeedPosts: FeedPost[] = [
       'Chat room is open for hand recaps and lineup planning. Drop in if you want a friendly table without chasing codes.',
     id: 'feed-normal-chat-room',
     player: {
-      avatarInitials: 'PP',
       handle: '@pocket-poet',
       id: 'pocket-poet',
       name: 'Pocket Poet',
@@ -61,16 +71,18 @@ export const mockFeedPosts: FeedPost[] = [
     },
     shareCount: 9,
     supportersCount: 134,
-    timestampLabel: '43m',
+    isPromoted: false,
+    isTableRelated: false,
+    timestamp: '43m',
   },
   {
     commentCount: 24,
     content:
       'Two seats open at Night Shift. Friendly pace, free-play chips, and table talk welcome. Bring a clean invite request.',
     id: 'feed-table-night-shift',
+    isPromoted: false,
     isTableRelated: true,
     player: {
-      avatarInitials: 'LH',
       handle: '@late-host',
       id: 'late-host',
       name: 'Late Host',
@@ -85,7 +97,7 @@ export const mockFeedPosts: FeedPost[] = [
       tableCode: 'NIGHT7',
       tableName: 'Night Shift',
     },
-    timestampLabel: '1h',
+    timestamp: '1h',
   },
   {
     commentCount: 37,
@@ -93,8 +105,8 @@ export const mockFeedPosts: FeedPost[] = [
       'Creator spotlight: hosting beginner-friendly table walkthroughs this week. Sponsor the post to help more new players find the room.',
     id: 'feed-promoted-creator-spotlight',
     isPromoted: true,
+    isTableRelated: false,
     player: {
-      avatarInitials: 'CK',
       handle: '@chip-kind',
       id: 'chip-kind',
       name: 'Chip Kind',
@@ -104,7 +116,7 @@ export const mockFeedPosts: FeedPost[] = [
     promotedCount: 8,
     shareCount: 22,
     supportersCount: 476,
-    timestampLabel: '2h',
+    timestamp: '2h',
   },
   {
     commentCount: 14,
@@ -114,7 +126,6 @@ export const mockFeedPosts: FeedPost[] = [
     giftClipsTotal: 18500,
     id: 'feed-gift-clips-recap',
     player: {
-      avatarInitials: 'MG',
       handle: '@muck-guide',
       id: 'muck-guide',
       name: 'Muck Guide',
@@ -123,6 +134,8 @@ export const mockFeedPosts: FeedPost[] = [
     },
     shareCount: 5,
     supportersCount: 205,
-    timestampLabel: '3h',
+    isPromoted: false,
+    isTableRelated: false,
+    timestamp: '3h',
   },
 ];
