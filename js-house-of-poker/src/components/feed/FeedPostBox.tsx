@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { ActionButton } from '../ActionButton';
@@ -6,14 +6,38 @@ import { colors } from '../../theme/colors';
 import { FeedAvatar } from './FeedAvatar';
 import type { FeedPlayer } from './types';
 
+export type FeedPostBoxProfile = Pick<FeedPlayer, 'avatarInitials' | 'avatarUri' | 'handle' | 'id' | 'name'>;
+
 type FeedPostBoxProps = {
-  currentPlayer: FeedPlayer;
-  onOpenProfile: (player: FeedPlayer) => void;
-  onPostCreated: (content: string) => void;
+  currentPlayer?: FeedPostBoxProfile;
+  onOpenProfile?: (player: FeedPostBoxProfile) => void;
+  onPostCreated?: (content: string) => void;
+};
+
+const placeholderPlayer: FeedPostBoxProfile = {
+  avatarInitials: 'HP',
+  handle: '@houseplayer',
+  id: 'local-placeholder-player',
+  name: 'House Player',
 };
 
 export function FeedPostBox({ currentPlayer, onOpenProfile, onPostCreated }: FeedPostBoxProps) {
   const [content, setContent] = useState('');
+  const [lastMockPost, setLastMockPost] = useState<string | null>(null);
+  const player = currentPlayer ?? placeholderPlayer;
+  const canSubmit = content.trim().length > 0;
+
+  const statusMessage = useMemo(() => {
+    if (lastMockPost) {
+      return 'Post staged locally. Feed sync coming soon.';
+    }
+
+    return `Posting as ${player.name}`;
+  }, [lastMockPost, player.name]);
+
+  function handleOpenProfile() {
+    onOpenProfile?.(player);
+  }
 
   function handleSubmit() {
     const trimmedContent = content.trim();
@@ -22,36 +46,48 @@ export function FeedPostBox({ currentPlayer, onOpenProfile, onPostCreated }: Fee
       return;
     }
 
-    // TODO(feed:createPost): Persist post content to backend and refresh feed with API response.
-    // TODO(notification:feedActivity): Broadcast new post activity after backend confirmation.
-    onPostCreated(trimmedContent);
+    // TODO(feed:createPost): Replace this local mock submit with the feed create-post API.
+    // TODO(notification:feedActivity): Notify interested players after feed post creation succeeds.
+    setLastMockPost(trimmedContent);
+    onPostCreated?.(trimmedContent);
     setContent('');
   }
 
   return (
     <View style={styles.card}>
       <View style={styles.row}>
-        <Pressable accessibilityLabel="Open your profile" accessibilityRole="button" onPress={() => onOpenProfile(currentPlayer)}>
-          <FeedAvatar initials={currentPlayer.avatarInitials} uri={currentPlayer.avatarUri} />
+        <Pressable
+          accessibilityLabel={`Open ${player.name}'s profile`}
+          accessibilityRole="button"
+          onPress={handleOpenProfile}
+          style={styles.avatarButton}
+        >
+          <FeedAvatar initials={player.avatarInitials} uri={player.avatarUri} />
         </Pressable>
-        <TextInput
-          multiline
-          onChangeText={setContent}
-          placeholder="What’s happening at the tables?"
-          placeholderTextColor={colors.mutedText}
-          style={styles.input}
-          value={content}
-        />
+        <View style={styles.inputStack}>
+          <Text style={styles.playerLabel}>{player.handle}</Text>
+          <TextInput
+            multiline
+            onChangeText={setContent}
+            placeholder="What’s happening at the tables?"
+            placeholderTextColor={colors.mutedText}
+            style={styles.input}
+            value={content}
+          />
+        </View>
       </View>
       <View style={styles.footerRow}>
-        <Text style={styles.helperText}>Post table talk, invites, recaps, and creator updates.</Text>
-        <ActionButton compact disabled={!content.trim()} icon="send-outline" label="Post" onPress={handleSubmit} />
+        <Text style={styles.helperText}>{statusMessage}</Text>
+        <ActionButton compact disabled={!canSubmit} icon="send-outline" label="Post" onPress={handleSubmit} />
       </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  avatarButton: {
+    borderRadius: 22,
+  },
   card: {
     backgroundColor: colors.surface,
     borderColor: colors.border,
@@ -78,12 +114,20 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     borderWidth: 1,
     color: colors.text,
-    flex: 1,
     fontSize: 15,
     minHeight: 52,
     paddingHorizontal: 14,
     paddingVertical: 12,
     textAlignVertical: 'top',
+  },
+  inputStack: {
+    flex: 1,
+    gap: 7,
+  },
+  playerLabel: {
+    color: colors.secondary,
+    fontSize: 12,
+    fontWeight: '800',
   },
   row: {
     alignItems: 'flex-start',
