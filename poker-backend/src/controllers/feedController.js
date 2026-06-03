@@ -6,6 +6,11 @@ const FeedReaction = require("../models/FeedReaction");
 const FeedShare = require("../models/FeedShare");
 const { sendFeedGiftClip } = require("../services/feedGiftClipService");
 const { completePromotionPayment, createPromotionCheckout, handlePaymentWebhook } = require("../services/feedPromotionService");
+const {
+  buildFeedTableInviteEventPayload,
+  createFeedTableInvite: createFeedTableInviteRecord,
+  emitFeedTableInviteRecipientEvents,
+} = require("../services/feedTableInviteService");
 const { getFeedRealtimeService } = require("../services/feedRealtimeService");
 const {
   createFeedCommentNotification,
@@ -16,7 +21,6 @@ const {
   emitFeedNotificationRecords,
 } = require("../services/feedNotificationService");
 const GameTable = require("../models/GameTable");
-const User = require("../models/User");
 const {
   PLAYER_STATUSES,
   POST_VISIBILITIES,
@@ -29,7 +33,6 @@ const DEFAULT_POST_LIMIT = 20;
 const MAX_POST_LIMIT = 50;
 const DEFAULT_COMMENT_LIMIT = 25;
 const MAX_COMMENT_LIMIT = 100;
-const MAX_INVITE_RECIPIENTS = 10;
 
 function normalizeLimit(value, defaultLimit, maxLimit) {
   const parsed = Number.parseInt(value, 10);
@@ -1138,92 +1141,62 @@ async function createTableInvite(req, res) {
       return res.status(404).json({ message: "Feed post not found" });
     }
 
-    const tableId = normalizeText(req.body?.tableId || req.body?.tableCode || post.tableCode, 80);
-    if (!tableId) {
-      return res.status(400).json({ message: "Table id or code is required" });
-    }
+    const feedRealtimeService = getFeedRealtimeService();
+    const inviteResult = await createFeedTableInviteRecord({
+      payload: { ...req.body, postId },
+      post,
+      sender: req.user,
+      onTableInvitesUpdated: feedRealtimeService?.onTableInvitesUpdated,
+    });
+    const eventPayload = buildFeedTableInviteEventPayload({
+      currentUserId: req.user._id,
+      invites: inviteResult.invites,
+      message: inviteResult.message,
+      post,
+      tablePayload: inviteResult.tablePayload,
+    });
 
-    const identifiers = [{ tableCode: tableId.toUpperCase() }];
-    if (isValidObjectId(tableId)) {
-      identifiers.push({ _id: tableId });
-    }
-
-    const table = await GameTable.findOne({ $or: identifiers });
-    if (!table) {
-      return res.status(404).json({ message: "Table not found" });
-    }
-
-    const recipientIds = [
-      req.body?.recipientUserId,
-      ...(Array.isArray(req.body?.recipientUserIds) ? req.body.recipientUserIds : []),
-      post.authorUserId,
-    ]
-      .filter(Boolean)
-      .map(String)
-      .filter(isValidObjectId);
-    const uniqueRecipientIds = [...new Set(recipientIds)].filter((id) => id !== String(req.user._id)).slice(0, MAX_INVITE_RECIPIENTS);
-
-    if (uniqueRecipientIds.length === 0) {
-      return res.status(400).json({ message: "At least one recipient is required" });
-    }
-
-    const recipients = await User.find({ _id: { $in: uniqueRecipientIds }, isBlocked: { $ne: true }, status: { $ne: "blocked" } });
-    const senderId = String(req.user._id);
-    const tablePlayerIds = new Set((table.players || []).map((player) => String(player.userId)));
-    const hasTableAccess =
-      String(table.createdByUserId || "") === senderId ||
-      String(table.hostUserId || "") === senderId ||
-      tablePlayerIds.has(senderId);
-
-    if (!hasTableAccess) {
-      return res.status(403).json({ message: "You are not allowed to invite players to this table" });
-    }
-
-    const message = normalizeText(req.body?.message || `Inviting from feed post ${post.id}`, 500) || null;
-    const invites = recipients.map((recipient) => ({
-      createdAt: Date.now(),
-      giftBuyInChips: 0,
-      giftBuyInClips: 0,
-      id: `invite_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-      message,
-      recipientAccountId: String(recipient._id),
-      recipientHandle: getHandle(recipient),
-      recipientLabel: getDisplayName(recipient),
-      senderPlayerId: senderId,
-      senderPlayerName: getDisplayName(req.user),
-      source: "share-link",
-      status: "pending",
-    }));
-
-    table.tableInvites = [...invites, ...(table.tableInvites || [])].slice(0, 50);
-    await table.save();
-
-    const tablePayload = {
-      id: table.tableCode || String(table._id),
-      tableCode: table.tableCode || null,
-      tableDbId: String(table._id),
-      tableId: table.tableCode || String(table._id),
-      tableName: table.tableName,
-    };
     const notificationRecords = await createFeedTableInviteNotifications({
       actor: req.user,
-      data: { message },
-      inviteRecords: invites,
+      data: { message: inviteResult.message, source: "feed" },
+      inviteRecords: inviteResult.invites,
       post,
-      recipientUserIds: invites.map((invite) => invite.recipientAccountId),
-      table,
+      recipientUserIds: inviteResult.invites.map((invite) => invite.recipientAccountId),
+      table: inviteResult.table,
     });
     emitFeedNotifications(notificationRecords);
 
-    return res.status(201).json({
-      invites,
-      post: serializePost(post, req.user._id),
-      table: tablePayload,
+    const deliveredPlayerIds = emitFeedTableInviteRecipientEvents(feedRealtimeService?.io, {
+      invites: inviteResult.invites,
+      post,
+      sender: req.user,
+      tablePayload: inviteResult.tablePayload,
     });
+    const responsePayload = {
+      ...eventPayload,
+      deliveredPlayerIds,
+      invitedPlayerIds: inviteResult.invites.map((invite) => String(invite.recipientAccountId)),
+    };
+
+    if (feedRealtimeService) {
+      feedRealtimeService.emitToFeedAndPost(postId, "feed:tableInvite:sent", responsePayload);
+      feedRealtimeService.broadcastPostUpdated(postId, { ok: true, post: responsePayload.post });
+    }
+
+    return res.status(201).json(responsePayload);
   } catch (error) {
-    return sendServerError(res, error, "Unable to create feed table invite");
+    const message = error instanceof Error ? error.message : "Unable to create feed table invite";
+    const statusCode = /not found/i.test(message)
+      ? 404
+      : /not allowed/i.test(message)
+        ? 403
+        : /required|match|linked|eligible|closed|completed/i.test(message)
+          ? 400
+          : 500;
+    return res.status(statusCode).json({ message });
   }
 }
+
 
 async function getDiscoveryPayload(req, res) {
   try {

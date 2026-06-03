@@ -9,6 +9,7 @@ export {
   fetchFeedComments,
   fetchFeedReactionSummaries,
   sendFeedGiftClip,
+  sendFeedTableInvite,
   toggleFeedSupport,
   updateFeedComment,
 } from './api/feed';
@@ -26,5 +27,8 @@ export type {
   FeedShare,
   FeedShareResponse,
   FeedSupportResponse,
+  FeedTableInviteRecord,
+  FeedTableInviteResponse,
   SendFeedGiftClipInput,
+  SendFeedTableInviteInput,
 } from './api/feed';

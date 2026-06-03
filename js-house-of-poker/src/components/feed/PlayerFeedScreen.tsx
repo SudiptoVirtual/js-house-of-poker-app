@@ -6,9 +6,8 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { MainPlatformNavigation } from '../navigation/MainPlatformNavigation';
 import { currentFeedPlayer, mockFeedPosts } from '../../constants/playerFeedMockData';
 import { routes } from '../../constants/routes';
-import { buildSocialInvitePreset } from '../../constants/social';
 import { usePoker } from '../../context/PokerProvider';
-import { createFeedComment, createFeedPromotion, createFeedShare, getApiErrorDetails, sendFeedGiftClip, toggleFeedSupport } from '../../services/api';
+import { createFeedComment, createFeedPromotion, createFeedShare, getApiErrorDetails, sendFeedGiftClip, sendFeedTableInvite, toggleFeedSupport } from '../../services/api';
 import { getAuthSession } from '../../services/storage/sessionStorage';
 import { colors } from '../../theme/colors';
 import type { RootStackParamList } from '../../types/navigation';
@@ -245,17 +244,37 @@ export function PlayerFeedScreen({ navigation }: PlayerFeedScreenProps) {
     }
   }
 
-  function handleInviteToTable(post: FeedPost) {
-    // TODO(feed:inviteToTable): Connect feed invites to backend table invite and chat-room invite systems.
-    // TODO(notification:tableInvite): Notify invited player once backend invite is accepted.
-    if (!activeTableCode) {
-      navigation.navigate(routes.Home);
+  async function handleInviteToTable(post: FeedPost) {
+    const tableCode = post.tableContext?.tableCode;
+    const session = await getAuthSession();
+
+    if (!session?.token || post.id.startsWith('local-feed-')) {
+      Alert.alert('Sign in required', 'Sign in and refresh persisted feed posts before sending table invites from feed.');
       return;
     }
 
-    navigation.navigate(routes.Game, {
-      invitePreset: buildSocialInvitePreset(post.player.handle, `Inviting from feed post ${post.id}`),
-    });
+    if (!tableCode) {
+      Alert.alert('Table unavailable', 'This feed post does not include a joinable table context yet.');
+      return;
+    }
+
+    try {
+      const response = await sendFeedTableInvite(
+        post.id,
+        {
+          message: `Inviting from feed post ${post.id}`,
+          recipientUserId: post.player.id,
+          tableCode,
+        },
+        session.token,
+      );
+
+      setPosts((currentPosts) => currentPosts.map((currentPost) => (currentPost.id === post.id ? response.post : currentPost)));
+      Alert.alert('Table invite sent', `${post.player.name} can join ${response.table.tableName || response.table.tableCode || 'the table'} from their feed notification.`);
+    } catch (error) {
+      const details = getApiErrorDetails(error, 'Unable to send this feed table invite right now.');
+      Alert.alert('Invite not sent', details.message);
+    }
   }
 
   return (

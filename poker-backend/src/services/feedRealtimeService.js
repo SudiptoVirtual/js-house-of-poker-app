@@ -4,7 +4,6 @@ const FeedComment = require("../models/FeedComment");
 const FeedPost = require("../models/FeedPost");
 const FeedReaction = require("../models/FeedReaction");
 const FeedShare = require("../models/FeedShare");
-const GameTable = require("../models/GameTable");
 const { sendFeedGiftClip } = require("./feedGiftClipService");
 const {
   createFeedCommentNotification,
@@ -14,7 +13,11 @@ const {
   createFeedTableInviteNotifications,
   emitFeedNotificationRecords,
 } = require("./feedNotificationService");
-const User = require("../models/User");
+const {
+  buildFeedTableInviteEventPayload,
+  createFeedTableInvite,
+  emitFeedTableInviteRecipientEvents,
+} = require("./feedTableInviteService");
 const {
   PLAYER_STATUSES,
   POST_VISIBILITIES,
@@ -24,7 +27,6 @@ const {
 
 const FEED_GLOBAL_ROOM = "feed:global";
 const FEED_POST_PREFIX = "feed:post";
-const MAX_INVITE_RECIPIENTS = 10;
 let latestFeedRealtimeService = null;
 
 function getFeedPostRoom(postId) {
@@ -260,6 +262,7 @@ class FeedRealtimeService {
   constructor(io, options = {}) {
     this.io = io;
     this.authenticateSocketUser = options.authenticateSocketUser;
+    this.onTableInvitesUpdated = options.onTableInvitesUpdated;
   }
 
   async authenticate(socket, payload = {}) {
@@ -683,103 +686,46 @@ class FeedRealtimeService {
 
   async sendTableInvite(socket, payload = {}) {
     const user = await this.authenticate(socket, payload);
-    const postId = normalizePostId(payload);
-    const post = await findVisiblePost(postId, user._id);
-
-    if (!post) {
-      throw new Error("Feed post not found.");
-    }
-
-    const tableId = normalizeText(payload.tableId || payload.tableCode || post.tableCode, 80);
-    if (!tableId) {
-      throw new Error("Table id or code is required.");
-    }
-
-    const identifiers = [{ tableCode: tableId.toUpperCase() }];
-    if (isValidObjectId(tableId)) {
-      identifiers.push({ _id: tableId });
-    }
-
-    const table = await GameTable.findOne({ $or: identifiers });
-    if (!table) {
-      throw new Error("Table not found.");
-    }
-
-    const recipientIds = [
-      payload.recipientUserId,
-      ...(Array.isArray(payload.recipientUserIds) ? payload.recipientUserIds : []),
-      post.authorUserId,
-    ]
-      .filter(Boolean)
-      .map(String)
-      .filter(isValidObjectId);
-    const uniqueRecipientIds = [...new Set(recipientIds)]
-      .filter((id) => id !== String(user._id))
-      .slice(0, MAX_INVITE_RECIPIENTS);
-
-    if (uniqueRecipientIds.length === 0) {
-      throw new Error("At least one recipient is required.");
-    }
-
-    const senderId = String(user._id);
-    const tablePlayerIds = new Set((table.players || []).map((player) => String(player.userId)));
-    const hasTableAccess =
-      String(table.createdByUserId || "") === senderId ||
-      String(table.hostUserId || "") === senderId ||
-      tablePlayerIds.has(senderId);
-
-    if (!hasTableAccess) {
-      throw new Error("You are not allowed to invite players to this table.");
-    }
-
-    const recipients = await User.find({
-      _id: { $in: uniqueRecipientIds },
-      isBlocked: { $ne: true },
-      status: { $ne: "blocked" },
+    const inviteResult = await createFeedTableInvite({
+      sender: user,
+      payload,
+      onTableInvitesUpdated: this.onTableInvitesUpdated,
     });
-    const message = normalizeText(payload.message || `Inviting from feed post ${post.id}`, 500) || null;
-    const invites = recipients.map((recipient) => ({
-      createdAt: Date.now(),
-      giftBuyInChips: 0,
-      giftBuyInClips: 0,
-      id: `invite_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-      message,
-      recipientAccountId: String(recipient._id),
-      recipientHandle: getHandle(recipient),
-      recipientLabel: getDisplayName(recipient),
-      senderPlayerId: senderId,
-      senderPlayerName: getDisplayName(user),
-      source: "share-link",
-      status: "pending",
-    }));
 
-    table.tableInvites = [...invites, ...(table.tableInvites || [])].slice(0, 50);
-    await table.save();
-
-    const eventPayload = {
-      invites,
-      ok: true,
-      post: serializePost(post, user._id),
-      table: {
-        id: table.tableCode || String(table._id),
-        tableCode: table.tableCode || null,
-        tableDbId: String(table._id),
-        tableId: table.tableCode || String(table._id),
-        tableName: table.tableName,
-      },
-    };
+    const eventPayload = buildFeedTableInviteEventPayload({
+      currentUserId: user._id,
+      invites: inviteResult.invites,
+      message: inviteResult.message,
+      post: inviteResult.post,
+      tablePayload: inviteResult.tablePayload,
+    });
 
     const notificationRecords = await createFeedTableInviteNotifications({
       actor: user,
-      data: { message },
-      inviteRecords: invites,
-      post,
-      recipientUserIds: invites.map((invite) => invite.recipientAccountId),
-      table,
+      data: { message: inviteResult.message, source: "feed" },
+      inviteRecords: inviteResult.invites,
+      post: inviteResult.post,
+      recipientUserIds: inviteResult.invites.map((invite) => invite.recipientAccountId),
+      table: inviteResult.table,
     });
     this.emitNotificationRecords(notificationRecords);
-    this.emitToFeedAndPost(postId, "feed:tableInvite:sent", eventPayload);
-    return eventPayload;
+
+    const deliveredPlayerIds = emitFeedTableInviteRecipientEvents(this.io, {
+      invites: inviteResult.invites,
+      post: inviteResult.post,
+      sender: user,
+      tablePayload: inviteResult.tablePayload,
+    });
+
+    const responsePayload = {
+      ...eventPayload,
+      deliveredPlayerIds,
+      invitedPlayerIds: inviteResult.invites.map((invite) => String(invite.recipientAccountId)),
+    };
+
+    this.emitToFeedAndPost(String(inviteResult.post._id), "feed:tableInvite:sent", responsePayload);
+    this.broadcastPostUpdated(String(inviteResult.post._id), { ok: true, post: responsePayload.post });
+    return responsePayload;
   }
 }
 

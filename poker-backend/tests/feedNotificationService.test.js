@@ -150,3 +150,39 @@ test('serializeNotification and emitFeedNotificationRecords expose postId and em
   assert.equal(recipientEmits[0].payload.postId, POST_ID);
   assert.equal(otherEmits.length, 0);
 });
+
+test('emitFeedTableInviteRecipientEvents emits table invite socket payloads for feed recipients', () => {
+  const { emitFeedTableInviteRecipientEvents } = require('../src/services/feedTableInviteService');
+  const recipientEmits = [];
+  const otherEmits = [];
+  const io = {
+    sockets: {
+      sockets: new Map([
+        ['recipient', { data: { userId: RECIPIENT_ID }, emit: (event, payload) => recipientEmits.push({ event, payload }) }],
+        ['other', { data: { userId: OWNER_ID }, emit: (event, payload) => otherEmits.push({ event, payload }) }],
+      ]),
+    },
+  };
+
+  const deliveredPlayerIds = emitFeedTableInviteRecipientEvents(io, {
+    invites: [
+      { id: 'invite-feed', recipientAccountId: RECIPIENT_ID, status: 'pending', source: 'feed' },
+    ],
+    post: createPost(),
+    sender: createActor(),
+    tablePayload: {
+      tableCode: 'ROYAL9',
+      tableDbId: TABLE_ID,
+      tableId: 'ROYAL9',
+      tableName: 'Royal Flush',
+    },
+  });
+
+  assert.deepEqual(deliveredPlayerIds, [RECIPIENT_ID]);
+  assert.equal(recipientEmits.length, 1);
+  assert.equal(recipientEmits[0].event, 'table:playerInvited');
+  assert.equal(recipientEmits[0].payload.source, 'feed');
+  assert.equal(recipientEmits[0].payload.tableCode, 'ROYAL9');
+  assert.deepEqual(recipientEmits[0].payload.invitedPlayerIds, [RECIPIENT_ID]);
+  assert.equal(otherEmits.length, 0);
+});
