@@ -14,8 +14,9 @@ const feedReactionSchema = new mongoose.Schema(
       required: true,
       index: true,
     },
-    type: {
+    reactionType: {
       type: String,
+      alias: "type",
       enum: REACTION_TYPES,
       default: "support",
       required: true,
@@ -32,12 +33,9 @@ const feedReactionSchema = new mongoose.Schema(
   }
 );
 
-feedReactionSchema.index(
-  { postId: 1, userId: 1, type: 1 },
-  { unique: true, partialFilterExpression: { deletedAt: null } }
-);
+feedReactionSchema.index({ postId: 1, userId: 1, reactionType: 1 }, { unique: true });
 feedReactionSchema.index({ userId: 1, createdAt: -1 });
-feedReactionSchema.index({ postId: 1, type: 1, createdAt: -1 });
+feedReactionSchema.index({ postId: 1, reactionType: 1, createdAt: -1 });
 
 feedReactionSchema.methods.toClient = function toClient() {
   return {
@@ -45,7 +43,8 @@ feedReactionSchema.methods.toClient = function toClient() {
     deletedAt: this.deletedAt instanceof Date ? this.deletedAt.toISOString() : null,
     id: String(this._id),
     postId: String(this.postId),
-    type: this.type,
+    reactionType: this.reactionType,
+    type: this.reactionType,
     userId: String(this.userId),
   };
 };

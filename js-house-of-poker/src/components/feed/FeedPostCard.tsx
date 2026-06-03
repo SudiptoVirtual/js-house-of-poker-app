@@ -17,7 +17,7 @@ type FeedPostCardProps = {
   onOpenProfile: (playerId: string) => void;
   onPromote: (post: FeedPost) => void;
   onShare: (post: FeedPost) => void;
-  onSupportChange: (postId: string, isSupported: boolean) => void;
+  onSupportChange: (postId: string, isSupported: boolean) => void | Promise<void>;
   post: FeedPost;
 };
 
@@ -138,8 +138,7 @@ export function FeedPostCard({
         onPromote={() => onPromote(post)}
         onShare={() => onShare(post)}
         onSupport={() => {
-          // TODO(feed:supportPost): Persist Support toggle and reconcile with backend count.
-          onSupportChange(post.id, !post.supportedByCurrentPlayer);
+          void onSupportChange(post.id, !post.supportedByCurrentPlayer);
         }}
       />
 

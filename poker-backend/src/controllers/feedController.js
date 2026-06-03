@@ -6,6 +6,7 @@ const FeedPost = require("../models/FeedPost");
 const FeedPromotion = require("../models/FeedPromotion");
 const FeedReaction = require("../models/FeedReaction");
 const FeedShare = require("../models/FeedShare");
+const { getFeedRealtimeService } = require("../services/feedRealtimeService");
 const GameTable = require("../models/GameTable");
 const User = require("../models/User");
 const {
@@ -183,7 +184,7 @@ async function hydrateCurrentUserReaction(posts, currentUserId, session = null) 
   const reactions = await FeedReaction.find({
     deletedAt: null,
     postId: { $in: posts.map((post) => post._id) },
-    type: "support",
+    reactionType: "support",
     userId: currentUserId,
   })
     .session(session)
@@ -199,6 +200,95 @@ async function hydrateCurrentUserReaction(posts, currentUserId, session = null) 
 
 function serializePost(post, currentUserId) {
   return post.toClient({ currentUserId });
+}
+
+
+function buildReactionSummaryPayload({ post, reaction = null, reactionType = "support", supported, userId }) {
+  const clientPost = serializePost(post, userId);
+  const reactionCounts = clientPost.reactionCounts || {};
+  const summary = {
+    count: reactionCounts[reactionType] ?? (reactionType === "support" ? clientPost.supportersCount : 0),
+    reactionType,
+    type: reactionType,
+  };
+
+  return {
+    post: clientPost,
+    reaction: reaction ? reaction.toClient() : null,
+    reactionCounts,
+    summaries: [summary],
+    supported,
+    supportedByCurrentPlayer: clientPost.supportedByCurrentPlayer,
+    supportersCount: clientPost.supportersCount,
+  };
+}
+
+function broadcastSupportUpdated(postId, payload) {
+  const feedRealtimeService = getFeedRealtimeService();
+
+  if (feedRealtimeService) {
+    feedRealtimeService.broadcastSupportUpdated(postId, { ok: true, ...payload });
+    feedRealtimeService.broadcastPostUpdated(postId, { ok: true, post: payload.post });
+  }
+}
+
+async function updateSupportReaction({ postId, reactionType = "support", requestedSupported, userId }) {
+  const reactionQuery = { postId, reactionType, userId };
+  let reaction = await FeedReaction.findOne(reactionQuery);
+  const currentlySupported = Boolean(reaction && !reaction.deletedAt);
+  const nextSupported = typeof requestedSupported === "boolean" ? requestedSupported : !currentlySupported;
+  let changed = false;
+
+  if (nextSupported && reaction?.deletedAt) {
+    reaction = await FeedReaction.findOneAndUpdate(
+      { ...reactionQuery, deletedAt: { $ne: null } },
+      { $set: { deletedAt: null } },
+      { new: true },
+    );
+    changed = Boolean(reaction);
+  } else if (nextSupported && !reaction) {
+    try {
+      reaction = await FeedReaction.create({ postId, reactionType, userId });
+      changed = true;
+    } catch (error) {
+      if (error?.code !== 11000) {
+        throw error;
+      }
+
+      reaction = await FeedReaction.findOne(reactionQuery);
+    }
+  } else if (!nextSupported && reaction && !reaction.deletedAt) {
+    reaction = await FeedReaction.findOneAndUpdate(
+      { ...reactionQuery, deletedAt: null },
+      { $set: { deletedAt: new Date() } },
+      { new: true },
+    );
+    changed = Boolean(reaction);
+  }
+
+  const post = changed
+    ? await FeedPost.findOneAndUpdate(
+        { _id: postId },
+        {
+          $inc: {
+            [`counters.reactionCounts.${reactionType}`]: nextSupported ? 1 : -1,
+            ...(reactionType === "support" ? { "counters.supportersCount": nextSupported ? 1 : -1 } : {}),
+          },
+        },
+        { new: true },
+      )
+    : await FeedPost.findById(postId);
+
+  if (post && post.counters?.supportersCount < 0) {
+    post.counters.supportersCount = 0;
+    post.counters.reactionCounts = post.counters.reactionCounts || {};
+    post.counters.reactionCounts.set?.(reactionType, 0);
+    await post.save();
+  }
+
+  post.supportedByCurrentPlayer = nextSupported;
+
+  return { changed, post, reaction, supported: nextSupported };
 }
 
 function serializeComment(comment, currentUserId = null) {
@@ -658,37 +748,21 @@ async function setSupport(req, res) {
     const postId = requireObjectId(req.params.postId, res, "post id");
     if (!postId) return null;
 
-    const post = await findVisiblePost(postId, req.user._id);
-    if (!post) {
+    const visiblePost = await findVisiblePost(postId, req.user._id);
+    if (!visiblePost) {
       return res.status(404).json({ message: "Feed post not found" });
     }
 
-    let reaction = await FeedReaction.findOne({ postId, type: "support", userId: req.user._id }).sort({ createdAt: -1 });
-    let changed = false;
-
-    if (reaction) {
-      if (reaction.deletedAt) {
-        reaction.deletedAt = null;
-        await reaction.save();
-        changed = true;
-      }
-    } else {
-      reaction = await FeedReaction.create({ postId, type: "support", userId: req.user._id });
-      changed = true;
-    }
-
-    if (changed) {
-      post.counters.supportersCount = (post.counters.supportersCount || 0) + 1;
-      await post.save();
-    }
-
-    post.supportedByCurrentPlayer = true;
-
-    return res.json({
-      post: serializePost(post, req.user._id),
-      reaction: reaction.toClient(),
-      supported: true,
+    const result = await updateSupportReaction({
+      postId,
+      reactionType: "support",
+      requestedSupported: true,
+      userId: req.user._id,
     });
+    const payload = buildReactionSummaryPayload(result);
+    broadcastSupportUpdated(postId, { ...payload, userId: String(req.user._id) });
+
+    return res.json(payload);
   } catch (error) {
     return sendServerError(res, error, "Unable to support feed post");
   }
@@ -699,40 +773,93 @@ async function removeSupport(req, res) {
     const postId = requireObjectId(req.params.postId, res, "post id");
     if (!postId) return null;
 
-    const post = await findVisiblePost(postId, req.user._id);
-    if (!post) {
+    const visiblePost = await findVisiblePost(postId, req.user._id);
+    if (!visiblePost) {
       return res.status(404).json({ message: "Feed post not found" });
     }
 
-    const reaction = await FeedReaction.findOne({ deletedAt: null, postId, type: "support", userId: req.user._id });
-
-    if (reaction) {
-      reaction.deletedAt = new Date();
-      await reaction.save();
-      post.counters.supportersCount = Math.max(0, (post.counters.supportersCount || 0) - 1);
-      await post.save();
-    }
-
-    post.supportedByCurrentPlayer = false;
-
-    return res.json({
-      post: serializePost(post, req.user._id),
-      reaction: reaction ? reaction.toClient() : null,
-      supported: false,
+    const result = await updateSupportReaction({
+      postId,
+      reactionType: "support",
+      requestedSupported: false,
+      userId: req.user._id,
     });
+    const payload = buildReactionSummaryPayload(result);
+    broadcastSupportUpdated(postId, { ...payload, userId: String(req.user._id) });
+
+    return res.json(payload);
   } catch (error) {
     return sendServerError(res, error, "Unable to remove feed support");
   }
 }
 
-async function createReaction(req, res) {
-  const type = normalizeText(req.body?.type || req.params.type || "support", 40);
+async function toggleReaction(req, res) {
+  try {
+    const postId = requireObjectId(req.params.postId, res, "post id");
+    if (!postId) return null;
 
-  if (!REACTION_TYPES.includes(type)) {
-    return res.status(400).json({ message: "Invalid reaction type" });
+    const reactionType = normalizeText(req.body?.reactionType || req.body?.type || req.params.type || "support", 40);
+    if (!REACTION_TYPES.includes(reactionType)) {
+      return res.status(400).json({ message: "Invalid reaction type" });
+    }
+
+    const visiblePost = await findVisiblePost(postId, req.user._id);
+    if (!visiblePost) {
+      return res.status(404).json({ message: "Feed post not found" });
+    }
+
+    const result = await updateSupportReaction({
+      postId,
+      reactionType,
+      requestedSupported: typeof req.body?.supported === "boolean" ? req.body.supported : req.body?.active,
+      userId: req.user._id,
+    });
+    const payload = buildReactionSummaryPayload(result);
+
+    if (reactionType === "support") {
+      broadcastSupportUpdated(postId, { ...payload, userId: String(req.user._id) });
+    }
+
+    return res.json(payload);
+  } catch (error) {
+    return sendServerError(res, error, "Unable to toggle feed reaction");
   }
+}
 
-  return setSupport(req, res);
+async function createReaction(req, res) {
+  return toggleReaction(req, res);
+}
+
+async function listReactionSummaries(req, res) {
+  try {
+    const postId = requireObjectId(req.params.postId, res, "post id");
+    if (!postId) return null;
+
+    const currentUserId = req.user?._id || null;
+    const post = await findVisiblePost(postId, currentUserId);
+    if (!post) {
+      return res.status(404).json({ message: "Feed post not found" });
+    }
+
+    const clientPost = serializePost(post, currentUserId);
+    const reactionCounts = clientPost.reactionCounts || {};
+    const summaries = REACTION_TYPES.map((reactionType) => ({
+      count: reactionCounts[reactionType] ?? (reactionType === "support" ? clientPost.supportersCount : 0),
+      reactionType,
+      supportedByCurrentPlayer: reactionType === "support" ? clientPost.supportedByCurrentPlayer : undefined,
+      type: reactionType,
+    }));
+
+    return res.json({
+      post: clientPost,
+      reactionCounts,
+      summaries,
+      supportedByCurrentPlayer: clientPost.supportedByCurrentPlayer,
+      supportersCount: clientPost.supportersCount,
+    });
+  } catch (error) {
+    return sendServerError(res, error, "Unable to list feed reaction summaries");
+  }
 }
 
 async function createShare(req, res) {
@@ -995,10 +1122,12 @@ module.exports = {
   getPost,
   listComments,
   listPosts,
+  listReactionSummaries,
   purchasePromotion,
   removeSupport,
   sendGiftClip,
   setSupport,
+  toggleReaction,
   updateComment,
   updatePost,
 };

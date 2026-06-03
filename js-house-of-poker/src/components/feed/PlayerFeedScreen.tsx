@@ -8,7 +8,7 @@ import { currentFeedPlayer, mockFeedPosts } from '../../constants/playerFeedMock
 import { routes } from '../../constants/routes';
 import { buildSocialInvitePreset } from '../../constants/social';
 import { usePoker } from '../../context/PokerProvider';
-import { createFeedComment, getApiErrorDetails } from '../../services/api';
+import { createFeedComment, getApiErrorDetails, toggleFeedSupport } from '../../services/api';
 import { getAuthSession } from '../../services/storage/sessionStorage';
 import { colors } from '../../theme/colors';
 import type { RootStackParamList } from '../../types/navigation';
@@ -57,26 +57,57 @@ export function PlayerFeedScreen({ navigation }: PlayerFeedScreenProps) {
     setPosts((currentPosts) => [createdPost, ...currentPosts]);
   }
 
-  function handleSupportChange(postId: string, nextSupportedState: boolean) {
+  async function handleSupportChange(postId: string, nextSupportedState: boolean) {
+    const targetPost = posts.find((post) => post.id === postId);
+    const previousSupportedState = Boolean(targetPost?.supportedByCurrentPlayer);
+
     setPosts((currentPosts) =>
       currentPosts.map((post) => {
         if (post.id !== postId) {
           return post;
         }
 
-        const previousSupportedState = Boolean(post.supportedByCurrentPlayer);
-
-        if (previousSupportedState === nextSupportedState) {
+        if (Boolean(post.supportedByCurrentPlayer) === nextSupportedState) {
           return post;
         }
 
         return {
           ...post,
+          reactionCounts: { ...(post.reactionCounts ?? {}), support: Math.max(0, post.supportersCount + (nextSupportedState ? 1 : -1)) },
           supportedByCurrentPlayer: nextSupportedState,
           supportersCount: Math.max(0, post.supportersCount + (nextSupportedState ? 1 : -1)),
         };
       }),
     );
+
+    const session = await getAuthSession();
+
+    if (!session?.token || postId.startsWith('local-feed-')) {
+      Alert.alert('Support staged locally', 'Sign in and refresh persisted feed posts to save your support.');
+      return;
+    }
+
+    try {
+      const response = await toggleFeedSupport(postId, nextSupportedState, session.token);
+
+      setPosts((currentPosts) => currentPosts.map((post) => (post.id === postId ? response.post : post)));
+    } catch (error) {
+      setPosts((currentPosts) =>
+        currentPosts.map((post) =>
+          post.id === postId && targetPost
+            ? {
+                ...post,
+                reactionCounts: targetPost.reactionCounts,
+                supportedByCurrentPlayer: previousSupportedState,
+                supportersCount: targetPost.supportersCount,
+              }
+            : post,
+        ),
+      );
+
+      const details = getApiErrorDetails(error, 'Unable to save your support right now.');
+      Alert.alert('Support not saved', details.message);
+    }
   }
 
   function handleOpenProfile(playerId: string) {

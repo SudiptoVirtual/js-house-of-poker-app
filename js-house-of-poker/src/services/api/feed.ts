@@ -1,4 +1,4 @@
-import type { FeedComment, FeedPost } from '../../types/feed';
+import type { FeedComment, FeedPost, FeedReactionSummary } from '../../types/feed';
 import { apiRequest } from './client';
 
 export type FeedCommentResponse = {
@@ -10,6 +10,31 @@ export type DeleteFeedCommentResponse = {
   comment: FeedComment;
   deleted: boolean;
   post: FeedPost | null;
+};
+
+export type FeedSupportResponse = {
+  post: FeedPost;
+  reaction: {
+    deletedAt: string | null;
+    id: string;
+    postId: string;
+    reactionType: string;
+    type: string;
+    userId: string;
+  } | null;
+  reactionCounts: Record<string, number>;
+  summaries: FeedReactionSummary[];
+  supported: boolean;
+  supportedByCurrentPlayer?: boolean;
+  supportersCount: number;
+};
+
+export type FeedReactionSummariesResponse = {
+  post: FeedPost;
+  reactionCounts: Record<string, number>;
+  summaries: FeedReactionSummary[];
+  supportedByCurrentPlayer?: boolean;
+  supportersCount: number;
 };
 
 export type FeedCommentsResponse = {
@@ -53,4 +78,17 @@ export async function deleteFeedComment(postId: string, commentId: string, token
       token,
     },
   );
+}
+
+
+export async function toggleFeedSupport(postId: string, supported: boolean, token: string) {
+  return apiRequest<FeedSupportResponse>(`/api/feed/${encodeURIComponent(postId)}/reactions`, {
+    body: { reactionType: 'support', supported },
+    method: 'POST',
+    token,
+  });
+}
+
+export async function fetchFeedReactionSummaries(postId: string, token?: string | null) {
+  return apiRequest<FeedReactionSummariesResponse>(`/api/feed/${encodeURIComponent(postId)}/reactions`, { token });
 }

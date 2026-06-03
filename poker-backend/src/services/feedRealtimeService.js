@@ -17,6 +17,7 @@ const {
 const FEED_GLOBAL_ROOM = "feed:global";
 const FEED_POST_PREFIX = "feed:post";
 const MAX_INVITE_RECIPIENTS = 10;
+let latestFeedRealtimeService = null;
 
 function getFeedPostRoom(postId) {
   return `${FEED_POST_PREFIX}:${postId}`;
@@ -133,7 +134,7 @@ async function hydrateCurrentUserReaction(post, currentUserId, session = null) {
   const reaction = await FeedReaction.findOne({
     deletedAt: null,
     postId: post._id,
-    type: "support",
+    reactionType: "support",
     userId: currentUserId,
   })
     .session(session)
@@ -411,39 +412,77 @@ class FeedRealtimeService {
       throw new Error("Feed post not found.");
     }
 
-    let reaction = await FeedReaction.findOne({ postId, type: "support", userId: user._id }).sort({ createdAt: -1 });
+    const reactionQuery = { postId, reactionType: "support", userId: user._id };
+    let reaction = await FeedReaction.findOne(reactionQuery);
     const currentlySupported = Boolean(reaction && !reaction.deletedAt);
     const nextSupported = typeof requestedSupported === "boolean" ? requestedSupported : !currentlySupported;
     let changed = false;
 
     if (nextSupported && reaction?.deletedAt) {
-      reaction.deletedAt = null;
-      await reaction.save();
-      changed = true;
-    } else if (nextSupported && !reaction) {
-      reaction = await FeedReaction.create({ postId, type: "support", userId: user._id });
-      changed = true;
-    } else if (!nextSupported && reaction && !reaction.deletedAt) {
-      reaction.deletedAt = new Date();
-      await reaction.save();
-      changed = true;
-    }
-
-    if (changed) {
-      post.counters.supportersCount = Math.max(
-        0,
-        (post.counters.supportersCount || 0) + (nextSupported ? 1 : -1)
+      reaction = await FeedReaction.findOneAndUpdate(
+        { ...reactionQuery, deletedAt: { $ne: null } },
+        { $set: { deletedAt: null } },
+        { new: true },
       );
-      await post.save();
+      changed = Boolean(reaction);
+    } else if (nextSupported && !reaction) {
+      try {
+        reaction = await FeedReaction.create({ postId, reactionType: "support", userId: user._id });
+        changed = true;
+      } catch (error) {
+        if (error?.code !== 11000) {
+          throw error;
+        }
+
+        reaction = await FeedReaction.findOne(reactionQuery);
+      }
+    } else if (!nextSupported && reaction && !reaction.deletedAt) {
+      reaction = await FeedReaction.findOneAndUpdate(
+        { ...reactionQuery, deletedAt: null },
+        { $set: { deletedAt: new Date() } },
+        { new: true },
+      );
+      changed = Boolean(reaction);
     }
 
-    post.supportedByCurrentPlayer = nextSupported;
+    const updatedPost = changed
+      ? await FeedPost.findOneAndUpdate(
+          { _id: post._id },
+          {
+            $inc: {
+              "counters.reactionCounts.support": nextSupported ? 1 : -1,
+              "counters.supportersCount": nextSupported ? 1 : -1,
+            },
+          },
+          { new: true },
+        )
+      : post;
 
+    if (updatedPost.counters?.supportersCount < 0) {
+      updatedPost.counters.supportersCount = 0;
+      updatedPost.counters.reactionCounts = updatedPost.counters.reactionCounts || {};
+      updatedPost.counters.reactionCounts.set?.("support", 0);
+      await updatedPost.save();
+    }
+
+    updatedPost.supportedByCurrentPlayer = nextSupported;
+
+    const clientPost = serializePost(updatedPost, user._id);
     const eventPayload = {
       ok: true,
-      post: serializePost(post, user._id),
+      post: clientPost,
       reaction: reaction ? reaction.toClient() : null,
+      reactionCounts: clientPost.reactionCounts || {},
+      summaries: [
+        {
+          count: clientPost.supportersCount,
+          reactionType: "support",
+          type: "support",
+        },
+      ],
       supported: nextSupported,
+      supportedByCurrentPlayer: clientPost.supportedByCurrentPlayer,
+      supportersCount: clientPost.supportersCount,
       userId: String(user._id),
     };
     this.broadcastSupportUpdated(postId, eventPayload);
@@ -661,7 +700,12 @@ class FeedRealtimeService {
 }
 
 function createFeedRealtimeService(io, options) {
-  return new FeedRealtimeService(io, options);
+  latestFeedRealtimeService = new FeedRealtimeService(io, options);
+  return latestFeedRealtimeService;
+}
+
+function getFeedRealtimeService() {
+  return latestFeedRealtimeService;
 }
 
 module.exports = {
@@ -670,4 +714,5 @@ module.exports = {
   createFeedRealtimeService,
   emitAck,
   getFeedPostRoom,
+  getFeedRealtimeService,
 };

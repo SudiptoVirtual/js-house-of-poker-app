@@ -222,6 +222,11 @@ const countersSchema = new mongoose.Schema(
       default: 0,
       min: 0,
     },
+    reactionCounts: {
+      type: Map,
+      of: Number,
+      default: () => ({}),
+    },
     supportersCount: {
       type: Number,
       default: 0,
@@ -326,7 +331,7 @@ function resolveSupportedByCurrentPlayer(document, currentUserId) {
 
   if (Array.isArray(document.currentUserReactions)) {
     return document.currentUserReactions.some(
-      (reaction) => String(reaction.userId) === userId && reaction.type === "support" && !reaction.deletedAt
+      (reaction) => String(reaction.userId) === userId && (reaction.reactionType || reaction.type) === "support" && !reaction.deletedAt
     );
   }
 
