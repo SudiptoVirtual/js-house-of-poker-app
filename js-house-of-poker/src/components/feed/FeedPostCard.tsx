@@ -116,6 +116,7 @@ export function FeedPostCard({
       <FeedActionBar
         isSupported={Boolean(post.supportedByCurrentPlayer)}
         isTableRelated={Boolean(post.isTableRelated || post.tableContext)}
+        supportersCount={post.supportersCount}
         onComment={() => setIsCommentPanelVisible((value) => !value)}
         onGiftClips={() => onGiftClips(post)}
         onInviteToTable={() => onInviteToTable(post)}

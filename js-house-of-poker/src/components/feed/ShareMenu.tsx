@@ -10,7 +10,7 @@ const shareDestinations: ShareDestination[] = [
   { icon: 'newspaper-variant-outline', id: 'feed', label: 'Share to Feed' },
   { icon: 'forum-outline', id: 'chat-room', label: 'Share to Chat Room' },
   { icon: 'poker-chip', id: 'table', label: 'Share to Table' },
-  { icon: 'share-variant-outline', id: 'external', label: 'Share externally' },
+  { icon: 'facebook', id: 'facebook', label: 'Share to Facebook' },
   { icon: 'bullhorn-outline', id: 'promote', label: 'Promote for Creator' },
 ];
 

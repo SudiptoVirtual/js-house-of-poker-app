@@ -9,6 +9,7 @@ import { SupportButton } from './SupportButton';
 type FeedActionBarProps = {
   isSupported: boolean;
   isTableRelated?: boolean;
+  supportersCount: number;
   onComment: () => void;
   onGiftClips: () => void;
   onInviteToTable: () => void;
@@ -26,11 +27,12 @@ export function FeedActionBar({
   onPromote,
   onShare,
   onSupport,
+  supportersCount,
 }: FeedActionBarProps) {
   return (
     <View style={styles.container}>
       <View style={styles.primaryRow}>
-        <SupportButton isSupported={isSupported} onPress={onSupport} />
+        <SupportButton isSupported={isSupported} onPress={onSupport} supportersCount={supportersCount} />
         <CommentButton onPress={onComment} />
         <Pressable accessibilityRole="button" onPress={onShare} style={({ pressed }) => [styles.actionButton, pressed ? styles.pressed : null]}>
           <MaterialCommunityIcons color={colors.mutedText} name="share-variant-outline" size={18} />
