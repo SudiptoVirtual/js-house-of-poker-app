@@ -1,4 +1,4 @@
-import { Pressable, StyleSheet, Text } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 import { colors } from '../../theme/colors';
@@ -6,9 +6,12 @@ import { colors } from '../../theme/colors';
 type SupportButtonProps = {
   isSupported: boolean;
   onPress: () => void;
+  supportersCount: number;
 };
 
-export function SupportButton({ isSupported, onPress }: SupportButtonProps) {
+export function SupportButton({ isSupported, onPress, supportersCount }: SupportButtonProps) {
+  const supportersLabel = supportersCount === 1 ? '1 Supporter' : `${supportersCount.toLocaleString()} Supporters`;
+
   return (
     <Pressable
       accessibilityRole="button"
@@ -20,7 +23,10 @@ export function SupportButton({ isSupported, onPress }: SupportButtonProps) {
         name={isSupported ? 'cards-heart' : 'cards-heart-outline'}
         size={18}
       />
-      <Text style={[styles.label, isSupported ? styles.labelActive : null]}>Support</Text>
+      <View style={styles.copy}>
+        <Text style={[styles.label, isSupported ? styles.labelActive : null]}>Support</Text>
+        <Text style={[styles.countLabel, isSupported ? styles.countLabelActive : null]}>{supportersLabel}</Text>
+      </View>
     </Pressable>
   );
 }
@@ -38,6 +44,18 @@ const styles = StyleSheet.create({
   },
   buttonActive: {
     backgroundColor: 'rgba(255,201,94,0.10)',
+  },
+  copy: {
+    alignItems: 'flex-start',
+    gap: 1,
+  },
+  countLabel: {
+    color: colors.mutedText,
+    fontSize: 10,
+    fontWeight: '800',
+  },
+  countLabelActive: {
+    color: colors.gold,
   },
   label: {
     color: colors.mutedText,
