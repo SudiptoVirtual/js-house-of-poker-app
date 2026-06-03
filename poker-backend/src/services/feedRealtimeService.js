@@ -6,6 +6,14 @@ const FeedReaction = require("../models/FeedReaction");
 const FeedShare = require("../models/FeedShare");
 const GameTable = require("../models/GameTable");
 const { sendFeedGiftClip } = require("./feedGiftClipService");
+const {
+  createFeedCommentNotification,
+  createFeedGiftClipNotification,
+  createFeedShareNotification,
+  createFeedSupportNotification,
+  createFeedTableInviteNotifications,
+  emitFeedNotificationRecords,
+} = require("./feedNotificationService");
 const User = require("../models/User");
 const {
   PLAYER_STATUSES,
@@ -305,6 +313,10 @@ class FeedRealtimeService {
     return this.emitToFeedAndPost(postId, "feed:promotion:updated", payload);
   }
 
+  emitNotificationRecords(notificationRecords = []) {
+    return emitFeedNotificationRecords(this.io, notificationRecords);
+  }
+
   async join(socket, payload = {}) {
     const user = await this.authenticate(socket, payload);
     const postId = normalizePostId(payload);
@@ -447,6 +459,12 @@ class FeedRealtimeService {
       comment: serializeComment(result.comment, user._id),
       post: serializePost(result.post, user._id),
     };
+    const notificationRecords = await createFeedCommentNotification({
+      actor: user,
+      data: { commentId: String(result.comment._id), commentPreview: body.slice(0, 160) },
+      post: result.post,
+    });
+    this.emitNotificationRecords(notificationRecords);
     this.broadcastCommentCreated(postId, eventPayload);
     this.broadcastPostUpdated(postId, { ok: true, post: eventPayload.post });
     return eventPayload;
@@ -535,6 +553,14 @@ class FeedRealtimeService {
       supportersCount: clientPost.supportersCount,
       userId: String(user._id),
     };
+    if (changed && nextSupported) {
+      const notificationRecords = await createFeedSupportNotification({
+        actor: user,
+        data: { reactionId: reaction ? String(reaction._id) : null, reactionType: "support" },
+        post: updatedPost,
+      });
+      this.emitNotificationRecords(notificationRecords);
+    }
     this.broadcastSupportUpdated(postId, eventPayload);
     this.broadcastPostUpdated(postId, { ok: true, post: eventPayload.post });
     return eventPayload;
@@ -593,6 +619,12 @@ class FeedRealtimeService {
     await hydrateCurrentUserReaction(updatedPost, user._id);
 
     const eventPayload = { ok: true, post: serializePost(updatedPost, user._id), share: share.toClient(), userId: String(user._id) };
+    const notificationRecords = await createFeedShareNotification({
+      actor: user,
+      data: { destination, shareId: String(share._id), targetId: share.targetId || null, targetType: share.targetType || null },
+      post: updatedPost,
+    });
+    this.emitNotificationRecords(notificationRecords);
     this.broadcastShareCreated(postId, eventPayload);
     this.broadcastPostUpdated(postId, { ok: true, post: eventPayload.post });
     return eventPayload;
@@ -620,6 +652,17 @@ class FeedRealtimeService {
       transactionIds: result.transactionIds,
       transactions: result.transactionIds,
     };
+    const notificationRecords = await createFeedGiftClipNotification({
+      actor: user,
+      data: {
+        amount: result.giftClip.amount,
+        giftClipId: String(result.giftClip._id),
+        message: result.giftClip.message || "",
+        transactionIds: result.transactionIds,
+      },
+      post: result.post,
+    });
+    this.emitNotificationRecords(notificationRecords);
     this.broadcastGiftClipsSent(postId, eventPayload);
     this.broadcastPostUpdated(postId, { ok: true, post: eventPayload.post });
     return eventPayload;
@@ -726,6 +769,15 @@ class FeedRealtimeService {
       },
     };
 
+    const notificationRecords = await createFeedTableInviteNotifications({
+      actor: user,
+      data: { message },
+      inviteRecords: invites,
+      post,
+      recipientUserIds: invites.map((invite) => invite.recipientAccountId),
+      table,
+    });
+    this.emitNotificationRecords(notificationRecords);
     this.emitToFeedAndPost(postId, "feed:tableInvite:sent", eventPayload);
     return eventPayload;
   }
