@@ -14,7 +14,6 @@ type PromoteForCreatorPanelProps = {
 
 export function PromoteForCreatorPanel({ onClose, onPromote, post, visible }: PromoteForCreatorPanelProps) {
   function handlePromote() {
-    // TODO(feed:promoteForCreator): Connect this sponsorship placeholder to paid promotion packages.
     onPromote();
   }
 
@@ -28,11 +27,11 @@ export function PromoteForCreatorPanel({ onClose, onPromote, post, visible }: Pr
           <Text style={styles.eyebrow}>Promote for Creator</Text>
           <Text style={styles.title}>{post ? `Sponsor ${post.player.name}'s post` : 'Sponsor this post'}</Text>
           <Text style={styles.body}>
-            Promote for Creator is a paid advertising sponsorship placeholder. It increases visibility later, while Support remains free community encouragement.
+            Promote for Creator creates a paid sponsorship record, confirms checkout, and boosts this post in feed discovery while Support remains free community encouragement.
           </Text>
           <View style={styles.actionRow}>
             <ActionButton compact fullWidth label="Not now" onPress={onClose} variant="secondary" />
-            <ActionButton compact fullWidth icon="bullhorn-outline" label="Promote" onPress={handlePromote} tone="accent" />
+            <ActionButton compact fullWidth icon="bullhorn-outline" label="Sponsor" onPress={handlePromote} tone="accent" />
           </View>
         </Pressable>
       </Pressable>

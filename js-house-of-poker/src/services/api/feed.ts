@@ -41,6 +41,47 @@ export type FeedGiftClip = {
   };
 };
 
+export type FeedPromotion = {
+  amount: number;
+  budgetClips: number;
+  checkoutUrl: string | null;
+  createdAt: string | null;
+  creatorUserId: string;
+  durationDays: number;
+  endsAt: string | null;
+  id: string;
+  paymentProvider: string;
+  paymentReference: string | null;
+  paymentStatus: string;
+  postId: string;
+  sponsorUserId: string;
+  startsAt: string | null;
+  state: string;
+  targeting?: Record<string, unknown>;
+  transactionId: string | null;
+  updatedAt: string | null;
+};
+
+export type FeedPromotionResponse = {
+  checkoutUrl?: string | null;
+  post: FeedPost;
+  promotion: FeedPromotion;
+  transactionId?: string | null;
+};
+
+export type CreateFeedPromotionInput = {
+  amount: number;
+  durationDays?: number;
+  paymentProvider?: 'manual' | 'mock' | 'stripe';
+  targeting?: {
+    audience?: string[];
+    gameTypes?: string[];
+    locations?: string[];
+    metadata?: Record<string, string | number | boolean | null>;
+    tableCodes?: string[];
+  };
+};
+
 export type FeedGiftClipResponse = {
   balances?: {
     recipientChips: number | null;
@@ -178,6 +219,15 @@ export async function createFeedShare(postId: string, input: CreateFeedShareInpu
 
 export async function sendFeedGiftClip(postId: string, input: SendFeedGiftClipInput, token: string) {
   return apiRequest<FeedGiftClipResponse>(`/api/feed/${encodeURIComponent(postId)}/gift-clips`, {
+    body: input,
+    method: 'POST',
+    token,
+  });
+}
+
+
+export async function createFeedPromotion(postId: string, input: CreateFeedPromotionInput, token: string) {
+  return apiRequest<FeedPromotionResponse>(`/api/feed/${encodeURIComponent(postId)}/promotions/checkout`, {
     body: input,
     method: 'POST',
     token,

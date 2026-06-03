@@ -9,7 +9,7 @@ const transactionSchema = new mongoose.Schema(
     },
     type: {
       type: String,
-      enum: ["deposit", "withdrawal", "adjustment", "feed_gift_clip"],
+      enum: ["deposit", "withdrawal", "adjustment", "feed_gift_clip", "feed_promotion"],
       required: true,
     },
     amount: {
@@ -36,6 +36,12 @@ const transactionSchema = new mongoose.Schema(
       type: String,
       default: "",
       trim: true,
+    },
+    feedPromotionId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "FeedPromotion",
+      default: null,
+      index: true,
     },
     createdByAdminId: {
       type: mongoose.Schema.Types.ObjectId,

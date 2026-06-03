@@ -118,6 +118,7 @@ feedPostSchema.pre("validate", function syncTableCode(next) {
 feedPostSchema.index({ createdAt: -1, _id: -1 });
 feedPostSchema.index({ authorUserId: 1, createdAt: -1 });
 feedPostSchema.index({ isPromoted: 1, createdAt: -1 });
+feedPostSchema.index({ isPromoted: -1, "promotion.startsAt": -1, createdAt: -1, _id: -1 });
 feedPostSchema.index({ tableId: 1, createdAt: -1 });
 feedPostSchema.index({ tableCode: 1, createdAt: -1 });
 feedPostSchema.index({ visibility: 1, status: 1, "moderation.status": 1, createdAt: -1 });
@@ -141,6 +142,20 @@ feedPostSchema.methods.toClient = function toClient(options = {}) {
     isPromoted: Boolean(this.isPromoted),
     isTableRelated: Boolean(this.tableId || this.tableCode || tableContext),
     player: serializePlayerSnapshot(this),
+    ...(this.promotion?.promotionId && this.promotion?.state && this.promotion.state !== "none"
+      ? {
+          promotion: {
+            amount: this.promotion.amount || this.promotion.budgetClips || 0,
+            budgetClips: this.promotion.budgetClips || 0,
+            durationDays: this.promotion.durationDays || 0,
+            endsAt: this.promotion.endsAt instanceof Date ? this.promotion.endsAt.toISOString() : null,
+            id: this.promotion.promotionId ? String(this.promotion.promotionId) : null,
+            paymentStatus: this.promotion.paymentStatus || null,
+            startsAt: this.promotion.startsAt instanceof Date ? this.promotion.startsAt.toISOString() : null,
+            state: this.promotion.state,
+          },
+        }
+      : {}),
     ...(counters.promotedCount ? { promotedCount: counters.promotedCount } : {}),
     reactionCounts: { support: counters.supportersCount || 0, ...reactionCounts },
     shareCount: counters.shareCount || 0,

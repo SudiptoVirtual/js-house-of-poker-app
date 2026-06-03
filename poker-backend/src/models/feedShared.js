@@ -255,7 +255,17 @@ const countersSchema = new mongoose.Schema(
 
 const promotionStateSchema = new mongoose.Schema(
   {
+    amount: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
     budgetClips: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    durationDays: {
       type: Number,
       default: 0,
       min: 0,
@@ -269,10 +279,25 @@ const promotionStateSchema = new mongoose.Schema(
       default: false,
       index: true,
     },
+    promotionId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "FeedPromotion",
+      default: null,
+    },
     promotedByUserId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       default: null,
+    },
+    paymentReference: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+    paymentStatus: {
+      type: String,
+      default: "",
+      trim: true,
     },
     rejectionReason: {
       type: String,
@@ -293,6 +318,10 @@ const promotionStateSchema = new mongoose.Schema(
       type: String,
       enum: PROMOTION_STATES,
       default: "none",
+    },
+    targeting: {
+      type: mongoose.Schema.Types.Mixed,
+      default: () => ({}),
     },
   },
   { _id: false }

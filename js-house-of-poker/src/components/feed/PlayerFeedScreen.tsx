@@ -8,7 +8,7 @@ import { currentFeedPlayer, mockFeedPosts } from '../../constants/playerFeedMock
 import { routes } from '../../constants/routes';
 import { buildSocialInvitePreset } from '../../constants/social';
 import { usePoker } from '../../context/PokerProvider';
-import { createFeedComment, createFeedShare, getApiErrorDetails, sendFeedGiftClip, toggleFeedSupport } from '../../services/api';
+import { createFeedComment, createFeedPromotion, createFeedShare, getApiErrorDetails, sendFeedGiftClip, toggleFeedSupport } from '../../services/api';
 import { getAuthSession } from '../../services/storage/sessionStorage';
 import { colors } from '../../theme/colors';
 import type { RootStackParamList } from '../../types/navigation';
@@ -208,21 +208,41 @@ export function PlayerFeedScreen({ navigation }: PlayerFeedScreenProps) {
     }
   }
 
-  function handlePromote() {
+  async function handlePromote() {
     if (!promotePost) {
       return;
     }
 
-    // TODO(feed:promoteForCreator): Persist paid promotion intent and update sponsored stats.
-    setPosts((currentPosts) =>
-      currentPosts.map((post) =>
-        post.id === promotePost.id
-          ? { ...post, isPromoted: true, promotedCount: (post.promotedCount ?? 0) + 1 }
-          : post,
-      ),
-    );
-    Alert.alert('Promote placeholder', `Promotion sponsorship staged locally for ${promotePost.player.name}.`);
-    setPromotePost(null);
+    const targetPost = promotePost;
+    const session = await getAuthSession();
+
+    if (!session?.token || targetPost.id.startsWith('local-feed-')) {
+      Alert.alert('Sign in required', 'Sign in and refresh persisted feed posts before sponsoring a promotion.');
+      return;
+    }
+
+    try {
+      const response = await createFeedPromotion(
+        targetPost.id,
+        {
+          amount: 500,
+          durationDays: 7,
+          paymentProvider: 'mock',
+          targeting: {
+            audience: ['feed'],
+            metadata: { source: 'FeedActionBar' },
+          },
+        },
+        session.token,
+      );
+
+      setPosts((currentPosts) => currentPosts.map((post) => (post.id === targetPost.id ? response.post : post)));
+      Alert.alert('Promotion sponsored', `${targetPost.player.name}'s post is now sponsored in the feed.`);
+      setPromotePost(null);
+    } catch (error) {
+      const details = getApiErrorDetails(error, 'Unable to sponsor this promotion right now.');
+      Alert.alert('Promotion not saved', details.message);
+    }
   }
 
   function handleInviteToTable(post: FeedPost) {

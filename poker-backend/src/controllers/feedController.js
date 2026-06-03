@@ -2,10 +2,10 @@ const mongoose = require("mongoose");
 
 const FeedComment = require("../models/FeedComment");
 const FeedPost = require("../models/FeedPost");
-const FeedPromotion = require("../models/FeedPromotion");
 const FeedReaction = require("../models/FeedReaction");
 const FeedShare = require("../models/FeedShare");
 const { sendFeedGiftClip } = require("../services/feedGiftClipService");
+const { completePromotionPayment, createPromotionCheckout, handlePaymentWebhook } = require("../services/feedPromotionService");
 const { getFeedRealtimeService } = require("../services/feedRealtimeService");
 const GameTable = require("../models/GameTable");
 const User = require("../models/User");
@@ -529,7 +529,7 @@ async function listPosts(req, res) {
     }
 
     const posts = await FeedPost.find(query)
-      .sort({ createdAt: -1, _id: -1 })
+      .sort({ isPromoted: -1, "promotion.startsAt": -1, createdAt: -1, _id: -1 })
       .limit(limit + 1);
     const page = posts.slice(0, limit);
     await hydrateCurrentUserReaction(page, currentUserId);
@@ -1028,47 +1028,41 @@ async function purchasePromotion(req, res) {
     const postId = requireObjectId(req.params.postId, res, "post id");
     if (!postId) return null;
 
-    const budgetClips = Math.max(1, Number.parseInt(req.body?.budgetClips || req.body?.amount, 10));
-    if (!Number.isFinite(budgetClips)) {
-      return res.status(400).json({ message: "Promotion budget is required" });
-    }
-
-    const post = await findVisiblePost(postId, req.user._id);
-    if (!post) {
-      return res.status(404).json({ message: "Feed post not found" });
-    }
-
-    const now = new Date();
-    const startsAt = req.body?.startsAt ? new Date(req.body.startsAt) : now;
-    const endsAt = req.body?.endsAt ? new Date(req.body.endsAt) : null;
-    const state = req.body?.state === "pending" ? "pending" : "active";
-
-    const promotion = await FeedPromotion.create({
-      budgetClips,
-      endsAt: endsAt && !Number.isNaN(endsAt.getTime()) ? endsAt : null,
+    const result = await createPromotionCheckout({
+      input: req.body || {},
       postId,
-      promotedByUserId: req.user._id,
-      startsAt: Number.isNaN(startsAt.getTime()) ? now : startsAt,
-      state,
+      user: req.user,
     });
 
-    post.isPromoted = true;
-    post.promotion = {
-      budgetClips,
-      endsAt: promotion.endsAt,
-      isPromoted: true,
-      promotedByUserId: req.user._id,
-      spentClips: 0,
-      startsAt: promotion.startsAt,
-      state,
-    };
-    post.counters.promotedCount = (post.counters.promotedCount || 0) + 1;
-    await post.save();
-    await hydrateCurrentUserReaction([post], req.user._id);
-
-    return res.status(201).json({ post: serializePost(post, req.user._id), promotion: promotion.toClient() });
+    return res.status(201).json(result);
   } catch (error) {
-    return sendServerError(res, error, "Unable to purchase feed promotion");
+    return sendServerError(res, error, "Unable to create feed promotion checkout");
+  }
+}
+
+async function completePromotion(req, res) {
+  try {
+    const promotionId = requireObjectId(req.params.promotionId, res, "promotion id");
+    if (!promotionId) return null;
+
+    const result = await completePromotionPayment({
+      paymentReference: req.body?.paymentReference || req.body?.referenceId,
+      promotionId,
+      provider: req.body?.provider || "manual",
+    });
+
+    return res.json(result);
+  } catch (error) {
+    return sendServerError(res, error, "Unable to complete feed promotion payment");
+  }
+}
+
+async function promotionPaymentWebhook(req, res) {
+  try {
+    const result = await handlePaymentWebhook(req.body || {});
+    return res.json({ ok: true, ...result });
+  } catch (error) {
+    return sendServerError(res, error, "Unable to process feed promotion payment webhook");
   }
 }
 
@@ -1168,7 +1162,7 @@ async function getDiscoveryPayload(req, res) {
         status: "published",
         visibility: "public",
       })
-        .sort({ createdAt: -1, _id: -1 })
+        .sort({ "promotion.startsAt": -1, "counters.promotedCount": -1, createdAt: -1, _id: -1 })
         .limit(5),
       GameTable.find({ status: { $in: ["waiting", "active"] } })
         .sort({ updatedAt: -1 })
@@ -1207,6 +1201,7 @@ async function getDiscoveryPayload(req, res) {
 
 module.exports = {
   addComment,
+  completePromotion,
   createPost,
   createReaction,
   createShare,
@@ -1215,6 +1210,7 @@ module.exports = {
   deletePost,
   getDiscoveryPayload,
   getPost,
+  promotionPaymentWebhook,
   listComments,
   listPosts,
   listReactionSummaries,

@@ -2,7 +2,6 @@ const mongoose = require("mongoose");
 
 const FeedComment = require("../models/FeedComment");
 const FeedPost = require("../models/FeedPost");
-const FeedPromotion = require("../models/FeedPromotion");
 const FeedReaction = require("../models/FeedReaction");
 const FeedShare = require("../models/FeedShare");
 const GameTable = require("../models/GameTable");
@@ -630,52 +629,13 @@ class FeedRealtimeService {
   async createPromotion(socket, payload = {}) {
     const user = await this.authenticate(socket, payload);
     const postId = normalizePostId(payload);
-    const budgetClips = Math.max(1, Number.parseInt(payload.budgetClips || payload.amount, 10));
+    const { createPromotionCheckout } = require("./feedPromotionService");
 
-    if (!Number.isFinite(budgetClips)) {
-      throw new Error("Promotion budget is required.");
-    }
-
-    const post = await findVisiblePost(postId, user._id);
-    if (!post) {
-      throw new Error("Feed post not found.");
-    }
-
-    const now = new Date();
-    const startsAt = payload.startsAt ? new Date(payload.startsAt) : now;
-    const endsAt = payload.endsAt ? new Date(payload.endsAt) : null;
-    const state = payload.state === "pending" ? "pending" : "active";
-    const promotion = await FeedPromotion.create({
-      budgetClips,
-      endsAt: endsAt && !Number.isNaN(endsAt.getTime()) ? endsAt : null,
+    return createPromotionCheckout({
+      input: payload,
       postId,
-      promotedByUserId: user._id,
-      startsAt: Number.isNaN(startsAt.getTime()) ? now : startsAt,
-      state,
+      user,
     });
-
-    post.isPromoted = true;
-    post.promotion = {
-      budgetClips,
-      endsAt: promotion.endsAt,
-      isPromoted: true,
-      promotedByUserId: user._id,
-      spentClips: 0,
-      startsAt: promotion.startsAt,
-      state,
-    };
-    post.counters.promotedCount = (post.counters.promotedCount || 0) + 1;
-    await post.save();
-    await hydrateCurrentUserReaction(post, user._id);
-
-    const eventPayload = {
-      ok: true,
-      post: serializePost(post, user._id),
-      promotion: promotion.toClient(),
-    };
-    this.broadcastPromotionUpdated(postId, eventPayload);
-    this.broadcastPostUpdated(postId, { ok: true, post: eventPayload.post });
-    return eventPayload;
   }
 
   async sendTableInvite(socket, payload = {}) {
