@@ -86,8 +86,16 @@ const tests = [
         },
         tableCode: "NIGHT7",
         tableContext: {
+          activeTableNavigation: {
+            deepLink: "houseofpoker://tables/NIGHT7",
+            params: { tableCode: "NIGHT7", tableId: String(objectId("3")) },
+            route: "Game",
+            screen: "GameScreen",
+          },
           gameLabel: "Texas Hold'em",
           seatsOpen: 2,
+          tableCode: "NIGHT7",
+          tableId: String(objectId("3")),
           tableName: "Night Shift",
         },
         tableId: objectId("3"),
@@ -96,6 +104,12 @@ const tests = [
       const client = post.toClient({ currentUserId: objectId("1") });
 
       assert.deepEqual(client, {
+        actorProfileLink: {
+          deepLink: "houseofpoker://profile/000000000000000000000001",
+          params: { playerId: String(objectId("1")), userId: String(objectId("1")) },
+          route: "Profile",
+          screen: "ProfileScreen",
+        },
         commentCount: 18,
         content: "Settling in for a mellow free-play night.",
         gameContext: {
@@ -105,13 +119,38 @@ const tests = [
         },
         giftClipsCount: 12,
         giftClipsTotal: 18500,
+        friendStatus: {
+          action: "view-friends",
+          available: false,
+          isFriend: false,
+          route: {
+            action: "view-friends",
+            deepLink: "houseofpoker://friends?userId=000000000000000000000001&action=view-friends",
+            params: { action: "view-friends", userId: String(objectId("1")) },
+            route: "Friends",
+            screen: "FriendsScreen",
+          },
+        },
         id: String(objectId("2")),
         isPromoted: true,
         isTableRelated: true,
         player: {
+          actorProfileLink: {
+            deepLink: "houseofpoker://profile/000000000000000000000001",
+            params: { playerId: String(objectId("1")), userId: String(objectId("1")) },
+            route: "Profile",
+            screen: "ProfileScreen",
+          },
           handle: "@river-regular",
           id: String(objectId("1")),
           name: "River Regular",
+          profileDeepLink: "houseofpoker://profile/000000000000000000000001",
+          profileRoute: {
+            deepLink: "houseofpoker://profile/000000000000000000000001",
+            params: { playerId: String(objectId("1")), userId: String(objectId("1")) },
+            route: "Profile",
+            screen: "ProfileScreen",
+          },
           status: "Online",
           statusTier: "mid_roller",
         },
@@ -122,8 +161,16 @@ const tests = [
         shareCount: 7,
         supportersCount: 250,
         tableContext: {
+          activeTableNavigation: {
+            deepLink: "houseofpoker://tables/NIGHT7",
+            params: { tableCode: "NIGHT7", tableId: String(objectId("3")) },
+            route: "Game",
+            screen: "GameScreen",
+          },
           gameLabel: "Texas Hold'em",
           seatsOpen: 2,
+          tableCode: "NIGHT7",
+          tableId: String(objectId("3")),
           tableName: "Night Shift",
         },
         timestamp: "2026-06-03T12:00:00.000Z",
@@ -136,6 +183,7 @@ const tests = [
       assert.ok(hasIndex(FeedPost, { createdAt: -1, _id: -1 }));
       assert.ok(hasIndex(FeedPost, { authorUserId: 1, createdAt: -1 }));
       assert.ok(hasIndex(FeedPost, { isPromoted: 1, createdAt: -1 }));
+      assert.ok(hasIndex(FeedPost, { chatRoomId: 1, createdAt: -1 }));
       assert.ok(hasIndex(FeedPost, { tableId: 1, createdAt: -1 }));
       assert.ok(hasIndex(FeedPost, { tableCode: 1, createdAt: -1 }));
       assert.ok(hasIndex(FeedPost, { visibility: 1, status: 1, "moderation.status": 1, createdAt: -1 }));

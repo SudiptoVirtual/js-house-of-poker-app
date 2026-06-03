@@ -189,6 +189,15 @@ export type FeedReactionSummariesResponse = {
   supportersCount: number;
 };
 
+export type FeedPostsResponse = {
+  pagination: {
+    hasMore: boolean;
+    limit: number;
+    nextCursor: string | null;
+  };
+  posts: FeedPost[];
+};
+
 export type FeedCommentsResponse = {
   comments: FeedComment[];
   pagination: {
@@ -198,6 +207,10 @@ export type FeedCommentsResponse = {
   };
   post: FeedPost;
 };
+
+export async function fetchFeedPosts(token?: string | null) {
+  return apiRequest<FeedPostsResponse>('/api/feed', { token });
+}
 
 export async function createFeedComment(postId: string, comment: string, token: string) {
   return apiRequest<FeedCommentResponse>(`/api/feed/${encodeURIComponent(postId)}/comments`, {

@@ -11,6 +11,10 @@ const {
   deletePost,
   getDiscoveryPayload,
   getPost,
+  resolveAuthorProfile,
+  resolveChatRoomContext,
+  resolveFriendAction,
+  resolveTableContext,
   listComments,
   listPosts,
   listReactionSummaries,
@@ -32,6 +36,10 @@ router.post("/promotions/:promotionId/complete", protectUser, completePromotion)
 router.post("/", protectUser, createPost);
 router.get("/discovery", optionalUser, getDiscoveryPayload);
 router.get("/:postId", optionalUser, getPost);
+router.get("/:postId/author-profile", optionalUser, resolveAuthorProfile);
+router.get("/:postId/friend-action", optionalUser, resolveFriendAction);
+router.get("/:postId/chat-room", optionalUser, resolveChatRoomContext);
+router.get("/:postId/table", optionalUser, resolveTableContext);
 router.patch("/:postId", protectUser, updatePost);
 router.delete("/:postId", protectUser, deletePost);
 

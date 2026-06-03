@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Alert, FlatList, SafeAreaView, StyleSheet, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -7,7 +7,7 @@ import { MainPlatformNavigation } from '../navigation/MainPlatformNavigation';
 import { currentFeedPlayer, mockFeedPosts } from '../../constants/playerFeedMockData';
 import { routes } from '../../constants/routes';
 import { usePoker } from '../../context/PokerProvider';
-import { createFeedComment, createFeedPromotion, createFeedShare, getApiErrorDetails, sendFeedGiftClip, sendFeedTableInvite, toggleFeedSupport } from '../../services/api';
+import { createFeedComment, createFeedPromotion, createFeedShare, fetchFeedPosts, getApiErrorDetails, sendFeedGiftClip, sendFeedTableInvite, toggleFeedSupport } from '../../services/api';
 import { getAuthSession } from '../../services/storage/sessionStorage';
 import { colors } from '../../theme/colors';
 import type { RootStackParamList } from '../../types/navigation';
@@ -30,6 +30,27 @@ export function PlayerFeedScreen({ navigation }: PlayerFeedScreenProps) {
   const [sharePost, setSharePost] = useState<FeedPost | null>(null);
 
   const activeTableCode = roomState?.roomId ?? null;
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadFeedPosts() {
+      const session = await getAuthSession();
+      const response = await fetchFeedPosts(session?.token ?? null);
+
+      if (isMounted && response.posts.length > 0) {
+        setPosts(response.posts);
+      }
+    }
+
+    void loadFeedPosts().catch((error) => {
+      console.warn('Unable to load backend feed posts; using fallback feed data.', error);
+    });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const feedSubtitle = useMemo(
     () =>
@@ -110,18 +131,20 @@ export function PlayerFeedScreen({ navigation }: PlayerFeedScreenProps) {
   }
 
   function handleOpenProfile(playerId: string) {
-    // TODO(profile:openFromFeed): Navigate to a player profile route with playerId when profiles accept params.
-    // TODO(future friend requests): Add friend requests from feed profile entry points.
-    // TODO(future chat room invites): Add chat room invites from feed profile entry points.
-    // TODO(future table invites): Add table invites from feed profile entry points.
-    // TODO(future player stats): Add player stats for profiles opened from the feed.
-    // TODO(future player posts): Add player posts for profiles opened from the feed.
+    const matchingPost = posts.find((post) => post.player.id === playerId);
+    const profileRoute = matchingPost?.actorProfileLink ?? matchingPost?.player.profileRoute;
+
+    if (profileRoute?.screen === 'FriendsScreen') {
+      navigation.navigate(routes.Friends);
+      return;
+    }
+
     if (playerId === currentFeedPlayer.id) {
       navigation.navigate(routes.Profile);
       return;
     }
 
-    Alert.alert('Player Profile', 'This player profile will open from the feed when profile discovery is connected.');
+    navigation.navigate(routes.Profile);
   }
 
   async function handleComment(post: FeedPost, comment: string) {
