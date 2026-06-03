@@ -5,13 +5,13 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
 import { FeedActionBar } from './FeedActionBar';
 import { FeedPlayerHeader } from './FeedPlayerHeader';
-import type { FeedPlayer, FeedPost } from '../../types/feed';
+import type { FeedPost } from '../../types/feed';
 
 type FeedPostCardProps = {
   onComment: (post: FeedPost, comment: string) => void;
   onGiftClips: (post: FeedPost) => void;
   onInviteToTable: (post: FeedPost) => void;
-  onOpenProfile: (player: FeedPlayer) => void;
+  onOpenProfile: (playerId: string) => void;
   onPromote: (post: FeedPost) => void;
   onShare: (post: FeedPost) => void;
   onSupportChange: (postId: string, isSupported: boolean) => void;

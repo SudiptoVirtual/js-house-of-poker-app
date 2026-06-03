@@ -8,7 +8,7 @@ import type { FeedPlayer } from '../../types/feed';
 
 type FeedPlayerHeaderProps = {
   isPromoted?: boolean;
-  onOpenProfile: (player: FeedPlayer) => void;
+  onOpenProfile: (playerId: string) => void;
   player: FeedPlayer;
   timestamp: string;
 };
@@ -24,27 +24,19 @@ function getPlayerInitials(name: string) {
 
 export function FeedPlayerHeader({ isPromoted = false, onOpenProfile, player, timestamp }: FeedPlayerHeaderProps) {
   return (
-    <View style={styles.container}>
-      <Pressable
-        accessibilityLabel={`Open ${player.name} profile`}
-        accessibilityRole="button"
-        onPress={() => onOpenProfile(player)}
-      >
-        <FeedAvatar initials={getPlayerInitials(player.name)} uri={player.avatarUrl} />
-      </Pressable>
+    <Pressable
+      accessibilityLabel={`Open ${player.name} profile`}
+      accessibilityRole="button"
+      onPress={() => onOpenProfile(player.id)}
+      style={styles.container}
+    >
+      <FeedAvatar initials={getPlayerInitials(player.name)} uri={player.avatarUrl} />
 
       <View style={styles.identity}>
         <View style={styles.nameRow}>
-          <Pressable
-            accessibilityLabel={`Open ${player.name} profile`}
-            accessibilityRole="button"
-            onPress={() => onOpenProfile(player)}
-            style={styles.nameButton}
-          >
-            <Text numberOfLines={1} style={styles.name}>
-              {player.name}
-            </Text>
-          </Pressable>
+          <Text numberOfLines={1} style={styles.name}>
+            {player.name}
+          </Text>
           <Text style={styles.timestamp}>· {timestamp}</Text>
         </View>
         <View style={styles.metaRow}>
@@ -60,7 +52,7 @@ export function FeedPlayerHeader({ isPromoted = false, onOpenProfile, player, ti
         </View>
         <PlayerStatusBadge status={player.status} statusTier={player.statusTier} />
       </View>
-    </View>
+    </Pressable>
   );
 }
 
@@ -91,10 +83,6 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: 16,
     fontWeight: '900',
-  },
-  nameButton: {
-    flexShrink: 1,
-    minWidth: 0,
   },
   nameRow: {
     alignItems: 'center',

@@ -15,7 +15,7 @@ import { FeedPostCard } from './FeedPostCard';
 import { GiftClipsModal } from './GiftClipsModal';
 import { PromoteForCreatorPanel } from './PromoteForCreatorPanel';
 import { ShareMenu } from './ShareMenu';
-import type { FeedPlayer, FeedPost } from '../../types/feed';
+import type { FeedPost } from '../../types/feed';
 
 type PlayerFeedScreenProps = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'Feed'>;
@@ -77,15 +77,19 @@ export function PlayerFeedScreen({ navigation }: PlayerFeedScreenProps) {
     );
   }
 
-  function handleOpenProfile(player: FeedPlayer | FeedPostBoxProfile) {
-    // TODO(profile:openFromFeed): Navigate to a player profile route with player.id when profiles accept params.
-    // Future profile modules should expose friend requests, chat room invites, table invites, stats, and player posts.
-    if (player.id === currentFeedPlayer.id) {
+  function handleOpenProfile(playerId: string) {
+    // TODO(profile:openFromFeed): Navigate to a player profile route with playerId when profiles accept params.
+    // TODO(future friend requests): Add friend requests from feed profile entry points.
+    // TODO(future chat room invites): Add chat room invites from feed profile entry points.
+    // TODO(future table invites): Add table invites from feed profile entry points.
+    // TODO(future player stats): Add player stats for profiles opened from the feed.
+    // TODO(future player posts): Add player posts for profiles opened from the feed.
+    if (playerId === currentFeedPlayer.id) {
       navigation.navigate(routes.Profile);
       return;
     }
 
-    Alert.alert('Player Profile', `${player.name}'s profile will open from the feed when profile discovery is connected.`);
+    Alert.alert('Player Profile', 'This player profile will open from the feed when profile discovery is connected.');
   }
 
   function handleComment(post: FeedPost, comment: string) {
@@ -179,7 +183,7 @@ export function PlayerFeedScreen({ navigation }: PlayerFeedScreenProps) {
               </View>
               <FeedPostBox
                 currentPlayer={currentFeedPlayer}
-                onOpenProfile={handleOpenProfile}
+                onOpenProfile={(player: FeedPostBoxProfile) => handleOpenProfile(player.id)}
                 onPostCreated={handleCreatePost}
               />
             </View>
