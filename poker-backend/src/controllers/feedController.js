@@ -1,11 +1,11 @@
 const mongoose = require("mongoose");
 
 const FeedComment = require("../models/FeedComment");
-const FeedGiftClip = require("../models/FeedGiftClip");
 const FeedPost = require("../models/FeedPost");
 const FeedPromotion = require("../models/FeedPromotion");
 const FeedReaction = require("../models/FeedReaction");
 const FeedShare = require("../models/FeedShare");
+const { sendFeedGiftClip } = require("../services/feedGiftClipService");
 const { getFeedRealtimeService } = require("../services/feedRealtimeService");
 const GameTable = require("../models/GameTable");
 const User = require("../models/User");
@@ -170,6 +170,15 @@ function broadcastShareCreated(postId, payload) {
 
   if (feedRealtimeService) {
     feedRealtimeService.broadcastShareCreated(postId, { ok: true, ...payload });
+    feedRealtimeService.broadcastPostUpdated(postId, { ok: true, post: payload.post });
+  }
+}
+
+function broadcastGiftClipsSent(postId, payload) {
+  const feedRealtimeService = getFeedRealtimeService();
+
+  if (feedRealtimeService) {
+    feedRealtimeService.broadcastGiftClipsSent(postId, { ok: true, ...payload });
     feedRealtimeService.broadcastPostUpdated(postId, { ok: true, post: payload.post });
   }
 }
@@ -444,6 +453,11 @@ async function findVisiblePost(postId, currentUserId = null, session = null) {
 
 function sendServerError(res, error, fallbackMessage = "Feed request failed") {
   console.error(fallbackMessage, error);
+
+  if (error?.statusCode) {
+    return res.status(error.statusCode).json({ code: error.code, message: error.message });
+  }
+
   return res.status(500).json({ message: fallbackMessage });
 }
 
@@ -983,35 +997,31 @@ async function sendGiftClip(req, res) {
     const postId = requireObjectId(req.params.postId, res, "post id");
     if (!postId) return null;
 
-    const amount = Math.max(1, Number.parseInt(req.body?.amount || req.body?.clips, 10));
-    if (!Number.isFinite(amount)) {
-      return res.status(400).json({ message: "Gift Clip amount is required" });
-    }
-
-    const post = await findVisiblePost(postId, req.user._id);
-    if (!post) {
-      return res.status(404).json({ message: "Feed post not found" });
-    }
-
-    const giftClip = await FeedGiftClip.create({
-      amount,
-      message: normalizeText(req.body?.message, 500),
+    const result = await sendFeedGiftClip({
+      amount: req.body?.amount || req.body?.clips,
+      currentUserId: req.user._id,
+      message: req.body?.message,
       postId,
-      recipientUserId: post.authorUserId,
-      senderUserId: req.user._id,
-      transactionId: isValidObjectId(req.body?.transactionId) ? req.body.transactionId : null,
+      recipientUserId: req.body?.recipientUserId,
     });
 
-    post.counters.giftClipsCount = (post.counters.giftClipsCount || 0) + 1;
-    post.counters.giftClipsTotal = (post.counters.giftClipsTotal || 0) + amount;
-    await post.save();
-    await hydrateCurrentUserReaction([post], req.user._id);
+    await hydrateCurrentUserReaction([result.post], req.user._id);
 
-    return res.status(201).json({ giftClip: giftClip.toClient(), post: serializePost(post, req.user._id) });
+    const eventPayload = {
+      balances: result.balances,
+      giftClip: result.giftClip.toClient(),
+      post: serializePost(result.post, req.user._id),
+      transactionIds: result.transactionIds,
+      transactions: result.transactionIds,
+    };
+    broadcastGiftClipsSent(postId, eventPayload);
+
+    return res.status(201).json(eventPayload);
   } catch (error) {
     return sendServerError(res, error, "Unable to send Gift Clips");
   }
 }
+
 
 async function purchasePromotion(req, res) {
   try {

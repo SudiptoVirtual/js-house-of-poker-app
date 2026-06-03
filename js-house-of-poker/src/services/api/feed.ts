@@ -24,6 +24,46 @@ export type FeedShareResponse = {
   share: FeedShare;
 };
 
+export type FeedGiftClip = {
+  amount: number;
+  createdAt: string | null;
+  id: string;
+  message: string;
+  postId: string;
+  recipientTransactionId: string | null;
+  recipientUserId: string;
+  senderTransactionId: string | null;
+  senderUserId: string;
+  transactionId: string | null;
+  transactionIds: {
+    recipient: string | null;
+    sender: string | null;
+  };
+};
+
+export type FeedGiftClipResponse = {
+  balances?: {
+    recipientChips: number | null;
+    senderChips: number | null;
+  };
+  giftClip: FeedGiftClip;
+  post: FeedPost;
+  transactionIds: {
+    recipient: string | null;
+    sender: string | null;
+  };
+  transactions?: {
+    recipient: string | null;
+    sender: string | null;
+  };
+};
+
+export type SendFeedGiftClipInput = {
+  amount: number;
+  message?: string;
+  recipientUserId?: string;
+};
+
 export type CreateFeedShareInput = {
   destination: BackendShareDestinationId;
   metadata?: Record<string, string | number | boolean | null>;
@@ -129,6 +169,15 @@ export async function fetchFeedReactionSummaries(postId: string, token?: string 
 
 export async function createFeedShare(postId: string, input: CreateFeedShareInput, token: string) {
   return apiRequest<FeedShareResponse>(`/api/feed/${encodeURIComponent(postId)}/shares`, {
+    body: input,
+    method: 'POST',
+    token,
+  });
+}
+
+
+export async function sendFeedGiftClip(postId: string, input: SendFeedGiftClipInput, token: string) {
+  return apiRequest<FeedGiftClipResponse>(`/api/feed/${encodeURIComponent(postId)}/gift-clips`, {
     body: input,
     method: 'POST',
     token,
