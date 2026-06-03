@@ -4,19 +4,43 @@ import type { PlayerStatusTier } from '../constants/playerStatus';
 
 export type FeedPlayerStatus = 'Online' | 'In Lobby' | 'In Chat Room' | 'Playing 357' | 'At Table' | 'Away';
 
+export type FeedNavigationRoute = {
+  action?: string;
+  deepLink: string;
+  params: Record<string, string>;
+  route: string;
+  screen: string;
+};
+
+export type FeedFriendStatus = {
+  action: string;
+  available: boolean;
+  canAddFriend?: boolean;
+  canInviteToTable?: boolean;
+  isFriend: boolean;
+  isSelf?: boolean;
+  route: FeedNavigationRoute;
+  targetUserId?: string;
+};
+
 export type FeedPlayer = {
+  actorProfileLink?: FeedNavigationRoute;
   avatarUrl?: string;
   handle: string;
   id: string;
   name: string;
+  profileDeepLink?: string;
+  profileRoute?: FeedNavigationRoute;
   status: FeedPlayerStatus;
   statusTier?: PlayerStatusTier;
 };
 
 export type FeedTableContext = {
+  activeTableNavigation?: FeedNavigationRoute;
   gameLabel: string;
   seatsOpen?: number;
   tableCode?: string;
+  tableId?: string;
   tableName: string;
 };
 
@@ -38,13 +62,28 @@ export type FeedPostPromotion = {
   state: string;
 };
 
+export type FeedChatRoomContext = {
+  activePlayerCount?: number;
+  id: string;
+  isMember?: boolean;
+  isPublic?: boolean;
+  name?: string;
+  route: FeedNavigationRoute;
+  slug?: string;
+  topic?: string;
+  visibility?: string;
+};
+
 export type FeedPost = {
+  actorProfileLink?: FeedNavigationRoute;
+  chatRoomContext?: FeedChatRoomContext;
   commentCount: number;
   content: string;
   gameContext?: FeedGameContext;
   giftClipsCount?: number;
   giftClipsTotal?: number;
   id: string;
+  friendStatus?: FeedFriendStatus;
   isPromoted: boolean;
   isTableRelated: boolean;
   player: FeedPlayer;

@@ -20,12 +20,18 @@ const {
   createFeedTableInviteNotifications,
   emitFeedNotificationRecords,
 } = require("../services/feedNotificationService");
+const ChatRoom = require("../models/ChatRoom");
 const GameTable = require("../models/GameTable");
+const User = require("../models/User");
 const {
   PLAYER_STATUSES,
   POST_VISIBILITIES,
   REACTION_TYPES,
   SHARE_DESTINATIONS,
+  buildChatRoomRoute,
+  buildFriendsRoute,
+  buildProfileRoute,
+  buildTableRoute,
   normalizeShareDestination,
 } = require("../models/feedShared");
 
@@ -33,6 +39,159 @@ const DEFAULT_POST_LIMIT = 20;
 const MAX_POST_LIMIT = 50;
 const DEFAULT_COMMENT_LIMIT = 25;
 const MAX_COMMENT_LIMIT = 100;
+
+
+function isChatRoomParticipant(room, userId) {
+  if (!room || !userId) {
+    return false;
+  }
+
+  const currentUserId = String(userId);
+  return String(room.createdByUserId || "") === currentUserId || (room.participantStates || []).some((state) => String(state.userId) === currentUserId);
+}
+
+function canViewChatRoomContext(room, userId) {
+  if (!room || room.isDisabled) {
+    return false;
+  }
+
+  if (room.isPublic !== false && (room.visibility || "public") !== "private") {
+    return true;
+  }
+
+  return isChatRoomParticipant(room, userId);
+}
+
+function isTablePlayer(table, userId) {
+  if (!table || !userId) {
+    return false;
+  }
+
+  const currentUserId = String(userId);
+  return (table.players || []).some((player) => String(player.userId) === currentUserId);
+}
+
+function canViewTableContext(table, userId, chatRoom = null) {
+  if (!table || table.status === "closed") {
+    return false;
+  }
+
+  const visibility = String(table.chatRoomLaunchContext?.visibility || "public").toLowerCase();
+  const restricted = ["private", "invite-only", "room"].includes(visibility) || Boolean(table.chatRoomLaunchContext?.chatRoomId);
+
+  if (!restricted) {
+    return true;
+  }
+
+  if (!userId) {
+    return false;
+  }
+
+  const currentUserId = String(userId);
+  return (
+    isTablePlayer(table, userId) ||
+    String(table.hostUserId || "") === currentUserId ||
+    String(table.createdByUserId || "") === currentUserId ||
+    String(table.chatRoomLaunchContext?.launchedByUserId || "") === currentUserId ||
+    (table.chatRoomLaunchContext?.invitedPlayerIds || []).some((id) => String(id) === currentUserId) ||
+    isChatRoomParticipant(chatRoom, userId)
+  );
+}
+
+function serializeFriendStatus({ authorUserId, currentUser = null }) {
+  const targetUserId = String(authorUserId || "");
+  const currentUserId = currentUser?._id ? String(currentUser._id) : "";
+  const isSelf = Boolean(currentUserId && currentUserId === targetUserId);
+  const isFriend = Boolean(
+    currentUser && (currentUser.friends || []).some((friendId) => String(friendId) === targetUserId)
+  );
+  const action = isSelf ? "view-self" : isFriend ? "message-or-invite" : currentUser ? "add-friend" : "sign-in";
+
+  return {
+    action,
+    available: Boolean(currentUserId) && !isSelf,
+    canAddFriend: Boolean(currentUserId) && !isSelf && !isFriend,
+    canInviteToTable: Boolean(currentUserId) && !isSelf && isFriend,
+    isFriend,
+    isSelf,
+    route: buildFriendsRoute(targetUserId, action),
+    targetUserId,
+  };
+}
+
+function serializeChatRoomContext(room, currentUserId) {
+  if (!room) {
+    return null;
+  }
+
+  const id = String(room._id);
+  return {
+    activePlayerCount: room.activePlayerCount || 0,
+    id,
+    isMember: isChatRoomParticipant(room, currentUserId),
+    isPublic: room.isPublic !== false,
+    name: room.name,
+    route: buildChatRoomRoute(id),
+    slug: room.slug,
+    topic: room.topic || "",
+    visibility: room.visibility || (room.isPublic ? "public" : "private"),
+  };
+}
+
+function serializeTableDiscoveryContext(table) {
+  if (!table) {
+    return null;
+  }
+
+  const tableCode = table.tableCode || table.chatRoomLaunchContext?.tableCode || "";
+  const tableId = String(table._id);
+  return {
+    activeTableNavigation: buildTableRoute({ tableCode, tableId }),
+    gameLabel: table.gameSettings?.game || table.gameType || "poker",
+    id: tableId,
+    phase: table.phase || null,
+    seatsOpen: Math.max(0, (table.maxPlayers || 0) - (table.players?.length || 0)),
+    status: table.status,
+    tableCode,
+    tableId,
+    tableName: table.tableName,
+  };
+}
+
+async function getCurrentUserWithFriends(currentUserId) {
+  if (!currentUserId) {
+    return null;
+  }
+
+  return User.findById(currentUserId).select("friends");
+}
+
+async function findRelatedChatRoom(post, explicitRoomId = null) {
+  const roomId = explicitRoomId || post.chatRoomId;
+  if (roomId && isValidObjectId(roomId)) {
+    return ChatRoom.findById(roomId);
+  }
+
+  return null;
+}
+
+async function findRelatedTable(post) {
+  const filters = [];
+
+  if (post.tableId && isValidObjectId(post.tableId)) {
+    filters.push({ _id: post.tableId });
+  }
+
+  if (post.tableCode) {
+    filters.push({ tableCode: String(post.tableCode).trim().toUpperCase() });
+  }
+
+  if (!filters.length) {
+    return null;
+  }
+
+  return GameTable.findOne({ $or: filters }).select("chatRoomLaunchContext createdByUserId gameSettings gameType hostUserId maxPlayers phase players status tableCode tableName updatedAt");
+}
 
 function normalizeLimit(value, defaultLimit, maxLimit) {
   const parsed = Number.parseInt(value, 10);
@@ -292,8 +451,11 @@ async function hydrateCurrentUserReaction(posts, currentUserId, session = null) 
   return posts;
 }
 
-function serializePost(post, currentUserId) {
-  return post.toClient({ currentUserId });
+function serializePost(post, currentUserId, currentUser = null) {
+  return post.toClient({
+    currentUserId,
+    ...(currentUser ? { friendStatus: serializeFriendStatus({ authorUserId: post.authorUserId, currentUser }) } : {}),
+  });
 }
 
 
@@ -558,6 +720,7 @@ async function listPosts(req, res) {
       .limit(limit + 1);
     const page = posts.slice(0, limit);
     await hydrateCurrentUserReaction(page, currentUserId);
+    const currentUser = await getCurrentUserWithFriends(currentUserId);
 
     return res.json({
       pagination: {
@@ -565,7 +728,7 @@ async function listPosts(req, res) {
         limit,
         nextCursor: posts.length > limit ? encodeCursor(page[page.length - 1]) : null,
       },
-      posts: page.map((post) => serializePost(post, currentUserId)),
+      posts: page.map((post) => serializePost(post, currentUserId, currentUser)),
     });
   } catch (error) {
     return sendServerError(res, error, "Unable to list feed posts");
@@ -584,7 +747,9 @@ async function getPost(req, res) {
       return res.status(404).json({ message: "Feed post not found" });
     }
 
-    return res.json({ post: serializePost(post, currentUserId) });
+    const currentUser = await getCurrentUserWithFriends(currentUserId);
+
+    return res.json({ post: serializePost(post, currentUserId, currentUser) });
   } catch (error) {
     return sendServerError(res, error, "Unable to read feed post");
   }
@@ -1198,6 +1363,133 @@ async function createTableInvite(req, res) {
 }
 
 
+
+async function resolveAuthorProfile(req, res) {
+  try {
+    const postId = requireObjectId(req.params.postId, res, "post id");
+    if (!postId) return null;
+
+    const currentUserId = req.user?._id || null;
+    const post = await findVisiblePost(postId, currentUserId);
+    if (!post) {
+      return res.status(404).json({ message: "Feed post not found" });
+    }
+
+    const [author, currentUser] = await Promise.all([
+      User.findById(post.authorUserId).select("avatar email friends isOnline name playerStatus status"),
+      getCurrentUserWithFriends(currentUserId),
+    ]);
+    if (!author || author.status !== "active") {
+      return res.status(404).json({ message: "Feed author not found" });
+    }
+
+    const authorId = String(author._id);
+    return res.json({
+      author: {
+        avatarUrl: author.avatar || post.authorSnapshot?.avatarUrl || "",
+        handle: getHandle(author),
+        id: authorId,
+        name: getDisplayName(author),
+        status: author.isOnline ? "Online" : "Away",
+        statusTier: author.playerStatus?.tier || null,
+      },
+      friendStatus: serializeFriendStatus({ authorUserId: authorId, currentUser }),
+      postId: String(post._id),
+      route: buildProfileRoute(authorId),
+    });
+  } catch (error) {
+    return sendServerError(res, error, "Unable to resolve feed author profile");
+  }
+}
+
+async function resolveFriendAction(req, res) {
+  try {
+    const postId = requireObjectId(req.params.postId, res, "post id");
+    if (!postId) return null;
+
+    const currentUserId = req.user?._id || null;
+    const post = await findVisiblePost(postId, currentUserId);
+    if (!post) {
+      return res.status(404).json({ message: "Feed post not found" });
+    }
+
+    const currentUser = await getCurrentUserWithFriends(currentUserId);
+    return res.json({
+      friendStatus: serializeFriendStatus({ authorUserId: post.authorUserId, currentUser }),
+      postId: String(post._id),
+      route: buildFriendsRoute(post.authorUserId, currentUser ? "add-friend" : "sign-in"),
+    });
+  } catch (error) {
+    return sendServerError(res, error, "Unable to resolve feed friend action");
+  }
+}
+
+async function resolveChatRoomContext(req, res) {
+  try {
+    const postId = requireObjectId(req.params.postId, res, "post id");
+    if (!postId) return null;
+
+    const currentUserId = req.user?._id || null;
+    const post = await findVisiblePost(postId, currentUserId);
+    if (!post) {
+      return res.status(404).json({ message: "Feed post not found" });
+    }
+
+    let room = await findRelatedChatRoom(post);
+    if (!room) {
+      const table = await findRelatedTable(post);
+      room = table?.chatRoomLaunchContext?.chatRoomId ? await findRelatedChatRoom(post, table.chatRoomLaunchContext.chatRoomId) : null;
+    }
+
+    if (!room) {
+      return res.status(404).json({ message: "Feed post has no related chat room" });
+    }
+
+    if (!canViewChatRoomContext(room, currentUserId)) {
+      return res.status(403).json({ message: "You are not authorized to view this chat room context" });
+    }
+
+    return res.json({
+      chatRoomContext: serializeChatRoomContext(room, currentUserId),
+      postId: String(post._id),
+      route: buildChatRoomRoute(room._id),
+    });
+  } catch (error) {
+    return sendServerError(res, error, "Unable to resolve feed chat room context");
+  }
+}
+
+async function resolveTableContext(req, res) {
+  try {
+    const postId = requireObjectId(req.params.postId, res, "post id");
+    if (!postId) return null;
+
+    const currentUserId = req.user?._id || null;
+    const post = await findVisiblePost(postId, currentUserId);
+    if (!post) {
+      return res.status(404).json({ message: "Feed post not found" });
+    }
+
+    const table = await findRelatedTable(post);
+    if (!table) {
+      return res.status(404).json({ message: "Feed post has no related table" });
+    }
+
+    const room = table.chatRoomLaunchContext?.chatRoomId ? await findRelatedChatRoom(post, table.chatRoomLaunchContext.chatRoomId) : null;
+    if (!canViewTableContext(table, currentUserId, room)) {
+      return res.status(403).json({ message: "You are not authorized to view this table context" });
+    }
+
+    return res.json({
+      postId: String(post._id),
+      route: buildTableRoute({ tableCode: table.tableCode, tableId: table._id }),
+      tableContext: serializeTableDiscoveryContext(table),
+    });
+  } catch (error) {
+    return sendServerError(res, error, "Unable to resolve feed table context");
+  }
+}
+
 async function getDiscoveryPayload(req, res) {
   try {
     const currentUserId = req.user?._id || null;
@@ -1213,22 +1505,19 @@ async function getDiscoveryPayload(req, res) {
       GameTable.find({ status: { $in: ["waiting", "active"] } })
         .sort({ updatedAt: -1 })
         .limit(8)
-        .select("gameSettings maxPlayers players status tableCode tableName updatedAt"),
+        .select("chatRoomLaunchContext createdByUserId gameSettings gameType hostUserId maxPlayers phase players status tableCode tableName updatedAt"),
     ]);
 
     await hydrateCurrentUserReaction(promotedPosts, currentUserId);
 
     return res.json({
       discovery: {
-        activeTables: activeTables.map((table) => ({
-          gameLabel: table.gameSettings?.game || "poker",
-          id: String(table._id),
-          seatsOpen: Math.max(0, (table.maxPlayers || 0) - (table.players?.length || 0)),
-          status: table.status,
-          tableCode: table.tableCode,
-          tableName: table.tableName,
-          updatedAt: toIsoString(table.updatedAt),
-        })),
+        activeTables: activeTables
+          .filter((table) => canViewTableContext(table, currentUserId))
+          .map((table) => ({
+            ...serializeTableDiscoveryContext(table),
+            updatedAt: toIsoString(table.updatedAt),
+          })),
         shareDestinations: SHARE_DESTINATIONS.map((destination) => ({
           id: destination,
           label: destination
@@ -1256,6 +1545,10 @@ module.exports = {
   deletePost,
   getDiscoveryPayload,
   getPost,
+  resolveAuthorProfile,
+  resolveChatRoomContext,
+  resolveFriendAction,
+  resolveTableContext,
   promotionPaymentWebhook,
   listComments,
   listPosts,

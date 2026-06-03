@@ -327,14 +327,69 @@ const promotionStateSchema = new mongoose.Schema(
   { _id: false }
 );
 
-function serializePlayerSnapshot(document) {
+function buildProfileRoute(userId) {
+  const id = String(userId || "");
+
+  return {
+    deepLink: id ? `houseofpoker://profile/${id}` : "houseofpoker://profile",
+    params: id ? { playerId: id, userId: id } : {},
+    route: "Profile",
+    screen: "ProfileScreen",
+  };
+}
+
+function buildFriendsRoute(userId, action = "open") {
+  const id = String(userId || "");
+
+  return {
+    action,
+    deepLink: id ? `houseofpoker://friends?userId=${encodeURIComponent(id)}&action=${encodeURIComponent(action)}` : "houseofpoker://friends",
+    params: id ? { action, userId: id } : { action },
+    route: "Friends",
+    screen: "FriendsScreen",
+  };
+}
+
+function serializePlayerSnapshot(document, options = {}) {
+  const playerId = String(document.authorUserId);
+
   return {
     ...(document.authorSnapshot?.avatarUrl ? { avatarUrl: document.authorSnapshot.avatarUrl } : {}),
     handle: document.authorSnapshot?.handle || "@player",
-    id: String(document.authorUserId),
+    actorProfileLink: buildProfileRoute(playerId),
+    id: playerId,
     name: document.authorSnapshot?.name || "Player",
+    profileDeepLink: `houseofpoker://profile/${playerId}`,
+    profileRoute: buildProfileRoute(playerId),
     status: document.authorSnapshot?.status || "Away",
     ...(document.authorSnapshot?.statusTier ? { statusTier: document.authorSnapshot.statusTier } : {}),
+  };
+}
+
+function buildTableRoute({ tableCode = "", tableId = "" } = {}) {
+  const normalizedCode = String(tableCode || "").trim().toUpperCase();
+  const normalizedId = String(tableId || "").trim();
+  const identifier = normalizedCode || normalizedId;
+
+  return {
+    deepLink: identifier ? `houseofpoker://tables/${encodeURIComponent(identifier)}` : "houseofpoker://game",
+    params: {
+      ...(normalizedCode ? { tableCode: normalizedCode } : {}),
+      ...(normalizedId ? { tableId: normalizedId } : {}),
+    },
+    route: "Game",
+    screen: "GameScreen",
+  };
+}
+
+function buildChatRoomRoute(roomId) {
+  const id = String(roomId || "").trim();
+
+  return {
+    deepLink: id ? `houseofpoker://chat-rooms/${encodeURIComponent(id)}` : "houseofpoker://chat-rooms",
+    params: id ? { roomId: id, selectedRoomId: id } : {},
+    route: "ChatRooms",
+    screen: "ChatRoomsScreen",
   };
 }
 
@@ -347,10 +402,15 @@ function serializeTableContext(document) {
     return undefined;
   }
 
+  const tableCode = source.tableCode || document.tableCode || "";
+  const tableId = document.tableId ? String(document.tableId) : "";
+
   return {
+    activeTableNavigation: buildTableRoute({ tableCode, tableId }),
     gameLabel,
     ...(source.seatsOpen == null ? {} : { seatsOpen: source.seatsOpen }),
-    ...(source.tableCode ? { tableCode: source.tableCode } : {}),
+    ...(tableId ? { tableId } : {}),
+    ...(tableCode ? { tableCode } : {}),
     tableName,
   };
 }
@@ -409,6 +469,10 @@ module.exports = {
   playerSnapshotSchema,
   promotionStateSchema,
   resolveSupportedByCurrentPlayer,
+  buildChatRoomRoute,
+  buildFriendsRoute,
+  buildProfileRoute,
+  buildTableRoute,
   serializeGameContext,
   serializePlayerSnapshot,
   serializeTableContext,

@@ -10,6 +10,8 @@ const {
   promotionStateSchema,
   resolveSupportedByCurrentPlayer,
   serializeGameContext,
+  buildChatRoomRoute,
+  buildFriendsRoute,
   serializePlayerSnapshot,
   serializeTableContext,
   tableContextSchema,
@@ -32,6 +34,12 @@ const feedPostSchema = new mongoose.Schema(
       required: true,
       trim: true,
       maxlength: 5000,
+    },
+    chatRoomId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "ChatRoom",
+      default: null,
+      index: true,
     },
     counters: {
       type: countersSchema,
@@ -119,6 +127,7 @@ feedPostSchema.index({ createdAt: -1, _id: -1 });
 feedPostSchema.index({ authorUserId: 1, createdAt: -1 });
 feedPostSchema.index({ isPromoted: 1, createdAt: -1 });
 feedPostSchema.index({ isPromoted: -1, "promotion.startsAt": -1, createdAt: -1, _id: -1 });
+feedPostSchema.index({ chatRoomId: 1, createdAt: -1 });
 feedPostSchema.index({ tableId: 1, createdAt: -1 });
 feedPostSchema.index({ tableCode: 1, createdAt: -1 });
 feedPostSchema.index({ visibility: 1, status: 1, "moderation.status": 1, createdAt: -1 });
@@ -140,6 +149,19 @@ feedPostSchema.methods.toClient = function toClient(options = {}) {
     ...(counters.giftClipsTotal ? { giftClipsTotal: counters.giftClipsTotal } : {}),
     id: String(this._id),
     isPromoted: Boolean(this.isPromoted),
+    actorProfileLink: serializePlayerSnapshot(this).actorProfileLink,
+    friendStatus: options.friendStatus || {
+      action: "view-friends",
+      available: Boolean(options.currentUserId) && String(options.currentUserId) !== String(this.authorUserId),
+      isFriend: false,
+      route: buildFriendsRoute(this.authorUserId, "view-friends"),
+    },
+    ...(this.chatRoomId ? {
+      chatRoomContext: {
+        id: String(this.chatRoomId),
+        route: buildChatRoomRoute(this.chatRoomId),
+      },
+    } : {}),
     isTableRelated: Boolean(this.tableId || this.tableCode || tableContext),
     player: serializePlayerSnapshot(this),
     ...(this.promotion?.promotionId && this.promotion?.state && this.promotion.state !== "none"
