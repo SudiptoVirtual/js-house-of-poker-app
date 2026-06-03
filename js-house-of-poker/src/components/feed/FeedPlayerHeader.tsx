@@ -49,7 +49,7 @@ export function FeedPlayerHeader({ isPromoted = false, onOpenProfile, player, ti
             </View>
           ) : null}
         </View>
-        <PlayerStatusBadge status={player.status} />
+        <PlayerStatusBadge status={player.status} statusTier={player.statusTier} />
       </View>
     </View>
   );

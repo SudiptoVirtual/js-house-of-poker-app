@@ -1,10 +1,13 @@
 import { StyleSheet, Text, View } from 'react-native';
 
+import { PlayerStatusBadge as TierStatusBadge } from '../player/PlayerStatusBadge';
 import { colors } from '../../theme/colors';
 import type { FeedPlayerStatus } from './types';
+import type { PlayerStatusTier } from '../../constants/playerStatus';
 
 type PlayerStatusBadgeProps = {
   status: FeedPlayerStatus;
+  statusTier?: PlayerStatusTier;
 };
 
 const statusColors: Record<FeedPlayerStatus, string> = {
@@ -16,21 +19,36 @@ const statusColors: Record<FeedPlayerStatus, string> = {
   'Playing 357': colors.secondary,
 };
 
-export function PlayerStatusBadge({ status }: PlayerStatusBadgeProps) {
+export function PlayerStatusBadge({ status, statusTier }: PlayerStatusBadgeProps) {
   const accentColor = statusColors[status];
 
   return (
-    <View style={[styles.badge, { borderColor: accentColor }]}>
-      <View style={[styles.dot, { backgroundColor: accentColor }]} />
-      <Text numberOfLines={1} style={styles.label}>
-        {status}
-      </Text>
+    <View style={styles.container}>
+      <View style={[styles.presenceBadge, { borderColor: accentColor }]}>
+        <View style={[styles.dot, { backgroundColor: accentColor }]} />
+        <Text numberOfLines={1} style={styles.presenceLabel}>
+          {status}
+        </Text>
+      </View>
+      {statusTier ? <TierStatusBadge compact statusTier={statusTier} /> : null}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  badge: {
+  container: {
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  dot: {
+    borderRadius: 99,
+    height: 6,
+    width: 6,
+  },
+  presenceBadge: {
     alignItems: 'center',
     alignSelf: 'flex-start',
     backgroundColor: 'rgba(255,255,255,0.06)',
@@ -42,12 +60,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 4,
   },
-  dot: {
-    borderRadius: 99,
-    height: 6,
-    width: 6,
-  },
-  label: {
+  presenceLabel: {
     color: colors.text,
     flexShrink: 1,
     fontSize: 11,
