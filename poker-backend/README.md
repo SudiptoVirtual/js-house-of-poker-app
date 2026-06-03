@@ -106,6 +106,12 @@ curl -i "https://www.jshouseofpoker.com/socket.io/?EIO=4&transport=polling"
 
 ---
 
+## Planning Documents
+
+- [Phase 2 — Backend Feed Platform Tasks](docs/feed-platform-phase-2-tasks.md)
+
+---
+
 ## Project Structure
 
 ```bash
