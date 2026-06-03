@@ -1,15 +1,15 @@
 import type { FeedPost, FeedPlayer } from '../types/feed';
 
-// TODO(feed:getPosts): Replace this isolated mock data with the real feed API response.
-export const currentFeedPlayer: FeedPlayer = {
+export const currentFeedPlayer = {
   handle: '@house-host',
   id: 'current-player',
   name: 'Avery Quinn',
   status: 'In Lobby',
   statusTier: 'none',
-};
+} satisfies FeedPlayer;
 
-export const mockFeedPosts: FeedPost[] = [
+// TODO(feed:getPosts): Replace mockFeedPosts with the real feed:getPosts API response once it is available.
+export const mockFeedPosts = [
   {
     commentCount: 18,
     content:
@@ -138,4 +138,4 @@ export const mockFeedPosts: FeedPost[] = [
     isTableRelated: false,
     timestamp: '3h',
   },
-];
+] satisfies FeedPost[];
