@@ -6,6 +6,12 @@ const NOTIFICATION_TYPES = [
   "table_invite",
   "table_launched_from_chat",
   "mention",
+  "feed_comment",
+  "feed_support",
+  "feed_share",
+  "feed_gift_clip",
+  "feed_promotion",
+  "feed_table_invite",
 ];
 
 const notificationSchema = new mongoose.Schema(
@@ -37,6 +43,12 @@ const notificationSchema = new mongoose.Schema(
     tableId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "GameTable",
+      default: null,
+      index: true,
+    },
+    postId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "FeedPost",
       default: null,
       index: true,
     },
@@ -76,6 +88,7 @@ const notificationSchema = new mongoose.Schema(
 notificationSchema.index({ userId: 1, readAt: 1, createdAt: -1 });
 notificationSchema.index({ userId: 1, chatRoomId: 1, readAt: 1 });
 notificationSchema.index({ chatRoomId: 1, type: 1, createdAt: -1 });
+notificationSchema.index({ postId: 1, type: 1, createdAt: -1 });
 
 notificationSchema.methods.toClient = function toClient() {
   return {
@@ -86,6 +99,7 @@ notificationSchema.methods.toClient = function toClient() {
     createdAt: this.createdAt,
     data: this.data || {},
     messageId: this.messageId ? String(this.messageId) : null,
+    postId: this.postId ? String(this.postId) : null,
     readAt: this.readAt,
     tableId: this.tableId ? String(this.tableId) : null,
     title: this.title,

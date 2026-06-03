@@ -4,7 +4,12 @@ const Stripe = require("stripe");
 const FeedPost = require("../models/FeedPost");
 const FeedPromotion = require("../models/FeedPromotion");
 const Transaction = require("../models/Transaction");
+const User = require("../models/User");
 const { getFeedRealtimeService } = require("./feedRealtimeService");
+const {
+  createFeedPromotionNotification,
+  emitFeedNotificationRecords,
+} = require("./feedNotificationService");
 
 const DEFAULT_DURATION_DAYS = 7;
 const MAX_DURATION_DAYS = 90;
@@ -319,6 +324,16 @@ async function activatePromotion(promotionId, options = {}) {
   };
 
   const feedRealtimeService = getFeedRealtimeService();
+  if (post) {
+    const sponsor = await User.findById(promotion.sponsorUserId).select("_id avatar email handle name username");
+    const notificationRecords = await createFeedPromotionNotification({
+      actor: sponsor || { _id: promotion.sponsorUserId },
+      data: { promotion: promotion.toClient(), promotionId: String(promotion._id), transactionId: promotion.transactionId ? String(promotion.transactionId) : null },
+      post,
+    });
+    emitFeedNotificationRecords(feedRealtimeService?.io, notificationRecords);
+  }
+
   if (feedRealtimeService && post) {
     feedRealtimeService.broadcastPromotionUpdated(promotion.postId, payload);
     feedRealtimeService.broadcastPostUpdated(promotion.postId, { ok: true, post: payload.post });

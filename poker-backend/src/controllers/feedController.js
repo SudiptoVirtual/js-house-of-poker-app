@@ -7,6 +7,14 @@ const FeedShare = require("../models/FeedShare");
 const { sendFeedGiftClip } = require("../services/feedGiftClipService");
 const { completePromotionPayment, createPromotionCheckout, handlePaymentWebhook } = require("../services/feedPromotionService");
 const { getFeedRealtimeService } = require("../services/feedRealtimeService");
+const {
+  createFeedCommentNotification,
+  createFeedGiftClipNotification,
+  createFeedShareNotification,
+  createFeedSupportNotification,
+  createFeedTableInviteNotifications,
+  emitFeedNotificationRecords,
+} = require("../services/feedNotificationService");
 const GameTable = require("../models/GameTable");
 const User = require("../models/User");
 const {
@@ -181,6 +189,20 @@ function broadcastGiftClipsSent(postId, payload) {
     feedRealtimeService.broadcastGiftClipsSent(postId, { ok: true, ...payload });
     feedRealtimeService.broadcastPostUpdated(postId, { ok: true, post: payload.post });
   }
+}
+
+function broadcastCommentCreated(postId, payload) {
+  const feedRealtimeService = getFeedRealtimeService();
+
+  if (feedRealtimeService) {
+    feedRealtimeService.broadcastCommentCreated(postId, { ok: true, ...payload });
+    feedRealtimeService.broadcastPostUpdated(postId, { ok: true, post: payload.post });
+  }
+}
+
+function emitFeedNotifications(notificationRecords) {
+  const feedRealtimeService = getFeedRealtimeService();
+  return emitFeedNotificationRecords(feedRealtimeService?.io, notificationRecords);
 }
 
 function normalizeTableContext(value) {
@@ -710,10 +732,19 @@ async function addComment(req, res) {
       return res.status(404).json({ message: "Feed post not found" });
     }
 
-    return res.status(201).json({
+    const payload = {
       comment: serializeComment(result.comment, req.user._id),
       post: serializePost(result.post, req.user._id),
+    };
+    const notificationRecords = await createFeedCommentNotification({
+      actor: req.user,
+      data: { commentId: String(result.comment._id), commentPreview: body.slice(0, 160) },
+      post: result.post,
     });
+    emitFeedNotifications(notificationRecords);
+    broadcastCommentCreated(postId, { ...payload, userId: String(req.user._id) });
+
+    return res.status(201).json(payload);
   } catch (error) {
     return sendServerError(res, error, "Unable to add feed comment");
   }
@@ -834,6 +865,14 @@ async function setSupport(req, res) {
       userId: req.user._id,
     });
     const payload = buildReactionSummaryPayload(result);
+    if (result.changed && result.supported) {
+      const notificationRecords = await createFeedSupportNotification({
+        actor: req.user,
+        data: { reactionId: result.reaction ? String(result.reaction._id) : null, reactionType: "support" },
+        post: result.post,
+      });
+      emitFeedNotifications(notificationRecords);
+    }
     broadcastSupportUpdated(postId, { ...payload, userId: String(req.user._id) });
 
     return res.json(payload);
@@ -891,6 +930,14 @@ async function toggleReaction(req, res) {
     const payload = buildReactionSummaryPayload(result);
 
     if (reactionType === "support") {
+      if (result.changed && result.supported) {
+        const notificationRecords = await createFeedSupportNotification({
+          actor: req.user,
+          data: { reactionId: result.reaction ? String(result.reaction._id) : null, reactionType: "support" },
+          post: result.post,
+        });
+        emitFeedNotifications(notificationRecords);
+      }
       broadcastSupportUpdated(postId, { ...payload, userId: String(req.user._id) });
     }
 
@@ -980,6 +1027,12 @@ async function createShare(req, res) {
     await hydrateCurrentUserReaction([updatedPost], req.user._id);
 
     const eventPayload = { post: serializePost(updatedPost, req.user._id), share: share.toClient() };
+    const notificationRecords = await createFeedShareNotification({
+      actor: req.user,
+      data: { destination, shareId: String(share._id), targetId: share.targetId || null, targetType: share.targetType || null },
+      post: updatedPost,
+    });
+    emitFeedNotifications(notificationRecords);
     broadcastShareCreated(postId, { ...eventPayload, userId: String(req.user._id) });
 
     return res.status(201).json(eventPayload);
@@ -1014,6 +1067,17 @@ async function sendGiftClip(req, res) {
       transactionIds: result.transactionIds,
       transactions: result.transactionIds,
     };
+    const notificationRecords = await createFeedGiftClipNotification({
+      actor: req.user,
+      data: {
+        amount: result.giftClip.amount,
+        giftClipId: String(result.giftClip._id),
+        message: result.giftClip.message || "",
+        transactionIds: result.transactionIds,
+      },
+      post: result.post,
+    });
+    emitFeedNotifications(notificationRecords);
     broadcastGiftClipsSent(postId, eventPayload);
 
     return res.status(201).json(eventPayload);
@@ -1033,7 +1097,6 @@ async function purchasePromotion(req, res) {
       postId,
       user: req.user,
     });
-
     return res.status(201).json(result);
   } catch (error) {
     return sendServerError(res, error, "Unable to create feed promotion checkout");
@@ -1050,7 +1113,6 @@ async function completePromotion(req, res) {
       promotionId,
       provider: req.body?.provider || "manual",
     });
-
     return res.json(result);
   } catch (error) {
     return sendServerError(res, error, "Unable to complete feed promotion payment");
@@ -1136,16 +1198,27 @@ async function createTableInvite(req, res) {
     table.tableInvites = [...invites, ...(table.tableInvites || [])].slice(0, 50);
     await table.save();
 
+    const tablePayload = {
+      id: table.tableCode || String(table._id),
+      tableCode: table.tableCode || null,
+      tableDbId: String(table._id),
+      tableId: table.tableCode || String(table._id),
+      tableName: table.tableName,
+    };
+    const notificationRecords = await createFeedTableInviteNotifications({
+      actor: req.user,
+      data: { message },
+      inviteRecords: invites,
+      post,
+      recipientUserIds: invites.map((invite) => invite.recipientAccountId),
+      table,
+    });
+    emitFeedNotifications(notificationRecords);
+
     return res.status(201).json({
       invites,
       post: serializePost(post, req.user._id),
-      table: {
-        id: table.tableCode || String(table._id),
-        tableCode: table.tableCode || null,
-        tableDbId: String(table._id),
-        tableId: table.tableCode || String(table._id),
-        tableName: table.tableName,
-      },
+      table: tablePayload,
     });
   } catch (error) {
     return sendServerError(res, error, "Unable to create feed table invite");
