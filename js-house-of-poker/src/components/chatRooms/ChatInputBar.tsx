@@ -1,11 +1,14 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 
+import { AIPrimeButton } from './AIPrimeButton';
+
 import { colors } from '../../theme/colors';
 
 type ChatInputBarProps = {
   draft: string;
   onChangeDraft: (value: string) => void;
+  onOpenAIPrime: () => void;
   onSend: () => void;
   placeholder?: string;
 };
@@ -13,6 +16,7 @@ type ChatInputBarProps = {
 export function ChatInputBar({
   draft,
   onChangeDraft,
+  onOpenAIPrime,
   onSend,
   placeholder = 'Message the room before launching a table...',
 }: ChatInputBarProps) {
@@ -28,6 +32,15 @@ export function ChatInputBar({
         style={styles.composerInput}
         value={draft}
       />
+      <Pressable
+        accessibilityLabel="Add emoji"
+        accessibilityRole="button"
+        onPress={() => undefined}
+        style={({ pressed }) => [styles.iconButton, pressed ? styles.pressed : null]}
+      >
+        <MaterialCommunityIcons color={colors.gold} name="emoticon-happy-outline" size={20} />
+      </Pressable>
+      <AIPrimeButton onPress={onOpenAIPrime} />
       <Pressable
         accessibilityLabel="Send chat message"
         accessibilityRole="button"
@@ -68,6 +81,16 @@ const styles = StyleSheet.create({
   },
   pressed: {
     opacity: 0.78,
+  },
+  iconButton: {
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderRadius: 16,
+    borderWidth: 1,
+    height: 44,
+    justifyContent: 'center',
+    width: 44,
   },
   sendButton: {
     alignItems: 'center',

@@ -5,13 +5,16 @@ import { io, type Socket } from 'socket.io-client';
 
 import { ActionButton } from '../components/ActionButton';
 import {
+  AIPrimeActionPanel,
+  type AIPrimeActionId,
   ChatInputBar,
   ChatMessageItem,
   ChatRoomHeader,
-  CreateTablePanel,
   defaultGameOptions,
+  defaultTableRulesOptions,
   defaultTableTierOptions,
   RoomPlayerList,
+  SetUpTableFlow,
 } from '../components/chatRooms';
 import { Screen } from '../components/Screen';
 import { SectionCard } from '../components/SectionCard';
@@ -106,11 +109,14 @@ export function ChatRoomDetailScreen({ navigation, route }: Props) {
   const [realtimeError, setRealtimeError] = useState<string | null>(null);
   const [isRealtimeConnected, setIsRealtimeConnected] = useState(false);
   const [draft, setDraft] = useState('');
+  const [isAIPrimePanelVisible, setIsAIPrimePanelVisible] = useState(false);
+  const [isSetUpTableFlowVisible, setIsSetUpTableFlowVisible] = useState(false);
   const [invitedPlayerIds, setInvitedPlayerIds] = useState<string[]>([]);
   const [selectedPlayerIds, setSelectedPlayerIds] = useState<string[]>([]);
   const [isPrivate, setIsPrivate] = useState(true);
   const [selectedGameId, setSelectedGameId] = useState('texas-holdem');
   const [selectedTierId, setSelectedTierId] = useState('free-training');
+  const [selectedRuleId, setSelectedRuleId] = useState('friendly-holdem');
   const [selectedRules, setSelectedRules] = useState<ChatRoomTableRules>({});
   const [isLaunchingTable, setIsLaunchingTable] = useState(false);
   const [isSendingMessage, setIsSendingMessage] = useState(false);
@@ -130,6 +136,7 @@ export function ChatRoomDetailScreen({ navigation, route }: Props) {
       setIsPrivate(nextRoom.tableConfig.isPrivate);
       setSelectedGameId(nextGameId);
       setSelectedTierId(nextTierId);
+      setSelectedRuleId(nextGameId === '3-5-7' ? '357-hostest' : nextTierId === '5k-casual' ? '8-or-better' : 'friendly-holdem');
       setSelectedRules({
         ...(defaultRulesByTierId[nextTierId] ?? {}),
         ...(nextGameId === '3-5-7' ? { mode: 'HOSTEST' } : {}),
@@ -228,6 +235,7 @@ export function ChatRoomDetailScreen({ navigation, route }: Props) {
       socket.on('chat:presence', (payload: { players?: ChatRoomPlayer[]; activePlayerCount?: number }) => {
         setRoom((currentRoom) => currentRoom ? { ...currentRoom, activePlayerCount: payload.activePlayerCount ?? payload.players?.length ?? currentRoom.activePlayerCount, players: payload.players ?? currentRoom.players } : currentRoom);
       });
+      // TODO(aiPrime/socket): Replace this listener with notification:tableInvite and table:playerInvited handling once backend notification payloads are finalized.
       socket.on('table:playerInvited', (payload: { invitedPlayerIds?: string[]; playerIds?: string[] }) => {
         const playerIds = payload.invitedPlayerIds ?? payload.playerIds ?? [];
         setInvitedPlayerIds((currentIds) => Array.from(new Set([...currentIds, ...playerIds])));
@@ -267,7 +275,8 @@ export function ChatRoomDetailScreen({ navigation, route }: Props) {
   }, [errorMessage, isLaunchingTable]);
 
   const selectedTier = defaultTableTierOptions.find((option) => option.id === selectedTierId);
-  const rulesSummary = selectedTier?.rulesLabel ?? room?.tableConfig.stakesLabel ?? 'Room table rules';
+  const selectedRule = defaultTableRulesOptions.find((option) => option.id === selectedRuleId);
+  const rulesSummary = selectedRule?.label ?? selectedTier?.rulesLabel ?? room?.tableConfig.stakesLabel ?? 'Room table rules';
 
   if (isLoadingRoom) {
     return (
@@ -352,6 +361,29 @@ export function ChatRoomDetailScreen({ navigation, route }: Props) {
     );
   }
 
+  function appendSystemMessage(body: string) {
+    if (!room) {
+      return;
+    }
+
+    // TODO(aiPrime/socket): Replace this local placeholder with chat:systemMessage when the backend broadcasts AI Prime room activity.
+    const systemMessage: ChatRoomMessage = {
+      id: `ai-prime-${Date.now()}`,
+      roomId: room.id,
+      authorId: null,
+      authorName: 'AI Prime',
+      body,
+      createdAt: new Date().toISOString(),
+      tone: 'system',
+    };
+
+    setRoom((currentRoom) => currentRoom ? {
+      ...currentRoom,
+      lastMessagePreview: body,
+      messages: mergeMessages(currentRoom.messages, [systemMessage]),
+    } : currentRoom);
+  }
+
   function handleInviteSelectedPlayers() {
     if (!room) {
       return;
@@ -364,33 +396,54 @@ export function ChatRoomDetailScreen({ navigation, route }: Props) {
       return;
     }
 
+    // TODO(aiPrime/socket): Emit table:inviteRoomPlayers and handle table:playerInvited / notification:tableInvite once backend invites are ready.
     setInvitedPlayerIds((currentIds) => Array.from(new Set([...currentIds, ...eligibleSelectedPlayerIds])));
     setSelectedPlayerIds((currentIds) =>
       currentIds.filter((currentId) => !eligibleSelectedPlayerIds.includes(currentId)),
     );
+    appendSystemMessage(`AI Prime queued ${eligibleSelectedPlayerIds.length} room table invite${eligibleSelectedPlayerIds.length === 1 ? '' : 's'}.`);
   }
 
   function handleSelectGame(gameId: string) {
     setSelectedGameId(gameId);
-    setSelectedRules((currentRules) => {
-      const nextRules = { ...currentRules };
 
-      if (gameId === '3-5-7') {
-        nextRules.mode = nextRules.mode ?? 'HOSTEST';
-      } else {
-        delete nextRules.mode;
-      }
+    if (gameId === '3-5-7') {
+      setSelectedRuleId('357-hostest');
+      setSelectedRules({ mode: 'HOSTEST', wildCards: [] });
+      return;
+    }
 
-      return nextRules;
-    });
+    setSelectedRuleId('friendly-holdem');
+    setSelectedRules({});
   }
 
   function handleSelectTier(tierId: string) {
     setSelectedTierId(tierId);
+    if (tierId === '5k-casual') {
+      setSelectedRuleId('8-or-better');
+    }
     setSelectedRules((currentRules) => ({
       ...currentRules,
       ...(defaultRulesByTierId[tierId] ?? {}),
     }));
+  }
+
+  function handleSelectRules(rules: ChatRoomTableRules) {
+    const matchingRule = defaultTableRulesOptions.find((option) => JSON.stringify(option.value) === JSON.stringify(rules));
+    setSelectedRuleId(matchingRule?.id ?? 'friendly-holdem');
+    setSelectedRules(rules);
+  }
+
+  function handleSelectAIPrimeAction(actionId: AIPrimeActionId) {
+    if (actionId !== 'setUpTable') {
+      appendSystemMessage(`AI Prime placeholder: ${actionId} will be connected after assistant services are ready.`);
+      setIsAIPrimePanelVisible(false);
+      return;
+    }
+
+    // TODO(aiPrime/socket): Emit aiPrime:setUpTable when assistant telemetry and orchestration are available.
+    setIsAIPrimePanelVisible(false);
+    setIsSetUpTableFlowVisible(true);
   }
 
   async function handleLaunchTable() {
@@ -405,6 +458,7 @@ export function ChatRoomDetailScreen({ navigation, route }: Props) {
       ...(selectedRules.wildCards ? { wildCards: selectedRules.wildCards } : {}),
     };
 
+    // TODO(aiPrime/socket): Emit table:createFromAiPrime before table:createFromChatRoom when backend supports the AI Prime handoff.
     setIsLaunchingTable(true);
 
     try {
@@ -420,6 +474,11 @@ export function ChatRoomDetailScreen({ navigation, route }: Props) {
       });
 
       if (launchAcknowledgement.ok || launchAcknowledgement.success) {
+        const allInviteIds = Array.from(new Set([...invitedPlayerIds, ...selectedPlayerIds]));
+        setInvitedPlayerIds((currentIds) => Array.from(new Set([...currentIds, ...allInviteIds])));
+        appendSystemMessage(`AI Prime launched a ${isPrivate ? 'private' : 'public'} table and sent ${allInviteIds.length} invite${allInviteIds.length === 1 ? '' : 's'}.`);
+        // TODO(aiPrime/socket): Emit table:launchFromChatRoom after table:createFromAiPrime and broadcast notification:tableInvite.
+        setIsSetUpTableFlowVisible(false);
         navigation.navigate(routes.Game);
       }
     } finally {
@@ -457,36 +516,49 @@ export function ChatRoomDetailScreen({ navigation, route }: Props) {
         <ChatInputBar
           draft={draft}
           onChangeDraft={setDraft}
+          onOpenAIPrime={() => {
+            // TODO(aiPrime/socket): Emit aiPrime:open when AI Prime analytics are connected.
+            setIsAIPrimePanelVisible(true);
+          }}
           onSend={() => { void handleSendMessage(); }}
           placeholder={isSendingMessage ? 'Sending…' : 'Message the live room…'}
         />
       </SectionCard>
 
       <SectionCard title="Active players">
+        <Text style={styles.helperText}>Use AI Prime beside the message box to turn the room conversation into a table setup.</Text>
         <RoomPlayerList
           invitedPlayerIds={invitedPlayerIds}
-          onTogglePlayer={handleTogglePlayerSelection}
           players={room.players}
           selectedPlayerIds={selectedPlayerIds}
         />
       </SectionCard>
 
-      <CreateTablePanel
+      <AIPrimeActionPanel
+        visible={isAIPrimePanelVisible}
+        onClose={() => setIsAIPrimePanelVisible(false)}
+        onSelectAction={handleSelectAIPrimeAction}
+      />
+
+      <SetUpTableFlow
         gameOptions={defaultGameOptions}
         invitedPlayerIds={invitedPlayerIds}
         isLaunching={isLaunchingTable}
         isPrivate={isPrivate}
-        onInviteSelectedPlayers={handleInviteSelectedPlayers}
-        onLaunchTable={() => { void handleLaunchTable(); }}
+        onClose={() => setIsSetUpTableFlowVisible(false)}
+        onConfirmSetup={() => { void handleLaunchTable(); }}
         onSelectGame={handleSelectGame}
+        onSelectRules={handleSelectRules}
         onSelectTier={handleSelectTier}
         onTogglePlayerSelection={handleTogglePlayerSelection}
         onTogglePrivacy={setIsPrivate}
         players={room.players}
         rulesSummary={rulesSummary}
-        selectedPlayerIds={selectedPlayerIds}
         selectedGameId={selectedGameId}
+        selectedPlayerIds={selectedPlayerIds}
+        selectedRuleId={selectedRuleId}
         selectedTierId={selectedTierId}
+        visible={isSetUpTableFlowVisible}
       />
     </Screen>
   );
