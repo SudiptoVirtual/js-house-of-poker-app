@@ -1,5 +1,7 @@
 import type { MaterialCommunityIcons } from '@expo/vector-icons';
 
+import type { PlayerStatusTier } from '../../constants/playerStatus';
+
 export type FeedPlayerStatus =
   | 'Online'
   | 'In Lobby'
@@ -15,6 +17,7 @@ export type FeedPlayer = {
   id: string;
   name: string;
   status: FeedPlayerStatus;
+  statusTier?: PlayerStatusTier;
 };
 
 export type FeedTableContext = {
