@@ -10,7 +10,7 @@ import { buildSocialInvitePreset } from '../../constants/social';
 import { usePoker } from '../../context/PokerProvider';
 import { colors } from '../../theme/colors';
 import type { RootStackParamList } from '../../types/navigation';
-import { FeedPostBox } from './FeedPostBox';
+import { FeedPostBox, type FeedPostBoxProfile } from './FeedPostBox';
 import { FeedPostCard } from './FeedPostCard';
 import { GiftClipsModal } from './GiftClipsModal';
 import { PromoteForCreatorPanel } from './PromoteForCreatorPanel';
@@ -75,7 +75,7 @@ export function PlayerFeedScreen({ navigation }: PlayerFeedScreenProps) {
     );
   }
 
-  function handleOpenProfile(player: FeedPlayer) {
+  function handleOpenProfile(player: FeedPlayer | FeedPostBoxProfile) {
     // TODO(profile:openFromFeed): Navigate to a player profile route with player.id when profiles accept params.
     // Future profile modules should expose friend requests, chat room invites, table invites, stats, and player posts.
     if (player.id === currentFeedPlayer.id) {
