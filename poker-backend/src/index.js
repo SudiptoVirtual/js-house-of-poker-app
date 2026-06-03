@@ -23,6 +23,7 @@ const { setIO } = require("./sockets/socketRegistry");
 const { initAdminLiveSocket } = require("./sockets/adminLiveSocket");
 const { initPlayerGameSocket } = require("./sockets/playerGameSocket");
 const { initChatRoomSocket } = require("./sockets/chatRoomSocket");
+const { initFeedSocket } = require("./sockets/feedSocket");
 const botTableManager = require("./services/botTableManager");
 
 //const adminHandHistoryRoutes = require("./routes/adminHandHistoryRoutes");
@@ -79,6 +80,7 @@ setIO(io);
 initAdminLiveSocket(io);
 initPlayerGameSocket(io);
 initChatRoomSocket(io);
+initFeedSocket(io);
 botTableManager.start().catch((error) => {
   console.error("Failed to start BotTableManager", error);
 });
