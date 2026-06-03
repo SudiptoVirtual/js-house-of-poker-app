@@ -60,6 +60,52 @@ ALLOWED_ORIGINS=https://www.jshouseofpoker.com,https://admin.jshouseofpoker.com
 
 ---
 
+## Production Deployment
+
+Production should run this `poker-backend` service as the single public backend for REST API routes and Socket.IO. Do not deploy `js-house-of-poker/server/index.js` for production; that legacy socket-only server does not mount `/api/chat-rooms`.
+
+1. Configure the production environment using `.env.production.example` as the template.
+2. Start the backend from this directory:
+
+```bash
+npm ci --omit=dev
+npm start
+```
+
+For PM2, use the checked-in process file:
+
+```bash
+pm2 start deploy/pm2/ecosystem.config.cjs
+pm2 save
+```
+
+3. Configure Nginx with `deploy/nginx/jshouseofpoker.com.conf`, adjusting the certificate paths if needed. The proxy target must match the backend `PORT`, and websocket upgrade headers must be present for Socket.IO.
+4. Configure Expo/EAS production to use the same public origin for all backend values:
+
+```bash
+EXPO_PUBLIC_BASE_URL=https://www.jshouseofpoker.com
+EXPO_PUBLIC_POKER_BACKEND_URL=https://www.jshouseofpoker.com
+EXPO_PUBLIC_POKER_SOCKET_URL=https://www.jshouseofpoker.com
+EXPO_PUBLIC_POKER_TRANSPORT=socket
+EXPO_PUBLIC_POKER_SOCKET_PROTOCOL=table-v1
+```
+
+5. Seed default chat rooms once after production MongoDB is configured:
+
+```bash
+NODE_ENV=production npm run seed:chat-rooms
+```
+
+Verify the live backend after deployment:
+
+```bash
+curl -i https://www.jshouseofpoker.com/
+curl -i https://www.jshouseofpoker.com/api/chat-rooms
+curl -i "https://www.jshouseofpoker.com/socket.io/?EIO=4&transport=polling"
+```
+
+---
+
 ## Project Structure
 
 ```bash

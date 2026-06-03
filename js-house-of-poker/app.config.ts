@@ -7,8 +7,10 @@ type AppEnvironment = 'development' | 'preview' | 'production';
 
 const DEFAULT_API_TIMEOUT = '15000';
 const DEFAULT_POKER_SOCKET_PROTOCOL = 'table-v1';
+const PRODUCTION_POKER_BACKEND_URL = 'https://www.jshouseofpoker.com';
 
 const defaultPublicEnv = {
+  EXPO_PUBLIC_BASE_URL: '',
   EXPO_PUBLIC_API_TIMEOUT: DEFAULT_API_TIMEOUT,
   EXPO_PUBLIC_POKER_TRANSPORT: 'local',
   EXPO_PUBLIC_POKER_SOCKET_URL: '',
@@ -43,11 +45,17 @@ function resolveAppEnvironment(): AppEnvironment {
 }
 
 const appEnvironment = resolveAppEnvironment();
+const productionPokerBackendUrl =
+  appEnvironment === 'production' ? PRODUCTION_POKER_BACKEND_URL : '';
 const configuredPokerBackendUrl =
   readEnv('EXPO_PUBLIC_POKER_BACKEND_URL') ||
   readEnv('EXPO_PUBLIC_POKER_SOCKET_URL') ||
+  productionPokerBackendUrl ||
   defaultPublicEnv.EXPO_PUBLIC_POKER_BACKEND_URL;
-const apiBaseUrl = readEnv('EXPO_PUBLIC_BASE_URL');
+const apiBaseUrl =
+  readEnv('EXPO_PUBLIC_BASE_URL') ||
+  productionPokerBackendUrl ||
+  defaultPublicEnv.EXPO_PUBLIC_BASE_URL;
 const pokerTransport =
   readEnv('EXPO_PUBLIC_POKER_TRANSPORT') ||
   (appEnvironment === 'production' ? 'socket' : defaultPublicEnv.EXPO_PUBLIC_POKER_TRANSPORT);
