@@ -14,6 +14,7 @@ const {
   POST_VISIBILITIES,
   REACTION_TYPES,
   SHARE_DESTINATIONS,
+  normalizeShareDestination,
 } = require("../models/feedShared");
 
 const DEFAULT_POST_LIMIT = 20;
@@ -112,6 +113,65 @@ function buildPlayerSnapshot(user) {
 
 function normalizeText(value, maxLength) {
   return String(value || "").trim().slice(0, maxLength);
+}
+
+function normalizeShareMetadata(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return {};
+  }
+
+  const metadata = {};
+  for (const [key, rawValue] of Object.entries(value).slice(0, 25)) {
+    const normalizedKey = normalizeText(key, 80);
+    if (!normalizedKey) continue;
+
+    if (["string", "number", "boolean"].includes(typeof rawValue) || rawValue == null) {
+      metadata[normalizedKey] = rawValue;
+    }
+  }
+
+  return metadata;
+}
+
+function buildShareInput(body = {}, destination) {
+  return {
+    channel: destination,
+    destination,
+    metadata: normalizeShareMetadata(body.metadata),
+    targetId: normalizeText(body.targetId || body.targetIdentifier || body.roomId || body.tableId || body.targetUserId, 120),
+    targetIdentifiers: {
+      roomId: normalizeText(body.roomId || body.targetRoomId, 120),
+      tableId: normalizeText(body.tableId || body.tableCode || body.targetTableId, 120),
+      userId: normalizeText(body.targetUserId || body.profileUserId, 120),
+    },
+    targetType: normalizeText(body.targetType, 80),
+  };
+}
+
+async function findExistingShare({ destination, postId, targetId, userId }) {
+  return FeedShare.findOne({ destination, postId, targetId, userId }).select("_id");
+}
+
+async function findRecentShare({ destination, postId, userId }) {
+  const rateLimitWindowStart = new Date(Date.now() - 30 * 1000);
+
+  return FeedShare.findOne({
+    createdAt: { $gte: rateLimitWindowStart },
+    destination,
+    postId,
+    userId,
+  })
+    .sort({ createdAt: -1 })
+    .select("_id createdAt");
+}
+
+function broadcastShareCreated(postId, payload) {
+  const feedRealtimeService = getFeedRealtimeService();
+
+  if (feedRealtimeService) {
+    feedRealtimeService.broadcastShareCreated(postId, { ok: true, ...payload });
+    feedRealtimeService.broadcastPostUpdated(postId, { ok: true, post: payload.post });
+  }
 }
 
 function normalizeTableContext(value) {
@@ -867,7 +927,7 @@ async function createShare(req, res) {
     const postId = requireObjectId(req.params.postId, res, "post id");
     if (!postId) return null;
 
-    const destination = normalizeText(req.body?.destination || req.body?.destinationId || "copy-link", 40);
+    const destination = normalizeShareDestination(req.body?.destination || req.body?.destinationId || req.body?.channel);
     if (!SHARE_DESTINATIONS.includes(destination)) {
       return res.status(400).json({ message: "Invalid share destination" });
     }
@@ -877,13 +937,38 @@ async function createShare(req, res) {
       return res.status(404).json({ message: "Feed post not found" });
     }
 
-    const targetId = normalizeText(req.body?.targetId, 120);
-    const share = await FeedShare.create({ destination, postId, targetId, userId: req.user._id });
-    post.counters.shareCount = (post.counters.shareCount || 0) + 1;
-    await post.save();
-    await hydrateCurrentUserReaction([post], req.user._id);
+    const shareInput = buildShareInput(req.body, destination);
+    const existingShare = await findExistingShare({
+      destination,
+      postId,
+      targetId: shareInput.targetId,
+      userId: req.user._id,
+    });
+    if (existingShare) {
+      return res.status(409).json({ message: "This post has already been shared to that destination" });
+    }
 
-    return res.status(201).json({ post: serializePost(post, req.user._id), share: share.toClient() });
+    const recentShare = await findRecentShare({ destination, postId, userId: req.user._id });
+    if (recentShare) {
+      return res.status(429).json({ message: "Please wait before sharing this post to that destination again" });
+    }
+
+    const share = await FeedShare.create({ ...shareInput, postId, userId: req.user._id });
+    const updatedPost = await FeedPost.findByIdAndUpdate(
+      post._id,
+      { $inc: { "counters.shareCount": 1 } },
+      { new: true }
+    );
+    if (!updatedPost) {
+      throw new Error("Feed post not found.");
+    }
+
+    await hydrateCurrentUserReaction([updatedPost], req.user._id);
+
+    const eventPayload = { post: serializePost(updatedPost, req.user._id), share: share.toClient() };
+    broadcastShareCreated(postId, { ...eventPayload, userId: String(req.user._id) });
+
+    return res.status(201).json(eventPayload);
   } catch (error) {
     if (error?.code === 11000) {
       return res.status(409).json({ message: "This post has already been shared to that destination" });

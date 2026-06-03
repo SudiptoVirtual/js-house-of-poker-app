@@ -2,7 +2,7 @@ import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 import { colors } from '../../theme/colors';
-import type { FeedPost, ShareDestination } from './types';
+import type { FeedPost, ShareDestination, ShareDestinationId } from './types';
 
 const shareDestinations: ShareDestination[] = [
   { icon: 'link-variant', id: 'copy-link', label: 'Copy Link' },
@@ -17,7 +17,7 @@ const shareDestinations: ShareDestination[] = [
 type ShareMenuProps = {
   onClose: () => void;
   onPromote: () => void;
-  onShare: (destinationId: string) => void;
+  onShare: (destinationId: ShareDestinationId) => void;
   post: FeedPost | null;
   visible: boolean;
 };

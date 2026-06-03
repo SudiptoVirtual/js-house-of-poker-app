@@ -8,7 +8,7 @@ import { currentFeedPlayer, mockFeedPosts } from '../../constants/playerFeedMock
 import { routes } from '../../constants/routes';
 import { buildSocialInvitePreset } from '../../constants/social';
 import { usePoker } from '../../context/PokerProvider';
-import { createFeedComment, getApiErrorDetails, toggleFeedSupport } from '../../services/api';
+import { createFeedComment, createFeedShare, getApiErrorDetails, toggleFeedSupport } from '../../services/api';
 import { getAuthSession } from '../../services/storage/sessionStorage';
 import { colors } from '../../theme/colors';
 import type { RootStackParamList } from '../../types/navigation';
@@ -17,7 +17,7 @@ import { FeedPostCard } from './FeedPostCard';
 import { GiftClipsModal } from './GiftClipsModal';
 import { PromoteForCreatorPanel } from './PromoteForCreatorPanel';
 import { ShareMenu } from './ShareMenu';
-import type { FeedPost } from '../../types/feed';
+import { isBackendShareDestination, type FeedPost, type ShareDestinationId } from '../../types/feed';
 
 type PlayerFeedScreenProps = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'Feed'>;
@@ -154,17 +154,33 @@ export function PlayerFeedScreen({ navigation }: PlayerFeedScreenProps) {
     }
   }
 
-  function handleShare(destinationId: string) {
-    if (!sharePost) {
+  async function handleShare(destinationId: ShareDestinationId) {
+    if (!sharePost || !isBackendShareDestination(destinationId)) {
       return;
     }
 
-    // TODO(feed:sharePost): Persist share destination and return updated share count.
-    setPosts((currentPosts) =>
-      currentPosts.map((post) => (post.id === sharePost.id ? { ...post, shareCount: post.shareCount + 1 } : post)),
-    );
-    Alert.alert('Share placeholder', `Shared to ${destinationId.replace(/-/g, ' ')} locally.`);
-    setSharePost(null);
+    const targetPost = sharePost;
+    const session = await getAuthSession();
+
+    if (!session?.token || targetPost.id.startsWith('local-feed-')) {
+      setPosts((currentPosts) =>
+        currentPosts.map((post) => (post.id === targetPost.id ? { ...post, shareCount: post.shareCount + 1 } : post)),
+      );
+      Alert.alert('Share staged locally', `Sign in and refresh persisted feed posts to save your ${destinationId.replace(/-/g, ' ')} share.`);
+      setSharePost(null);
+      return;
+    }
+
+    try {
+      const response = await createFeedShare(targetPost.id, { destination: destinationId }, session.token);
+
+      setPosts((currentPosts) => currentPosts.map((post) => (post.id === targetPost.id ? response.post : post)));
+      Alert.alert('Share saved', `Shared to ${destinationId.replace(/-/g, ' ')}.`);
+      setSharePost(null);
+    } catch (error) {
+      const details = getApiErrorDetails(error, 'Unable to save your share right now.');
+      Alert.alert('Share not saved', details.message);
+    }
   }
 
   function handleSendGift(amount: number) {
