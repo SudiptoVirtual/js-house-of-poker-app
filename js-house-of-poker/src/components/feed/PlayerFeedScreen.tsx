@@ -8,6 +8,8 @@ import { currentFeedPlayer, mockFeedPosts } from '../../constants/playerFeedMock
 import { routes } from '../../constants/routes';
 import { buildSocialInvitePreset } from '../../constants/social';
 import { usePoker } from '../../context/PokerProvider';
+import { createFeedComment, getApiErrorDetails } from '../../services/api';
+import { getAuthSession } from '../../services/storage/sessionStorage';
 import { colors } from '../../theme/colors';
 import type { RootStackParamList } from '../../types/navigation';
 import { FeedPostBox, type FeedPostBoxProfile } from './FeedPostBox';
@@ -92,15 +94,33 @@ export function PlayerFeedScreen({ navigation }: PlayerFeedScreenProps) {
     Alert.alert('Player Profile', 'This player profile will open from the feed when profile discovery is connected.');
   }
 
-  function handleComment(post: FeedPost, comment: string) {
-    // TODO(feed:addComment): Persist comment to backend and subscribe to live comment updates.
+  async function handleComment(post: FeedPost, comment: string) {
     // TODO(notification:feedActivity): Notify post owner of new feed comment after backend confirmation.
-    setPosts((currentPosts) =>
-      currentPosts.map((currentPost) =>
-        currentPost.id === post.id ? { ...currentPost, commentCount: currentPost.commentCount + 1 } : currentPost,
-      ),
-    );
-    Alert.alert('Comment added locally', `Mock comment: ${comment}`);
+    const session = await getAuthSession();
+
+    if (!session?.token || post.id.startsWith('local-feed-')) {
+      setPosts((currentPosts) =>
+        currentPosts.map((currentPost) =>
+          currentPost.id === post.id ? { ...currentPost, commentCount: currentPost.commentCount + 1 } : currentPost,
+        ),
+      );
+      Alert.alert('Comment staged locally', `Sign in and refresh persisted feed posts to save: ${comment}`);
+      return undefined;
+    }
+
+    try {
+      const response = await createFeedComment(post.id, comment, session.token);
+
+      setPosts((currentPosts) =>
+        currentPosts.map((currentPost) => (currentPost.id === post.id ? response.post : currentPost)),
+      );
+
+      return response;
+    } catch (error) {
+      const details = getApiErrorDetails(error, 'Unable to save your comment right now.');
+      Alert.alert('Comment not saved', details.message);
+      throw error;
+    }
   }
 
   function handleShare(destinationId: string) {

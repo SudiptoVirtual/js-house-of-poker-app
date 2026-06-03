@@ -125,7 +125,7 @@ function buildPlayerSnapshot(user) {
   };
 }
 
-async function hydrateCurrentUserReaction(post, currentUserId) {
+async function hydrateCurrentUserReaction(post, currentUserId, session = null) {
   if (!post || !currentUserId) {
     return post;
   }
@@ -135,7 +135,9 @@ async function hydrateCurrentUserReaction(post, currentUserId) {
     postId: post._id,
     type: "support",
     userId: currentUserId,
-  }).select("_id");
+  })
+    .session(session)
+    .select("_id");
 
   post.supportedByCurrentPlayer = Boolean(reaction);
   return post;
@@ -145,7 +147,16 @@ function serializePost(post, currentUserId) {
   return post.toClient({ currentUserId });
 }
 
-async function findVisiblePost(postId, currentUserId = null) {
+function serializeComment(comment, currentUserId = null) {
+  const moderationStatus = comment?.moderation?.status || "accepted";
+  const isAuthor = currentUserId && String(comment.authorUserId) === String(currentUserId);
+
+  return comment.toClient({
+    includeBody: moderationStatus !== "blocked" && (!comment.deletedAt || isAuthor),
+  });
+}
+
+async function findVisiblePost(postId, currentUserId = null, session = null) {
   if (!isValidObjectId(postId)) {
     return null;
   }
@@ -162,8 +173,22 @@ async function findVisiblePost(postId, currentUserId = null) {
     query.visibility = "public";
   }
 
-  const post = await FeedPost.findOne(query);
-  return hydrateCurrentUserReaction(post, currentUserId);
+  const post = await FeedPost.findOne(query).session(session);
+  return hydrateCurrentUserReaction(post, currentUserId, session);
+}
+
+async function runCommentTransaction(callback) {
+  const session = await mongoose.startSession();
+
+  try {
+    let result;
+    await session.withTransaction(async () => {
+      result = await callback(session);
+    });
+    return result;
+  } finally {
+    await session.endSession();
+  }
 }
 
 function emitAck(ack, payload) {
@@ -329,30 +354,47 @@ class FeedRealtimeService {
       throw new Error("Comment body is required.");
     }
 
-    const post = await findVisiblePost(postId, user._id);
-    if (!post) {
-      throw new Error("Feed post not found.");
-    }
-
     const parentCommentId = payload.parentCommentId && isValidObjectId(payload.parentCommentId)
       ? payload.parentCommentId
       : null;
-    const comment = await FeedComment.create({
-      authorSnapshot: buildPlayerSnapshot(user),
-      authorUserId: user._id,
-      body,
-      parentCommentId,
-      postId,
+    const result = await runCommentTransaction(async (session) => {
+      const post = await findVisiblePost(postId, user._id, session);
+
+      if (!post) {
+        return null;
+      }
+
+      const [comment] = await FeedComment.create(
+        [
+          {
+            authorSnapshot: buildPlayerSnapshot(user),
+            authorUserId: user._id,
+            body,
+            parentCommentId,
+            postId,
+          },
+        ],
+        { session },
+      );
+
+      const updatedPost = await FeedPost.findOneAndUpdate(
+        { _id: post._id },
+        { $inc: { "counters.commentCount": 1 } },
+        { new: true, session },
+      );
+      await hydrateCurrentUserReaction(updatedPost, user._id, session);
+
+      return { comment, post: updatedPost };
     });
 
-    post.counters.commentCount = (post.counters.commentCount || 0) + 1;
-    await post.save();
-    await hydrateCurrentUserReaction(post, user._id);
+    if (!result?.post) {
+      throw new Error("Feed post not found.");
+    }
 
     const eventPayload = {
       ok: true,
-      comment: comment.toClient(),
-      post: serializePost(post, user._id),
+      comment: serializeComment(result.comment, user._id),
+      post: serializePost(result.post, user._id),
     };
     this.broadcastCommentCreated(postId, eventPayload);
     this.broadcastPostUpdated(postId, { ok: true, post: eventPayload.post });

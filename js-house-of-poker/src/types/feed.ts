@@ -45,6 +45,24 @@ export type FeedPost = {
   timestamp: string;
 };
 
+export type FeedComment = {
+  authorUserId: string;
+  body: string | null;
+  createdAt: string | null;
+  deletedAt: string | null;
+  id: string;
+  isDeleted?: boolean;
+  moderationStatus: string;
+  parentCommentId: string | null;
+  player: FeedPlayer;
+  postId: string;
+};
+
+export type FeedCommentSubmitResult = {
+  comment: FeedComment;
+  post?: FeedPost;
+};
+
 export type ShareDestination = {
   icon: keyof typeof MaterialCommunityIcons.glyphMap;
   id: string;
