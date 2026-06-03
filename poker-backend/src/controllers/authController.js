@@ -78,6 +78,14 @@ const registerUser = async (req, res) => {
     });
 
     if (referrer) {
+      await User.updateOne(
+        { _id: user._id },
+        { $addToSet: { friends: referrer._id } }
+      );
+      await User.updateOne(
+        { _id: referrer._id },
+        { $addToSet: { friends: user._id } }
+      );
       referrer.referralStats.successfulReferrals += 1;
       referrer.referralStats.lastSuccessfulReferralAt = new Date();
       await referrer.save();

@@ -11,6 +11,17 @@ export interface ChatRoomPlayer {
   isHost?: boolean;
 }
 
+export interface ChatRoomFriend {
+  avatarInitials: string;
+  displayName: string;
+  handle: string;
+  id: string;
+  isOnline: boolean;
+  name: string;
+  status: ChatRoomPlayerStatus;
+  userId?: string;
+}
+
 export interface ChatRoomMessage {
   id: string;
   roomId: string;

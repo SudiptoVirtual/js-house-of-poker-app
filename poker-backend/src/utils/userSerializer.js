@@ -10,6 +10,7 @@ function serializeUser(user) {
     isOnline: user.isOnline,
     lastLoginAt: user.lastLoginAt,
     avatar: user.avatar,
+    friendCount: Array.isArray(user.friends) ? user.friends.length : 0,
     playerStatus: user.playerStatus?.tier || "NO_STATUS",
     statusIcon: user.playerStatus?.iconKey || "badge-no-status",
     referralCode: user.referralCode || null,

@@ -217,6 +217,21 @@ async function createMessageNotifications({ message, room, sender, presenceSnaps
   return [...chatNotifications, ...mentionNotifications];
 }
 
+async function createChatRoomInviteNotifications({ recipientUserIds = [], room, sender }) {
+  return createNotifications({
+    actorUserId: sender._id,
+    body: `${getDisplayName(sender)} invited you to ${room.name || "a chat room"}.`,
+    chatRoomId: room._id,
+    data: {
+      roomName: room.name,
+      senderDisplayName: getDisplayName(sender),
+    },
+    recipientUserIds,
+    title: "Chat room invite",
+    type: "chat_room_invite",
+  });
+}
+
 async function createTableInviteNotifications({ chatRoom, inviteRecords = [], sender, table }) {
   return createNotifications({
     actorUserId: sender._id,
@@ -332,6 +347,7 @@ function serializeNotification(notification) {
 }
 
 module.exports = {
+  createChatRoomInviteNotifications,
   createMessageNotifications,
   createNotifications,
   createTableInviteNotifications,

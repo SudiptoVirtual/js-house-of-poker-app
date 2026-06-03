@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { io, type Socket } from 'socket.io-client';
 
@@ -21,11 +21,11 @@ import { SectionCard } from '../components/SectionCard';
 import { env } from '../config/env';
 import { usePoker } from '../context/PokerProvider';
 import { routes } from '../constants/routes';
-import { fetchChatRoom } from '../services/api/chatRooms';
-import { getAuthSession } from '../services/storage/sessionStorage';
+import { fetchActiveChatRoomFriends, fetchChatRoom, inviteChatRoomFriends } from '../services/api/chatRooms';
+import { clearAuthSession, getAuthSession } from '../services/storage/sessionStorage';
 import { colors } from '../theme/colors';
 import type { PokerGameSettingsUpdate } from '../services/poker';
-import type { ChatRoom, ChatRoomMessage, ChatRoomPlayer } from '../types/chatRooms';
+import type { ChatRoom, ChatRoomFriend, ChatRoomMessage, ChatRoomPlayer } from '../types/chatRooms';
 import type { RootStackParamList } from '../types/navigation';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ChatRoomDetail'>;
@@ -42,6 +42,7 @@ type ChatRoomSocketAck = {
 };
 
 const fallbackUser = { id: 'signed-in-player', name: 'Player' };
+const expiredSessionMessage = 'Your sign-in session expired. Sign in again to use realtime chat and room invites.';
 
 const defaultRulesByTierId: Record<string, ChatRoomTableRules> = {
   '5k-casual': {
@@ -87,6 +88,14 @@ function normalizeSocketError(error: ChatRoomSocketAck['error']) {
   return error?.message ?? 'Realtime chat request failed.';
 }
 
+function isInvalidUserTokenMessage(message: string) {
+  return /invalid user token|invalid player token|jwt expired|jwt malformed/i.test(message);
+}
+
+function isInvalidUserTokenError(error: unknown) {
+  return error instanceof Error && isInvalidUserTokenMessage(error.message);
+}
+
 function mergeMessages(currentMessages: ChatRoomMessage[], incomingMessages: ChatRoomMessage[]) {
   const messageById = new Map(currentMessages.map((message) => [message.id, message]));
 
@@ -109,10 +118,13 @@ export function ChatRoomDetailScreen({ navigation, route }: Props) {
   const [realtimeError, setRealtimeError] = useState<string | null>(null);
   const [isRealtimeConnected, setIsRealtimeConnected] = useState(false);
   const [draft, setDraft] = useState('');
+  const [activeFriends, setActiveFriends] = useState<ChatRoomFriend[]>([]);
   const [isAIPrimePanelVisible, setIsAIPrimePanelVisible] = useState(false);
   const [isSetUpTableFlowVisible, setIsSetUpTableFlowVisible] = useState(false);
   const [invitedPlayerIds, setInvitedPlayerIds] = useState<string[]>([]);
+  const [roomInvitedFriendIds, setRoomInvitedFriendIds] = useState<string[]>([]);
   const [selectedPlayerIds, setSelectedPlayerIds] = useState<string[]>([]);
+  const [selectedRoomFriendIds, setSelectedRoomFriendIds] = useState<string[]>([]);
   const [isPrivate, setIsPrivate] = useState(true);
   const [selectedGameId, setSelectedGameId] = useState('texas-holdem');
   const [selectedTierId, setSelectedTierId] = useState('free-training');
@@ -120,6 +132,8 @@ export function ChatRoomDetailScreen({ navigation, route }: Props) {
   const [selectedRules, setSelectedRules] = useState<ChatRoomTableRules>({});
   const [isLaunchingTable, setIsLaunchingTable] = useState(false);
   const [isSendingMessage, setIsSendingMessage] = useState(false);
+  const [isInvitingFriends, setIsInvitingFriends] = useState(false);
+  const [roomInviteStatus, setRoomInviteStatus] = useState<string | null>(null);
   const currentUserId = authRef.current?.user.id ?? fallbackUser.id;
   const currentUserName = authRef.current?.user.name ?? authRef.current?.user.email ?? fallbackUser.name;
 
@@ -128,7 +142,12 @@ export function ChatRoomDetailScreen({ navigation, route }: Props) {
     setRoomError(null);
 
     try {
-      const nextRoom = await fetchChatRoom(route.params.roomId);
+      const session = await getAuthSession();
+      authRef.current = session
+        ? { token: session.token, user: session.user as { id?: string; name?: string; email?: string } }
+        : { token: null, user: fallbackUser };
+
+      const nextRoom = await fetchChatRoom(route.params.roomId, session?.token ?? null);
       const nextGameId = getGameIdFromRoomLabel(nextRoom.tableConfig.gameLabel);
       const nextTierId = getTierIdFromRoomConfig(nextRoom);
 
@@ -141,6 +160,26 @@ export function ChatRoomDetailScreen({ navigation, route }: Props) {
         ...(defaultRulesByTierId[nextTierId] ?? {}),
         ...(nextGameId === '3-5-7' ? { mode: 'HOSTEST' } : {}),
       });
+
+      if (!session?.token) {
+        setActiveFriends([]);
+        return;
+      }
+
+      try {
+        setActiveFriends(await fetchActiveChatRoomFriends(session.token));
+      } catch (error) {
+        setActiveFriends([]);
+
+        if (isInvalidUserTokenError(error)) {
+          await clearAuthSession();
+          authRef.current = { token: null, user: fallbackUser };
+          setRealtimeError(expiredSessionMessage);
+          return;
+        }
+
+        setRoomInviteStatus(error instanceof Error ? error.message : 'Unable to load active friends.');
+      }
     } catch (error) {
       setRoomError(error instanceof Error ? error.message : 'Unable to load chat room.');
     } finally {
@@ -190,7 +229,14 @@ export function ChatRoomDetailScreen({ navigation, route }: Props) {
           { roomId: route.params.roomId, token: session.token },
           (ack: ChatRoomSocketAck = {}) => {
             if (!ack.ok && !ack.success) {
-              setRealtimeError(normalizeSocketError(ack.error));
+              const message = normalizeSocketError(ack.error);
+              setRealtimeError(isInvalidUserTokenMessage(message) ? expiredSessionMessage : message);
+
+              if (isInvalidUserTokenMessage(message)) {
+                void clearAuthSession();
+                authRef.current = { token: null, user: fallbackUser };
+              }
+
               return;
             }
 
@@ -216,11 +262,22 @@ export function ChatRoomDetailScreen({ navigation, route }: Props) {
       });
       socket.on('connect_error', (error) => {
         if (isMounted) {
-          setRealtimeError(error.message);
+          setRealtimeError(isInvalidUserTokenMessage(error.message) ? expiredSessionMessage : error.message);
+
+          if (isInvalidUserTokenMessage(error.message)) {
+            void clearAuthSession();
+            authRef.current = { token: null, user: fallbackUser };
+          }
         }
       });
       socket.on('chat:error', (payload: { message?: string }) => {
-        setRealtimeError(payload?.message ?? 'Realtime chat error.');
+        const message = payload?.message ?? 'Realtime chat error.';
+        setRealtimeError(isInvalidUserTokenMessage(message) ? expiredSessionMessage : message);
+
+        if (isInvalidUserTokenMessage(message)) {
+          void clearAuthSession();
+          authRef.current = { token: null, user: fallbackUser };
+        }
       });
       socket.on('chat:newMessage', (payload: { message?: ChatRoomMessage }) => {
         if (!payload.message) {
@@ -277,6 +334,18 @@ export function ChatRoomDetailScreen({ navigation, route }: Props) {
   const selectedTier = defaultTableTierOptions.find((option) => option.id === selectedTierId);
   const selectedRule = defaultTableRulesOptions.find((option) => option.id === selectedRuleId);
   const rulesSummary = selectedRule?.label ?? selectedTier?.rulesLabel ?? room?.tableConfig.stakesLabel ?? 'Room table rules';
+  const inviteableFriends = useMemo(() => {
+    if (!room) {
+      return [];
+    }
+
+    const activeRoomPlayerIds = new Set(
+      room.players.flatMap((player) => [player.id, player.userId].filter(Boolean) as string[]),
+    );
+    const invitedIds = new Set(roomInvitedFriendIds);
+
+    return activeFriends.filter((friend) => !activeRoomPlayerIds.has(friend.id) && !invitedIds.has(friend.id));
+  }, [activeFriends, room, roomInvitedFriendIds]);
 
   if (isLoadingRoom) {
     return (
@@ -359,6 +428,53 @@ export function ChatRoomDetailScreen({ navigation, route }: Props) {
         ? currentIds.filter((currentId) => currentId !== eligiblePlayerId)
         : [...currentIds, eligiblePlayerId],
     );
+  }
+
+  function handleToggleRoomFriend(friendId: string) {
+    setSelectedRoomFriendIds((currentIds) =>
+      currentIds.includes(friendId)
+        ? currentIds.filter((currentId) => currentId !== friendId)
+        : [...currentIds, friendId],
+    );
+  }
+
+  async function handleInviteFriendsToRoom() {
+    const token = authRef.current?.token;
+
+    if (!room || !token || selectedRoomFriendIds.length === 0 || isInvitingFriends) {
+      return;
+    }
+
+    setIsInvitingFriends(true);
+    setRoomInviteStatus(null);
+
+    try {
+      const result = await inviteChatRoomFriends(room.id, selectedRoomFriendIds, token);
+      const invitedIds = result.invitedPlayerIds;
+
+      if (result.room) {
+        setRoom(result.room);
+      }
+
+      setRoomInvitedFriendIds((currentIds) => Array.from(new Set([...currentIds, ...invitedIds])));
+      setSelectedRoomFriendIds([]);
+      setRoomInviteStatus(
+        invitedIds.length > 0
+          ? `${invitedIds.length} friend${invitedIds.length === 1 ? '' : 's'} invited to this room.`
+          : 'Selected friends were already in this room.',
+      );
+    } catch (error) {
+      if (isInvalidUserTokenError(error)) {
+        await clearAuthSession();
+        authRef.current = { token: null, user: fallbackUser };
+        setSelectedRoomFriendIds([]);
+        setRoomInviteStatus(expiredSessionMessage);
+      } else {
+        setRoomInviteStatus(error instanceof Error ? error.message : 'Unable to invite friends to this room.');
+      }
+    } finally {
+      setIsInvitingFriends(false);
+    }
   }
 
   function appendSystemMessage(body: string) {
@@ -532,6 +648,49 @@ export function ChatRoomDetailScreen({ navigation, route }: Props) {
           players={room.players}
           selectedPlayerIds={selectedPlayerIds}
         />
+        <View style={styles.roomInviteStack}>
+          <Text style={styles.subsectionTitle}>Invite active friends</Text>
+          {!authRef.current?.token ? (
+            <Text style={styles.helperText}>Sign in to invite friends to this room.</Text>
+          ) : inviteableFriends.length > 0 ? (
+            <View style={styles.friendChipWrap}>
+              {inviteableFriends.map((friend) => {
+                const selected = selectedRoomFriendIds.includes(friend.id);
+
+                return (
+                  <Pressable
+                    accessibilityLabel={`${selected ? 'Remove' : 'Invite'} ${friend.displayName}`}
+                    accessibilityRole="button"
+                    key={friend.id}
+                    onPress={() => handleToggleRoomFriend(friend.id)}
+                    style={({ pressed }) => [
+                      styles.friendChip,
+                      selected ? styles.friendChipSelected : null,
+                      pressed ? styles.pressed : null,
+                    ]}
+                  >
+                    <Text style={[styles.friendChipText, selected ? styles.friendChipTextSelected : null]}>
+                      {friend.displayName}
+                    </Text>
+                    <Text style={styles.friendChipHandle}>{friend.handle}</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          ) : (
+            <Text style={styles.helperText}>No active friends are available to invite right now.</Text>
+          )}
+          {roomInviteStatus ? <Text style={styles.helperText}>{roomInviteStatus}</Text> : null}
+          <ActionButton
+            compact
+            disabled={selectedRoomFriendIds.length === 0 || isInvitingFriends}
+            icon="account-multiple-plus-outline"
+            label={isInvitingFriends ? 'Inviting...' : 'Invite to room'}
+            loading={isInvitingFriends}
+            onPress={() => { void handleInviteFriendsToRoom(); }}
+            tone="success"
+          />
+        </View>
       </SectionCard>
 
       <AIPrimeActionPanel
@@ -571,6 +730,37 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     lineHeight: 19,
   },
+  friendChip: {
+    backgroundColor: colors.surfaceMuted,
+    borderColor: colors.border,
+    borderRadius: 16,
+    borderWidth: 1,
+    gap: 2,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+  },
+  friendChipHandle: {
+    color: colors.mutedText,
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  friendChipSelected: {
+    backgroundColor: 'rgba(77,243,199,0.14)',
+    borderColor: colors.success,
+  },
+  friendChipText: {
+    color: colors.text,
+    fontSize: 13,
+    fontWeight: '900',
+  },
+  friendChipTextSelected: {
+    color: colors.success,
+  },
+  friendChipWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
   helperText: {
     color: colors.mutedText,
     fontSize: 14,
@@ -578,5 +768,19 @@ const styles = StyleSheet.create({
   },
   messageStack: {
     gap: 10,
+  },
+  pressed: {
+    opacity: 0.78,
+  },
+  roomInviteStack: {
+    borderColor: colors.border,
+    borderTopWidth: 1,
+    gap: 10,
+    paddingTop: 12,
+  },
+  subsectionTitle: {
+    color: colors.text,
+    fontSize: 15,
+    fontWeight: '900',
   },
 });

@@ -3,8 +3,14 @@ const mongoose = require("mongoose");
 const ChatRoom = require("../models/ChatRoom");
 const ChatRoomMessage = require("../models/ChatRoomMessage");
 const GameTable = require("../models/GameTable");
+const User = require("../models/User");
 const { seedChatRooms } = require("../scripts/seedChatRooms");
 const { getChatRoomPresenceService } = require("../services/chatRoomPresenceService");
+const {
+  createChatRoomInviteNotifications,
+  serializeNotification,
+} = require("../services/chatRoomNotificationService");
+const { getIO } = require("../sockets/socketRegistry");
 
 const DEFAULT_RECENT_MESSAGE_LIMIT = 25;
 const MAX_RECENT_MESSAGE_LIMIT = 100;
@@ -74,6 +80,194 @@ function serializeChatRoomMessage(message) {
   };
 }
 
+function normalizeObjectIdString(value) {
+  const normalized = String(value || "").trim();
+  return mongoose.Types.ObjectId.isValid(normalized) ? normalized : null;
+}
+
+function normalizePlayerIds(value) {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return [
+    ...new Set(
+      value
+        .map(normalizeObjectIdString)
+        .filter(Boolean)
+    ),
+  ];
+}
+
+function getDisplayName(user) {
+  return user?.name || user?.email || "Player";
+}
+
+function getAvatarInitials(displayName) {
+  return (
+    displayName
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part[0]?.toUpperCase())
+      .join("") || "P"
+  );
+}
+
+function serializeActiveFriend(user) {
+  const displayName = getDisplayName(user);
+  const handle = user.handle || user.username || user.email?.split("@")[0] || displayName;
+
+  return {
+    avatarInitials: getAvatarInitials(displayName),
+    displayName,
+    handle: handle.startsWith("@") ? handle : `@${handle}`,
+    id: String(user._id),
+    isOnline: Boolean(user.isOnline),
+    name: displayName,
+    status: user.isOnline ? "available" : "away",
+    userId: String(user._id),
+  };
+}
+
+function slugifyRoomName(name) {
+  return String(name || "")
+    .trim()
+    .toLowerCase()
+    .replace(/['"]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 80) || "room";
+}
+
+async function generateUniqueRoomSlug(name) {
+  const baseSlug = slugifyRoomName(name);
+  let slug = baseSlug;
+  let suffix = 2;
+
+  while (await ChatRoom.exists({ slug })) {
+    slug = `${baseSlug}-${suffix}`;
+    suffix += 1;
+  }
+
+  return slug;
+}
+
+function userCanAccessChatRoom(room, userId) {
+  if (room.isPublic !== false) {
+    return true;
+  }
+
+  const normalizedUserId = normalizeObjectIdString(userId);
+
+  if (!normalizedUserId) {
+    return false;
+  }
+
+  if (room.createdByUserId && String(room.createdByUserId) === normalizedUserId) {
+    return true;
+  }
+
+  return (room.participantStates || []).some(
+    (state) => String(state.userId) === normalizedUserId
+  );
+}
+
+function buildParticipantState(userId) {
+  const now = new Date();
+
+  return {
+    lastReadAt: now,
+    lastSeenAt: now,
+    unreadCount: 0,
+    userId,
+  };
+}
+
+async function getActiveFriendUsers(user) {
+  const freshUser = await User.findById(user._id).select("friends referredByUserId");
+  const friendIds = new Set(
+    (freshUser?.friends || [])
+      .map(normalizeObjectIdString)
+      .filter(Boolean)
+  );
+
+  if (freshUser?.referredByUserId) {
+    const referrerId = normalizeObjectIdString(freshUser.referredByUserId);
+    if (referrerId) {
+      friendIds.add(referrerId);
+    }
+  }
+
+  const referredUsers = await User.find({
+    referredByUserId: user._id,
+    status: { $ne: "blocked" },
+    isBlocked: { $ne: true },
+  }).select("_id");
+
+  referredUsers.forEach((friend) => friendIds.add(String(friend._id)));
+  friendIds.delete(String(user._id));
+
+  if (friendIds.size === 0) {
+    return [];
+  }
+
+  return User.find({
+    _id: { $in: [...friendIds] },
+    isBlocked: { $ne: true },
+    isOnline: true,
+    status: { $ne: "blocked" },
+  })
+    .select("avatar email isOnline name playerStatus")
+    .sort({ name: 1, email: 1 });
+}
+
+async function getEligibleActiveFriendUsers(user, requestedPlayerIds) {
+  const requestedIds = normalizePlayerIds(requestedPlayerIds);
+  const activeFriends = await getActiveFriendUsers(user);
+  const activeFriendById = new Map(activeFriends.map((friend) => [String(friend._id), friend]));
+
+  return requestedIds.map((playerId) => activeFriendById.get(playerId)).filter(Boolean);
+}
+
+function emitChatRoomInviteNotifications(notificationRecords, room, sender) {
+  const io = getIO();
+  const serializedNotifications = notificationRecords.map(serializeNotification);
+
+  if (!io) {
+    return serializedNotifications;
+  }
+
+  serializedNotifications.forEach((notification) => {
+    const payload = {
+      notification,
+      room: room.toRoomListItem(notification.userId),
+      roomId: String(room._id),
+      senderPlayerId: String(sender._id),
+      senderPlayerName: getDisplayName(sender),
+      type: "chat_room_invite",
+      unreadCount: 1,
+    };
+
+    io.sockets.sockets.forEach((candidateSocket) => {
+      const userId = candidateSocket.data?.userId;
+
+      if (userId && String(userId) === String(notification.userId)) {
+        candidateSocket.emit("chat:roomInvited", payload);
+        candidateSocket.emit("chat:messageNotification", {
+          notification,
+          preview: notification.body,
+          roomId: String(room._id),
+          type: "chat_room_invite",
+          unreadCount: 1,
+        });
+      }
+    });
+  });
+
+  return serializedNotifications;
+}
+
 async function findSocialChatRoom(roomId) {
   const identifiers = buildChatRoomIdentifiers(roomId);
 
@@ -87,7 +281,7 @@ async function findSocialChatRoom(roomId) {
   });
 }
 
-async function serializeSocialChatRoomDetail(room, recentMessageLimit) {
+async function serializeSocialChatRoomDetail(room, recentMessageLimit, userId = null) {
   const roomId = String(room._id);
   const presenceSnapshot = getChatRoomPresenceService().getPresenceSnapshot(roomId);
   const messages = await ChatRoomMessage.find({
@@ -101,7 +295,7 @@ async function serializeSocialChatRoomDetail(room, recentMessageLimit) {
   const serializedMessages = messages.reverse().map(serializeChatRoomMessage);
 
   return {
-    ...room.toRoomListItem(null),
+    ...room.toRoomListItem(userId),
     activePlayerCount: presenceSnapshot.activePlayerCount || room.activePlayerCount || 0,
     activePlayers: (presenceSnapshot.players || []).map(serializeChatRoomPlayer),
     messages: serializedMessages,
@@ -312,7 +506,13 @@ const getChatRooms = async (req, res) => {
       MAX_ROOM_LIST_LIMIT
     );
 
-    const seededRooms = await ChatRoom.findRoomList({ limit });
+    const findRoomListOptions = { limit };
+
+    if (req.user?._id) {
+      findRoomListOptions.userId = req.user._id;
+    }
+
+    const seededRooms = await ChatRoom.findRoomList(findRoomListOptions);
 
     if (seededRooms.length > 0) {
       return res.status(200).json({
@@ -348,8 +548,18 @@ const getChatRoomById = async (req, res) => {
     const socialRoom = await findSocialChatRoom(req.params.roomId);
 
     if (socialRoom) {
+      if (!userCanAccessChatRoom(socialRoom, req.user?._id)) {
+        return res.status(403).json({
+          message: "You are not allowed to access this chat room",
+        });
+      }
+
       return res.status(200).json({
-        room: await serializeSocialChatRoomDetail(socialRoom, recentMessageLimit),
+        room: await serializeSocialChatRoomDetail(
+          socialRoom,
+          recentMessageLimit,
+          req.user?._id || null
+        ),
       });
     }
 
@@ -367,6 +577,177 @@ const getChatRoomById = async (req, res) => {
   } catch (error) {
     return res.status(500).json({
       message: "Error fetching chat room",
+      error: error.message,
+    });
+  }
+};
+
+const getActiveChatRoomFriends = async (req, res) => {
+  try {
+    const friends = await getActiveFriendUsers(req.user);
+
+    return res.status(200).json({
+      count: friends.length,
+      friends: friends.map(serializeActiveFriend),
+    });
+  } catch (error) {
+    return res.status(500).json({
+      message: "Error fetching active friends",
+      error: error.message,
+    });
+  }
+};
+
+const createChatRoom = async (req, res) => {
+  try {
+    const name = String(req.body?.name || "").replace(/\s+/g, " ").trim();
+    const description = String(req.body?.description || "").replace(/\s+/g, " ").trim();
+    const invitedPlayerIds = normalizePlayerIds(req.body?.invitedPlayerIds || req.body?.playerIds);
+
+    if (!name) {
+      return res.status(400).json({
+        message: "Room name is required",
+      });
+    }
+
+    if (name.length > 120) {
+      return res.status(400).json({
+        message: "Room name must be 120 characters or fewer",
+      });
+    }
+
+    const invitedFriends = invitedPlayerIds.length > 0
+      ? await getEligibleActiveFriendUsers(req.user, invitedPlayerIds)
+      : [];
+    const invitedFriendIds = invitedFriends.map((friend) => String(friend._id));
+    const rejectedPlayerIds = invitedPlayerIds.filter(
+      (playerId) => !invitedFriendIds.includes(playerId)
+    );
+
+    if (rejectedPlayerIds.length > 0) {
+      return res.status(400).json({
+        message: "Only active friends can be invited to a chat room",
+        rejectedPlayerIds,
+      });
+    }
+
+    const participantIds = [
+      String(req.user._id),
+      ...invitedFriendIds,
+    ];
+    const room = await ChatRoom.create({
+      activePlayerCount: 0,
+      createdByUserId: req.user._id,
+      description: description || "Private room for planning poker sessions.",
+      isPublic: false,
+      name,
+      participantStates: participantIds.map(buildParticipantState),
+      slug: await generateUniqueRoomSlug(name),
+      topic: "Private group chat",
+      visibility: "private",
+    });
+
+    let notifications = [];
+
+    if (invitedFriendIds.length > 0) {
+      const notificationRecords = await createChatRoomInviteNotifications({
+        recipientUserIds: invitedFriendIds,
+        room,
+        sender: req.user,
+      });
+      notifications = emitChatRoomInviteNotifications(notificationRecords, room, req.user);
+    }
+
+    return res.status(201).json({
+      invitedPlayerIds: invitedFriendIds,
+      notifications,
+      room: await serializeSocialChatRoomDetail(room, DEFAULT_RECENT_MESSAGE_LIMIT, req.user._id),
+    });
+  } catch (error) {
+    return res.status(500).json({
+      message: "Error creating chat room",
+      error: error.message,
+    });
+  }
+};
+
+const inviteChatRoomFriends = async (req, res) => {
+  try {
+    const room = await findSocialChatRoom(req.params.roomId);
+
+    if (!room) {
+      return res.status(404).json({
+        message: "Chat room not found",
+      });
+    }
+
+    if (!userCanAccessChatRoom(room, req.user._id)) {
+      return res.status(403).json({
+        message: "You are not allowed to invite friends to this chat room",
+      });
+    }
+
+    const requestedPlayerIds = normalizePlayerIds(req.body?.playerIds || req.body?.invitedPlayerIds);
+
+    if (requestedPlayerIds.length === 0) {
+      return res.status(400).json({
+        message: "At least one active friend is required",
+      });
+    }
+
+    const activeFriends = await getEligibleActiveFriendUsers(req.user, requestedPlayerIds);
+    const activeFriendIds = activeFriends.map((friend) => String(friend._id));
+    const rejectedPlayerIds = requestedPlayerIds.filter(
+      (playerId) => !activeFriendIds.includes(playerId)
+    );
+
+    if (rejectedPlayerIds.length > 0) {
+      return res.status(400).json({
+        message: "Only active friends can be invited to a chat room",
+        rejectedPlayerIds,
+      });
+    }
+
+    const existingParticipantIds = new Set(
+      (room.participantStates || []).map((state) => String(state.userId))
+    );
+    const newParticipantIds = activeFriendIds.filter(
+      (playerId) => !existingParticipantIds.has(playerId)
+    );
+
+    if (newParticipantIds.length > 0) {
+      await ChatRoom.updateOne(
+        { _id: room._id },
+        {
+          $push: {
+            participantStates: {
+              $each: newParticipantIds.map(buildParticipantState),
+            },
+          },
+        }
+      );
+    }
+
+    const updatedRoom = await ChatRoom.findById(room._id);
+    const notificationRecords = newParticipantIds.length > 0
+      ? await createChatRoomInviteNotifications({
+          recipientUserIds: newParticipantIds,
+          room: updatedRoom,
+          sender: req.user,
+        })
+      : [];
+    const notifications = emitChatRoomInviteNotifications(notificationRecords, updatedRoom, req.user);
+
+    return res.status(200).json({
+      alreadyInRoomPlayerIds: activeFriendIds.filter((playerId) => existingParticipantIds.has(playerId)),
+      invitedPlayerIds: newParticipantIds,
+      notifications,
+      ok: true,
+      room: await serializeSocialChatRoomDetail(updatedRoom, DEFAULT_RECENT_MESSAGE_LIMIT, req.user._id),
+    });
+  } catch (error) {
+    return res.status(500).json({
+      message: "Error inviting friends to chat room",
       error: error.message,
     });
   }
@@ -400,7 +781,10 @@ const seedDefaultChatRooms = async (req, res) => {
 };
 
 module.exports = {
+  createChatRoom,
+  getActiveChatRoomFriends,
   getChatRoomById,
   getChatRooms,
+  inviteChatRoomFriends,
   seedDefaultChatRooms,
 };

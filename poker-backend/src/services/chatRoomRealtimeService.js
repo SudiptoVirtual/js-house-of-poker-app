@@ -184,7 +184,7 @@ function validateChatRoomGameSettings(gameSettings = {}) {
 }
 
 function assertUserCanLaunchFromRoom(room, userId) {
-  if (room.isPublic) {
+  if (room.isPublic !== false) {
     return;
   }
 
@@ -200,7 +200,7 @@ function assertUserCanLaunchFromRoom(room, userId) {
 }
 
 function userCanAccessChatRoom(room, userId) {
-  if (room.isPublic) {
+  if (room.isPublic !== false) {
     return true;
   }
 
@@ -583,6 +583,7 @@ class ChatRoomRealtimeService {
     const roomId = String(room._id);
     const roomChannel = getChatRoomChannel(roomId);
 
+    assertUserCanAccessChatRoom(room, user._id);
     socket.join(roomChannel);
     this.trackSocketRoom(socket, roomId);
     this.addPresence(roomId, user, socket);
@@ -653,6 +654,7 @@ class ChatRoomRealtimeService {
     const roomId = String(room._id);
     const text = normalizeMessageText(payload.message || payload.text || payload.body);
 
+    assertUserCanAccessChatRoom(room, user._id);
     if (!text) {
       throw new Error("Chat message cannot be empty.");
     }
@@ -725,6 +727,8 @@ class ChatRoomRealtimeService {
     const user = await this.authenticateSocketUser(socket, payload);
     const room = await this.findRoom(normalizeChatRoomId(payload));
     const roomId = String(room._id);
+
+    assertUserCanAccessChatRoom(room, user._id);
     const eventPayload = {
       isTyping: payload.isTyping !== false,
       playerId: String(user._id),

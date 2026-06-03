@@ -173,6 +173,15 @@ const userSchema = new mongoose.Schema(
       default: "",
       trim: true,
     },
+    friends: {
+      type: [
+        {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "User",
+        },
+      ],
+      default: [],
+    },
     lastLoginAt: {
       type: Date,
       default: null,
@@ -230,6 +239,8 @@ userSchema.pre("save", async function (next) {
 
   next();
 });
+
+userSchema.index({ friends: 1 });
 
 userSchema.methods.matchPassword = async function (enteredPassword) {
   if (!this.password) {
