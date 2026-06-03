@@ -82,6 +82,44 @@ export type CreateFeedPromotionInput = {
   };
 };
 
+
+export type FeedTableInviteRecord = {
+  createdAt: number | string | null;
+  id: string;
+  message: string | null;
+  recipientAccountId: string;
+  recipientHandle?: string | null;
+  recipientLabel?: string | null;
+  senderPlayerId: string;
+  senderPlayerName: string;
+  source: 'feed' | string;
+  status: string;
+};
+
+export type FeedTableInviteResponse = {
+  deliveredPlayerIds?: string[];
+  invitedPlayerIds?: string[];
+  invites: FeedTableInviteRecord[];
+  message?: string | null;
+  ok?: boolean;
+  post: FeedPost;
+  table: {
+    id: string;
+    tableCode: string | null;
+    tableDbId: string;
+    tableId: string;
+    tableName?: string | null;
+  };
+};
+
+export type SendFeedTableInviteInput = {
+  message?: string;
+  recipientUserId?: string;
+  recipientUserIds?: string[];
+  tableCode?: string;
+  tableId?: string;
+};
+
 export type FeedGiftClipResponse = {
   balances?: {
     recipientChips: number | null;
@@ -219,6 +257,14 @@ export async function createFeedShare(postId: string, input: CreateFeedShareInpu
 
 export async function sendFeedGiftClip(postId: string, input: SendFeedGiftClipInput, token: string) {
   return apiRequest<FeedGiftClipResponse>(`/api/feed/${encodeURIComponent(postId)}/gift-clips`, {
+    body: input,
+    method: 'POST',
+    token,
+  });
+}
+
+export async function sendFeedTableInvite(postId: string, input: SendFeedTableInviteInput, token: string) {
+  return apiRequest<FeedTableInviteResponse>(`/api/feed/${encodeURIComponent(postId)}/table-invites`, {
     body: input,
     method: 'POST',
     token,

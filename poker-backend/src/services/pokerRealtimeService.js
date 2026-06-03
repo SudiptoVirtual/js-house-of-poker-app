@@ -5,6 +5,10 @@ const GameTable = require("../models/GameTable");
 const HandHistory = require("../models/HandHistory");
 const User = require("../models/User");
 const { logTableEvent } = require("../utils/liveEmitter");
+const {
+  appendTableInviteRecords: persistTableInviteRecords,
+  buildTableInviteRecord: buildPersistentTableInviteRecord,
+} = require("./tableInviteService");
 const { Hand } = require("../utils/loadPokerSolver");
 const {
   THREE_FIVE_SEVEN_TABLE,
@@ -2677,92 +2681,24 @@ class PokerRealtimeService {
 
 
   buildTableInviteRecord({ message, recipient, sender, source = "chat-room" }) {
-    const recipientId = String(recipient._id || recipient.id || recipient.userId || "").trim();
-    const recipientName = sanitizeName(
-      recipient.name || recipient.displayName || recipient.email || recipientId
-    ) || recipientId;
-    const senderId = String(sender._id || sender.id || sender.userId || "").trim();
-    const senderName = sanitizeName(
-      sender.name || sender.displayName || sender.email || "Player"
-    ) || "Player";
-
-    return {
-      createdAt: Date.now(),
-      giftBuyInChips: 0,
-      giftBuyInClips: 0,
-      id: `invite_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-      message,
-      recipientAccountId: recipientId,
-      recipientHandle: recipient.handle || recipient.username || recipientName,
-      recipientLabel: recipientName,
-      senderPlayerId: senderId,
-      senderPlayerName: senderName,
-      source,
-      status: "pending",
-    };
+    return buildPersistentTableInviteRecord({ message, recipient, sender, source });
   }
 
   async appendTableInviteRecords({ message = null, recipients = [], sender, source = "chat-room", tableId }) {
-    const normalizedTableId = String(tableId || "").trim();
-
-    if (!normalizedTableId) {
-      throw new Error("Table id is required.");
-    }
-
-    if (!sender) {
-      throw new Error("Invite sender is required.");
-    }
-
-    const identifiers = [{ tableCode: normalizedTableId.toUpperCase() }];
-    if (mongoose.Types.ObjectId.isValid(normalizedTableId)) {
-      identifiers.push({ _id: normalizedTableId });
-    }
-
-    const table = await GameTable.findOne({ $or: identifiers });
-    if (!table) {
-      throw new Error("Table not found.");
-    }
-
-    const tableStatus = String(table.status || "").toLowerCase();
-    const tablePhase = String(table.phase || "").toLowerCase();
-    if (tableStatus === "closed" || tablePhase === "completed") {
-      throw new Error("Table is closed or completed.");
-    }
-
-    const senderUserId = String(sender._id || sender.id || sender.userId || "");
-    const tablePlayerIds = new Set((table.players || []).map((player) => String(player.userId)));
-    const hasTableAccess =
-      String(table.createdByUserId || "") === senderUserId ||
-      String(table.hostUserId || "") === senderUserId ||
-      tablePlayerIds.has(senderUserId);
-
-    if (!hasTableAccess) {
-      throw new Error("You are not allowed to invite players to this table.");
-    }
-
-    const inviteRecords = recipients.map((recipient) =>
-      this.buildTableInviteRecord({ message, recipient, sender, source })
-    );
-
-    table.tableInvites = [...inviteRecords, ...(table.tableInvites || [])].slice(0, 50);
-    await table.save();
-
-    const room = table.tableCode ? this.rooms.get(table.tableCode) : null;
-    if (room) {
-      room.tableInvites = cloneValue(table.tableInvites || []);
-      await this.emitRoomState(room);
-    }
-
-    return {
-      invites: inviteRecords,
-      table: {
-        id: table.tableCode || String(table._id),
-        tableCode: table.tableCode || null,
-        tableDbId: String(table._id),
-        tableId: table.tableCode || String(table._id),
-        tableName: table.tableName,
+    return persistTableInviteRecords({
+      message,
+      recipients,
+      sender,
+      source,
+      tableId,
+      onTableInvitesUpdated: async (table) => {
+        const room = table.tableCode ? this.rooms.get(table.tableCode) : null;
+        if (room) {
+          room.tableInvites = cloneValue(table.tableInvites || []);
+          await this.emitRoomState(room);
+        }
       },
-    };
+    });
   }
 
   async sendTableInvite(socket, payload = {}) {

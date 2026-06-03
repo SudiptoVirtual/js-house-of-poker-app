@@ -16,6 +16,13 @@ function initFeedSocket(io) {
   const playerRealtimeService = getPlayerRealtimeService(io);
   const feedRealtimeService = createFeedRealtimeService(io, {
     authenticateSocketUser: playerRealtimeService.authenticateSocketUser.bind(playerRealtimeService),
+    onTableInvitesUpdated: async (table) => {
+      const room = table.tableCode ? playerRealtimeService.rooms.get(table.tableCode) : null;
+      if (room) {
+        room.tableInvites = JSON.parse(JSON.stringify(table.tableInvites || []));
+        await playerRealtimeService.emitRoomState(room);
+      }
+    },
   });
 
   io.on("connection", (socket) => {
