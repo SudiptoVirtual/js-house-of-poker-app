@@ -228,6 +228,7 @@ export const ThreeFiveSevenPlayerSeat = memo(function ThreeFiveSevenPlayerSeat({
         <View style={styles.topRow}>
           <View style={styles.identity}>
             <PlayerAvatar
+              avatar={player.avatar}
               connected={player.isConnected}
               name={player.name}
               seed={player.id}

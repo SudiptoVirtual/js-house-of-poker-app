@@ -76,6 +76,27 @@ function getStatusCopy(player: PokerPlayerState, isSelf: boolean) {
     return 'This is you';
   }
 
+  switch (player.tableStatus) {
+    case 'acting':
+      return 'Taking action';
+    case 'all-in':
+      return 'All-in';
+    case 'away':
+      return 'Away from table';
+    case 'folded':
+      return 'Folded this hand';
+    case 'offline':
+      return 'Offline';
+    case 'seated':
+      return 'At the table';
+    case 'unseated':
+      return 'Not seated';
+    case 'unknown':
+      return 'Table status unknown';
+    default:
+      break;
+  }
+
   if (!player.isConnected) {
     return 'Away from table';
   }
@@ -91,11 +112,39 @@ function getStatusCopy(player: PokerPlayerState, isSelf: boolean) {
   return 'At the table';
 }
 
-function getTableCopy(player: PokerPlayerState, currentTableId: string | null) {
-  const seatLabel = player.seatIndex === null ? 'unseated' : `seat ${player.seatIndex + 1}`;
-  const tableLabel = currentTableId ? `table ${currentTableId}` : 'this table';
+function getOnlineCopy(player: PokerPlayerState) {
+  switch (player.onlineStatus) {
+    case 'online':
+      return 'Online';
+    case 'offline':
+      return 'Offline';
+    case 'unknown':
+      return 'Presence unknown';
+    default:
+      return player.isConnected ? 'Online' : 'Offline';
+  }
+}
 
-  return `${player.isConnected ? 'Online' : 'Offline'} • ${seatLabel} • ${tableLabel}`;
+function getSeatCopy(player: PokerPlayerState) {
+  if (player.tableStatus === 'unseated') {
+    return 'unseated';
+  }
+
+  if (player.tableStatus === 'unknown') {
+    return 'seat unknown';
+  }
+
+  return player.seatIndex === null ? 'seat unknown' : `seat ${player.seatIndex + 1}`;
+}
+
+function getTableCopy(player: PokerPlayerState, currentTableId: string | null) {
+  const tableLabel = currentTableId ? `table ${currentTableId}` : 'table unknown';
+
+  return `${getOnlineCopy(player)} • ${getSeatCopy(player)} • ${tableLabel}`;
+}
+
+function getProfileHandle(player: PokerPlayerState) {
+  return player.handle ?? player.userId ?? 'No handle available';
 }
 
 function getResultMessage(result: PlayerCardActionResult, fallback: string) {
@@ -128,7 +177,13 @@ export function PlayerCardModal({
   const [optimisticFriendState, setOptimisticFriendState] = useState<PlayerCardFriendState | null>(null);
   const [toast, setToast] = useState<{ tone: 'error' | 'success'; message: string } | null>(null);
 
-  const isSelf = Boolean(player && (player.id === selfId || player.id === currentUserId));
+  const isSelf = Boolean(
+    player &&
+      (player.id === selfId ||
+        player.id === currentUserId ||
+        player.userId === selfId ||
+        player.userId === currentUserId),
+  );
   const resolvedFriendState = optimisticFriendState ?? normalizeFriendState(friendState, isReported);
   const isBlockedOrReported = resolvedFriendState === 'blocked' || resolvedFriendState === 'reported';
   const context = useMemo(
@@ -278,10 +333,11 @@ export function PlayerCardModal({
         <View style={styles.sheet}>
           <View style={styles.grabber} />
           <View style={styles.header}>
-            <PlayerAvatar connected={player.isConnected} name={player.name} seed={player.id} size="lg" status={player.playerStatus} />
+            <PlayerAvatar avatar={player.avatar} connected={player.isConnected} name={player.name} seed={player.userId ?? player.id} size="lg" status={player.playerStatus} />
             <View style={styles.identity}>
               <Text numberOfLines={1} style={styles.eyebrow}>Player Card</Text>
-              <Text numberOfLines={1} style={styles.name}>{player.name}</Text>
+              <Text numberOfLines={1} style={styles.name}>{player.displayName ?? player.name}</Text>
+              <Text numberOfLines={1} style={styles.handle}>{getProfileHandle(player)}</Text>
               <Text numberOfLines={1} style={styles.statusLine}>{getTableCopy(player, currentTableId)}</Text>
             </View>
             <Pressable accessibilityLabel="Close player card" accessibilityRole="button" onPress={onClose} style={({ pressed }) => [styles.closeButton, pressed ? styles.pressed : null]}>
@@ -291,6 +347,16 @@ export function PlayerCardModal({
 
           <View style={styles.badgeRow}>
             <PlayerStatusBadge compact statusTier={player.statusTier} />
+            {player.statusTier === 'none' && !player.statusIcon ? (
+              <View style={[styles.statusBadge, styles.awayBadge]}>
+                <Text style={styles.statusBadgeText}>No badge</Text>
+              </View>
+            ) : null}
+            {player.statusIcon ? (
+              <View style={[styles.statusBadge, styles.onlineBadge]}>
+                <Text style={styles.statusBadgeText}>{player.statusIcon}</Text>
+              </View>
+            ) : null}
             <View style={[styles.statusBadge, player.isConnected ? styles.onlineBadge : styles.awayBadge]}>
               <Text style={styles.statusBadgeText}>{getStatusCopy(player, isSelf)}</Text>
             </View>
@@ -388,6 +454,7 @@ const styles = StyleSheet.create({
   },
   eyebrow: { color: colors.gold, fontSize: 11, fontWeight: '900', letterSpacing: 1.1, textTransform: 'uppercase' },
   grabber: { alignSelf: 'center', backgroundColor: 'rgba(255,255,255,0.22)', borderRadius: 999, height: 4, marginBottom: 16, width: 48 },
+  handle: { color: colors.mutedText, fontSize: 12, fontWeight: '800', marginTop: 2 },
   header: { alignItems: 'center', flexDirection: 'row', gap: 12 },
   identity: { flex: 1, minWidth: 0 },
   name: { color: colors.text, fontSize: 22, fontWeight: '900' },

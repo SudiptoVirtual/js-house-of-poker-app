@@ -231,15 +231,30 @@ export type PokerPlayerStatusSnapshot = {
   windowSize: number;
 };
 
+export type PokerPlayerOnlineStatus = 'offline' | 'online' | 'unknown';
+
+export type PokerPlayerTableStatus =
+  | 'acting'
+  | 'all-in'
+  | 'away'
+  | 'folded'
+  | 'offline'
+  | 'seated'
+  | 'unseated'
+  | 'unknown';
+
 export type PokerPlayerState = {
+  avatar?: string;
   betThisRound: number;
   cardCount: number;
   cards: PokerCardState[];
   chips: number;
   handDescription: string | null;
+  handle?: string;
   hasFolded: boolean;
   hasHiddenCards: boolean;
   holeCards: string[];
+  displayName?: string;
   id: string;
   isAllIn: boolean;
   isBigBlind: boolean;
@@ -248,11 +263,14 @@ export type PokerPlayerState = {
   isHost: boolean;
   isSmallBlind: boolean;
   isTurn: boolean;
+  onlineStatus?: PokerPlayerOnlineStatus;
   lastAction: PokerActionHistoryEntry | null;
   legs: number;
   name: string;
   playerStatus: PokerPlayerStatus;
   statusTier: PlayerStatusTier;
+  statusIcon?: string;
+  tableStatus?: PokerPlayerTableStatus;
   statusScore: number;
   statusMomentum: number;
   netChipBalance: number;
@@ -261,6 +279,7 @@ export type PokerPlayerState = {
   seatIndex: number | null;
   statusSnapshot: PokerPlayerStatusSnapshot;
   totalContribution: number;
+  userId?: string;
 };
 
 export type PokerControls = {

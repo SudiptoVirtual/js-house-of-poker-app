@@ -13,7 +13,9 @@ import type {
   PokerInviteSource,
   PokerPhase,
   PokerPlayerState,
+  PokerPlayerOnlineStatus,
   PokerPlayerStatus,
+  PokerPlayerTableStatus,
   PokerRoomState,
   PokerSeatState,
   PokerTableInvite,
@@ -25,34 +27,59 @@ import type { PokerServerEvent, PokerServerEventType } from './types';
 
 type LegacyPokerPlayerState = Omit<
   PokerPlayerState,
+  | 'avatar'
   | 'cardCount'
   | 'cards'
+  | 'displayName'
+  | 'handle'
   | 'hasHiddenCards'
+  | 'isConnected'
   | 'lastAction'
   | 'netChipBalance'
+  | 'onlineStatus'
   | 'playerStatus'
   | 'seatIndex'
+  | 'statusIcon'
   | 'statusMomentum'
   | 'statusScore'
   | 'statusTier'
   | 'statusUpdatedAt'
+  | 'tableStatus'
+  | 'userId'
 > &
   Partial<
     Pick<
       PokerPlayerState,
+      | 'avatar'
       | 'cardCount'
       | 'cards'
+      | 'displayName'
+      | 'handle'
       | 'hasHiddenCards'
+      | 'isConnected'
       | 'lastAction'
       | 'netChipBalance'
+      | 'onlineStatus'
       | 'seatIndex'
+      | 'statusIcon'
       | 'statusMomentum'
       | 'statusScore'
       | 'statusTier'
       | 'statusUpdatedAt'
+      | 'tableStatus'
+      | 'userId'
     >
   > & {
+    accountId?: unknown;
+    avatar?: unknown;
+    avatarUrl?: unknown;
+    displayName?: unknown;
+    isConnected?: unknown;
     playerStatus?: PokerPlayerStatus | PlayerStatusTier | string | null;
+    profileImageUrl?: unknown;
+    status?: unknown;
+    statusBadge?: unknown;
+    username?: unknown;
   };
 
 type LegacyPokerRoomState = {
@@ -113,6 +140,88 @@ function normalizeStringArray(value: unknown) {
   return Array.isArray(value)
     ? value.filter((entry): entry is string => typeof entry === 'string' && entry.length > 0)
     : [];
+}
+
+function normalizeOptionalString(...values: unknown[]) {
+  for (const value of values) {
+    if (typeof value !== 'string') {
+      continue;
+    }
+
+    const trimmed = value.trim();
+    if (trimmed.length > 0) {
+      return trimmed;
+    }
+  }
+
+  return undefined;
+}
+
+function normalizeBoolean(value: unknown, fallback = false) {
+  return typeof value === 'boolean' ? value : fallback;
+}
+
+function normalizeOnlineStatus(
+  value: unknown,
+  isConnected: boolean | undefined,
+): PokerPlayerOnlineStatus {
+  if (value === 'online' || value === 'offline' || value === 'unknown') {
+    return value;
+  }
+
+  if (typeof isConnected === 'boolean') {
+    return isConnected ? 'online' : 'offline';
+  }
+
+  return 'unknown';
+}
+
+function normalizeTableStatus(
+  value: unknown,
+  player: Pick<
+    LegacyPokerPlayerState,
+    'hasFolded' | 'isAllIn' | 'isTurn' | 'seatIndex'
+  >,
+  isConnected: boolean | undefined,
+): PokerPlayerTableStatus {
+  if (
+    value === 'acting' ||
+    value === 'all-in' ||
+    value === 'away' ||
+    value === 'folded' ||
+    value === 'offline' ||
+    value === 'seated' ||
+    value === 'unseated' ||
+    value === 'unknown'
+  ) {
+    return value;
+  }
+
+  if (isConnected === false) {
+    return 'offline';
+  }
+
+  if (player.isTurn) {
+    return 'acting';
+  }
+
+  if (player.hasFolded) {
+    return 'folded';
+  }
+
+  if (player.isAllIn) {
+    return 'all-in';
+  }
+
+  if (typeof player.seatIndex === 'number') {
+    return 'seated';
+  }
+
+  if (isConnected === true) {
+    return 'unseated';
+  }
+
+  return 'unknown';
 }
 
 function normalizeNumberRecord(value: unknown) {
@@ -680,25 +789,46 @@ export function normalizePokerRoomState(
       null;
 
     const statusTier = normalizePlayerStatusTier(player.statusTier ?? player.playerStatus);
+    const previousPlayer = previousState?.players.find((candidate) => candidate.id === player.id);
+    const explicitIsConnected = typeof player.isConnected === 'boolean' ? player.isConnected : undefined;
+    const isConnected = normalizeBoolean(explicitIsConnected, previousPlayer?.isConnected ?? false);
+    const normalizedSeatIndex = typeof player.seatIndex === 'number' ? player.seatIndex : seatIndex;
+    const displayName = normalizeOptionalString(player.displayName, player.name, player.username) ?? 'Player';
+    const userId = normalizeOptionalString(player.userId, player.accountId, player.id);
+    const handle = normalizeOptionalString(player.handle, player.username);
+    const onlineStatus = normalizeOnlineStatus(player.onlineStatus, explicitIsConnected ?? previousPlayer?.isConnected);
 
     return {
       ...player,
+      avatar: normalizeOptionalString(player.avatar, player.avatarUrl, player.profileImageUrl),
       cardCount,
       cards,
+      displayName,
+      handle,
       hasHiddenCards: cardCount > cards.length,
+      isConnected,
       lastAction,
       legs: typeof legsByPlayerId[player.id] === 'number' ? legsByPlayerId[player.id] : typeof player.legs === 'number' ? player.legs : 0,
+      name: displayName,
       netChipBalance: normalizeNumber(player.netChipBalance),
+      onlineStatus,
       playerStatus: normalizePokerPlayerStatus(statusTier),
       revealedDecision:
         player.revealedDecision === 'GO' || player.revealedDecision === 'STAY'
           ? player.revealedDecision
           : null,
-      seatIndex: typeof player.seatIndex === 'number' ? player.seatIndex : seatIndex,
+      seatIndex: normalizedSeatIndex,
+      statusIcon: normalizeOptionalString(player.statusIcon, player.statusBadge),
       statusMomentum: normalizeNumber(player.statusMomentum),
       statusScore: normalizeNumber(player.statusScore),
       statusTier,
       statusUpdatedAt: normalizeStatusUpdatedAt(player.statusUpdatedAt),
+      tableStatus: normalizeTableStatus(
+        player.tableStatus ?? player.status,
+        { ...player, seatIndex: normalizedSeatIndex },
+        explicitIsConnected ?? previousPlayer?.isConnected,
+      ),
+      userId,
     } satisfies PokerPlayerState;
   });
   const maxSeats = Math.max(

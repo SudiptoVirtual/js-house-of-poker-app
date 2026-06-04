@@ -1,4 +1,4 @@
-import { memo } from 'react';
+import { memo, useEffect, useState } from 'react';
 import { Image, StyleSheet, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 
@@ -12,6 +12,7 @@ import {
 import type { PokerPlayerStatus } from '../types/poker';
 
 type PlayerAvatarProps = {
+  avatar?: string;
   connected?: boolean;
   name: string;
   seed: string;
@@ -56,6 +57,7 @@ const SIZE_MAP = {
 } as const;
 
 export const PlayerAvatar = memo(function PlayerAvatar({
+  avatar,
   connected = true,
   name,
   seed,
@@ -64,6 +66,12 @@ export const PlayerAvatar = memo(function PlayerAvatar({
 }: PlayerAvatarProps) {
   const palette = getAvatarPalette(seed);
   const config = SIZE_MAP[size];
+  const [avatarFailed, setAvatarFailed] = useState(false);
+  const showAvatarImage = Boolean(avatar && !avatarFailed);
+
+  useEffect(() => {
+    setAvatarFailed(false);
+  }, [avatar]);
   const statusBadge = status ? getPlayerStatusBadge(status) : null;
   const statusBadgeImage = status ? getPlayerStatusBadgeImage(status) : null;
   const statusBadgeName = status ? statusBadge?.name ?? getPlayerStatusName(status) : undefined;
@@ -91,10 +99,22 @@ export const PlayerAvatar = memo(function PlayerAvatar({
           },
         ]}
       >
-        <View style={styles.sheen} />
-        <Text style={[styles.label, { color: palette.text, fontSize: config.fontSize }]}>
-          {getPlayerInitials(name)}
-        </Text>
+        {showAvatarImage ? (
+          <Image
+            accessibilityLabel={`${name} avatar`}
+            onError={() => setAvatarFailed(true)}
+            resizeMode="cover"
+            source={{ uri: avatar }}
+            style={styles.avatarImage}
+          />
+        ) : (
+          <>
+            <View style={styles.sheen} />
+            <Text style={[styles.label, { color: palette.text, fontSize: config.fontSize }]}>
+              {getPlayerInitials(name)}
+            </Text>
+          </>
+        )}
       </LinearGradient>
       {statusBadge || statusBadgeImage ? (
         <View
@@ -146,6 +166,10 @@ export const PlayerAvatar = memo(function PlayerAvatar({
 });
 
 const styles = StyleSheet.create({
+  avatarImage: {
+    height: '100%',
+    width: '100%',
+  },
   inner: {
     alignItems: 'center',
     borderRadius: 999,

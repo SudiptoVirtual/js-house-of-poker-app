@@ -216,6 +216,7 @@ export const ClassicPlayerSeat = memo(function ClassicPlayerSeat({
         <View style={[styles.portraitFrame, isBottomSeat ? styles.portraitFrameBottom : null]}>
           <View style={styles.portraitGlow} />
           <PlayerAvatar
+            avatar={player.avatar}
             connected={player.isConnected}
             name={player.name}
             seed={player.id}
