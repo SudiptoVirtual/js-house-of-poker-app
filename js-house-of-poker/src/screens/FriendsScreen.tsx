@@ -1,144 +1,170 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { useMemo, useState } from 'react';
+import { StyleSheet, Text } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
-import { ActionButton } from '../components/ActionButton';
-import { ComplianceNotice } from '../components/ComplianceNotice';
-import { BotTrainingPromoBanner } from '../components/BotTrainingPromoBanner';
+import { FriendsHeader } from '../components/friends/FriendsHeader';
+import { OnlineFriendsList } from '../components/friends/OnlineFriendsList';
+import { PlayerSearchInput } from '../components/friends/PlayerSearchInput';
+import { PlayerSearchResultsList } from '../components/friends/PlayerSearchResultsList';
 import { Screen } from '../components/Screen';
 import { SectionCard } from '../components/SectionCard';
+import { friendsMockPlayers } from '../constants/friendsMockData';
 import { routes } from '../constants/routes';
-import { buildSocialInvitePreset, socialPlayers } from '../constants/social';
 import { usePoker } from '../context/PokerProvider';
 import { colors } from '../theme/colors';
+import type { FriendsPlayer } from '../types/friends';
 import type { RootStackParamList } from '../types/navigation';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Friends'>;
 
 export function FriendsScreen({ navigation }: Props) {
-  const { roomState } = usePoker();
+  const { roomState, sendTableInvite } = usePoker();
+  const [players, setPlayers] = useState<FriendsPlayer[]>(friendsMockPlayers);
+  const [query, setQuery] = useState('');
+  const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
   const activeTableCode = roomState?.roomId ?? null;
+  const trimmedQuery = query.trim();
+  const isSearchActive = trimmedQuery.length > 0;
 
-  function handleInvite(recipientHandle: string) {
-    if (!activeTableCode) {
-      navigation.navigate(routes.Home);
+  const onlineFriends = useMemo(
+    () => players.filter((player) => player.relationshipStatus === 'friend' && player.isOnline === true),
+    [players],
+  );
+
+  const searchResults = useMemo(() => {
+    if (!isSearchActive) {
+      return [];
+    }
+
+    const normalizedQuery = trimmedQuery.toLowerCase();
+
+    return players.filter((player) =>
+      [player.displayName, player.username].some((value) =>
+        value.toLowerCase().includes(normalizedQuery),
+      ),
+    );
+  }, [isSearchActive, players, trimmedQuery]);
+
+  function handleViewProfile(player: FriendsPlayer) {
+    // TODO(profile:openFromFriends): Deep-link to the selected player's public profile when profile routes accept player IDs.
+    setFeedbackMessage(`Opening profile placeholder for ${player.displayName}.`);
+    navigation.navigate(routes.Profile);
+  }
+
+  function handleSendFriendRequest(player: FriendsPlayer) {
+    // TODO(friends:sendRequest): Persist outgoing friend requests through the friends API.
+    // TODO(notification:friendRequest): Notify the recipient that a friend request was sent.
+    setPlayers((currentPlayers) =>
+      currentPlayers.map((currentPlayer) =>
+        currentPlayer.id === player.id
+          ? { ...currentPlayer, relationshipStatus: 'request_sent' }
+          : currentPlayer,
+      ),
+    );
+    setFeedbackMessage(`Friend request placeholder sent to ${player.displayName}.`);
+  }
+
+  function handleRespondToRequest(player: FriendsPlayer, response: 'accept' | 'reject') {
+    if (response === 'accept') {
+      // TODO(friends:acceptRequest): Accept inbound friend requests through the friends API.
+      setPlayers((currentPlayers) =>
+        currentPlayers.map((currentPlayer) =>
+          currentPlayer.id === player.id
+            ? { ...currentPlayer, relationshipStatus: 'friend' }
+            : currentPlayer,
+        ),
+      );
+      setFeedbackMessage(`Friend request placeholder accepted for ${player.displayName}.`);
       return;
     }
 
-    navigation.navigate(routes.Game, {
-      invitePreset: buildSocialInvitePreset(recipientHandle, 'Inviting from friends'),
+    // TODO(friends:rejectRequest): Reject inbound friend requests through the friends API.
+    setPlayers((currentPlayers) =>
+      currentPlayers.map((currentPlayer) =>
+        currentPlayer.id === player.id
+          ? { ...currentPlayer, relationshipStatus: 'not_friends' }
+          : currentPlayer,
+      ),
+    );
+    setFeedbackMessage(`Friend request placeholder rejected for ${player.displayName}.`);
+  }
+
+  function handleInviteToChat(player: FriendsPlayer) {
+    // TODO(chat:invitePlayerToRoom): Replace this visible placeholder with chat room selection and invite delivery.
+    // TODO(notification:chatInvite): Notify the player when a chat invite is delivered.
+    setFeedbackMessage(`Chat invite placeholder queued for ${player.displayName}.`);
+  }
+
+  function handleInviteToTable(player: FriendsPlayer) {
+    if (!activeTableCode) {
+      // TODO(table:invitePlayerToTable): Connect table invite placeholders to active table selection when no table is open.
+      // TODO(notification:tableInvite): Notify players when table invites are delivered.
+      setFeedbackMessage(`Table invite placeholder needs an active table before inviting ${player.displayName}.`);
+      return;
+    }
+
+    // TODO(table:invitePlayerToTable): Replace mock recipient IDs with backend account IDs for table invites.
+    // TODO(notification:tableInvite): Notify players when table invites are delivered.
+    void sendTableInvite({
+      message: `Join my table ${activeTableCode}`,
+      recipientAccountId: player.id,
+      source: 'friend-list',
     });
+    setFeedbackMessage(`Table invite placeholder sent to ${player.displayName} for ${activeTableCode}.`);
   }
 
   return (
     <Screen
       showPlatformNavigation
       eyebrow="Friends"
-      title="Your table crew"
-      subtitle="Track regulars, see who is ready, and route invites back into the active table rail."
+      title="Friends"
+      subtitle="Online friends and player search"
     >
-      <SectionCard title="Invite status">
-        <Text style={styles.helperText}>
-          {activeTableCode
-            ? `Invites from this list will open the shared table invite flow for ${activeTableCode}.`
-            : 'No active table yet. Start or join a free-play table from the lobby before inviting friends.'}
-        </Text>
-        <ActionButton
-          fullWidth
-          icon={activeTableCode ? 'cards-playing-outline' : 'door-open'}
-          label={activeTableCode ? 'Open active table' : 'Open lobby'}
-          onPress={() =>
-            navigation.navigate(activeTableCode ? routes.Game : routes.Home)
-          }
-          variant="secondary"
+      <SectionCard title="Find players">
+        <PlayerSearchInput onChangeText={setQuery} value={query} />
+        <FriendsHeader
+          activeTableCode={activeTableCode}
+          feedbackMessage={feedbackMessage}
+          isSearchActive={isSearchActive}
+          onlineFriendCount={onlineFriends.length}
         />
       </SectionCard>
 
-      <SectionCard title="Invite + train">
-        <BotTrainingPromoBanner
-          compact
-          placement="invite"
-          onPressPrimary={() => navigation.navigate(routes.Home)}
-          onPressSecondary={() => navigation.navigate(routes.Home)}
-        />
-      </SectionCard>
-
-      <SectionCard title="Friend list">
-        <View style={styles.friendStack}>
-          {socialPlayers.map((player) => (
-            <View key={player.id} style={styles.friendCard}>
-              <Text style={styles.friendName}>{player.name}</Text>
-              <Text style={styles.friendHandle}>{player.handle}</Text>
-              <Text style={styles.friendStatus}>{player.statusLabel}</Text>
-              <Text style={styles.friendMeta}>{player.mutualTables}</Text>
-              <Text style={styles.friendBio}>{player.bio}</Text>
-              <Text style={styles.friendSeat}>{player.favoriteSeat}</Text>
-              <ActionButton
-                compact
-                fullWidth
-                icon={activeTableCode ? 'account-plus-outline' : 'door-open'}
-                label={activeTableCode ? 'Invite to active table' : 'Open lobby to invite'}
-                onPress={() => handleInvite(player.handle)}
-                tone={activeTableCode ? 'primary' : 'neutral'}
-                variant={activeTableCode ? 'primary' : 'secondary'}
-              />
-            </View>
-          ))}
-        </View>
-      </SectionCard>
-
-      {/* <ComplianceNotice /> */}
+      {isSearchActive ? (
+        <SectionCard title="Search results">
+          <Text style={styles.helperText}>
+            Results appear only while search is active and match name or username case-insensitively.
+          </Text>
+          <PlayerSearchResultsList
+            hasActiveTable={Boolean(activeTableCode)}
+            isSearchActive={isSearchActive}
+            onInviteToChat={handleInviteToChat}
+            onInviteToTable={handleInviteToTable}
+            onRespondToRequest={handleRespondToRequest}
+            onSendFriendRequest={handleSendFriendRequest}
+            onViewProfile={handleViewProfile}
+            players={searchResults}
+          />
+        </SectionCard>
+      ) : (
+        <SectionCard title="Online friends">
+          <OnlineFriendsList
+            hasActiveTable={Boolean(activeTableCode)}
+            onInviteToChat={handleInviteToChat}
+            onInviteToTable={handleInviteToTable}
+            onViewProfile={handleViewProfile}
+            players={onlineFriends}
+          />
+        </SectionCard>
+      )}
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  friendBio: {
-    color: colors.text,
-    fontSize: 14,
-    lineHeight: 21,
-  },
-  friendCard: {
-    backgroundColor: colors.surfaceMuted,
-    borderColor: colors.border,
-    borderRadius: 20,
-    borderWidth: 1,
-    gap: 8,
-    paddingHorizontal: 14,
-    paddingVertical: 14,
-  },
-  friendHandle: {
-    color: colors.secondary,
-    fontSize: 12,
-    fontWeight: '800',
-  },
-  friendMeta: {
-    color: colors.mutedText,
-    fontSize: 12,
-    fontWeight: '700',
-    letterSpacing: 0.5,
-    textTransform: 'uppercase',
-  },
-  friendName: {
-    color: colors.text,
-    fontSize: 18,
-    fontWeight: '800',
-  },
-  friendSeat: {
-    color: colors.mutedText,
-    fontSize: 13,
-    lineHeight: 19,
-  },
-  friendStack: {
-    gap: 12,
-  },
-  friendStatus: {
-    color: colors.gold,
-    fontSize: 13,
-    fontWeight: '700',
-  },
   helperText: {
-    color: colors.text,
-    fontSize: 15,
-    lineHeight: 22,
+    color: colors.mutedText,
+    fontSize: 14,
+    lineHeight: 20,
   },
 });
