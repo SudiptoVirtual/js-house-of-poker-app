@@ -2,6 +2,12 @@ const mongoose = require("mongoose");
 
 const FriendRequest = require("../models/FriendRequest");
 const User = require("../models/User");
+const {
+  createFriendRequestAcceptedNotification,
+  createFriendRequestDeclinedNotification,
+  createFriendRequestNotification,
+  emitFriendNotificationRecords,
+} = require("../services/friendNotificationService");
 
 function normalizeObjectId(value) {
   const normalized = String(value || "").trim();
@@ -38,6 +44,21 @@ function serializeRequest(request) {
     createdAt: request.createdAt,
     updatedAt: request.updatedAt,
   };
+}
+
+function emitFriendNotification(notificationRecord) {
+  return emitFriendNotificationRecords(undefined, [notificationRecord]);
+}
+
+async function safelyCreateAndEmitFriendNotification(createNotification) {
+  try {
+    const notificationRecord = await createNotification();
+    emitFriendNotification(notificationRecord);
+    return notificationRecord;
+  } catch (error) {
+    console.error("Friend notification failed", error);
+    return null;
+  }
 }
 
 function serializeFriend(user) {
@@ -184,6 +205,15 @@ const requestFriend = async (req, res) => {
       status: "pending",
     });
 
+    const [sender, receiver] = await Promise.all([
+      User.findById(request.senderUserId).select("name email avatar"),
+      User.findById(request.receiverUserId).select("name email avatar"),
+    ]);
+
+    await safelyCreateAndEmitFriendNotification(() =>
+      createFriendRequestNotification({ request, sender: sender || req.user, receiver })
+    );
+
     return res.status(201).json({
       message: "Friend request sent",
       ...buildStatusPayload("pending_sent", request),
@@ -244,8 +274,8 @@ const acceptFriend = async (req, res) => {
     }
 
     const [sender, receiver] = await Promise.all([
-      User.findById(request.senderUserId).select("friends isBlocked status"),
-      User.findById(request.receiverUserId).select("friends isBlocked status"),
+      User.findById(request.senderUserId).select("friends isBlocked status name email avatar"),
+      User.findById(request.receiverUserId).select("friends isBlocked status name email avatar"),
     ]);
 
     if (!sender || !receiver) {
@@ -279,6 +309,10 @@ const acceptFriend = async (req, res) => {
       ),
     ]);
 
+    await safelyCreateAndEmitFriendNotification(() =>
+      createFriendRequestAcceptedNotification({ request, sender, receiver })
+    );
+
     return res.status(200).json({
       message: "Friend request accepted",
       ...buildStatusPayload("friends", request),
@@ -302,6 +336,15 @@ const declineFriend = async (req, res) => {
 
     request.status = "declined";
     await request.save();
+
+    const [sender, receiver] = await Promise.all([
+      User.findById(request.senderUserId).select("name email avatar"),
+      User.findById(request.receiverUserId).select("name email avatar"),
+    ]);
+
+    await safelyCreateAndEmitFriendNotification(() =>
+      createFriendRequestDeclinedNotification({ request, sender, receiver: receiver || req.user })
+    );
 
     return res.status(200).json({
       message: "Friend request declined",

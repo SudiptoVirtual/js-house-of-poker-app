@@ -12,6 +12,9 @@ const NOTIFICATION_TYPES = [
   "feed_gift_clip",
   "feed_promotion",
   "feed_table_invite",
+  "friend_request",
+  "friend_request_accepted",
+  "friend_request_declined",
 ];
 
 const notificationSchema = new mongoose.Schema(
