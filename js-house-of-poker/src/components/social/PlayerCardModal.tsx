@@ -36,6 +36,8 @@ export type PlayerCardActionContext = {
 
 export type PlayerCardModalProps = {
   canGiftClips?: boolean;
+  chatRoomInviteDisabled?: boolean;
+  chatRoomInviteHelper?: string;
   currentTableId: string | null;
   currentUserId: string | null;
   friendState?: PlayerCardFriendState;
@@ -50,6 +52,8 @@ export type PlayerCardModalProps = {
   onViewFullProfile: PlayerCardActionCallback;
   player: PokerPlayerState | null;
   selfId: string | null;
+  tableInviteDisabled?: boolean;
+  tableInviteHelper?: string;
   visible: boolean;
 };
 
@@ -157,6 +161,8 @@ function getResultMessage(result: PlayerCardActionResult, fallback: string) {
 
 export function PlayerCardModal({
   canGiftClips = false,
+  chatRoomInviteDisabled = false,
+  chatRoomInviteHelper,
   currentTableId,
   currentUserId,
   friendState,
@@ -171,6 +177,8 @@ export function PlayerCardModal({
   onViewFullProfile,
   player,
   selfId,
+  tableInviteDisabled = false,
+  tableInviteHelper,
   visible,
 }: PlayerCardModalProps) {
   const [actionLoading, setActionLoading] = useState<PlayerCardActionId | null>(null);
@@ -296,16 +304,16 @@ export function PlayerCardModal({
   const socialActions: ActionConfig[] = [
     ...friendActions,
     {
-      disabled: isSelf || isBlockedOrReported,
-      helper: isSelf ? 'You cannot invite yourself.' : undefined,
+      disabled: isSelf || isBlockedOrReported || chatRoomInviteDisabled,
+      helper: isSelf ? 'You cannot invite yourself.' : chatRoomInviteHelper,
       icon: 'chat-plus',
       id: 'invite-chat-room',
       label: 'Invite to Chat Room',
       onPress: onInviteToChatRoom,
     },
     {
-      disabled: isSelf || isBlockedOrReported || !currentTableId,
-      helper: !currentTableId ? 'No active table is available.' : undefined,
+      disabled: isSelf || isBlockedOrReported || tableInviteDisabled || !currentTableId,
+      helper: isSelf ? 'You cannot invite yourself.' : tableInviteHelper ?? (!currentTableId ? 'No active table is available.' : undefined),
       icon: 'poker-chip',
       id: 'invite-table',
       label: 'Invite to Table',

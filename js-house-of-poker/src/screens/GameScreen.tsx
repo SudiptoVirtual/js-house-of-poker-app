@@ -37,6 +37,8 @@ import { ThreeFiveSevenActionPanel } from '../components/gameplay/ThreeFiveSeven
 import { ThreeFiveSevenRuleBadge } from '../components/gameplay/ThreeFiveSevenRuleBadge';
 import { usePoker, usePokerFriendEventSubscription } from '../context/PokerProvider';
 import { sendFeedGiftClip } from '../services/api';
+import { fetchActiveChatRoomFriends, fetchChatRooms, inviteChatRoomFriends } from '../services/api/chatRooms';
+import { clearAuthSession, getAuthSession } from '../services/storage/sessionStorage';
 import { useGameplayAnimations } from '../hooks/useGameplayAnimations';
 import { BOT_TRAINING_TABLE_IDS } from '../constants/botTrainingTables';
 import { routes } from '../constants/routes';
@@ -49,6 +51,7 @@ import type {
   PokerPlayerState,
   PokerRoomState,
 } from '../types/poker';
+import type { ChatRoom } from '../types/chatRooms';
 import {
   buildSeatDescriptors,
   getPhaseTitle,
@@ -90,6 +93,14 @@ type ShowdownBannerState = {
   text: string;
 };
 
+type ChatRoomInviteAvailabilityState = {
+  activeFriendIds: string[];
+  error: string | null;
+  rooms: ChatRoom[];
+  status: 'idle' | 'loading' | 'ready' | 'error';
+  token: string | null;
+};
+
 type ThreeFiveSevenRevealPreview = {
   id: string;
   legDeltaByPlayerId: Record<string, number>;
@@ -110,6 +121,32 @@ const EMBEDDED_357_TABLE_WIDTH_SCALE = 1.0;
 const EMBEDDED_357_BASE_TABLE_FIT_SCALE = 0.9;
 const LANDSCAPE_TABLE_FIT_SCALE = 0.97;
 const MAX_LEG_SLOTS = 4;
+
+const expiredSessionMessage = 'Your sign-in session expired. Sign in again to invite friends to chat rooms.';
+
+function isInvalidUserTokenError(error: unknown) {
+  return error instanceof Error && /invalid user token|invalid player token|jwt expired|jwt malformed/i.test(error.message);
+}
+
+function getPlayerAccountId(player: PokerPlayerState | null) {
+  return player?.userId ?? null;
+}
+
+function getEligibleChatRoomForPlayer(rooms: ChatRoom[], playerAccountId: string | null) {
+  if (!playerAccountId) {
+    return null;
+  }
+
+  return rooms.find((room) => {
+    const roomPlayerIds = new Set(
+      room.players.flatMap((roomPlayer) => [roomPlayer.id, roomPlayer.userId].filter(Boolean) as string[]),
+    );
+    const pendingInviteIds = new Set(room.inviteState.pendingInvites);
+
+    return !roomPlayerIds.has(playerAccountId) && !pendingInviteIds.has(playerAccountId);
+  }) ?? null;
+}
+
 
 function mapRealtimeFriendState(status: string | null | undefined): PlayerCardFriendState | null {
   switch (status) {
@@ -488,6 +525,7 @@ export function GameScreen({ navigation }: Props) {
     roomState,
     sendAction,
     sendTableChatMessage,
+    sendTableInvite,
     startHand,
     transportLabel,
     transportStatus,
@@ -512,6 +550,13 @@ export function GameScreen({ navigation }: Props) {
   const [selectedPlayerCard, setSelectedPlayerCard] =
     useState<PokerPlayerState | null>(null);
   const [playerFriendStates, setPlayerFriendStates] = useState<Record<string, PlayerCardFriendState>>({});
+  const [chatRoomInviteAvailability, setChatRoomInviteAvailability] = useState<ChatRoomInviteAvailabilityState>({
+    activeFriendIds: [],
+    error: null,
+    rooms: [],
+    status: 'idle',
+    token: null,
+  });
   const previousRoomRef = useRef<PokerRoomState | null>(null);
   const animationQueueRef = useRef(Promise.resolve());
   const latest357ResolutionKeyRef = useRef<string | null>(null);
@@ -543,6 +588,84 @@ export function GameScreen({ navigation }: Props) {
       latest357ResolutionKeyRef.current = null;
     }
   }, [roomState?.roomId]);
+
+  useEffect(() => {
+    let isActive = true;
+
+    async function loadChatRoomInviteAvailability() {
+      if (!selectedPlayerCard) {
+        setChatRoomInviteAvailability({
+          activeFriendIds: [],
+          error: null,
+          rooms: [],
+          status: 'idle',
+          token: null,
+        });
+        return;
+      }
+
+      setChatRoomInviteAvailability((current) => ({
+        ...current,
+        error: null,
+        status: 'loading',
+      }));
+
+      try {
+        const session = await getAuthSession();
+        const token = session?.token ?? null;
+        const [rooms, activeFriends] = await Promise.all([
+          fetchChatRooms(token),
+          token ? fetchActiveChatRoomFriends(token) : Promise.resolve([]),
+        ]);
+
+        if (!isActive) {
+          return;
+        }
+
+        setChatRoomInviteAvailability({
+          activeFriendIds: Array.from(new Set(activeFriends.flatMap((friend) => [friend.id, friend.userId].filter(Boolean) as string[]))),
+          error: null,
+          rooms,
+          status: 'ready',
+          token,
+        });
+      } catch (error) {
+        if (!isActive) {
+          return;
+        }
+
+        if (isInvalidUserTokenError(error)) {
+          await clearAuthSession();
+          if (!isActive) {
+            return;
+          }
+
+          setChatRoomInviteAvailability({
+            activeFriendIds: [],
+            error: expiredSessionMessage,
+            rooms: [],
+            status: 'error',
+            token: null,
+          });
+          return;
+        }
+
+        setChatRoomInviteAvailability({
+          activeFriendIds: [],
+          error: error instanceof Error ? error.message : 'Unable to load eligible chat rooms.',
+          rooms: [],
+          status: 'error',
+          token: null,
+        });
+      }
+    }
+
+    void loadChatRoomInviteAvailability();
+
+    return () => {
+      isActive = false;
+    };
+  }, [selectedPlayerCard?.id, selectedPlayerCard?.userId]);
 
   usePokerFriendEventSubscription(null, (event) => {
     const friendState = mapRealtimeFriendState(event.status);
@@ -581,6 +704,71 @@ export function GameScreen({ navigation }: Props) {
 
   const activeState = roomState ?? null;
   const tableState = activeState;
+  const selectedPlayerAccountId = getPlayerAccountId(selectedPlayerCard);
+  const eligibleChatRoom = useMemo(
+    () => getEligibleChatRoomForPlayer(chatRoomInviteAvailability.rooms, selectedPlayerAccountId),
+    [chatRoomInviteAvailability.rooms, selectedPlayerAccountId],
+  );
+  const selectedPlayerIsActiveFriend = Boolean(
+    selectedPlayerAccountId && chatRoomInviteAvailability.activeFriendIds.includes(selectedPlayerAccountId),
+  );
+  const chatRoomInviteHelper = useMemo(() => {
+    if (!selectedPlayerCard) {
+      return undefined;
+    }
+
+    if (!selectedPlayerAccountId) {
+      return 'This player does not have an account id for chat-room invites.';
+    }
+
+    if (chatRoomInviteAvailability.status === 'loading') {
+      return 'Checking eligible chat rooms…';
+    }
+
+    if (!chatRoomInviteAvailability.token) {
+      return 'Sign in to invite friends to chat rooms.';
+    }
+
+    if (chatRoomInviteAvailability.error) {
+      return chatRoomInviteAvailability.error;
+    }
+
+    if (!selectedPlayerIsActiveFriend) {
+      return 'Only active friends can be invited to chat rooms.';
+    }
+
+    if (chatRoomInviteAvailability.rooms.length === 0) {
+      return 'No chat rooms are available to invite this player.';
+    }
+
+    if (!eligibleChatRoom) {
+      return 'This player is already in or invited to every eligible chat room.';
+    }
+
+    return `Invite to ${eligibleChatRoom.title}.`;
+  }, [
+    chatRoomInviteAvailability.error,
+    chatRoomInviteAvailability.rooms.length,
+    chatRoomInviteAvailability.status,
+    chatRoomInviteAvailability.token,
+    eligibleChatRoom,
+    selectedPlayerAccountId,
+    selectedPlayerCard,
+    selectedPlayerIsActiveFriend,
+  ]);
+  const chatRoomInviteDisabled = Boolean(
+    !selectedPlayerAccountId ||
+      chatRoomInviteAvailability.status !== 'ready' ||
+      !chatRoomInviteAvailability.token ||
+      !selectedPlayerIsActiveFriend ||
+      !eligibleChatRoom,
+  );
+  const tableInviteHelper = !selectedPlayerAccountId
+    ? 'This player does not have an account id for table invites.'
+    : !tableState?.roomId
+      ? 'No active table is available.'
+      : undefined;
+  const tableInviteDisabled = Boolean(!selectedPlayerAccountId || !tableState?.roomId);
   const orderedPlayers = useMemo(
     () =>
       tableState
@@ -1471,11 +1659,75 @@ export function GameScreen({ navigation }: Props) {
   }
 
   async function handleInvitePlayerToChatRoom(player: PokerPlayerState) {
-    return completePlayerCardAction(`${getSelectedPlayerName(player)} is queued for a chat room invite.`);
+    const playerAccountId = getPlayerAccountId(player);
+
+    if (!playerAccountId) {
+      throw new Error('This player does not have an account id for chat-room invites.');
+    }
+
+    if (!chatRoomInviteAvailability.token) {
+      throw new Error('Sign in to invite friends to chat rooms.');
+    }
+
+    if (!selectedPlayerIsActiveFriend) {
+      throw new Error('Only active friends can be invited to chat rooms.');
+    }
+
+    const room = getEligibleChatRoomForPlayer(chatRoomInviteAvailability.rooms, playerAccountId);
+
+    if (!room) {
+      throw new Error('No eligible chat room is available for this player.');
+    }
+
+    try {
+      const result = await inviteChatRoomFriends(room.id, [playerAccountId], chatRoomInviteAvailability.token);
+
+      setChatRoomInviteAvailability((current) => ({
+        ...current,
+        rooms: result.room
+          ? current.rooms.map((currentRoom) => currentRoom.id === result.room?.id ? result.room : currentRoom)
+          : current.rooms,
+      }));
+
+      if (result.invitedPlayerIds.includes(playerAccountId)) {
+        return { message: `${getSelectedPlayerName(player)} was invited to ${result.room?.title ?? room.title}.` };
+      }
+
+      return { message: `${getSelectedPlayerName(player)} is already in ${result.room?.title ?? room.title}.` };
+    } catch (error) {
+      if (isInvalidUserTokenError(error)) {
+        await clearAuthSession();
+        setChatRoomInviteAvailability({
+          activeFriendIds: [],
+          error: expiredSessionMessage,
+          rooms: [],
+          status: 'error',
+          token: null,
+        });
+        throw new Error(expiredSessionMessage);
+      }
+
+      throw error;
+    }
   }
 
   async function handleInvitePlayerToTable(player: PokerPlayerState) {
-    return completePlayerCardAction(`${getSelectedPlayerName(player)} is queued for this table invite.`);
+    const playerAccountId = getPlayerAccountId(player);
+
+    if (!playerAccountId) {
+      throw new Error('This player does not have an account id for table invites.');
+    }
+
+    if (!roomState?.roomId) {
+      throw new Error('No active table is available.');
+    }
+
+    await sendTableInvite({
+      recipientAccountId: playerAccountId,
+      source: 'friend-list',
+    });
+
+    return { message: `${getSelectedPlayerName(player)} was invited to this table.` };
   }
 
   async function handleViewFullPlayerProfile() {
@@ -1775,6 +2027,8 @@ export function GameScreen({ navigation }: Props) {
 
       <PlayerCardModal
         canGiftClips={typeof sendFeedGiftClip === 'function'}
+        chatRoomInviteDisabled={chatRoomInviteDisabled}
+        chatRoomInviteHelper={chatRoomInviteHelper}
         currentTableId={currentTableState.tableId ?? currentTableState.roomId}
         currentUserId={currentTableState.selfId}
         friendState={selectedPlayerCard ? playerFriendStates[selectedPlayerCard.id] : undefined}
@@ -1788,6 +2042,8 @@ export function GameScreen({ navigation }: Props) {
         onViewFullProfile={handleViewFullPlayerProfile}
         player={selectedPlayerCard}
         selfId={currentTableState.selfId}
+        tableInviteDisabled={tableInviteDisabled}
+        tableInviteHelper={tableInviteHelper}
         visible={Boolean(selectedPlayerCard)}
       />
 
