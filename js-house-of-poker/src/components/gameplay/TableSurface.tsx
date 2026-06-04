@@ -7,7 +7,11 @@ import { CardFlight } from '../CardFlight';
 import { ChipFlight } from '../ChipFlight';
 import { PlayerActionBurst } from '../PlayerActionBurst';
 import { TableCenterBoard } from '../TableCenterBoard';
-import type { Poker357Decision, PokerRoomState } from '../../types/poker';
+import type {
+  Poker357Decision,
+  PokerPlayerState,
+  PokerRoomState,
+} from '../../types/poker';
 import type { Point, SeatDescriptor } from '../../utils/pokerTable';
 import type { CardSize } from '../AnimatedCard';
 import { GameTableSeat } from './GameTableSeat';
@@ -63,6 +67,7 @@ type Props = {
   rightPanelNode?: ReactNode;
   rightPanelWidth?: number;
   onLayout: (event: any) => void;
+  onPressPlayerAvatar?: (player: PokerPlayerState) => void;
   onPressTable: () => void;
   onResetTableView: () => void;
   phaseTitle: string;
@@ -131,6 +136,7 @@ export function TableSurface({
   rightPanelNode = null,
   rightPanelWidth,
   onLayout,
+  onPressPlayerAvatar,
   onPressTable,
   onResetTableView,
   phaseTitle,
@@ -600,6 +606,7 @@ export function TableSurface({
                           isWinner={isWinner}
                           legCount={resolvedLegCount}
                           legPulseKey={legPulseKey}
+                          onPressPlayerAvatar={onPressPlayerAvatar}
                           phase={state.phase}
                           player={descriptor.player}
                           showdownCards={resolvedShowdownCards}
@@ -617,6 +624,7 @@ export function TableSurface({
                           isSelf={isSelf}
                           isWinner={isWinner}
                           legCount={resolvedLegCount}
+                          onPressPlayerAvatar={onPressPlayerAvatar}
                           phase={state.phase}
                           player={descriptor.player}
                         />

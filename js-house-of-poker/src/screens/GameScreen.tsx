@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
+  Modal,
   Pressable,
   StyleSheet,
   Text,
@@ -41,6 +42,7 @@ import type {
   Poker357Decision,
   Poker357Resolution,
   PokerAction,
+  PokerPlayerState,
   PokerRoomState,
 } from '../types/poker';
 import {
@@ -486,6 +488,8 @@ export function GameScreen({ navigation }: Props) {
     useState<ThreeFiveSevenRevealPreview | null>(null);
   const [clockNow, setClockNow] = useState(Date.now());
   const [isTopBarExpanded, setIsTopBarExpanded] = useState(true);
+  const [selectedPlayerCard, setSelectedPlayerCard] =
+    useState<PokerPlayerState | null>(null);
   const previousRoomRef = useRef<PokerRoomState | null>(null);
   const animationQueueRef = useRef(Promise.resolve());
   const latest357ResolutionKeyRef = useRef<string | null>(null);
@@ -512,6 +516,7 @@ export function GameScreen({ navigation }: Props) {
     if (!roomState?.roomId) {
       setRaiseTo('');
       setPendingAction(null);
+      setSelectedPlayerCard(null);
       setThreeFiveSevenRevealPreview(null);
       latest357ResolutionKeyRef.current = null;
     }
@@ -1378,6 +1383,14 @@ export function GameScreen({ navigation }: Props) {
     handleGameAction('raise', amount);
   }
 
+  function handlePressPlayerAvatar(player: PokerPlayerState) {
+    setSelectedPlayerCard(player);
+  }
+
+  function handleClosePlayerCard() {
+    setSelectedPlayerCard(null);
+  }
+
   function handleTablePress() {
     if (!isLandscape) {
       setIsTableFocused(true);
@@ -1526,6 +1539,7 @@ export function GameScreen({ navigation }: Props) {
       rightPanelNode={shouldEmbed357Panel ? threeFiveSevenActionRail : null}
       rightPanelWidth={embedded357ActionPanelWidth}
       onLayout={handleTableLayout}
+      onPressPlayerAvatar={handlePressPlayerAvatar}
       onPressTable={focused ? resetTableView : handleTablePress}
       onResetTableView={resetTableView}
       phaseTitle={phaseTitle}
@@ -1658,6 +1672,85 @@ export function GameScreen({ navigation }: Props) {
         tableNode={tableNode}
         topBar={topBar}
       />
+
+      <Modal
+        animationType="slide"
+        onRequestClose={handleClosePlayerCard}
+        transparent
+        visible={Boolean(selectedPlayerCard)}
+      >
+        <View style={styles.playerCardModalRoot}>
+          <Pressable
+            accessibilityLabel="Close player card"
+            accessibilityRole="button"
+            onPress={handleClosePlayerCard}
+            style={styles.playerCardBackdrop}
+          />
+          {selectedPlayerCard ? (
+            <View style={styles.playerCardSheet}>
+              <View style={styles.playerCardGrabber} />
+              <View style={styles.playerCardHeader}>
+                <View style={styles.playerCardAvatar}>
+                  <Text style={styles.playerCardAvatarText}>
+                    {selectedPlayerCard.name
+                      .trim()
+                      .split(/\s+/)
+                      .map((part) => part[0])
+                      .join('')
+                      .slice(0, 2)
+                      .toUpperCase()}
+                  </Text>
+                </View>
+                <View style={styles.playerCardIdentity}>
+                  <Text numberOfLines={1} style={styles.playerCardName}>
+                    {selectedPlayerCard.name}
+                  </Text>
+                  <Text style={styles.playerCardSubtitle}>
+                    {selectedPlayerCard.isConnected ? 'At the table' : 'Away'}
+                  </Text>
+                </View>
+                <Pressable
+                  accessibilityLabel="Close player card"
+                  accessibilityRole="button"
+                  onPress={handleClosePlayerCard}
+                  style={({ pressed }) => [
+                    styles.playerCardCloseButton,
+                    pressed ? styles.playerCardCloseButtonPressed : null,
+                  ]}
+                >
+                  <Text style={styles.playerCardCloseText}>×</Text>
+                </Pressable>
+              </View>
+              <View style={styles.playerCardStats}>
+                <View style={styles.playerCardStat}>
+                  <Text style={styles.playerCardStatLabel}>Stack</Text>
+                  <Text style={styles.playerCardStatValue}>
+                    {selectedPlayerCard.chips.toLocaleString('en-US')}
+                  </Text>
+                </View>
+                <View style={styles.playerCardStat}>
+                  <Text style={styles.playerCardStatLabel}>Contributed</Text>
+                  <Text style={styles.playerCardStatValue}>
+                    {selectedPlayerCard.totalContribution.toLocaleString('en-US')}
+                  </Text>
+                </View>
+                <View style={styles.playerCardStat}>
+                  <Text style={styles.playerCardStatLabel}>Seat</Text>
+                  <Text style={styles.playerCardStatValue}>
+                    {selectedPlayerCard.seatIndex === null
+                      ? '—'
+                      : selectedPlayerCard.seatIndex + 1}
+                  </Text>
+                </View>
+              </View>
+              <Text style={styles.playerCardHelperText}>
+                Player actions stay in-game. Friend actions for your own avatar are
+                disabled on the table.
+              </Text>
+            </View>
+          ) : null}
+        </View>
+      </Modal>
 
       {showTableFocusOverlay ? (
         <Animated.View
@@ -1851,6 +1944,121 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
     lineHeight: 18,
+  },
+  playerCardAvatar: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(103, 243, 187, 0.16)',
+    borderColor: 'rgba(103, 243, 187, 0.42)',
+    borderRadius: 999,
+    borderWidth: 2,
+    height: 54,
+    justifyContent: 'center',
+    width: 54,
+  },
+  playerCardAvatarText: {
+    color: '#EFFFF8',
+    fontSize: 18,
+    fontWeight: '900',
+    letterSpacing: 0.8,
+  },
+  playerCardBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.52)',
+  },
+  playerCardCloseButton: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderColor: 'rgba(255, 255, 255, 0.16)',
+    borderRadius: 999,
+    borderWidth: 1,
+    height: 36,
+    justifyContent: 'center',
+    width: 36,
+  },
+  playerCardCloseButtonPressed: {
+    opacity: 0.7,
+    transform: [{ scale: 0.95 }],
+  },
+  playerCardCloseText: {
+    color: '#FFFFFF',
+    fontSize: 26,
+    fontWeight: '600',
+    lineHeight: 30,
+  },
+  playerCardGrabber: {
+    alignSelf: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.28)',
+    borderRadius: 999,
+    height: 4,
+    marginBottom: 14,
+    width: 42,
+  },
+  playerCardHeader: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 12,
+  },
+  playerCardHelperText: {
+    color: 'rgba(247, 252, 249, 0.68)',
+    fontSize: 12,
+    fontWeight: '700',
+    lineHeight: 17,
+  },
+  playerCardIdentity: {
+    flex: 1,
+    minWidth: 0,
+  },
+  playerCardModalRoot: {
+    flex: 1,
+    justifyContent: 'flex-end',
+  },
+  playerCardName: {
+    color: '#FFFFFF',
+    fontSize: 21,
+    fontWeight: '900',
+  },
+  playerCardSheet: {
+    backgroundColor: 'rgba(12, 8, 22, 0.98)',
+    borderColor: 'rgba(139, 92, 255, 0.34)',
+    borderTopLeftRadius: 26,
+    borderTopRightRadius: 26,
+    borderWidth: 1,
+    gap: 16,
+    paddingBottom: 30,
+    paddingHorizontal: 20,
+    paddingTop: 12,
+  },
+  playerCardStat: {
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: 16,
+    borderWidth: 1,
+    flex: 1,
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 10,
+  },
+  playerCardStatLabel: {
+    color: 'rgba(247, 252, 249, 0.58)',
+    fontSize: 9,
+    fontWeight: '900',
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+  },
+  playerCardStats: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  playerCardStatValue: {
+    color: '#F7FCF9',
+    fontSize: 14,
+    fontWeight: '900',
+  },
+  playerCardSubtitle: {
+    color: 'rgba(103, 243, 187, 0.82)',
+    fontSize: 12,
+    fontWeight: '800',
+    marginTop: 3,
   },
   roundWildsBadge: {
     alignItems: 'center',
