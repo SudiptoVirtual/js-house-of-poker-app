@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
-  Modal,
   Pressable,
   StyleSheet,
   Text,
@@ -30,9 +29,14 @@ import { HeroActionSection } from '../components/gameplay/HeroActionSection';
 import { gameplayLayoutConfig } from '../components/gameplay/layoutConfig';
 import { TableSurface } from '../components/gameplay/TableSurface';
 import { TableChatBar } from '../components/gameplay/TableChatBar';
+import {
+  PlayerCardModal,
+  type PlayerCardFriendState,
+} from '../components/social/PlayerCardModal';
 import { ThreeFiveSevenActionPanel } from '../components/gameplay/ThreeFiveSevenActionPanel';
 import { ThreeFiveSevenRuleBadge } from '../components/gameplay/ThreeFiveSevenRuleBadge';
 import { usePoker } from '../context/PokerProvider';
+import { sendFeedGiftClip } from '../services/api';
 import { useGameplayAnimations } from '../hooks/useGameplayAnimations';
 import { BOT_TRAINING_TABLE_IDS } from '../constants/botTrainingTables';
 import { routes } from '../constants/routes';
@@ -490,6 +494,7 @@ export function GameScreen({ navigation }: Props) {
   const [isTopBarExpanded, setIsTopBarExpanded] = useState(true);
   const [selectedPlayerCard, setSelectedPlayerCard] =
     useState<PokerPlayerState | null>(null);
+  const [playerFriendStates, setPlayerFriendStates] = useState<Record<string, PlayerCardFriendState>>({});
   const previousRoomRef = useRef<PokerRoomState | null>(null);
   const animationQueueRef = useRef(Promise.resolve());
   const latest357ResolutionKeyRef = useRef<string | null>(null);
@@ -1391,6 +1396,70 @@ export function GameScreen({ navigation }: Props) {
     setSelectedPlayerCard(null);
   }
 
+  function getSelectedPlayerName(player: PokerPlayerState) {
+    return player.name || 'Player';
+  }
+
+  async function completePlayerCardAction(result: string | { message: string; friendState?: PlayerCardFriendState }) {
+    await wait(220);
+
+    return typeof result === 'string' ? { message: result } : result;
+  }
+
+  async function handleAddFriend(player: PokerPlayerState) {
+    setPlayerFriendStates((current) => ({
+      ...current,
+      [player.id]: 'request-sent',
+    }));
+
+    return completePlayerCardAction(`Friend request sent to ${getSelectedPlayerName(player)}.`);
+  }
+
+  async function handleAcceptFriend(player: PokerPlayerState) {
+    setPlayerFriendStates((current) => ({
+      ...current,
+      [player.id]: 'friends',
+    }));
+
+    return completePlayerCardAction({
+      friendState: 'friends' as PlayerCardFriendState,
+      message: `${getSelectedPlayerName(player)} is now a friend.`,
+    });
+  }
+
+  async function handleDeclineFriend(player: PokerPlayerState) {
+    setPlayerFriendStates((current) => ({
+      ...current,
+      [player.id]: 'none',
+    }));
+
+    return completePlayerCardAction({
+      friendState: 'none' as PlayerCardFriendState,
+      message: `Friend request from ${getSelectedPlayerName(player)} declined.`,
+    });
+  }
+
+  async function handleInvitePlayerToChatRoom(player: PokerPlayerState) {
+    return completePlayerCardAction(`${getSelectedPlayerName(player)} is queued for a chat room invite.`);
+  }
+
+  async function handleInvitePlayerToTable(player: PokerPlayerState) {
+    return completePlayerCardAction(`${getSelectedPlayerName(player)} is queued for this table invite.`);
+  }
+
+  async function handleViewFullPlayerProfile() {
+    handleClosePlayerCard();
+    navigation.navigate(routes.Profile);
+
+    return { message: 'Opening full profile.' };
+  }
+
+  async function handleGiftClipsFromPlayerCard(player: PokerPlayerState) {
+    return completePlayerCardAction(
+      `Gift Clips are available from feed posts for ${getSelectedPlayerName(player)}.`,
+    );
+  }
+
   function handleTablePress() {
     if (!isLandscape) {
       setIsTableFocused(true);
@@ -1673,84 +1742,23 @@ export function GameScreen({ navigation }: Props) {
         topBar={topBar}
       />
 
-      <Modal
-        animationType="slide"
-        onRequestClose={handleClosePlayerCard}
-        transparent
+      <PlayerCardModal
+        canGiftClips={typeof sendFeedGiftClip === 'function'}
+        currentTableId={currentTableState.tableId ?? currentTableState.roomId}
+        currentUserId={currentTableState.selfId}
+        friendState={selectedPlayerCard ? playerFriendStates[selectedPlayerCard.id] : undefined}
+        onAccept={handleAcceptFriend}
+        onAddFriend={handleAddFriend}
+        onClose={handleClosePlayerCard}
+        onDecline={handleDeclineFriend}
+        onGiftClips={handleGiftClipsFromPlayerCard}
+        onInviteToChatRoom={handleInvitePlayerToChatRoom}
+        onInviteToTable={handleInvitePlayerToTable}
+        onViewFullProfile={handleViewFullPlayerProfile}
+        player={selectedPlayerCard}
+        selfId={currentTableState.selfId}
         visible={Boolean(selectedPlayerCard)}
-      >
-        <View style={styles.playerCardModalRoot}>
-          <Pressable
-            accessibilityLabel="Close player card"
-            accessibilityRole="button"
-            onPress={handleClosePlayerCard}
-            style={styles.playerCardBackdrop}
-          />
-          {selectedPlayerCard ? (
-            <View style={styles.playerCardSheet}>
-              <View style={styles.playerCardGrabber} />
-              <View style={styles.playerCardHeader}>
-                <View style={styles.playerCardAvatar}>
-                  <Text style={styles.playerCardAvatarText}>
-                    {selectedPlayerCard.name
-                      .trim()
-                      .split(/\s+/)
-                      .map((part) => part[0])
-                      .join('')
-                      .slice(0, 2)
-                      .toUpperCase()}
-                  </Text>
-                </View>
-                <View style={styles.playerCardIdentity}>
-                  <Text numberOfLines={1} style={styles.playerCardName}>
-                    {selectedPlayerCard.name}
-                  </Text>
-                  <Text style={styles.playerCardSubtitle}>
-                    {selectedPlayerCard.isConnected ? 'At the table' : 'Away'}
-                  </Text>
-                </View>
-                <Pressable
-                  accessibilityLabel="Close player card"
-                  accessibilityRole="button"
-                  onPress={handleClosePlayerCard}
-                  style={({ pressed }) => [
-                    styles.playerCardCloseButton,
-                    pressed ? styles.playerCardCloseButtonPressed : null,
-                  ]}
-                >
-                  <Text style={styles.playerCardCloseText}>×</Text>
-                </Pressable>
-              </View>
-              <View style={styles.playerCardStats}>
-                <View style={styles.playerCardStat}>
-                  <Text style={styles.playerCardStatLabel}>Stack</Text>
-                  <Text style={styles.playerCardStatValue}>
-                    {selectedPlayerCard.chips.toLocaleString('en-US')}
-                  </Text>
-                </View>
-                <View style={styles.playerCardStat}>
-                  <Text style={styles.playerCardStatLabel}>Contributed</Text>
-                  <Text style={styles.playerCardStatValue}>
-                    {selectedPlayerCard.totalContribution.toLocaleString('en-US')}
-                  </Text>
-                </View>
-                <View style={styles.playerCardStat}>
-                  <Text style={styles.playerCardStatLabel}>Seat</Text>
-                  <Text style={styles.playerCardStatValue}>
-                    {selectedPlayerCard.seatIndex === null
-                      ? '—'
-                      : selectedPlayerCard.seatIndex + 1}
-                  </Text>
-                </View>
-              </View>
-              <Text style={styles.playerCardHelperText}>
-                Player actions stay in-game. Friend actions for your own avatar are
-                disabled on the table.
-              </Text>
-            </View>
-          ) : null}
-        </View>
-      </Modal>
+      />
 
       {showTableFocusOverlay ? (
         <Animated.View
@@ -1944,121 +1952,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
     lineHeight: 18,
-  },
-  playerCardAvatar: {
-    alignItems: 'center',
-    backgroundColor: 'rgba(103, 243, 187, 0.16)',
-    borderColor: 'rgba(103, 243, 187, 0.42)',
-    borderRadius: 999,
-    borderWidth: 2,
-    height: 54,
-    justifyContent: 'center',
-    width: 54,
-  },
-  playerCardAvatarText: {
-    color: '#EFFFF8',
-    fontSize: 18,
-    fontWeight: '900',
-    letterSpacing: 0.8,
-  },
-  playerCardBackdrop: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0, 0, 0, 0.52)',
-  },
-  playerCardCloseButton: {
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    borderColor: 'rgba(255, 255, 255, 0.16)',
-    borderRadius: 999,
-    borderWidth: 1,
-    height: 36,
-    justifyContent: 'center',
-    width: 36,
-  },
-  playerCardCloseButtonPressed: {
-    opacity: 0.7,
-    transform: [{ scale: 0.95 }],
-  },
-  playerCardCloseText: {
-    color: '#FFFFFF',
-    fontSize: 26,
-    fontWeight: '600',
-    lineHeight: 30,
-  },
-  playerCardGrabber: {
-    alignSelf: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.28)',
-    borderRadius: 999,
-    height: 4,
-    marginBottom: 14,
-    width: 42,
-  },
-  playerCardHeader: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: 12,
-  },
-  playerCardHelperText: {
-    color: 'rgba(247, 252, 249, 0.68)',
-    fontSize: 12,
-    fontWeight: '700',
-    lineHeight: 17,
-  },
-  playerCardIdentity: {
-    flex: 1,
-    minWidth: 0,
-  },
-  playerCardModalRoot: {
-    flex: 1,
-    justifyContent: 'flex-end',
-  },
-  playerCardName: {
-    color: '#FFFFFF',
-    fontSize: 21,
-    fontWeight: '900',
-  },
-  playerCardSheet: {
-    backgroundColor: 'rgba(12, 8, 22, 0.98)',
-    borderColor: 'rgba(139, 92, 255, 0.34)',
-    borderTopLeftRadius: 26,
-    borderTopRightRadius: 26,
-    borderWidth: 1,
-    gap: 16,
-    paddingBottom: 30,
-    paddingHorizontal: 20,
-    paddingTop: 12,
-  },
-  playerCardStat: {
-    backgroundColor: 'rgba(255, 255, 255, 0.06)',
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-    borderRadius: 16,
-    borderWidth: 1,
-    flex: 1,
-    gap: 5,
-    paddingHorizontal: 10,
-    paddingVertical: 10,
-  },
-  playerCardStatLabel: {
-    color: 'rgba(247, 252, 249, 0.58)',
-    fontSize: 9,
-    fontWeight: '900',
-    letterSpacing: 0.8,
-    textTransform: 'uppercase',
-  },
-  playerCardStats: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  playerCardStatValue: {
-    color: '#F7FCF9',
-    fontSize: 14,
-    fontWeight: '900',
-  },
-  playerCardSubtitle: {
-    color: 'rgba(103, 243, 187, 0.82)',
-    fontSize: 12,
-    fontWeight: '800',
-    marginTop: 3,
   },
   roundWildsBadge: {
     alignItems: 'center',
