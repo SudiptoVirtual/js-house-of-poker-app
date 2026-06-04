@@ -5,6 +5,7 @@ const GameTable = require("../models/GameTable");
 const HandHistory = require("../models/HandHistory");
 const User = require("../models/User");
 const { logTableEvent } = require("../utils/liveEmitter");
+const { joinUserRoom } = require("../sockets/friendSocket");
 const {
   appendTableInviteRecords: persistTableInviteRecords,
   buildTableInviteRecord: buildPersistentTableInviteRecord,
@@ -1449,6 +1450,7 @@ class PokerRealtimeService {
     if (socket.data.userId) {
       const cachedUser = await User.findById(socket.data.userId);
       if (cachedUser && !cachedUser.isBlocked && cachedUser.status !== "blocked") {
+        joinUserRoom(socket, cachedUser._id);
         return cachedUser;
       }
     }
@@ -1476,6 +1478,7 @@ class PokerRealtimeService {
     }
 
     socket.data.userId = user._id.toString();
+    joinUserRoom(socket, user._id);
     return user;
   }
 

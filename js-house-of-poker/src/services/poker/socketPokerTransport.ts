@@ -1,4 +1,10 @@
-import { pokerClientEvents, pokerLegacyClientEvents, pokerLegacyServerEvents, pokerServerEvents } from './events';
+import {
+  pokerClientEvents,
+  pokerFriendServerEvents,
+  pokerLegacyClientEvents,
+  pokerLegacyServerEvents,
+  pokerServerEvents,
+} from './events';
 import { buildRoomStateFromLegacy } from './roomStateAdapter';
 import { createSocketManager } from '../socket/socketManager';
 import { normalizeTableChatText } from '../../utils/tableChat';
@@ -10,6 +16,7 @@ import type {
   CreatePokerTableInput,
   JoinPokerTableInput,
   PokerConnectionState,
+  PokerFriendRealtimeEvent,
   PokerGameSettingsUpdate,
   PokerSessionState,
   PokerTransport,
@@ -192,6 +199,19 @@ export function createSocketPokerTransport(
   }
 
 
+  function pushFriendEvent(
+    eventName: PokerFriendRealtimeEvent['eventName'],
+    payload: Omit<PokerFriendRealtimeEvent, 'eventName'> | null | undefined,
+  ) {
+    notify({
+      event: {
+        ...(payload || {}),
+        eventName,
+      },
+      type: 'friend-event',
+    });
+  }
+
   function mergePlayerStatusUpdate(payload: PlayerStatusUpdatedPayload | null | undefined) {
     if (!previousRoomState || !payload?.playerId) {
       return;
@@ -273,6 +293,26 @@ export function createSocketPokerTransport(
   });
 
   const rawUnsubscribers = [
+    socketManager.on<Omit<PokerFriendRealtimeEvent, 'eventName'>>(
+      pokerFriendServerEvents.requestReceived,
+      (payload) => pushFriendEvent(pokerFriendServerEvents.requestReceived, payload),
+    ),
+    socketManager.on<Omit<PokerFriendRealtimeEvent, 'eventName'>>(
+      pokerFriendServerEvents.requestSent,
+      (payload) => pushFriendEvent(pokerFriendServerEvents.requestSent, payload),
+    ),
+    socketManager.on<Omit<PokerFriendRealtimeEvent, 'eventName'>>(
+      pokerFriendServerEvents.requestAccepted,
+      (payload) => pushFriendEvent(pokerFriendServerEvents.requestAccepted, payload),
+    ),
+    socketManager.on<Omit<PokerFriendRealtimeEvent, 'eventName'>>(
+      pokerFriendServerEvents.requestDeclined,
+      (payload) => pushFriendEvent(pokerFriendServerEvents.requestDeclined, payload),
+    ),
+    socketManager.on<Omit<PokerFriendRealtimeEvent, 'eventName'>>(
+      pokerFriendServerEvents.statusUpdated,
+      (payload) => pushFriendEvent(pokerFriendServerEvents.statusUpdated, payload),
+    ),
     socketManager.on<PlayerStatusUpdatedPayload>(pokerServerEvents.playerStatusUpdated, (payload) => {
       mergePlayerStatusUpdate(payload);
     }),

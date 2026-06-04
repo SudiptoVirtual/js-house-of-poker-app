@@ -102,6 +102,36 @@ export type PokerServerEventType =
   | 'table-left'
   | 'winner-declared';
 
+export type PokerFriendState = 'none' | 'pending_sent' | 'pending_received' | 'friends' | 'blocked';
+
+export type PokerFriendRealtimeEventType =
+  | 'friends:request_received'
+  | 'friends:request_sent'
+  | 'friends:request_accepted'
+  | 'friends:request_declined'
+  | 'friends:status_updated';
+
+export type PokerFriendRealtimeEvent = {
+  actorUserId?: string | null;
+  eventName: PokerFriendRealtimeEventType;
+  otherUser?: {
+    avatar?: string | null;
+    email?: string | null;
+    id?: string | null;
+    name?: string | null;
+    userId?: string | null;
+  } | null;
+  otherUserId?: string | null;
+  request?: {
+    id?: string | null;
+    receiverUserId?: string | null;
+    senderUserId?: string | null;
+    status?: string | null;
+  } | null;
+  requestId?: string | null;
+  status?: PokerFriendState | null;
+};
+
 export type PokerServerEvent = {
   id: string;
   occurredAt: number;
@@ -129,6 +159,10 @@ export type PokerTransportNotification =
   | {
       session: Partial<PokerSessionState>;
       type: 'session';
+    }
+  | {
+      event: PokerFriendRealtimeEvent;
+      type: 'friend-event';
     };
 
 export type PokerTransportListener = (notification: PokerTransportNotification) => void;

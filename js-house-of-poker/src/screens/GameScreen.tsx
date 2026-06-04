@@ -35,7 +35,7 @@ import {
 } from '../components/social/PlayerCardModal';
 import { ThreeFiveSevenActionPanel } from '../components/gameplay/ThreeFiveSevenActionPanel';
 import { ThreeFiveSevenRuleBadge } from '../components/gameplay/ThreeFiveSevenRuleBadge';
-import { usePoker } from '../context/PokerProvider';
+import { usePoker, usePokerFriendEventSubscription } from '../context/PokerProvider';
 import { sendFeedGiftClip } from '../services/api';
 import { useGameplayAnimations } from '../hooks/useGameplayAnimations';
 import { BOT_TRAINING_TABLE_IDS } from '../constants/botTrainingTables';
@@ -110,6 +110,23 @@ const EMBEDDED_357_TABLE_WIDTH_SCALE = 1.0;
 const EMBEDDED_357_BASE_TABLE_FIT_SCALE = 0.9;
 const LANDSCAPE_TABLE_FIT_SCALE = 0.97;
 const MAX_LEG_SLOTS = 4;
+
+function mapRealtimeFriendState(status: string | null | undefined): PlayerCardFriendState | null {
+  switch (status) {
+    case 'blocked':
+      return 'blocked';
+    case 'friends':
+      return 'friends';
+    case 'none':
+      return 'none';
+    case 'pending_received':
+      return 'incoming-request';
+    case 'pending_sent':
+      return 'request-sent';
+    default:
+      return null;
+  }
+}
 
 function joinCompactNames(names: string[]) {
   if (names.length <= 1) {
@@ -526,6 +543,20 @@ export function GameScreen({ navigation }: Props) {
       latest357ResolutionKeyRef.current = null;
     }
   }, [roomState?.roomId]);
+
+  usePokerFriendEventSubscription(null, (event) => {
+    const friendState = mapRealtimeFriendState(event.status);
+    const friendUserId = event.otherUserId || event.otherUser?.id || event.otherUser?.userId || null;
+
+    if (!friendState || !friendUserId) {
+      return;
+    }
+
+    setPlayerFriendStates((current) => ({
+      ...current,
+      [friendUserId]: friendState,
+    }));
+  });
 
   useEffect(() => {
     setPendingAction(null);
