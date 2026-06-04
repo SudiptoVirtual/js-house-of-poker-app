@@ -3,6 +3,7 @@ export type { AuthResponse, AuthUser } from './api/auth';
 export { ApiError, apiRequest, getApiErrorDetails } from './api/client';
 export {
   createFeedComment,
+  createFeedPost,
   createFeedPromotion,
   createFeedShare,
   deleteFeedComment,
@@ -15,6 +16,8 @@ export {
   updateFeedComment,
 } from './api/feed';
 export type {
+  CreateFeedPostInput,
+  CreateFeedPostResponse,
   DeleteFeedCommentResponse,
   CreateFeedPromotionInput,
   CreateFeedShareInput,

@@ -11,7 +11,7 @@ export type FeedPostBoxProfile = Pick<FeedPlayer, 'avatarUrl' | 'handle' | 'id' 
 type FeedPostBoxProps = {
   currentPlayer?: FeedPostBoxProfile;
   onOpenProfile?: (player: FeedPostBoxProfile) => void;
-  onPostCreated?: (content: string) => void;
+  onPostCreated?: (content: string) => Promise<void> | void;
 };
 
 const placeholderPlayer: FeedPostBoxProfile = {
@@ -31,34 +31,40 @@ function getPlayerInitials(name: string) {
 
 export function FeedPostBox({ currentPlayer, onOpenProfile, onPostCreated }: FeedPostBoxProps) {
   const [content, setContent] = useState('');
-  const [lastMockPost, setLastMockPost] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const player = currentPlayer ?? placeholderPlayer;
-  const canSubmit = content.trim().length > 0;
+  const canSubmit = content.trim().length > 0 && !isSubmitting;
 
   const statusMessage = useMemo(() => {
-    if (lastMockPost) {
-      return 'Post staged locally. Feed sync coming soon.';
+    if (isSubmitting) {
+      return 'Publishing post...';
     }
 
     return `Posting as ${player.name}`;
-  }, [lastMockPost, player.name]);
+  }, [isSubmitting, player.name]);
 
   function handleOpenProfile() {
     onOpenProfile?.(player);
   }
 
-  function handleSubmit() {
+  async function handleSubmit() {
     const trimmedContent = content.trim();
 
     if (!trimmedContent) {
       return;
     }
 
-    // TODO(feed:createPost): Replace this local mock submit with the feed create-post API.
     // TODO(notification:feedActivity): Notify interested players after feed post creation succeeds.
-    setLastMockPost(trimmedContent);
-    onPostCreated?.(trimmedContent);
-    setContent('');
+    setIsSubmitting(true);
+
+    try {
+      await onPostCreated?.(trimmedContent);
+      setContent('');
+    } catch {
+      // The parent owns user-facing create-post errors. Keep the draft intact.
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   return (
@@ -86,7 +92,7 @@ export function FeedPostBox({ currentPlayer, onOpenProfile, onPostCreated }: Fee
       </View>
       <View style={styles.footerRow}>
         <Text style={styles.helperText}>{statusMessage}</Text>
-        <ActionButton compact disabled={!canSubmit} icon="send-outline" label="Post" onPress={handleSubmit} />
+        <ActionButton compact disabled={!canSubmit} icon="send-outline" label={isSubmitting ? 'Posting' : 'Post'} onPress={handleSubmit} />
       </View>
     </View>
   );

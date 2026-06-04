@@ -5,11 +5,10 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { MainPlatformNavigation } from '../navigation/MainPlatformNavigation';
-import { currentFeedPlayer, mockFeedPosts } from '../../constants/playerFeedMockData';
 import { routes } from '../../constants/routes';
 import { useAuth } from '../../context/AuthProvider';
 import { usePoker } from '../../context/PokerProvider';
-import { createFeedComment, createFeedPromotion, createFeedShare, fetchFeedPosts, getApiErrorDetails, sendFeedGiftClip, sendFeedTableInvite, toggleFeedSupport } from '../../services/api';
+import { createFeedComment, createFeedPost, createFeedPromotion, createFeedShare, fetchFeedPosts, getApiErrorDetails, sendFeedGiftClip, sendFeedTableInvite, toggleFeedSupport } from '../../services/api';
 import { getAuthSession } from '../../services/storage/sessionStorage';
 import { colors } from '../../theme/colors';
 import type { RootStackParamList } from '../../types/navigation';
@@ -24,14 +23,16 @@ type PlayerFeedScreenProps = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'Feed'>;
 };
 
-function buildCurrentUserHandle(email: string | undefined) {
-  const localPart = email?.split('@')[0]?.trim();
+function buildCurrentUserHandle(user: { email?: string; id: string; name: string }) {
+  const localPart = user.email?.split('@')[0]?.trim();
+  const fallback = user.name.trim() || `player-${user.id.slice(-6)}`;
+  const handleBase = localPart || fallback;
 
-  if (!localPart) {
-    return currentFeedPlayer.handle;
-  }
+  return `@${handleBase.toLowerCase().replace(/[^a-z0-9._-]/g, '-')}`;
+}
 
-  return `@${localPart.toLowerCase().replace(/[^a-z0-9._-]/g, '-')}`;
+function isBackendFeedPostId(postId: string) {
+  return /^[a-f0-9]{24}$/i.test(postId);
 }
 
 function buildProfileRoute(playerId: string): FeedNavigationRoute {
@@ -44,27 +45,27 @@ function buildProfileRoute(playerId: string): FeedNavigationRoute {
 }
 
 export function PlayerFeedScreen({ navigation }: PlayerFeedScreenProps) {
-  const { currentUser } = useAuth();
+  const { currentUser, token } = useAuth();
   const { roomState } = usePoker();
-  const [posts, setPosts] = useState<FeedPost[]>(mockFeedPosts);
+  const [posts, setPosts] = useState<FeedPost[]>([]);
   const [giftPost, setGiftPost] = useState<FeedPost | null>(null);
   const [promotePost, setPromotePost] = useState<FeedPost | null>(null);
   const [sharePost, setSharePost] = useState<FeedPost | null>(null);
 
   const activeTableCode = roomState?.roomId ?? null;
-  const currentPlayer = useMemo<FeedPlayer>(
+  const currentPlayer = useMemo<FeedPlayer | undefined>(
     () =>
       currentUser
         ? {
             avatarUrl: currentUser.avatar,
-            handle: buildCurrentUserHandle(currentUser.email),
+            handle: buildCurrentUserHandle(currentUser),
             id: currentUser.id,
             name: currentUser.name,
             profileRoute: buildProfileRoute(currentUser.id),
             status: currentUser.isOnline ? 'Online' : 'In Lobby',
             statusTier: 'none',
           }
-        : currentFeedPlayer,
+        : undefined,
     [currentUser],
   );
 
@@ -75,13 +76,13 @@ export function PlayerFeedScreen({ navigation }: PlayerFeedScreenProps) {
       const session = await getAuthSession();
       const response = await fetchFeedPosts(session?.token ?? null);
 
-      if (isMounted && response.posts.length > 0) {
+      if (isMounted) {
         setPosts(response.posts);
       }
     }
 
     void loadFeedPosts().catch((error) => {
-      console.warn('Unable to load backend feed posts; using fallback feed data.', error);
+      console.warn('Unable to load backend feed posts.', error);
     });
 
     return () => {
@@ -97,26 +98,44 @@ export function PlayerFeedScreen({ navigation }: PlayerFeedScreenProps) {
     [activeTableCode],
   );
 
-  function handleCreatePost(content: string) {
-    const createdPost: FeedPost = {
-      commentCount: 0,
-      content,
-      id: `local-feed-${Date.now()}`,
-      isPromoted: false,
-      isTableRelated: false,
-      player: currentPlayer,
-      shareCount: 0,
-      supportedByCurrentPlayer: false,
-      supportersCount: 0,
-      timestamp: 'Now',
-    };
+  async function handleCreatePost(content: string) {
+    if (!token || !currentUser) {
+      Alert.alert('Sign in required', 'Sign in to publish posts to the player feed.');
+      throw new Error('Sign in required to publish feed posts.');
+    }
 
-    setPosts((currentPosts) => [createdPost, ...currentPosts]);
+    try {
+      const response = await createFeedPost(
+        {
+          content,
+          ...(activeTableCode ? { tableCode: activeTableCode } : {}),
+        },
+        token,
+      );
+
+      setPosts((currentPosts) => [response.post, ...currentPosts]);
+    } catch (error) {
+      const details = getApiErrorDetails(error, 'Unable to publish your post right now.');
+      Alert.alert('Post not published', details.message);
+      throw error;
+    }
   }
 
   async function handleSupportChange(postId: string, nextSupportedState: boolean) {
     const targetPost = posts.find((post) => post.id === postId);
     const previousSupportedState = Boolean(targetPost?.supportedByCurrentPlayer);
+
+    if (!isBackendFeedPostId(postId)) {
+      Alert.alert('Action unavailable', 'Refresh the feed before supporting this post.');
+      return;
+    }
+
+    const session = await getAuthSession();
+
+    if (!session?.token) {
+      Alert.alert('Sign in required', 'Sign in to save your support.');
+      return;
+    }
 
     setPosts((currentPosts) =>
       currentPosts.map((post) => {
@@ -136,13 +155,6 @@ export function PlayerFeedScreen({ navigation }: PlayerFeedScreenProps) {
         };
       }),
     );
-
-    const session = await getAuthSession();
-
-    if (!session?.token || postId.startsWith('local-feed-')) {
-      Alert.alert('Support staged locally', 'Sign in and refresh persisted feed posts to save your support.');
-      return;
-    }
 
     try {
       const response = await toggleFeedSupport(postId, nextSupportedState, session.token);
@@ -176,7 +188,7 @@ export function PlayerFeedScreen({ navigation }: PlayerFeedScreenProps) {
       return;
     }
 
-    if (playerId === currentPlayer.id) {
+    if (playerId === currentPlayer?.id) {
       navigation.navigate(routes.Profile);
       return;
     }
@@ -188,13 +200,13 @@ export function PlayerFeedScreen({ navigation }: PlayerFeedScreenProps) {
     // TODO(notification:feedActivity): Notify post owner of new feed comment after backend confirmation.
     const session = await getAuthSession();
 
-    if (!session?.token || post.id.startsWith('local-feed-')) {
-      setPosts((currentPosts) =>
-        currentPosts.map((currentPost) =>
-          currentPost.id === post.id ? { ...currentPost, commentCount: currentPost.commentCount + 1 } : currentPost,
-        ),
-      );
-      Alert.alert('Comment staged locally', `Sign in and refresh persisted feed posts to save: ${comment}`);
+    if (!isBackendFeedPostId(post.id)) {
+      Alert.alert('Action unavailable', 'Refresh the feed before commenting on this post.');
+      return undefined;
+    }
+
+    if (!session?.token) {
+      Alert.alert('Sign in required', 'Sign in to save your comment.');
       return undefined;
     }
 
@@ -221,12 +233,14 @@ export function PlayerFeedScreen({ navigation }: PlayerFeedScreenProps) {
     const targetPost = sharePost;
     const session = await getAuthSession();
 
-    if (!session?.token || targetPost.id.startsWith('local-feed-')) {
-      setPosts((currentPosts) =>
-        currentPosts.map((post) => (post.id === targetPost.id ? { ...post, shareCount: post.shareCount + 1 } : post)),
-      );
-      Alert.alert('Share staged locally', `Sign in and refresh persisted feed posts to save your ${destinationId.replace(/-/g, ' ')} share.`);
+    if (!isBackendFeedPostId(targetPost.id)) {
+      Alert.alert('Action unavailable', 'Refresh the feed before sharing this post.');
       setSharePost(null);
+      return;
+    }
+
+    if (!session?.token) {
+      Alert.alert('Sign in required', 'Sign in to save your share.');
       return;
     }
 
@@ -250,8 +264,13 @@ export function PlayerFeedScreen({ navigation }: PlayerFeedScreenProps) {
     const targetPost = giftPost;
     const session = await getAuthSession();
 
-    if (!session?.token || targetPost.id.startsWith('local-feed-')) {
-      Alert.alert('Sign in required', 'Sign in and refresh persisted feed posts before sending Gift Clips.');
+    if (!isBackendFeedPostId(targetPost.id)) {
+      Alert.alert('Action unavailable', 'Refresh the feed before sending Gift Clips.');
+      return;
+    }
+
+    if (!session?.token) {
+      Alert.alert('Sign in required', 'Sign in before sending Gift Clips.');
       return;
     }
 
@@ -275,8 +294,13 @@ export function PlayerFeedScreen({ navigation }: PlayerFeedScreenProps) {
     const targetPost = promotePost;
     const session = await getAuthSession();
 
-    if (!session?.token || targetPost.id.startsWith('local-feed-')) {
-      Alert.alert('Sign in required', 'Sign in and refresh persisted feed posts before sponsoring a promotion.');
+    if (!isBackendFeedPostId(targetPost.id)) {
+      Alert.alert('Action unavailable', 'Refresh the feed before sponsoring a promotion.');
+      return;
+    }
+
+    if (!session?.token) {
+      Alert.alert('Sign in required', 'Sign in before sponsoring a promotion.');
       return;
     }
 
@@ -308,8 +332,13 @@ export function PlayerFeedScreen({ navigation }: PlayerFeedScreenProps) {
     const tableCode = post.tableContext?.tableCode;
     const session = await getAuthSession();
 
-    if (!session?.token || post.id.startsWith('local-feed-')) {
-      Alert.alert('Sign in required', 'Sign in and refresh persisted feed posts before sending table invites from feed.');
+    if (!isBackendFeedPostId(post.id)) {
+      Alert.alert('Action unavailable', 'Refresh the feed before sending table invites from feed.');
+      return;
+    }
+
+    if (!session?.token) {
+      Alert.alert('Sign in required', 'Sign in before sending table invites from feed.');
       return;
     }
 
@@ -345,6 +374,12 @@ export function PlayerFeedScreen({ navigation }: PlayerFeedScreenProps) {
           contentContainerStyle={styles.content}
           data={posts}
           keyExtractor={(item) => item.id}
+          ListEmptyComponent={
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyTitle}>No feed posts yet</Text>
+              <Text style={styles.emptyText}>Be the first to start table talk by publishing a post.</Text>
+            </View>
+          }
           ListHeaderComponent={
             <View style={styles.headerStack}>
               <View style={styles.screenHeader}>
@@ -414,6 +449,26 @@ const styles = StyleSheet.create({
     gap: 14,
     padding: 18,
     paddingBottom: 116,
+  },
+  emptyState: {
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderRadius: 24,
+    borderWidth: 1,
+    gap: 8,
+    padding: 24,
+  },
+  emptyText: {
+    color: colors.mutedText,
+    fontSize: 14,
+    lineHeight: 20,
+    textAlign: 'center',
+  },
+  emptyTitle: {
+    color: colors.text,
+    fontSize: 18,
+    fontWeight: '900',
   },
   eyebrow: {
     color: colors.primary,
