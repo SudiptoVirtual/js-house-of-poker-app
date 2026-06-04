@@ -247,6 +247,7 @@ export const PlayerSeat = memo(function PlayerSeat({
         <View style={styles.header}>
           <View style={styles.identity}>
             <PlayerAvatar
+              avatar={player.avatar}
               connected={player.isConnected}
               name={player.name}
               seed={player.id}

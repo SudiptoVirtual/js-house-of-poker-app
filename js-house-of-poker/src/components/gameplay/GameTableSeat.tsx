@@ -676,6 +676,7 @@ export const GameTableSeat = memo(function GameTableSeat({
   ) => {
     const avatarNode = (
       <PlayerAvatar
+        avatar={player.avatar}
         connected={player.isConnected}
         name={player.name}
         seed={player.id}
