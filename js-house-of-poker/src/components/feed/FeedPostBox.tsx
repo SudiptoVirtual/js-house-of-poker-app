@@ -1,17 +1,18 @@
 import { useMemo, useState } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { ActionButton } from '../ActionButton';
 import { colors } from '../../theme/colors';
 import { FeedAvatar } from './FeedAvatar';
-import type { FeedPlayer } from '../../types/feed';
+import type { FeedPlayer, FeedPost } from '../../types/feed';
 
 export type FeedPostBoxProfile = Pick<FeedPlayer, 'avatarUrl' | 'handle' | 'id' | 'name'>;
 
 type FeedPostBoxProps = {
   currentPlayer?: FeedPostBoxProfile;
+  isAuthenticated?: boolean;
+  onCreatePost: (content: string) => Promise<FeedPost>;
   onOpenProfile?: (player: FeedPostBoxProfile) => void;
-  onPostCreated?: (content: string) => Promise<void> | void;
 };
 
 const placeholderPlayer: FeedPostBoxProfile = {
@@ -29,19 +30,23 @@ function getPlayerInitials(name: string) {
     .join('') || 'HP';
 }
 
-export function FeedPostBox({ currentPlayer, onOpenProfile, onPostCreated }: FeedPostBoxProps) {
+export function FeedPostBox({ currentPlayer, isAuthenticated = false, onCreatePost, onOpenProfile }: FeedPostBoxProps) {
   const [content, setContent] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const player = currentPlayer ?? placeholderPlayer;
-  const canSubmit = content.trim().length > 0 && !isSubmitting;
+  const canSubmit = Boolean(currentPlayer && isAuthenticated) && content.trim().length > 0 && !isSubmitting;
 
   const statusMessage = useMemo(() => {
     if (isSubmitting) {
       return 'Publishing post...';
     }
 
+    if (!currentPlayer || !isAuthenticated) {
+      return 'Sign in to publish posts to the player feed.';
+    }
+
     return `Posting as ${player.name}`;
-  }, [isSubmitting, player.name]);
+  }, [currentPlayer, isAuthenticated, isSubmitting, player.name]);
 
   function handleOpenProfile() {
     onOpenProfile?.(player);
@@ -49,6 +54,11 @@ export function FeedPostBox({ currentPlayer, onOpenProfile, onPostCreated }: Fee
 
   async function handleSubmit() {
     const trimmedContent = content.trim();
+
+    if (!currentPlayer || !isAuthenticated) {
+      Alert.alert('Sign in required', 'Sign in to publish posts to the player feed.');
+      return;
+    }
 
     if (!trimmedContent) {
       return;
@@ -58,7 +68,7 @@ export function FeedPostBox({ currentPlayer, onOpenProfile, onPostCreated }: Fee
     setIsSubmitting(true);
 
     try {
-      await onPostCreated?.(trimmedContent);
+      await onCreatePost(trimmedContent);
       setContent('');
     } catch {
       // The parent owns user-facing create-post errors. Keep the draft intact.
@@ -85,6 +95,7 @@ export function FeedPostBox({ currentPlayer, onOpenProfile, onPostCreated }: Fee
             onChangeText={setContent}
             placeholder="What’s happening at the tables?"
             placeholderTextColor={colors.mutedText}
+            editable={Boolean(currentPlayer && isAuthenticated) && !isSubmitting}
             style={styles.input}
             value={content}
           />

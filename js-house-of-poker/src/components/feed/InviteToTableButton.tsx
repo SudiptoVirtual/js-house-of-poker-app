@@ -4,12 +4,13 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
 
 type InviteToTableButtonProps = {
+  disabled?: boolean;
   onPress: () => void;
 };
 
-export function InviteToTableButton({ onPress }: InviteToTableButtonProps) {
+export function InviteToTableButton({ disabled = false, onPress }: InviteToTableButtonProps) {
   return (
-    <Pressable accessibilityRole="button" onPress={onPress} style={({ pressed }) => [styles.button, pressed ? styles.pressed : null]}>
+    <Pressable accessibilityRole="button" disabled={disabled} onPress={onPress} style={({ pressed }) => [styles.button, disabled ? styles.disabled : null, pressed ? styles.pressed : null]}>
       <MaterialCommunityIcons color={colors.gold} name="account-plus-outline" size={17} />
       <Text style={styles.label}>Invite to Table</Text>
     </Pressable>
@@ -29,6 +30,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 12,
     paddingVertical: 10,
+  },
+  disabled: {
+    opacity: 0.45,
   },
   label: {
     color: colors.gold,

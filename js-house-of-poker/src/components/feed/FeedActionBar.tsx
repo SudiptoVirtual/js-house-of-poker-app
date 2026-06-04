@@ -7,6 +7,7 @@ import { InviteToTableButton } from './InviteToTableButton';
 import { SupportButton } from './SupportButton';
 
 type FeedActionBarProps = {
+  actionsDisabled?: boolean;
   isSupported: boolean;
   isTableRelated?: boolean;
   supportersCount: number;
@@ -19,6 +20,7 @@ type FeedActionBarProps = {
 };
 
 export function FeedActionBar({
+  actionsDisabled = false,
   isSupported,
   isTableRelated = false,
   onComment,
@@ -32,24 +34,39 @@ export function FeedActionBar({
   return (
     <View style={styles.container}>
       <View style={styles.primaryRow}>
-        <SupportButton isSupported={isSupported} onPress={onSupport} supportersCount={supportersCount} />
-        <CommentButton onPress={onComment} />
-        <Pressable accessibilityRole="button" onPress={onShare} style={({ pressed }) => [styles.actionButton, pressed ? styles.pressed : null]}>
+        <SupportButton disabled={actionsDisabled} isSupported={isSupported} onPress={onSupport} supportersCount={supportersCount} />
+        <CommentButton disabled={actionsDisabled} onPress={onComment} />
+        <Pressable
+          accessibilityRole="button"
+          disabled={actionsDisabled}
+          onPress={onShare}
+          style={({ pressed }) => [styles.actionButton, actionsDisabled ? styles.disabled : null, pressed ? styles.pressed : null]}
+        >
           <MaterialCommunityIcons color={colors.mutedText} name="share-variant-outline" size={18} />
           <Text style={styles.actionLabel}>Share</Text>
         </Pressable>
       </View>
       <View style={styles.secondaryRow}>
-        <Pressable accessibilityRole="button" onPress={onGiftClips} style={({ pressed }) => [styles.secondaryButton, pressed ? styles.pressed : null]}>
+        <Pressable
+          accessibilityRole="button"
+          disabled={actionsDisabled}
+          onPress={onGiftClips}
+          style={({ pressed }) => [styles.secondaryButton, actionsDisabled ? styles.disabled : null, pressed ? styles.pressed : null]}
+        >
           <MaterialCommunityIcons color={colors.gold} name="gift-outline" size={17} />
           <Text style={styles.giftLabel}>Gift Clips</Text>
         </Pressable>
-        <Pressable accessibilityRole="button" onPress={onPromote} style={({ pressed }) => [styles.secondaryButton, pressed ? styles.pressed : null]}>
+        <Pressable
+          accessibilityRole="button"
+          disabled={actionsDisabled}
+          onPress={onPromote}
+          style={({ pressed }) => [styles.secondaryButton, actionsDisabled ? styles.disabled : null, pressed ? styles.pressed : null]}
+        >
           <MaterialCommunityIcons color={colors.secondary} name="bullhorn-outline" size={17} />
           <Text style={styles.secondaryLabel}>Promote</Text>
         </Pressable>
       </View>
-      {isTableRelated ? <InviteToTableButton onPress={onInviteToTable} /> : null}
+      {isTableRelated ? <InviteToTableButton disabled={actionsDisabled} onPress={onInviteToTable} /> : null}
     </View>
   );
 }
@@ -75,6 +92,9 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     gap: 8,
     paddingTop: 8,
+  },
+  disabled: {
+    opacity: 0.45,
   },
   giftLabel: {
     color: colors.gold,

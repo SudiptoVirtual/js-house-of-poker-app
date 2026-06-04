@@ -4,12 +4,13 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
 
 type CommentButtonProps = {
+  disabled?: boolean;
   onPress: () => void;
 };
 
-export function CommentButton({ onPress }: CommentButtonProps) {
+export function CommentButton({ disabled = false, onPress }: CommentButtonProps) {
   return (
-    <Pressable accessibilityRole="button" onPress={onPress} style={({ pressed }) => [styles.button, pressed ? styles.pressed : null]}>
+    <Pressable accessibilityRole="button" disabled={disabled} onPress={onPress} style={({ pressed }) => [styles.button, disabled ? styles.disabled : null, pressed ? styles.pressed : null]}>
       <MaterialCommunityIcons color={colors.mutedText} name="comment-text-outline" size={18} />
       <Text style={styles.label}>Comment</Text>
     </Pressable>
@@ -26,6 +27,9 @@ const styles = StyleSheet.create({
     minWidth: '30%',
     paddingHorizontal: 8,
     paddingVertical: 9,
+  },
+  disabled: {
+    opacity: 0.45,
   },
   label: {
     color: colors.mutedText,
