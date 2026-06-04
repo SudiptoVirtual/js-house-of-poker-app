@@ -4,7 +4,7 @@ const ChatRoom = require("../models/ChatRoom");
 const ChatRoomMessage = require("../models/ChatRoomMessage");
 const GameTable = require("../models/GameTable");
 const User = require("../models/User");
-const { seedChatRooms } = require("../scripts/seedChatRooms");
+const { DEFAULT_CHAT_ROOMS, seedChatRooms } = require("../scripts/seedChatRooms");
 const { getChatRoomPresenceService } = require("../services/chatRoomPresenceService");
 const {
   createChatRoomInviteNotifications,
@@ -16,8 +16,46 @@ const DEFAULT_RECENT_MESSAGE_LIMIT = 25;
 const MAX_RECENT_MESSAGE_LIMIT = 100;
 const DEFAULT_ROOM_LIST_LIMIT = 50;
 const MAX_ROOM_LIST_LIMIT = 100;
+const DEFAULT_CHAT_ROOM_SLUGS = DEFAULT_CHAT_ROOMS.map((room) => room.slug);
+const RESTRICTED_CHAT_ROOM_SEED_ENVIRONMENTS = new Set(["production", "preview"]);
 
+function isTruthyFlag(value) {
+  return ["1", "true", "yes", "on"].includes(String(value || "").trim().toLowerCase());
+}
 
+function getChatRoomSeedEnvironments() {
+  return [
+    process.env.NODE_ENV,
+    process.env.APP_ENV,
+    process.env.APP_ENVIRONMENT,
+    process.env.VERCEL_ENV,
+    process.env.RENDER_ENV,
+  ]
+    .map((value) => String(value || "").trim().toLowerCase())
+    .filter(Boolean);
+}
+
+function isRestrictedChatRoomSeedEnvironment() {
+  return getChatRoomSeedEnvironments().some((environment) =>
+    RESTRICTED_CHAT_ROOM_SEED_ENVIRONMENTS.has(environment)
+  );
+}
+
+function shouldIncludeDefaultChatRooms(req) {
+  if (isTruthyFlag(process.env.CHAT_ROOMS_INCLUDE_DEFAULTS)) {
+    return true;
+  }
+
+  if (isRestrictedChatRoomSeedEnvironment()) {
+    return false;
+  }
+
+  return (
+    isTruthyFlag(req.query?.includeDefaultRooms) ||
+    isTruthyFlag(req.query?.includeSeedRooms) ||
+    isTruthyFlag(req.query?.devIncludeDefaultRooms)
+  );
+}
 
 function buildChatRoomIdentifiers(roomId) {
   const normalizedRoomId = String(roomId || "").trim();
@@ -505,19 +543,24 @@ const getChatRooms = async (req, res) => {
       DEFAULT_ROOM_LIST_LIMIT,
       MAX_ROOM_LIST_LIMIT
     );
+    const includeDefaultRooms = shouldIncludeDefaultChatRooms(req);
 
-    const findRoomListOptions = { limit };
+    const findRoomListOptions = {
+      excludeSlugs: includeDefaultRooms ? [] : DEFAULT_CHAT_ROOM_SLUGS,
+      limit,
+      requireCreator: !includeDefaultRooms,
+    };
 
     if (req.user?._id) {
       findRoomListOptions.userId = req.user._id;
     }
 
-    const seededRooms = await ChatRoom.findRoomList(findRoomListOptions);
+    const userCreatedRooms = await ChatRoom.findRoomList(findRoomListOptions);
 
-    if (seededRooms.length > 0) {
+    if (userCreatedRooms.length > 0) {
       return res.status(200).json({
-        count: seededRooms.length,
-        rooms: seededRooms,
+        count: userCreatedRooms.length,
+        rooms: userCreatedRooms,
       });
     }
 
@@ -525,11 +568,18 @@ const getChatRooms = async (req, res) => {
       .sort({ updatedAt: -1, createdAt: -1 })
       .limit(limit)
       .lean();
+    const serializedRooms = rooms.map(serializeRoomListItem);
 
-    return res.status(200).json({
-      count: rooms.length,
-      rooms: rooms.map(serializeRoomListItem),
-    });
+    const responseBody = {
+      count: serializedRooms.length,
+      rooms: serializedRooms,
+    };
+
+    if (serializedRooms.length === 0) {
+      responseBody.message = "No live chat rooms are available.";
+    }
+
+    return res.status(200).json(responseBody);
   } catch (error) {
     return res.status(500).json({
       message: "Error fetching chat rooms",
@@ -755,9 +805,9 @@ const inviteChatRoomFriends = async (req, res) => {
 
 const seedDefaultChatRooms = async (req, res) => {
   try {
-    if (process.env.NODE_ENV === "production") {
+    if (isRestrictedChatRoomSeedEnvironment()) {
       return res.status(403).json({
-        message: "Default chat room seeding is disabled in production.",
+        message: "Default chat room seeding is disabled in production and preview environments.",
       });
     }
 
