@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useMemo } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { DefaultTheme, NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -15,7 +15,7 @@ import { PlayerDirectoryScreen } from '../screens/PlayerDirectoryScreen';
 import { ProfileScreen } from '../screens/ProfileScreen';
 import { RegistrationScreen } from '../screens/RegistrationScreen';
 import { WelcomeScreen } from '../screens/WelcomeScreen';
-import { getAuthSession } from '../services/storage/sessionStorage';
+import { useAuth } from '../context/AuthProvider';
 import { colors } from '../theme/colors';
 import type { RootStackParamList } from '../types/navigation';
 
@@ -34,33 +34,13 @@ const navigationTheme = {
 };
 
 export function RootNavigator() {
-  const [hasBootstrappedSession, setHasBootstrappedSession] = useState(false);
-  const [initialRouteName, setInitialRouteName] =
-    useState<keyof RootStackParamList>(routes.Login);
+  const { isRestoringSession, token } = useAuth();
+  const initialRouteName = useMemo<keyof RootStackParamList>(
+    () => (token ? routes.Home : routes.Login),
+    [token],
+  );
 
-  useEffect(() => {
-    let isMounted = true;
-
-    void (async () => {
-      try {
-        const session = await getAuthSession();
-
-        if (isMounted) {
-          setInitialRouteName(session?.token ? routes.Home : routes.Login);
-        }
-      } finally {
-        if (isMounted) {
-          setHasBootstrappedSession(true);
-        }
-      }
-    })();
-
-    return () => {
-      isMounted = false;
-    };
-  }, []);
-
-  if (!hasBootstrappedSession) {
+  if (isRestoringSession) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator color={colors.secondary} size="large" />

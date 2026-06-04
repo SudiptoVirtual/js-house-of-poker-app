@@ -12,10 +12,10 @@ import { SectionCard } from '../components/SectionCard';
 import { complianceCopy } from '../constants/compliance';
 import { SocialAuthButton } from '../components/SocialAuthButton';
 import { routes } from '../constants/routes';
+import { useAuth } from '../context/AuthProvider';
 import { useGoogleAuth } from '../hooks/useGoogleAuth';
 import { authenticateWithGoogle, loginUser } from '../services/api/auth';
 import { getApiErrorDetails } from '../services/api/client';
-import { saveAuthSession } from '../services/storage/sessionStorage';
 import { colors } from '../theme/colors';
 import type { RootStackParamList } from '../types/navigation';
 
@@ -27,14 +27,15 @@ type LoginFieldErrors = {
 };
 
 export function LoginScreen({ navigation }: Props) {
+  const { setAuthenticatedSession } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fieldErrors, setFieldErrors] = useState<LoginFieldErrors>({});
   const [errorMessage, setErrorMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  async function completeAuth(token: string, user: unknown) {
-    await saveAuthSession({ token, user });
+  async function completeAuth(token: string, user: Parameters<typeof setAuthenticatedSession>[0]['user']) {
+    await setAuthenticatedSession({ token, user });
     navigation.reset({
       index: 0,
       routes: [{ name: routes.Home }],

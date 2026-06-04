@@ -4,12 +4,17 @@ export type AuthUser = {
   avatar?: string;
   chips: number;
   email: string;
+  friendCount?: number;
   id: string;
   isOnline?: boolean;
   lastLoginAt?: string | null;
   name: string;
   phone: string;
+  playerStatus?: string;
+  postCount?: number;
+  referralCode?: string | null;
   status: string;
+  statusIcon?: string;
   walletBalance: number;
 };
 
@@ -58,4 +63,12 @@ export async function authenticateWithGoogle(idToken: string) {
     body: { idToken },
     method: 'POST',
   });
+}
+
+export async function fetchCurrentUser(token: string) {
+  const response = await apiRequest<{ user: AuthUser }>('/api/auth/me', {
+    token,
+  });
+
+  return response.user;
 }
