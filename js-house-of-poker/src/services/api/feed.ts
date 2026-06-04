@@ -189,6 +189,20 @@ export type FeedReactionSummariesResponse = {
   supportersCount: number;
 };
 
+export type CreateFeedPostInput = {
+  content: string;
+  gameContext?: Record<string, unknown> | null;
+  media?: unknown[];
+  tableCode?: string;
+  tableContext?: Record<string, unknown> | null;
+  tableId?: string;
+  visibility?: 'public' | 'friends' | 'private' | 'unlisted';
+};
+
+export type CreateFeedPostResponse = {
+  post: FeedPost;
+};
+
 export type FeedPostsResponse = {
   pagination: {
     hasMore: boolean;
@@ -210,6 +224,14 @@ export type FeedCommentsResponse = {
 
 export async function fetchFeedPosts(token?: string | null) {
   return apiRequest<FeedPostsResponse>('/api/feed', { token });
+}
+
+export async function createFeedPost(input: CreateFeedPostInput, token: string) {
+  return apiRequest<CreateFeedPostResponse>('/api/feed', {
+    body: input,
+    method: 'POST',
+    token,
+  });
 }
 
 export async function createFeedComment(postId: string, comment: string, token: string) {
