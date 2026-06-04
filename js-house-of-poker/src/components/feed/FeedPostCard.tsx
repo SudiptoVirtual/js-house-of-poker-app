@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 import { colors } from '../../theme/colors';
@@ -8,6 +8,8 @@ import { FeedPlayerHeader } from './FeedPlayerHeader';
 import type { FeedComment, FeedCommentSubmitResult, FeedPost } from '../../types/feed';
 
 type FeedPostCardProps = {
+  actionsDisabled?: boolean;
+  actionsDisabledMessage?: string;
   onComment: (
     post: FeedPost,
     comment: string,
@@ -22,6 +24,8 @@ type FeedPostCardProps = {
 };
 
 export function FeedPostCard({
+  actionsDisabled = false,
+  actionsDisabledMessage = 'Sign in and refresh the feed before using post actions.',
   onComment,
   onGiftClips,
   onInviteToTable,
@@ -54,8 +58,22 @@ export function FeedPostCard({
     return stats.join(' · ');
   }, [post.commentCount, post.giftClipsCount, post.promotedCount, post.shareCount, post.supportersCount]);
 
+  function guardAction(action: () => void) {
+    if (actionsDisabled) {
+      Alert.alert('Action unavailable', actionsDisabledMessage);
+      return;
+    }
+
+    action();
+  }
+
   async function handleSubmitComment() {
     const trimmedComment = commentDraft.trim();
+
+    if (actionsDisabled) {
+      Alert.alert('Action unavailable', actionsDisabledMessage);
+      return;
+    }
 
     if (!trimmedComment || isSubmittingComment) {
       return;
@@ -129,16 +147,19 @@ export function FeedPostCard({
       ) : null}
 
       <FeedActionBar
+        actionsDisabled={actionsDisabled}
         isSupported={Boolean(post.supportedByCurrentPlayer)}
         isTableRelated={Boolean(post.isTableRelated || post.tableContext)}
         supportersCount={post.supportersCount}
-        onComment={() => setIsCommentPanelVisible((value) => !value)}
-        onGiftClips={() => onGiftClips(post)}
-        onInviteToTable={() => onInviteToTable(post)}
-        onPromote={() => onPromote(post)}
-        onShare={() => onShare(post)}
+        onComment={() => guardAction(() => setIsCommentPanelVisible((value) => !value))}
+        onGiftClips={() => guardAction(() => onGiftClips(post))}
+        onInviteToTable={() => guardAction(() => onInviteToTable(post))}
+        onPromote={() => guardAction(() => onPromote(post))}
+        onShare={() => guardAction(() => onShare(post))}
         onSupport={() => {
-          void onSupportChange(post.id, !post.supportedByCurrentPlayer);
+          guardAction(() => {
+            void onSupportChange(post.id, !post.supportedByCurrentPlayer);
+          });
         }}
       />
 
@@ -159,15 +180,15 @@ export function FeedPostCard({
               onChangeText={setCommentDraft}
               placeholder="Add a table-side comment..."
               placeholderTextColor={colors.mutedText}
-              editable={!isSubmittingComment}
+              editable={!actionsDisabled && !isSubmittingComment}
               style={styles.commentInput}
               value={commentDraft}
             />
             <Pressable
               accessibilityRole="button"
-              disabled={isSubmittingComment}
+              disabled={actionsDisabled || isSubmittingComment}
               onPress={handleSubmitComment}
-              style={[styles.commentSendButton, isSubmittingComment ? styles.commentSendButtonDisabled : null]}
+              style={[styles.commentSendButton, actionsDisabled || isSubmittingComment ? styles.commentSendButtonDisabled : null]}
             >
               <MaterialCommunityIcons color={colors.text} name="send-outline" size={18} />
             </Pressable>

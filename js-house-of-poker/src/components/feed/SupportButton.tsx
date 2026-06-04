@@ -4,19 +4,21 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
 
 type SupportButtonProps = {
+  disabled?: boolean;
   isSupported: boolean;
   onPress: () => void;
   supportersCount: number;
 };
 
-export function SupportButton({ isSupported, onPress, supportersCount }: SupportButtonProps) {
+export function SupportButton({ disabled = false, isSupported, onPress, supportersCount }: SupportButtonProps) {
   const supportersLabel = supportersCount === 1 ? '1 Supporter' : `${supportersCount.toLocaleString()} Supporters`;
 
   return (
     <Pressable
       accessibilityRole="button"
+      disabled={disabled}
       onPress={onPress}
-      style={({ pressed }) => [styles.button, isSupported ? styles.buttonActive : null, pressed ? styles.pressed : null]}
+      style={({ pressed }) => [styles.button, isSupported ? styles.buttonActive : null, disabled ? styles.disabled : null, pressed ? styles.pressed : null]}
     >
       <MaterialCommunityIcons
         color={isSupported ? colors.gold : colors.mutedText}
@@ -64,6 +66,9 @@ const styles = StyleSheet.create({
   },
   labelActive: {
     color: colors.gold,
+  },
+  disabled: {
+    opacity: 0.45,
   },
   pressed: {
     opacity: 0.74,

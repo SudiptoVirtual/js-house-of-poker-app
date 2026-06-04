@@ -10,6 +10,7 @@ import { useAuth } from '../../context/AuthProvider';
 import { usePoker } from '../../context/PokerProvider';
 import { createFeedComment, createFeedPost, createFeedPromotion, createFeedShare, fetchFeedPosts, getApiErrorDetails, sendFeedGiftClip, sendFeedTableInvite, toggleFeedSupport } from '../../services/api';
 import { getAuthSession } from '../../services/storage/sessionStorage';
+import { env } from '../../config/env';
 import { colors } from '../../theme/colors';
 import type { RootStackParamList } from '../../types/navigation';
 import { FeedPostBox, type FeedPostBoxProfile } from './FeedPostBox';
@@ -18,6 +19,8 @@ import { GiftClipsModal } from './GiftClipsModal';
 import { PromoteForCreatorPanel } from './PromoteForCreatorPanel';
 import { ShareMenu } from './ShareMenu';
 import { isBackendShareDestination, type FeedNavigationRoute, type FeedPlayer, type FeedPost, type ShareDestinationId } from '../../types/feed';
+
+type FeedLoadState = 'idle' | 'loading' | 'ready' | 'empty' | 'error' | 'session-expired';
 
 type PlayerFeedScreenProps = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'Feed'>;
@@ -48,6 +51,8 @@ export function PlayerFeedScreen({ navigation }: PlayerFeedScreenProps) {
   const { currentUser, token } = useAuth();
   const { roomState } = usePoker();
   const [posts, setPosts] = useState<FeedPost[]>([]);
+  const [feedLoadState, setFeedLoadState] = useState<FeedLoadState>('idle');
+  const [feedLoadMessage, setFeedLoadMessage] = useState('');
   const [giftPost, setGiftPost] = useState<FeedPost | null>(null);
   const [promotePost, setPromotePost] = useState<FeedPost | null>(null);
   const [sharePost, setSharePost] = useState<FeedPost | null>(null);
@@ -73,17 +78,31 @@ export function PlayerFeedScreen({ navigation }: PlayerFeedScreenProps) {
     let isMounted = true;
 
     async function loadFeedPosts() {
-      const session = await getAuthSession();
-      const response = await fetchFeedPosts(session?.token ?? null);
-
       if (isMounted) {
-        setPosts(response.posts);
+        setFeedLoadState('loading');
+        setFeedLoadMessage('');
+      }
+
+      try {
+        const session = await getAuthSession();
+        const response = await fetchFeedPosts(session?.token ?? null);
+
+        if (isMounted) {
+          setPosts(response.posts);
+          setFeedLoadState(response.posts.length > 0 ? 'ready' : 'empty');
+        }
+      } catch (error) {
+        const details = getApiErrorDetails(error, 'Unable to load feed posts right now.');
+
+        if (isMounted) {
+          setPosts([]);
+          setFeedLoadState(details.status === 401 || details.status === 403 ? 'session-expired' : 'error');
+          setFeedLoadMessage(details.message);
+        }
       }
     }
 
-    void loadFeedPosts().catch((error) => {
-      console.warn('Unable to load backend feed posts.', error);
-    });
+    void loadFeedPosts();
 
     return () => {
       isMounted = false;
@@ -114,11 +133,26 @@ export function PlayerFeedScreen({ navigation }: PlayerFeedScreenProps) {
       );
 
       setPosts((currentPosts) => [response.post, ...currentPosts]);
+      setFeedLoadState('ready');
+      setFeedLoadMessage('');
+      return response.post;
     } catch (error) {
       const details = getApiErrorDetails(error, 'Unable to publish your post right now.');
       Alert.alert('Post not published', details.message);
       throw error;
     }
+  }
+
+  function getPostActionDisabledMessage(post: FeedPost) {
+    if (!isBackendFeedPostId(post.id)) {
+      return 'This post must be saved to the backend before support, comments, shares, gifts, invites, or promotions are available.';
+    }
+
+    if (!token || !currentUser) {
+      return 'Sign in to use support, comments, shares, gifts, table invites, and promotion actions.';
+    }
+
+    return undefined;
   }
 
   async function handleSupportChange(postId: string, nextSupportedState: boolean) {
@@ -310,7 +344,7 @@ export function PlayerFeedScreen({ navigation }: PlayerFeedScreenProps) {
         {
           amount: 500,
           durationDays: 7,
-          paymentProvider: 'mock',
+          ...(env.feedPromotion.paymentProvider ? { paymentProvider: env.feedPromotion.paymentProvider } : {}),
           targeting: {
             audience: ['feed'],
             metadata: { source: 'FeedActionBar' },
@@ -376,8 +410,24 @@ export function PlayerFeedScreen({ navigation }: PlayerFeedScreenProps) {
           keyExtractor={(item) => item.id}
           ListEmptyComponent={
             <View style={styles.emptyState}>
-              <Text style={styles.emptyTitle}>No feed posts yet</Text>
-              <Text style={styles.emptyText}>Be the first to start table talk by publishing a post.</Text>
+              <Text style={styles.emptyTitle}>
+                {feedLoadState === 'loading'
+                  ? 'Loading feed…'
+                  : feedLoadState === 'session-expired'
+                    ? 'Session expired'
+                    : feedLoadState === 'error'
+                      ? 'Feed unavailable'
+                      : 'No feed posts yet'}
+              </Text>
+              <Text style={styles.emptyText}>
+                {feedLoadState === 'loading'
+                  ? 'Fetching the latest persisted posts from the backend.'
+                  : feedLoadState === 'session-expired'
+                    ? 'Sign in again to refresh your player feed and publish new posts.'
+                    : feedLoadState === 'error'
+                      ? feedLoadMessage || 'Unable to load feed posts right now. Pull back later after the backend is reachable.'
+                      : 'The backend feed is empty. Be the first to start table talk by publishing a post.'}
+              </Text>
             </View>
           }
           ListHeaderComponent={
@@ -389,13 +439,16 @@ export function PlayerFeedScreen({ navigation }: PlayerFeedScreenProps) {
               </View>
               <FeedPostBox
                 currentPlayer={currentPlayer}
+                isAuthenticated={Boolean(token && currentUser)}
+                onCreatePost={handleCreatePost}
                 onOpenProfile={(player: FeedPostBoxProfile) => handleOpenProfile(player.id)}
-                onPostCreated={handleCreatePost}
               />
             </View>
           }
           renderItem={({ item }) => (
             <FeedPostCard
+              actionsDisabled={Boolean(getPostActionDisabledMessage(item))}
+              actionsDisabledMessage={getPostActionDisabledMessage(item)}
               onComment={handleComment}
               onGiftClips={setGiftPost}
               onInviteToTable={handleInviteToTable}

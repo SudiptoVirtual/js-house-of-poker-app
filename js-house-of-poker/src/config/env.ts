@@ -10,6 +10,7 @@ type PublicEnvName =
   | 'EXPO_PUBLIC_POKER_TRANSPORT'
   | 'EXPO_PUBLIC_POKER_SOCKET_URL'
   | 'EXPO_PUBLIC_POKER_SOCKET_PROTOCOL'
+  | 'EXPO_PUBLIC_FEED_PROMOTION_PAYMENT_PROVIDER'
   | 'EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID'
   | 'EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID'
   | 'EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID'
@@ -163,6 +164,11 @@ const configuredPokerBackendUrl = resolveApiBaseUrl(
 const pokerTransport = readPublicEnv('EXPO_PUBLIC_POKER_TRANSPORT').toLowerCase();
 const pokerSocketUrl = configuredPokerBackendUrl;
 const pokerSocketProtocol = readPublicEnv('EXPO_PUBLIC_POKER_SOCKET_PROTOCOL').toLowerCase();
+const feedPromotionPaymentProvider = readPublicEnv('EXPO_PUBLIC_FEED_PROMOTION_PAYMENT_PROVIDER').toLowerCase();
+const normalizedFeedPromotionPaymentProvider: 'manual' | 'mock' | 'stripe' | undefined =
+  feedPromotionPaymentProvider === 'stripe' || feedPromotionPaymentProvider === 'manual' || feedPromotionPaymentProvider === 'mock'
+    ? feedPromotionPaymentProvider
+    : undefined;
 const googleAndroidClientId = readPublicEnv('EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID');
 const googleIosClientId = readPublicEnv('EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID');
 const googleWebClientId = readPublicEnv('EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID');
@@ -181,6 +187,9 @@ export const env = {
   appName: Constants.expoConfig?.name ?? "J's House of Poker",
   appVersion: Constants.expoConfig?.version ?? '1.0.0',
   apiBaseUrl,
+  feedPromotion: {
+    paymentProvider: normalizedFeedPromotionPaymentProvider,
+  },
   poker: {
     backendUrl: pokerSocketUrl,
     socketUrl: pokerSocketUrl,

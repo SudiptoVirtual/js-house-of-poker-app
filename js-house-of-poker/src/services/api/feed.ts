@@ -226,7 +226,7 @@ export async function fetchFeedPosts(token?: string | null) {
   return apiRequest<FeedPostsResponse>('/api/feed', { token });
 }
 
-export async function createFeedPost(input: CreateFeedPostInput, token: string) {
+export async function createFeedPost(input: CreateFeedPostInput, token: string): Promise<CreateFeedPostResponse> {
   return apiRequest<CreateFeedPostResponse>('/api/feed', {
     body: input,
     method: 'POST',
