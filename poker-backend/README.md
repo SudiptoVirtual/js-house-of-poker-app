@@ -41,11 +41,11 @@ Create a `.env` file for local development and configure the same variables in y
 
 - `MONGODB_URI` - MongoDB connection string used by the API and seed script.
 - `JWT_SECRET` - Secret used to sign and verify admin/player JWTs.
-- `ALLOWED_ORIGINS` - Comma-separated list of browser origins that may call the Express API and Socket.IO server, for example `https://www.jshouseofpoker.com,https://admin.jshouseofpoker.com`. This must be set in production; do not use `*`.
+- `ALLOWED_ORIGINS` - Comma-separated list of browser origins that may call the Express API and Socket.IO server, for example `https://www.jshouseofpoker.com,https://admin.jshouseofpoker.com`. Include `https://www.jshouseofpoker.com` for production and any Expo-hosted preview/web origins you deploy. This must be set in production; do not use `*`.
 
 ### Optional
 
-- `NODE_ENV` - Set to `production` in production. When this is not `production`, the backend also allows local development origins such as `http://localhost:3000`, `http://localhost:5173`, `http://localhost:8081`, and their `127.0.0.1` equivalents.
+- `NODE_ENV` - Set to `production` in production. When this is not `production`, the backend also allows local development origins such as `http://localhost:3000`, `http://localhost:5173`, `http://localhost:8081`, `http://localhost:19000`, `http://localhost:19006`, and their `127.0.0.1` equivalents.
 - `PORT` - HTTP port for the Express and Socket.IO server. Defaults to `5000`.
 - `FIREBASE_SERVICE_ACCOUNT_JSON` or `FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL`, and `FIREBASE_PRIVATE_KEY` - Firebase Admin credentials, if Firebase-authenticated flows are enabled.
 - `USER_LOGIN_MAX_ATTEMPTS` and `USER_LOGIN_LOCK_MINUTES` - Login throttling settings for player accounts.
@@ -57,6 +57,14 @@ Example production CORS configuration:
 NODE_ENV=production
 ALLOWED_ORIGINS=https://www.jshouseofpoker.com,https://admin.jshouseofpoker.com
 ```
+
+The production server mounts these public API route groups from `src/index.js`:
+
+- `/api/feed`
+- `/api/friends`
+- `/api/chat-rooms`
+- `/api/auth`
+- `/api/users`
 
 ---
 
@@ -80,15 +88,18 @@ pm2 save
 ```
 
 3. Configure Nginx with `deploy/nginx/jshouseofpoker.com.conf`, adjusting the certificate paths if needed. The proxy target must match the backend `PORT`, and websocket upgrade headers must be present for Socket.IO.
-4. Configure Expo/EAS production to use the same public origin for all backend values:
+4. Configure Expo/EAS preview and production to use the same public origin for all backend values. These non-secret values are checked in through `js-house-of-poker/.env.preview`, `js-house-of-poker/.env.production`, and `js-house-of-poker/eas.json`:
 
 ```bash
+APP_ENV=preview # use APP_ENV=production for production builds
 EXPO_PUBLIC_BASE_URL=https://www.jshouseofpoker.com
 EXPO_PUBLIC_POKER_BACKEND_URL=https://www.jshouseofpoker.com
 EXPO_PUBLIC_POKER_SOCKET_URL=https://www.jshouseofpoker.com
 EXPO_PUBLIC_POKER_TRANSPORT=socket
 EXPO_PUBLIC_POKER_SOCKET_PROTOCOL=table-v1
 ```
+
+For local Expo development, keep `EXPO_PUBLIC_BASE_URL=http://localhost:5000` in `js-house-of-poker/.env.local` or in your developer shell.
 
 5. Seed default chat rooms once after production MongoDB is configured:
 

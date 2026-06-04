@@ -16,7 +16,11 @@
       "environment": "preview",
       "distribution": "internal",
       "env": {
-        "APP_ENV": "preview"
+        "APP_ENV": "preview",
+        "EXPO_PUBLIC_BASE_URL": "https://www.jshouseofpoker.com",
+        "EXPO_PUBLIC_POKER_BACKEND_URL": "https://www.jshouseofpoker.com",
+        "EXPO_PUBLIC_POKER_SOCKET_URL": "https://www.jshouseofpoker.com",
+        "EXPO_PUBLIC_POKER_TRANSPORT": "socket"
       },
       "android": {
         "buildType": "apk"
@@ -25,7 +29,11 @@
     "production": {
       "environment": "production",
       "env": {
-        "APP_ENV": "production"
+        "APP_ENV": "production",
+        "EXPO_PUBLIC_BASE_URL": "https://www.jshouseofpoker.com",
+        "EXPO_PUBLIC_POKER_BACKEND_URL": "https://www.jshouseofpoker.com",
+        "EXPO_PUBLIC_POKER_SOCKET_URL": "https://www.jshouseofpoker.com",
+        "EXPO_PUBLIC_POKER_TRANSPORT": "socket"
       },
       "autoIncrement": true
     }

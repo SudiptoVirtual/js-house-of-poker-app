@@ -43,17 +43,24 @@ const parseAllowedOrigins = (origins = "") =>
     .map((origin) => origin.trim())
     .filter(Boolean);
 
+const productionWebOrigins = ["https://www.jshouseofpoker.com"];
+
 const localDevelopmentOrigins = [
   "http://localhost:3000",
   "http://localhost:5173",
   "http://localhost:8081",
+  "http://localhost:19000",
+  "http://localhost:19006",
   "http://127.0.0.1:3000",
   "http://127.0.0.1:5173",
   "http://127.0.0.1:8081",
+  "http://127.0.0.1:19000",
+  "http://127.0.0.1:19006",
 ];
 
 const isProduction = process.env.NODE_ENV === "production";
 const allowedOrigins = new Set([
+  ...productionWebOrigins,
   ...parseAllowedOrigins(process.env.ALLOWED_ORIGINS),
   ...(!isProduction ? localDevelopmentOrigins : []),
 ]);
