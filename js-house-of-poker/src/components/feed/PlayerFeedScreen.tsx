@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Alert, FlatList, SafeAreaView, StyleSheet, Text, View } from 'react-native';
+import { Alert, FlatList, StyleSheet, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { MainPlatformNavigation } from '../navigation/MainPlatformNavigation';
 import { currentFeedPlayer, mockFeedPosts } from '../../constants/playerFeedMockData';
@@ -302,7 +303,7 @@ export function PlayerFeedScreen({ navigation }: PlayerFeedScreenProps) {
 
   return (
     <View style={styles.root}>
-      <SafeAreaView style={styles.safeArea}>
+      <SafeAreaView edges={['top', 'left', 'right']} style={styles.safeArea}>
         <StatusBar style="light" />
         <FlatList
           contentContainerStyle={styles.content}
@@ -337,7 +338,7 @@ export function PlayerFeedScreen({ navigation }: PlayerFeedScreenProps) {
           showsVerticalScrollIndicator={false}
         />
       </SafeAreaView>
-      <SafeAreaView style={styles.bottomNavigationSafeArea}>
+      <SafeAreaView edges={['bottom', 'left', 'right']} style={styles.bottomNavigationSafeArea}>
         <MainPlatformNavigation />
       </SafeAreaView>
       <ShareMenu
