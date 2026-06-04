@@ -2,6 +2,7 @@ import { memo, useEffect, useMemo, useRef } from 'react';
 import {
   Animated,
   Easing,
+  Pressable,
   StyleSheet,
   Text,
   View,
@@ -39,6 +40,7 @@ type Props = {
   isWinner?: boolean;
   legCount?: number;
   legPulseKey?: string | null;
+  onPressPlayerAvatar?: (player: PokerPlayerState) => void;
   phase: PokerPhase;
   player: PokerPlayerState;
   showdownCards?: string[] | null;
@@ -541,6 +543,7 @@ export const GameTableSeat = memo(function GameTableSeat({
   isWinner = false,
   legCount,
   legPulseKey = null,
+  onPressPlayerAvatar,
   phase,
   player,
   showdownCards = null,
@@ -670,44 +673,65 @@ export const GameTableSeat = memo(function GameTableSeat({
   const renderAvatarStack = (
     avatarSize: 'md' | 'sm',
     compact357 = false,
-  ) => (
-    <View
-      style={[
-        styles.seatAvatarStack,
-        avatarSize === 'sm' ? styles.seatAvatarStackCompact : null,
-        compact357 ? styles.seatAvatarStack357Compact : null,
-      ]}
-    >
+  ) => {
+    const avatarNode = (
       <PlayerAvatar
         connected={player.isConnected}
         name={player.name}
         seed={player.id}
         size={avatarSize}
       />
-      <View style={styles.seatAvatarStatusBubble}>
-        <PlayerStatusBadge
-          compact
-          showLabel={false}
-          size={
-            compact357
-              ? COMPACT_357_META_BADGE_SIZE
-              : avatarSize === 'sm'
-                ? SEAT_META_BADGE_SIZE
-                : 28
-          }
-          statusTier={statusTier}
-        />
+    );
+    const actionableAvatar = !isSelf && Boolean(onPressPlayerAvatar);
+
+    return (
+      <View
+        style={[
+          styles.seatAvatarStack,
+          avatarSize === 'sm' ? styles.seatAvatarStackCompact : null,
+          compact357 ? styles.seatAvatarStack357Compact : null,
+        ]}
+      >
+        {actionableAvatar ? (
+          <Pressable
+            accessibilityLabel={`Open ${player.name} player card`}
+            accessibilityRole="button"
+            onPress={() => onPressPlayerAvatar?.(player)}
+            style={({ pressed }) => [
+              styles.seatAvatarPressable,
+              pressed ? styles.seatAvatarPressablePressed : null,
+            ]}
+          >
+            {avatarNode}
+          </Pressable>
+        ) : (
+          avatarNode
+        )}
+        <View style={styles.seatAvatarStatusBubble}>
+          <PlayerStatusBadge
+            compact
+            showLabel={false}
+            size={
+              compact357
+                ? COMPACT_357_META_BADGE_SIZE
+                : avatarSize === 'sm'
+                  ? SEAT_META_BADGE_SIZE
+                  : 28
+            }
+            statusTier={statusTier}
+          />
+        </View>
+        {player.isDealer ? (
+          <DealerButton
+            compact
+            showPulse={false}
+            size={compact357 ? 16 : avatarSize === 'sm' ? 20 : 24}
+            style={styles.seatMetaButton}
+          />
+        ) : null}
       </View>
-      {player.isDealer ? (
-        <DealerButton
-          compact
-          showPulse={false}
-          size={compact357 ? 16 : avatarSize === 'sm' ? 20 : 24}
-          style={styles.seatMetaButton}
-        />
-      ) : null}
-    </View>
-  );
+    );
+  };
 
   const renderShowdownConnector = (compact = false) => {
     if (!showdownResult) {
@@ -1633,6 +1657,13 @@ const styles = StyleSheet.create({
   amountBubbleText357Compact: {
     fontSize: 8,
     letterSpacing: 0.15,
+  },
+  seatAvatarPressable: {
+    borderRadius: 999,
+  },
+  seatAvatarPressablePressed: {
+    opacity: 0.76,
+    transform: [{ scale: 0.96 }],
   },
   seatAvatarStack: {
     alignItems: 'center',
