@@ -282,8 +282,18 @@ chatRoomSchema.statics.findRoomList = async function findRoomList({
   userId = null,
   includePrivate = false,
   limit = 50,
+  excludeSlugs = [],
+  requireCreator = false,
 } = {}) {
   const baseFilter = { isDisabled: { $ne: true } };
+
+  if (excludeSlugs.length > 0) {
+    baseFilter.slug = { $nin: excludeSlugs };
+  }
+
+  if (requireCreator) {
+    baseFilter.createdByUserId = { $ne: null };
+  }
   const visibilityFilter = includePrivate
     ? baseFilter
     : {

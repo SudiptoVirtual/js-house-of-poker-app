@@ -74,29 +74,43 @@ test('seedChatRooms bulk upserts defaults and returns seeded rooms in sort order
   assert.deepEqual(calls[2].sort, { sortOrder: 1, name: 1 });
 });
 
-test('Chat Room list API returns seeded ChatRoom records', async (t) => {
+test('Chat Room list API excludes seeded defaults from normal discovery and returns a clear empty response', async (t) => {
   const { getChatRooms } = require('../src/controllers/chatRoomController');
+  const GameTable = require('../src/models/GameTable');
   const originalFindRoomList = ChatRoom.findRoomList;
-  const seededRoom = {
-    id: '507f1f77bcf86cd799439012',
-    name: 'The Rail',
-    slug: 'the-rail',
-    description: 'Coordinate casual free-play tables and find open seats with regulars.',
-    topic: 'Casual table planning',
-    isPublic: true,
-    visibility: 'public',
-    sortOrder: 10,
-  };
+  const originalGameTableFind = GameTable.find;
   const statusCalls = [];
   let responseBody = null;
 
   ChatRoom.findRoomList = async function findRoomListStub(options) {
-    assert.deepEqual(options, { limit: 50 });
-    return [seededRoom];
+    assert.equal(options.limit, 50);
+    assert.equal(options.requireCreator, true);
+    assert.deepEqual(options.excludeSlugs, DEFAULT_CHAT_ROOMS.map((room) => room.slug));
+    return [];
+  };
+  GameTable.find = function findStub(filter) {
+    assert.deepEqual(filter, {
+      status: { $ne: 'closed' },
+      tableCode: { $exists: true, $ne: null },
+    });
+    return {
+      sort(sort) {
+        assert.deepEqual(sort, { updatedAt: -1, createdAt: -1 });
+        return {
+          limit(limit) {
+            assert.equal(limit, 50);
+            return {
+              lean: async () => [],
+            };
+          },
+        };
+      },
+    };
   };
 
   t.after(() => {
     ChatRoom.findRoomList = originalFindRoomList;
+    GameTable.find = originalGameTableFind;
   });
 
   await getChatRooms(
@@ -114,5 +128,96 @@ test('Chat Room list API returns seeded ChatRoom records', async (t) => {
   );
 
   assert.deepEqual(statusCalls, [200]);
-  assert.deepEqual(responseBody, { count: 1, rooms: [seededRoom] });
+  assert.deepEqual(responseBody, {
+    count: 0,
+    message: 'No live chat rooms are available.',
+    rooms: [],
+  });
+});
+
+test('Chat Room list API allows default rooms with a dev-only query flag outside restricted environments', async (t) => {
+  const { getChatRooms } = require('../src/controllers/chatRoomController');
+  const originalFindRoomList = ChatRoom.findRoomList;
+  const originalNodeEnv = process.env.NODE_ENV;
+  const defaultRoom = {
+    id: '507f1f77bcf86cd799439012',
+    name: 'The Rail',
+    slug: 'the-rail',
+    isPublic: true,
+    visibility: 'public',
+  };
+  const statusCalls = [];
+  let responseBody = null;
+
+  process.env.NODE_ENV = 'development';
+  ChatRoom.findRoomList = async function findRoomListStub(options) {
+    assert.deepEqual(options, {
+      excludeSlugs: [],
+      limit: 50,
+      requireCreator: false,
+    });
+    return [defaultRoom];
+  };
+
+  t.after(() => {
+    ChatRoom.findRoomList = originalFindRoomList;
+    if (originalNodeEnv === undefined) {
+      delete process.env.NODE_ENV;
+    } else {
+      process.env.NODE_ENV = originalNodeEnv;
+    }
+  });
+
+  await getChatRooms(
+    { query: { includeDefaultRooms: 'true' } },
+    {
+      status(code) {
+        statusCalls.push(code);
+        return this;
+      },
+      json(body) {
+        responseBody = body;
+        return this;
+      },
+    }
+  );
+
+  assert.deepEqual(statusCalls, [200]);
+  assert.deepEqual(responseBody, { count: 1, rooms: [defaultRoom] });
+});
+
+test('Default chat room seed endpoint is disabled in preview environments', async (t) => {
+  const { seedDefaultChatRooms } = require('../src/controllers/chatRoomController');
+  const originalVercelEnv = process.env.VERCEL_ENV;
+  const statusCalls = [];
+  let responseBody = null;
+
+  process.env.VERCEL_ENV = 'preview';
+
+  t.after(() => {
+    if (originalVercelEnv === undefined) {
+      delete process.env.VERCEL_ENV;
+    } else {
+      process.env.VERCEL_ENV = originalVercelEnv;
+    }
+  });
+
+  await seedDefaultChatRooms(
+    {},
+    {
+      status(code) {
+        statusCalls.push(code);
+        return this;
+      },
+      json(body) {
+        responseBody = body;
+        return this;
+      },
+    }
+  );
+
+  assert.deepEqual(statusCalls, [403]);
+  assert.deepEqual(responseBody, {
+    message: 'Default chat room seeding is disabled in production and preview environments.',
+  });
 });

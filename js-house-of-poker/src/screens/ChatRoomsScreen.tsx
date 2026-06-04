@@ -219,7 +219,9 @@ export function ChatRoomsScreen({ navigation }: Props) {
         ) : null}
         {isLoadingRooms ? <Text style={styles.helperText}>Loading live chat rooms…</Text> : null}
         {!isLoadingRooms && rooms.length === 0 && !roomsError ? (
-          <Text style={styles.helperText}>No chat rooms are available yet.</Text>
+          <Text style={styles.helperText}>
+            No rooms are available right now. Create a private room or check back when live rooms open.
+          </Text>
         ) : null}
         <View style={styles.roomStack}>
           {rooms.map((room) => (
