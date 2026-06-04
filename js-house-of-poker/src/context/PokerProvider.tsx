@@ -15,6 +15,7 @@ import {
   type CreatePokerRoomInput,
   type JoinPokerRoomInput,
   type PokerConnectionState,
+  type PokerFriendRealtimeEvent,
   type PokerGameSettingsUpdate,
   type SendPokerTableInviteInput,
   type PokerServerEvent,
@@ -63,9 +64,14 @@ type PokerEventBus = {
   subscribe: (listener: (event: PokerServerEvent) => void) => () => void;
 };
 
+type PokerFriendEventBus = {
+  subscribe: (listener: (event: PokerFriendRealtimeEvent) => void) => () => void;
+};
+
 const PokerStateContext = createContext<PokerClientState | null>(null);
 const PokerActionsContext = createContext<PokerActions | null>(null);
 const PokerEventBusContext = createContext<PokerEventBus | null>(null);
+const PokerFriendEventBusContext = createContext<PokerFriendEventBus | null>(null);
 
 function toErrorMessage(error: unknown, fallback: string) {
   return error instanceof Error ? error.message : fallback;
@@ -78,6 +84,7 @@ export function PokerProvider({ children }: PropsWithChildren) {
   }
 
   const eventListenersRef = useRef(new Set<(event: PokerServerEvent) => void>());
+  const friendEventListenersRef = useRef(new Set<(event: PokerFriendRealtimeEvent) => void>());
   const [state, dispatch] = useReducer(
     pokerClientReducer,
     transportRef.current.getConnectionState(),
@@ -91,6 +98,10 @@ export function PokerProvider({ children }: PropsWithChildren) {
         notification.events.forEach((event) => {
           eventListenersRef.current.forEach((listener) => listener(event));
         });
+      }
+
+      if (notification.type === 'friend-event') {
+        friendEventListenersRef.current.forEach((listener) => listener(notification.event));
       }
 
       dispatch({
@@ -109,6 +120,7 @@ export function PokerProvider({ children }: PropsWithChildren) {
     return () => {
       unsubscribe();
       eventListenersRef.current.clear();
+      friendEventListenersRef.current.clear();
       transport.destroy();
     };
   }, []);
@@ -222,12 +234,27 @@ export function PokerProvider({ children }: PropsWithChildren) {
     [],
   );
 
+  const friendEventBus = useMemo<PokerFriendEventBus>(
+    () => ({
+      subscribe(listener) {
+        friendEventListenersRef.current.add(listener);
+
+        return () => {
+          friendEventListenersRef.current.delete(listener);
+        };
+      },
+    }),
+    [],
+  );
+
   return (
-    <PokerEventBusContext.Provider value={eventBus}>
-      <PokerActionsContext.Provider value={actions}>
-        <PokerStateContext.Provider value={state}>{children}</PokerStateContext.Provider>
-      </PokerActionsContext.Provider>
-    </PokerEventBusContext.Provider>
+    <PokerFriendEventBusContext.Provider value={friendEventBus}>
+      <PokerEventBusContext.Provider value={eventBus}>
+        <PokerActionsContext.Provider value={actions}>
+          <PokerStateContext.Provider value={state}>{children}</PokerStateContext.Provider>
+        </PokerActionsContext.Provider>
+      </PokerEventBusContext.Provider>
+    </PokerFriendEventBusContext.Provider>
   );
 }
 
@@ -312,4 +339,36 @@ export function usePokerEventSubscription(
   }, [eventBus, normalizedTypes, eventTypes]);
 }
 
-export type { PokerConnectionState, PokerRoomState, PokerSessionState };
+export function usePokerFriendEventSubscription(
+  eventTypes: PokerFriendRealtimeEvent['eventName'] | PokerFriendRealtimeEvent['eventName'][] | null,
+  listener: (event: PokerFriendRealtimeEvent) => void,
+) {
+  const eventBus = useContext(PokerFriendEventBusContext);
+  const listenerRef = useRef(listener);
+  const normalizedTypes = Array.isArray(eventTypes)
+    ? [...eventTypes].sort().join('|')
+    : eventTypes ?? '*';
+
+  useEffect(() => {
+    listenerRef.current = listener;
+  }, [listener]);
+
+  useEffect(() => {
+    if (!eventBus) {
+      throw new Error('usePokerFriendEventSubscription must be used inside PokerProvider.');
+    }
+
+    const allowedTypes =
+      eventTypes == null
+        ? null
+        : new Set(Array.isArray(eventTypes) ? eventTypes : [eventTypes]);
+
+    return eventBus.subscribe((event) => {
+      if (!allowedTypes || allowedTypes.has(event.eventName)) {
+        listenerRef.current(event);
+      }
+    });
+  }, [eventBus, normalizedTypes, eventTypes]);
+}
+
+export type { PokerConnectionState, PokerFriendRealtimeEvent, PokerRoomState, PokerSessionState };

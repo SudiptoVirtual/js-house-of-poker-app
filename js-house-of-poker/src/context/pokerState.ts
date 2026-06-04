@@ -92,6 +92,10 @@ export function pokerClientReducer(
     };
   }
 
+  if (notification.type === 'friend-event') {
+    return state;
+  }
+
   if (notification.type === 'session') {
     return {
       ...state,

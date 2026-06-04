@@ -23,6 +23,14 @@ export const pokerLegacyClientEvents = {
   startHand: 'player:start_hand',
 } as const;
 
+export const pokerFriendServerEvents = {
+  requestAccepted: 'friends:request_accepted',
+  requestDeclined: 'friends:request_declined',
+  requestReceived: 'friends:request_received',
+  requestSent: 'friends:request_sent',
+  statusUpdated: 'friends:status_updated',
+} as const;
+
 export const pokerServerEvents = {
   cardsDealt: 'game:cards_dealt',
   communityCardsRevealed: 'game:community_cards_revealed',

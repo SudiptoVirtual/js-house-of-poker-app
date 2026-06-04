@@ -8,6 +8,11 @@ const {
   createFriendRequestNotification,
   emitFriendNotificationRecords,
 } = require("../services/friendNotificationService");
+const {
+  emitFriendRequestAccepted,
+  emitFriendRequestCreated,
+  emitFriendRequestDeclined,
+} = require("../sockets/friendSocket");
 
 function normalizeObjectId(value) {
   const normalized = String(value || "").trim();
@@ -213,6 +218,7 @@ const requestFriend = async (req, res) => {
     await safelyCreateAndEmitFriendNotification(() =>
       createFriendRequestNotification({ request, sender: sender || req.user, receiver })
     );
+    emitFriendRequestCreated({ request, sender: sender || req.user, receiver });
 
     return res.status(201).json({
       message: "Friend request sent",
@@ -312,6 +318,7 @@ const acceptFriend = async (req, res) => {
     await safelyCreateAndEmitFriendNotification(() =>
       createFriendRequestAcceptedNotification({ request, sender, receiver })
     );
+    emitFriendRequestAccepted({ request, sender, receiver });
 
     return res.status(200).json({
       message: "Friend request accepted",
@@ -345,6 +352,7 @@ const declineFriend = async (req, res) => {
     await safelyCreateAndEmitFriendNotification(() =>
       createFriendRequestDeclinedNotification({ request, sender, receiver: receiver || req.user })
     );
+    emitFriendRequestDeclined({ request, sender, receiver: receiver || req.user });
 
     return res.status(200).json({
       message: "Friend request declined",
