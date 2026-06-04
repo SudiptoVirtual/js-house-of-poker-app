@@ -7,6 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { MainPlatformNavigation } from '../navigation/MainPlatformNavigation';
 import { currentFeedPlayer, mockFeedPosts } from '../../constants/playerFeedMockData';
 import { routes } from '../../constants/routes';
+import { useAuth } from '../../context/AuthProvider';
 import { usePoker } from '../../context/PokerProvider';
 import { createFeedComment, createFeedPromotion, createFeedShare, fetchFeedPosts, getApiErrorDetails, sendFeedGiftClip, sendFeedTableInvite, toggleFeedSupport } from '../../services/api';
 import { getAuthSession } from '../../services/storage/sessionStorage';
@@ -17,13 +18,33 @@ import { FeedPostCard } from './FeedPostCard';
 import { GiftClipsModal } from './GiftClipsModal';
 import { PromoteForCreatorPanel } from './PromoteForCreatorPanel';
 import { ShareMenu } from './ShareMenu';
-import { isBackendShareDestination, type FeedPost, type ShareDestinationId } from '../../types/feed';
+import { isBackendShareDestination, type FeedNavigationRoute, type FeedPlayer, type FeedPost, type ShareDestinationId } from '../../types/feed';
 
 type PlayerFeedScreenProps = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'Feed'>;
 };
 
+function buildCurrentUserHandle(email: string | undefined) {
+  const localPart = email?.split('@')[0]?.trim();
+
+  if (!localPart) {
+    return currentFeedPlayer.handle;
+  }
+
+  return `@${localPart.toLowerCase().replace(/[^a-z0-9._-]/g, '-')}`;
+}
+
+function buildProfileRoute(playerId: string): FeedNavigationRoute {
+  return {
+    deepLink: `houseofpoker://profile/${playerId}`,
+    params: { playerId, userId: playerId },
+    route: 'Profile',
+    screen: 'ProfileScreen',
+  };
+}
+
 export function PlayerFeedScreen({ navigation }: PlayerFeedScreenProps) {
+  const { currentUser } = useAuth();
   const { roomState } = usePoker();
   const [posts, setPosts] = useState<FeedPost[]>(mockFeedPosts);
   const [giftPost, setGiftPost] = useState<FeedPost | null>(null);
@@ -31,6 +52,21 @@ export function PlayerFeedScreen({ navigation }: PlayerFeedScreenProps) {
   const [sharePost, setSharePost] = useState<FeedPost | null>(null);
 
   const activeTableCode = roomState?.roomId ?? null;
+  const currentPlayer = useMemo<FeedPlayer>(
+    () =>
+      currentUser
+        ? {
+            avatarUrl: currentUser.avatar,
+            handle: buildCurrentUserHandle(currentUser.email),
+            id: currentUser.id,
+            name: currentUser.name,
+            profileRoute: buildProfileRoute(currentUser.id),
+            status: currentUser.isOnline ? 'Online' : 'In Lobby',
+            statusTier: 'none',
+          }
+        : currentFeedPlayer,
+    [currentUser],
+  );
 
   useEffect(() => {
     let isMounted = true;
@@ -68,7 +104,7 @@ export function PlayerFeedScreen({ navigation }: PlayerFeedScreenProps) {
       id: `local-feed-${Date.now()}`,
       isPromoted: false,
       isTableRelated: false,
-      player: currentFeedPlayer,
+      player: currentPlayer,
       shareCount: 0,
       supportedByCurrentPlayer: false,
       supportersCount: 0,
@@ -140,7 +176,7 @@ export function PlayerFeedScreen({ navigation }: PlayerFeedScreenProps) {
       return;
     }
 
-    if (playerId === currentFeedPlayer.id) {
+    if (playerId === currentPlayer.id) {
       navigation.navigate(routes.Profile);
       return;
     }
@@ -317,7 +353,7 @@ export function PlayerFeedScreen({ navigation }: PlayerFeedScreenProps) {
                 <Text style={styles.subtitle}>{feedSubtitle}</Text>
               </View>
               <FeedPostBox
-                currentPlayer={currentFeedPlayer}
+                currentPlayer={currentPlayer}
                 onOpenProfile={(player: FeedPostBoxProfile) => handleOpenProfile(player.id)}
                 onPostCreated={handleCreatePost}
               />

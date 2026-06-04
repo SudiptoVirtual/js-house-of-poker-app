@@ -1,5 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+import type { AuthUser } from '../api/auth';
+
 const storageKeys = {
   authToken: '@house-of-poker/auth-token',
   currentGameId: '@house-of-poker/current-game-id',
@@ -9,7 +11,7 @@ const storageKeys = {
 
 type StoredAuthSession = {
   token: string;
-  user: unknown;
+  user: AuthUser;
 };
 
 export async function saveAuthSession(session: StoredAuthSession) {

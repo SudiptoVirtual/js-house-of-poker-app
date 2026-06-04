@@ -6,34 +6,63 @@ import { ComplianceNotice } from '../components/ComplianceNotice';
 import { Screen } from '../components/Screen';
 import { SectionCard } from '../components/SectionCard';
 import { routes } from '../constants/routes';
-import { currentPlayerProfile } from '../constants/social';
+import { useAuth } from '../context/AuthProvider';
 import { usePoker } from '../context/PokerProvider';
 import { colors } from '../theme/colors';
 import type { RootStackParamList } from '../types/navigation';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Profile'>;
 
+function buildHandle(email: string | undefined) {
+  const localPart = email?.split('@')[0]?.trim();
+
+  if (!localPart) {
+    return '@player';
+  }
+
+  return `@${localPart.toLowerCase().replace(/[^a-z0-9._-]/g, '-')}`;
+}
+
+function formatCurrency(value: number | undefined) {
+  return `$${(value ?? 0).toLocaleString('en-US', { maximumFractionDigits: 2 })}`;
+}
+
+function formatCount(value: number | undefined) {
+  return (value ?? 0).toLocaleString('en-US');
+}
+
 export function ProfileScreen({ navigation }: Props) {
+  const { currentUser } = useAuth();
   const { roomState } = usePoker();
   const activeTableCode = roomState?.roomId ?? null;
-  const selfPlayer = roomState?.players.find((player) => player.id === roomState.selfId) ?? null;
-  const bankroll = selfPlayer?.chips ?? 0;
-  const legs = selfPlayer
-    ? roomState?.threeFiveSeven?.legsByPlayerId[selfPlayer.id] ?? selfPlayer.legs
-    : 0;
+  const displayName = currentUser?.name?.trim() || 'Player';
+  const handle = buildHandle(currentUser?.email);
+  const statusLine = currentUser?.email
+    ? `${handle} | ${currentUser.email}`
+    : `${handle} | Sign in to sync your profile`;
+  const profileStats = [
+    { label: 'Friends', value: formatCount(currentUser?.friendCount) },
+    { label: 'Posts', value: formatCount(currentUser?.postCount) },
+    { label: 'Chips', value: formatCount(currentUser?.chips) },
+  ];
 
   return (
     <Screen
       showPlatformNavigation
       eyebrow="Player profile"
-      title={currentPlayerProfile.name}
-      subtitle={`${currentPlayerProfile.handle} | ${currentPlayerProfile.socialLine}`}
+      title={displayName}
+      subtitle={statusLine}
     >
       <SectionCard title="Player card">
-        <Text style={styles.metaLine}>Bankroll: ${bankroll.toLocaleString('en-US')} • Legs: {legs}</Text>
-        <Text style={styles.metaLine}>Favorite game: {currentPlayerProfile.favoriteGame}</Text>
+        <Text style={styles.metaLine}>Chips: {formatCount(currentUser?.chips)}</Text>
+        <Text style={styles.metaLine}>Wallet / bankroll: {formatCurrency(currentUser?.walletBalance)}</Text>
+        <Text style={styles.metaLine}>Status: {currentUser?.status ?? 'Unknown'}</Text>
+        <Text style={styles.metaLine}>Player tier: {currentUser?.playerStatus ?? 'NO_STATUS'}</Text>
+        {currentUser?.referralCode ? (
+          <Text style={styles.metaLine}>Referral code: {currentUser.referralCode}</Text>
+        ) : null}
         <View style={styles.statRow}>
-          {currentPlayerProfile.stats.map((stat) => (
+          {profileStats.map((stat) => (
             <View key={stat.label} style={styles.statCard}>
               <Text style={styles.statValue}>{stat.value}</Text>
               <Text style={styles.statLabel}>{stat.label}</Text>

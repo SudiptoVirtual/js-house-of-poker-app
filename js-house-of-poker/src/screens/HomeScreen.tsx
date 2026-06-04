@@ -8,9 +8,9 @@ import { ComplianceNotice } from '../components/ComplianceNotice';
 import { BotTrainingPromoBanner } from '../components/BotTrainingPromoBanner';
 import { Screen } from '../components/Screen';
 import { SectionCard } from '../components/SectionCard';
+import { useAuth } from '../context/AuthProvider';
 import { usePoker } from '../context/PokerProvider';
 import { routes } from '../constants/routes';
-import { getAuthSession } from '../services/storage/sessionStorage';
 import { BOT_TRAINING_TABLES } from '../constants/botTrainingTables';
 import { colors } from '../theme/colors';
 import type { RootStackParamList } from '../types/navigation';
@@ -71,6 +71,7 @@ const socialEntrypoints: Array<{
 ];
 
 export function HomeScreen({ navigation }: Props) {
+  const { currentUser, token } = useAuth();
   const {
     createRoom,
     errorMessage,
@@ -90,36 +91,14 @@ export function HomeScreen({ navigation }: Props) {
   } | null>(null);
 
   useEffect(() => {
-    let isMounted = true;
+    setHasAuthSession(Boolean(token));
 
-    void getAuthSession()
-      .then((session) => {
-        if (!isMounted) {
-          return;
-        }
-
-        setHasAuthSession(Boolean(session?.token));
-
-        if (!session?.user || typeof session.user !== 'object') {
-          return;
-        }
-
-        const maybeName = (session.user as { name?: unknown }).name;
-        if (typeof maybeName === 'string' && maybeName.trim()) {
-          setAuthPlayerName(maybeName.trim());
-          setPlayerName((current) => (current === 'Player' ? maybeName.trim() : current));
-        }
-      })
-      .catch(() => {
-        if (isMounted) {
-          setHasAuthSession(false);
-        }
-      });
-
-    return () => {
-      isMounted = false;
-    };
-  }, []);
+    const maybeName = currentUser?.name?.trim();
+    if (maybeName) {
+      setAuthPlayerName(maybeName);
+      setPlayerName((current) => (current === 'Player' ? maybeName : current));
+    }
+  }, [currentUser?.name, token]);
 
   useEffect(() => {
     if (
@@ -157,8 +136,7 @@ export function HomeScreen({ navigation }: Props) {
 
   async function handleJoinTable() {
     if (transportKind === 'socket') {
-      const session = await getAuthSession();
-      if (!session?.token) {
+      if (!token) {
         setPendingGameLaunch(null);
         setHasAuthSession(false);
         setJoinGuardMessage('Please sign in to join a table by code.');
