@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, type Dispatch, type SetStateAction } from 'react';
 import { StyleSheet, Text } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
@@ -8,18 +8,42 @@ import { PlayerSearchInput } from '../components/friends/PlayerSearchInput';
 import { PlayerSearchResultsList } from '../components/friends/PlayerSearchResultsList';
 import { Screen } from '../components/Screen';
 import { SectionCard } from '../components/SectionCard';
-import { friendsMockPlayers } from '../constants/friendsMockData';
 import { routes } from '../constants/routes';
+import { useAuth } from '../context/AuthProvider';
 import { usePoker } from '../context/PokerProvider';
+import {
+  acceptFriendRequest,
+  fetchFriends,
+  getApiErrorDetails,
+  rejectFriendRequest,
+  searchPlayers,
+  sendChatInvite,
+  sendFriendRequest,
+} from '../services/api';
 import { colors } from '../theme/colors';
-import type { FriendsPlayer } from '../types/friends';
+import type { FriendsPlayer, RelationshipStatus } from '../types/friends';
 import type { RootStackParamList } from '../types/navigation';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Friends'>;
 
+function updatePlayerRelationship(
+  playerId: string,
+  relationshipStatus: RelationshipStatus,
+  setPlayers: Dispatch<SetStateAction<FriendsPlayer[]>>,
+  setSearchResults: Dispatch<SetStateAction<FriendsPlayer[]>>,
+) {
+  const updatePlayer = (player: FriendsPlayer) =>
+    player.id === playerId ? { ...player, relationshipStatus } : player;
+
+  setPlayers((currentPlayers) => currentPlayers.map(updatePlayer));
+  setSearchResults((currentResults) => currentResults.map(updatePlayer));
+}
+
 export function FriendsScreen({ navigation }: Props) {
+  const { token } = useAuth();
   const { roomState, sendTableInvite } = usePoker();
-  const [players, setPlayers] = useState<FriendsPlayer[]>(friendsMockPlayers);
+  const [players, setPlayers] = useState<FriendsPlayer[]>([]);
+  const [searchResults, setSearchResults] = useState<FriendsPlayer[]>([]);
   const [query, setQuery] = useState('');
   const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
   const activeTableCode = roomState?.roomId ?? null;
@@ -31,86 +55,148 @@ export function FriendsScreen({ navigation }: Props) {
     [players],
   );
 
-  const searchResults = useMemo(() => {
-    if (!isSearchActive) {
-      return [];
+  const loadFriends = useCallback(async () => {
+    if (!token) {
+      setPlayers([]);
+      setFeedbackMessage('Sign in to load your friends.');
+      return;
     }
 
-    const normalizedQuery = trimmedQuery.toLowerCase();
+    try {
+      const friends = await fetchFriends(token);
+      setPlayers(friends);
+      setFeedbackMessage(null);
+    } catch (error) {
+      const { message } = getApiErrorDetails(error, 'Unable to load friends.');
+      setFeedbackMessage(message);
+    }
+  }, [token]);
 
-    return players.filter((player) =>
-      [player.displayName, player.username].some((value) =>
-        value.toLowerCase().includes(normalizedQuery),
-      ),
-    );
-  }, [isSearchActive, players, trimmedQuery]);
+  useEffect(() => {
+    void loadFriends();
+  }, [loadFriends]);
+
+  useEffect(() => {
+    if (!isSearchActive) {
+      setSearchResults([]);
+      return undefined;
+    }
+
+    if (!token) {
+      setSearchResults([]);
+      setFeedbackMessage('Sign in to search for players.');
+      return undefined;
+    }
+
+    let isCurrentSearch = true;
+    const searchTimeout = setTimeout(() => {
+      void (async () => {
+        try {
+          const results = await searchPlayers(trimmedQuery, token);
+
+          if (isCurrentSearch) {
+            setSearchResults(results);
+          }
+        } catch (error) {
+          if (isCurrentSearch) {
+            const { message } = getApiErrorDetails(error, 'Unable to search players.');
+            setSearchResults([]);
+            setFeedbackMessage(message);
+          }
+        }
+      })();
+    }, 250);
+
+    return () => {
+      isCurrentSearch = false;
+      clearTimeout(searchTimeout);
+    };
+  }, [isSearchActive, token, trimmedQuery]);
 
   function handleViewProfile(player: FriendsPlayer) {
     // TODO(profile:openFromFriends): Deep-link to the selected player's public profile when profile routes accept player IDs.
-    setFeedbackMessage(`Opening profile placeholder for ${player.displayName}.`);
+    setFeedbackMessage(`Opening profile for ${player.displayName}.`);
     navigation.navigate(routes.Profile);
   }
 
-  function handleSendFriendRequest(player: FriendsPlayer) {
-    // TODO(friends:sendRequest): Persist outgoing friend requests through the friends API.
-    // TODO(notification:friendRequest): Notify the recipient that a friend request was sent.
-    setPlayers((currentPlayers) =>
-      currentPlayers.map((currentPlayer) =>
-        currentPlayer.id === player.id
-          ? { ...currentPlayer, relationshipStatus: 'request_sent' }
-          : currentPlayer,
-      ),
-    );
-    setFeedbackMessage(`Friend request placeholder sent to ${player.displayName}.`);
+  async function handleSendFriendRequest(player: FriendsPlayer) {
+    if (!token) {
+      setFeedbackMessage('Sign in to send friend requests.');
+      return;
+    }
+
+    try {
+      await sendFriendRequest(player.id, token);
+      updatePlayerRelationship(player.id, 'request_sent', setPlayers, setSearchResults);
+      setFeedbackMessage(`Friend request sent to ${player.displayName}.`);
+    } catch (error) {
+      const { message } = getApiErrorDetails(error, `Unable to send a friend request to ${player.displayName}.`);
+      setFeedbackMessage(message);
+    }
   }
 
-  function handleRespondToRequest(player: FriendsPlayer, response: 'accept' | 'reject') {
-    if (response === 'accept') {
-      // TODO(friends:acceptRequest): Accept inbound friend requests through the friends API.
-      setPlayers((currentPlayers) =>
-        currentPlayers.map((currentPlayer) =>
-          currentPlayer.id === player.id
-            ? { ...currentPlayer, relationshipStatus: 'friend' }
-            : currentPlayer,
-        ),
+  async function handleRespondToRequest(player: FriendsPlayer, response: 'accept' | 'reject') {
+    if (!token) {
+      setFeedbackMessage('Sign in to respond to friend requests.');
+      return;
+    }
+
+    try {
+      if (response === 'accept') {
+        await acceptFriendRequest({ requestId: player.requestId, userId: player.id }, token);
+        updatePlayerRelationship(player.id, 'friend', setPlayers, setSearchResults);
+        await loadFriends();
+        setFeedbackMessage(`Friend request accepted for ${player.displayName}.`);
+        return;
+      }
+
+      await rejectFriendRequest({ requestId: player.requestId, userId: player.id }, token);
+      updatePlayerRelationship(player.id, 'not_friends', setPlayers, setSearchResults);
+      setFeedbackMessage(`Friend request rejected for ${player.displayName}.`);
+    } catch (error) {
+      const { message } = getApiErrorDetails(error, `Unable to ${response} ${player.displayName}'s friend request.`);
+      setFeedbackMessage(message);
+    }
+  }
+
+  async function handleInviteToChat(player: FriendsPlayer) {
+    if (!token) {
+      setFeedbackMessage('Sign in to send chat invites.');
+      return;
+    }
+
+    try {
+      await sendChatInvite(
+        {
+          message: `Join me in chat, ${player.displayName}.`,
+          userId: player.id,
+        },
+        token,
       );
-      setFeedbackMessage(`Friend request placeholder accepted for ${player.displayName}.`);
-      return;
+      setFeedbackMessage(`Chat invite sent to ${player.displayName}.`);
+    } catch (error) {
+      const { message } = getApiErrorDetails(error, `Unable to send a chat invite to ${player.displayName}.`);
+      setFeedbackMessage(message);
     }
-
-    // TODO(friends:rejectRequest): Reject inbound friend requests through the friends API.
-    setPlayers((currentPlayers) =>
-      currentPlayers.map((currentPlayer) =>
-        currentPlayer.id === player.id
-          ? { ...currentPlayer, relationshipStatus: 'not_friends' }
-          : currentPlayer,
-      ),
-    );
-    setFeedbackMessage(`Friend request placeholder rejected for ${player.displayName}.`);
   }
 
-  function handleInviteToChat(player: FriendsPlayer) {
-    // TODO(chat:invitePlayerToRoom): Replace this visible placeholder with chat room selection and invite delivery.
-    // TODO(notification:chatInvite): Notify the player when a chat invite is delivered.
-    setFeedbackMessage(`Chat invite placeholder queued for ${player.displayName}.`);
-  }
-
-  function handleInviteToTable(player: FriendsPlayer) {
+  async function handleInviteToTable(player: FriendsPlayer) {
     if (!activeTableCode) {
-      // TODO(table:invitePlayerToTable): Connect table invite placeholders to active table selection when no table is open.
-      // TODO(notification:tableInvite): Notify players when table invites are delivered.
-      setFeedbackMessage(`Table invite placeholder needs an active table before inviting ${player.displayName}.`);
+      setFeedbackMessage(`Open or join a table before inviting ${player.displayName}.`);
       return;
     }
 
-    // TODO(table:invitePlayerToTable): Replace mock recipient IDs with backend account IDs for table invites.
-    // TODO(notification:tableInvite): Notify players when table invites are delivered.
-    void sendTableInvite({
-      message: `Join my table ${activeTableCode}`,
-      recipientAccountId: player.id,
-      source: 'friend-list',
-    });
-    setFeedbackMessage(`Table invite placeholder sent to ${player.displayName} for ${activeTableCode}.`);
+    try {
+      await sendTableInvite({
+        message: `Join my table ${activeTableCode}`,
+        recipientAccountId: player.id,
+        source: 'friend-list',
+      });
+      setFeedbackMessage(`Table invite sent to ${player.displayName} for ${activeTableCode}.`);
+    } catch (error) {
+      const { message } = getApiErrorDetails(error, `Unable to send a table invite to ${player.displayName}.`);
+      setFeedbackMessage(message);
+    }
   }
 
   return (
@@ -133,7 +219,7 @@ export function FriendsScreen({ navigation }: Props) {
       {isSearchActive ? (
         <SectionCard title="Search results">
           <Text style={styles.helperText}>
-            Results appear only while search is active and match name or username case-insensitively.
+            Results are loaded from the backend while search is active.
           </Text>
           <PlayerSearchResultsList
             hasActiveTable={Boolean(activeTableCode)}

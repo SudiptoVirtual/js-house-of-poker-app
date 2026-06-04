@@ -37,3 +37,13 @@ export type {
   SendFeedGiftClipInput,
   SendFeedTableInviteInput,
 } from './api/feed';
+
+export {
+  acceptFriendRequest,
+  fetchFriends,
+  fetchOnlineFriends,
+  rejectFriendRequest,
+  searchPlayers,
+  sendChatInvite,
+  sendFriendRequest,
+} from './api/friends';
