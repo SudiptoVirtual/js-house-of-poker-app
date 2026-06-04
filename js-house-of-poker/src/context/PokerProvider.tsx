@@ -45,7 +45,7 @@ type PokerActions = {
   raise: (amount: number) => void;
   rebuy: () => void;
   sendAction: (type: PokerAction, amount?: number) => void;
-  sendTableInvite: (input: SendPokerTableInviteInput) => void;
+  sendTableInvite: (input: SendPokerTableInviteInput) => Promise<void>;
   sendTableChatMessage: (message: string) => void;
   sitAtSeat: (seatIndex: number) => void;
   startGame: () => void;
@@ -134,6 +134,16 @@ export function PokerProvider({ children }: PropsWithChildren) {
     });
   }
 
+  function runCommand(command: Promise<void>, fallback = 'Poker command failed.') {
+    return command.catch((error) => {
+      dispatch({
+        errorMessage: toErrorMessage(error, fallback),
+        type: 'set-error',
+      });
+      throw error;
+    });
+  }
+
   const actions = useMemo<PokerActions>(
     () => ({
       allIn() {
@@ -200,7 +210,7 @@ export function PokerProvider({ children }: PropsWithChildren) {
         run(transportRef.current!.sendAction(type, amount));
       },
       sendTableInvite(input) {
-        run(transportRef.current!.sendTableInvite(input));
+        return runCommand(transportRef.current!.sendTableInvite(input), 'Unable to send table invite.');
       },
       sendTableChatMessage(message) {
         run(transportRef.current!.sendTableChatMessage(message));
