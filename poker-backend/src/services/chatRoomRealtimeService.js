@@ -3,6 +3,8 @@ const mongoose = require("mongoose");
 const ChatRoom = require("../models/ChatRoom");
 const ChatRoomMessage = require("../models/ChatRoomMessage");
 const User = require("../models/User");
+const { sendChatRoomGiftClip } = require("./chatRoomGiftClipService");
+const { assertUserCanAccessChatRoom, userCanAccessChatRoom } = require("./chatRoomAccessService");
 const { getChatRoomPresenceService } = require("./chatRoomPresenceService");
 const {
   createMessageNotifications,
@@ -199,26 +201,6 @@ function assertUserCanLaunchFromRoom(room, userId) {
   }
 }
 
-function userCanAccessChatRoom(room, userId) {
-  if (room.isPublic !== false) {
-    return true;
-  }
-
-  const userIdString = String(userId);
-  const isCreator = room.createdByUserId && String(room.createdByUserId) === userIdString;
-  const isParticipant = (room.participantStates || []).some(
-    (state) => String(state.userId) === userIdString
-  );
-
-  return Boolean(isCreator || isParticipant);
-}
-
-function assertUserCanAccessChatRoom(room, userId) {
-  if (!userCanAccessChatRoom(room, userId)) {
-    throw new Error("You are not allowed to invite players from this chat room.");
-  }
-}
-
 function buildRoomMemberIdSet(room, presenceSnapshot) {
   const memberIds = new Set(
     (room.participantStates || [])
@@ -352,6 +334,10 @@ function stringifyOptionalId(value) {
 function getChatRoomMessageKind(message) {
   if (message.kind) {
     return message.kind;
+  }
+
+  if (message.messageType) {
+    return message.messageType;
   }
 
   return message.tone === "system" ? "system" : "text";
@@ -685,6 +671,21 @@ class ChatRoomRealtimeService {
     return response;
   }
 
+  async sendGiftClips(socket, payload = {}) {
+    const user = await this.authenticateSocketUser(socket, payload);
+
+    const result = await sendChatRoomGiftClip({
+      amount: payload.amount || payload.clips,
+      currentUserId: user._id,
+      io: this.io,
+      message: payload.message,
+      recipientUserId: payload.recipientUserId,
+      roomId: normalizeChatRoomId(payload),
+    });
+
+    return result.eventPayload;
+  }
+
   async sendMessage(socket, payload = {}) {
     const user = await this.authenticateSocketUser(socket, payload);
     const room = await this.findRoom(normalizeChatRoomId(payload));
@@ -701,6 +702,7 @@ class ChatRoomRealtimeService {
     const moderation = moderateChatRoomMessage({ text });
     const message = new ChatRoomMessage({
       kind: "text",
+      messageType: "text",
       moderation,
       roomId,
       senderDisplayName: getDisplayName(user),
@@ -868,6 +870,7 @@ class ChatRoomRealtimeService {
     const launchText = `${getDisplayName(user)} launched a ${getLaunchGameLabel(gameSettings)} table from this room.`;
     const systemMessage = new ChatRoomMessage({
       kind: "system",
+      messageType: "system",
       launchContext: launchPayload,
       moderation: createAcceptedModeration(),
       roomId: chatRoom._id,
