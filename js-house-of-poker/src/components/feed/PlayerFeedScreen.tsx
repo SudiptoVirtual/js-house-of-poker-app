@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, FlatList, StyleSheet, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -9,6 +9,7 @@ import { routes } from '../../constants/routes';
 import { useAuth } from '../../context/AuthProvider';
 import { usePoker } from '../../context/PokerProvider';
 import { createFeedComment, createFeedPost, createFeedPromotion, createFeedShare, fetchFeedPosts, getApiErrorDetails, sendFeedGiftClip, sendFeedTableInvite, toggleFeedSupport } from '../../services/api';
+import { createFeedRealtimeClient } from '../../services/feed/feedRealtimeClient';
 import { getAuthSession } from '../../services/storage/sessionStorage';
 import { env } from '../../config/env';
 import { colors } from '../../theme/colors';
@@ -36,6 +37,33 @@ function buildCurrentUserHandle(user: { email?: string; id: string; name: string
 
 function isBackendFeedPostId(postId: string) {
   return /^[a-f0-9]{24}$/i.test(postId);
+}
+
+function mergeRealtimePostList(
+  currentPosts: FeedPost[],
+  incomingPost: FeedPost,
+  options: { currentUserId?: string | null; eventUserId?: string | null },
+) {
+  const existingIndex = currentPosts.findIndex((post) => post.id === incomingPost.id);
+  const existingPost = existingIndex >= 0 ? currentPosts[existingIndex] : null;
+  const shouldUseIncomingCurrentUserState = Boolean(
+    options.eventUserId && options.currentUserId && options.eventUserId === options.currentUserId,
+  );
+  const mergedPost =
+    existingPost && !shouldUseIncomingCurrentUserState
+      ? {
+          ...incomingPost,
+          supportedByCurrentPlayer: existingPost.supportedByCurrentPlayer,
+        }
+      : incomingPost;
+
+  if (existingIndex < 0) {
+    return [mergedPost, ...currentPosts];
+  }
+
+  const nextPosts = [...currentPosts];
+  nextPosts[existingIndex] = mergedPost;
+  return nextPosts;
 }
 
 function buildProfileRoute(playerId: string): FeedNavigationRoute {
@@ -74,6 +102,24 @@ export function PlayerFeedScreen({ navigation }: PlayerFeedScreenProps) {
     [currentUser],
   );
 
+  const mergeRealtimePost = useCallback(
+    (payload: { post?: FeedPost; userId?: string | null }) => {
+      if (!payload.post) {
+        return;
+      }
+
+      setPosts((currentPosts) =>
+        mergeRealtimePostList(currentPosts, payload.post as FeedPost, {
+          currentUserId: currentUser?.id ?? null,
+          eventUserId: payload.userId ?? null,
+        }),
+      );
+      setFeedLoadState('ready');
+      setFeedLoadMessage('');
+    },
+    [currentUser?.id],
+  );
+
   useEffect(() => {
     let isMounted = true;
 
@@ -108,6 +154,34 @@ export function PlayerFeedScreen({ navigation }: PlayerFeedScreenProps) {
       isMounted = false;
     };
   }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+    const feedRealtimeClient = createFeedRealtimeClient({
+      onPostUpdate: mergeRealtimePost,
+    });
+
+    async function connectFeedSocket() {
+      const session = await getAuthSession();
+
+      if (!isMounted || !session?.token) {
+        return;
+      }
+
+      try {
+        await feedRealtimeClient.connect(session.token);
+      } catch {
+        // Keep the REST-loaded feed usable if the realtime socket is unavailable.
+      }
+    }
+
+    void connectFeedSocket();
+
+    return () => {
+      isMounted = false;
+      feedRealtimeClient.destroy();
+    };
+  }, [mergeRealtimePost]);
 
   const feedSubtitle = useMemo(
     () =>
