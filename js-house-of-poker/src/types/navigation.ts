@@ -16,7 +16,12 @@ export type RootStackParamList = {
   ChatRoomDetail: { roomId: string };
   Profile: undefined;
   Friends: undefined;
-  Feed: undefined;
+  Feed:
+    | {
+        notificationId?: string;
+        postId?: string;
+      }
+    | undefined;
   PlayerDirectory: undefined;
   Game:
     | {
