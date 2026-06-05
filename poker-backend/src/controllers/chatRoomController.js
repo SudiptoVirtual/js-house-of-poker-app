@@ -6,6 +6,7 @@ const GameTable = require("../models/GameTable");
 const User = require("../models/User");
 const { DEFAULT_CHAT_ROOMS, seedChatRooms } = require("../scripts/seedChatRooms");
 const { getChatRoomPresenceService } = require("../services/chatRoomPresenceService");
+const { sendChatRoomGiftClip: sendChatRoomGiftClipService } = require("../services/chatRoomGiftClipService");
 const {
   createChatRoomInviteNotifications,
   serializeNotification,
@@ -379,6 +380,16 @@ async function serializeSocialChatRoomDetail(room, recentMessageLimit, userId = 
     recentMessages: serializedMessages,
     roomId,
   };
+}
+
+function sendServerError(res, error, fallbackMessage = "Chat room request failed") {
+  console.error(fallbackMessage, error);
+
+  if (error?.statusCode) {
+    return res.status(error.statusCode).json({ code: error.code, message: error.message });
+  }
+
+  return res.status(500).json({ message: fallbackMessage });
 }
 
 function parsePositiveInteger(value, fallback, maximum) {
@@ -840,6 +851,23 @@ const inviteChatRoomFriends = async (req, res) => {
   }
 };
 
+async function sendChatRoomGiftClip(req, res) {
+  try {
+    const result = await sendChatRoomGiftClipService({
+      amount: req.body?.amount || req.body?.clips,
+      currentUserId: req.user._id,
+      io: getIO(),
+      message: req.body?.message,
+      recipientUserId: req.body?.recipientUserId,
+      roomId: req.params.roomId,
+    });
+
+    return res.status(201).json(result.eventPayload);
+  } catch (error) {
+    return sendServerError(res, error, "Unable to send chat room Gift Clip");
+  }
+}
+
 const seedDefaultChatRooms = async (req, res) => {
   try {
     if (isRestrictedChatRoomSeedEnvironment()) {
@@ -874,4 +902,5 @@ module.exports = {
   getChatRooms,
   inviteChatRoomFriends,
   seedDefaultChatRooms,
+  sendChatRoomGiftClip,
 };

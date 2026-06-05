@@ -671,7 +671,7 @@ class ChatRoomRealtimeService {
     return response;
   }
 
-  async sendGiftClips(socket, payload = {}) {
+  async sendGiftClip(socket, payload = {}) {
     const user = await this.authenticateSocketUser(socket, payload);
 
     const result = await sendChatRoomGiftClip({
@@ -684,6 +684,10 @@ class ChatRoomRealtimeService {
     });
 
     return result.eventPayload;
+  }
+
+  async sendGiftClips(socket, payload = {}) {
+    return this.sendGiftClip(socket, payload);
   }
 
   async sendMessage(socket, payload = {}) {
