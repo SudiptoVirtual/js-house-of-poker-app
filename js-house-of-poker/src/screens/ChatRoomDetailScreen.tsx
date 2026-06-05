@@ -25,6 +25,22 @@ import { routes } from '../constants/routes';
 import { fetchActiveChatRoomFriends, fetchChatRoom, inviteChatRoomFriends } from '../services/api/chatRooms';
 import { clearAuthSession, getAuthSession } from '../services/storage/sessionStorage';
 import { colors } from '../theme/colors';
+import { chatRoomSocketEvents } from '../services/chatRooms/events';
+import type {
+  ChatRoomMessageNotificationPayload,
+  ChatRoomPlayerInvitedPayload,
+  ChatRoomPresencePayload,
+  ChatRoomSocketAck,
+  CreateTableFromChatRoomResponse,
+  JoinChatRoomRequest,
+  JoinChatRoomResponse,
+  LeaveChatRoomRequest,
+  NewChatRoomMessagePayload,
+  SendChatRoomGiftClipRequest,
+  SendChatRoomGiftClipResponse,
+  SendChatRoomMessageRequest,
+  SendChatRoomMessageResponse,
+} from '../services/chatRooms/types';
 import type { PokerGameSettingsUpdate } from '../services/poker';
 import type { ChatRoom, ChatRoomFriend, ChatRoomMessage, ChatRoomPlayer } from '../types/chatRooms';
 import type { RootStackParamList } from '../types/navigation';
@@ -32,15 +48,6 @@ import type { RootStackParamList } from '../types/navigation';
 type Props = NativeStackScreenProps<RootStackParamList, 'ChatRoomDetail'>;
 
 type ChatRoomTableRules = Pick<PokerGameSettingsUpdate, 'lowRule' | 'mode' | 'wildCards'>;
-type ChatRoomSocketAck = {
-  error?: string | { message?: string };
-  message?: ChatRoomMessage;
-  messages?: ChatRoomMessage[];
-  ok?: boolean;
-  players?: ChatRoomPlayer[];
-  roomId?: string;
-  success?: boolean;
-};
 
 const fallbackUser = { id: 'signed-in-player', name: 'Player' };
 const expiredSessionMessage = 'Your sign-in session expired. Sign in again to use realtime chat and room invites.';
@@ -229,9 +236,9 @@ export function ChatRoomDetailScreen({ navigation, route }: Props) {
         setIsRealtimeConnected(true);
         setRealtimeError(null);
         socket.emit(
-          'chat:joinRoom',
-          { roomId: route.params.roomId, token: session.token },
-          (ack: ChatRoomSocketAck = {}) => {
+          chatRoomSocketEvents.joinRoom,
+          { roomId: route.params.roomId, token: session.token } satisfies JoinChatRoomRequest,
+          (ack: JoinChatRoomResponse = {}) => {
             if (!ack.ok && !ack.success) {
               const message = normalizeSocketError(ack.error);
               setRealtimeError(isInvalidUserTokenMessage(message) ? expiredSessionMessage : message);
@@ -274,8 +281,8 @@ export function ChatRoomDetailScreen({ navigation, route }: Props) {
           }
         }
       });
-      socket.on('chat:error', (payload: { message?: string }) => {
-        const message = payload?.message ?? 'Realtime chat error.';
+      socket.on(chatRoomSocketEvents.error, (payload: ChatRoomSocketAck['error']) => {
+        const message = normalizeSocketError(payload);
         setRealtimeError(isInvalidUserTokenMessage(message) ? expiredSessionMessage : message);
 
         if (isInvalidUserTokenMessage(message)) {
@@ -283,21 +290,30 @@ export function ChatRoomDetailScreen({ navigation, route }: Props) {
           authRef.current = { token: null, user: fallbackUser };
         }
       });
-      socket.on('chat:newMessage', (payload: { message?: ChatRoomMessage }) => {
+      socket.on(chatRoomSocketEvents.newMessage, (payload: Partial<NewChatRoomMessagePayload>) => {
         if (!payload.message) {
           return;
         }
 
         setRoom((currentRoom) => currentRoom ? { ...currentRoom, messages: mergeMessages(currentRoom.messages, [payload.message!]), lastMessagePreview: payload.message!.kind === 'gift_clip' || payload.message!.messageType === 'gift_clip' ? `${payload.message!.authorName} sent Gift Clips` : payload.message!.body } : currentRoom);
       });
-      socket.on('chat:activePlayers', (payload: { players?: ChatRoomPlayer[]; activePlayerCount?: number }) => {
+      socket.on(chatRoomSocketEvents.activePlayers, (payload: Partial<ChatRoomPresencePayload>) => {
         setRoom((currentRoom) => currentRoom ? { ...currentRoom, activePlayerCount: payload.activePlayerCount ?? payload.players?.length ?? currentRoom.activePlayerCount, players: payload.players ?? currentRoom.players } : currentRoom);
       });
-      socket.on('chat:presence', (payload: { players?: ChatRoomPlayer[]; activePlayerCount?: number }) => {
+      socket.on(chatRoomSocketEvents.presence, (payload: Partial<ChatRoomPresencePayload>) => {
         setRoom((currentRoom) => currentRoom ? { ...currentRoom, activePlayerCount: payload.activePlayerCount ?? payload.players?.length ?? currentRoom.activePlayerCount, players: payload.players ?? currentRoom.players } : currentRoom);
       });
-      // TODO(aiPrime/socket): Replace this listener with notification:tableInvite and table:playerInvited handling once backend notification payloads are finalized.
-      socket.on('table:playerInvited', (payload: { invitedPlayerIds?: string[]; playerIds?: string[] }) => {
+      socket.on(chatRoomSocketEvents.messageNotification, (payload: ChatRoomMessageNotificationPayload) => {
+        if (payload.message) {
+          setRoom((currentRoom) => currentRoom ? {
+            ...currentRoom,
+            lastMessagePreview: payload.preview ?? payload.message?.body ?? currentRoom.lastMessagePreview,
+            messages: mergeMessages(currentRoom.messages, [payload.message!]),
+            unreadCount: payload.unreadCount ?? currentRoom.unreadCount,
+          } : currentRoom);
+        }
+      });
+      socket.on(chatRoomSocketEvents.playerInvited, (payload: ChatRoomPlayerInvitedPayload) => {
         const playerIds = payload.invitedPlayerIds ?? payload.playerIds ?? [];
         setInvitedPlayerIds((currentIds) => Array.from(new Set([...currentIds, ...playerIds])));
       });
@@ -311,7 +327,7 @@ export function ChatRoomDetailScreen({ navigation, route }: Props) {
       isMounted = false;
       const socket = socketRef.current;
       socketRef.current = null;
-      socket?.emit('chat:leaveRoom', { roomId: route.params.roomId, token: authRef.current?.token });
+      socket?.emit(chatRoomSocketEvents.leaveRoom, { roomId: route.params.roomId, token: authRef.current?.token } satisfies LeaveChatRoomRequest);
       socket?.removeAllListeners();
       socket?.disconnect();
     };
@@ -405,11 +421,11 @@ export function ChatRoomDetailScreen({ navigation, route }: Props) {
     setIsSendingMessage(true);
 
     try {
-      const ack = await new Promise<ChatRoomSocketAck>((resolve, reject) => {
+      const ack = await new Promise<SendChatRoomMessageResponse>((resolve, reject) => {
         socketRef.current?.timeout(10000).emit(
-          'chat:sendMessage',
-          { body: trimmedDraft, roomId: room.id, token },
-          (error: Error | null, response: ChatRoomSocketAck) => {
+          chatRoomSocketEvents.sendMessage,
+          { body: trimmedDraft, roomId: room.id, token } satisfies SendChatRoomMessageRequest,
+          (error: Error | null, response: SendChatRoomMessageResponse) => {
             if (error) {
               reject(error);
               return;
@@ -465,11 +481,11 @@ export function ChatRoomDetailScreen({ navigation, route }: Props) {
     setIsSendingGiftClip(true);
 
     try {
-      const ack = await new Promise<ChatRoomSocketAck>((resolve, reject) => {
+      const ack = await new Promise<SendChatRoomGiftClipResponse>((resolve, reject) => {
         socketRef.current?.timeout(10000).emit(
-          'chat:sendGiftClip',
-          { amount, message, recipientUserId: resolvedRecipientUserId, roomId: room.id, token },
-          (error: Error | null, response: ChatRoomSocketAck) => {
+          chatRoomSocketEvents.sendGiftClip,
+          { amount, message, recipientUserId: resolvedRecipientUserId, roomId: room.id, token } satisfies SendChatRoomGiftClipRequest,
+          (error: Error | null, response: SendChatRoomGiftClipResponse) => {
             if (error) {
               reject(error);
               return;
@@ -669,7 +685,7 @@ export function ChatRoomDetailScreen({ navigation, route }: Props) {
     setIsLaunchingTable(true);
 
     try {
-      const launchAcknowledgement = await createTableFromChatRoom({
+      const launchAcknowledgement: CreateTableFromChatRoomResponse = await createTableFromChatRoom({
         chatRoomId: isolatedLaunchMetadata.chatRoomId,
         gameSettings,
         invitedPlayerIds: Array.from(new Set([...invitedPlayerIds, ...selectedPlayerIds])),
