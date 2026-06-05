@@ -5,6 +5,6 @@ import type { RootStackParamList } from '../types/navigation';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Feed'>;
 
-export function FeedScreen({ navigation }: Props) {
-  return <PlayerFeedScreen navigation={navigation} />;
+export function FeedScreen({ navigation, route }: Props) {
+  return <PlayerFeedScreen navigation={navigation} route={route} />;
 }

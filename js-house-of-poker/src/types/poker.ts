@@ -92,7 +92,7 @@ export type PokerTableChatMessage = {
   tone: PokerTableChatTone;
 };
 
-export type PokerInviteSource = 'share-link' | 'friend-list' | 'seat-pass';
+export type PokerInviteSource = 'share-link' | 'friend-list' | 'seat-pass' | 'feed';
 
 export type PokerInviteRecipient = {
   accountId: string;

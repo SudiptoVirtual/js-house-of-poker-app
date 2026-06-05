@@ -14,6 +14,7 @@ export const feedRealtimeServerEvents = {
   joined: 'feed:joined',
   left: 'feed:left',
   notification: 'feed:notification',
+  notificationNew: 'notification:new',
   playerInvited: 'table:playerInvited',
   postCreated: 'feed:post:created',
   postUpdated: 'feed:post:updated',
@@ -81,7 +82,7 @@ type FeedRealtimeClientOptions = {
   onError?: (payload: FeedRealtimeErrorPayload) => void;
   onJoined?: (payload: FeedRealtimeRoomPayload) => void;
   onLeft?: (payload: FeedRealtimeRoomPayload) => void;
-  onNotification?: (payload: FeedRealtimeNotificationPayload) => void;
+  onNotification?: (payload: FeedRealtimeNotificationPayload, eventName: string) => void;
   onPlayerInvited?: (payload: FeedRealtimePlayerInvitedPayload) => void;
   onPostUpdate?: (payload: FeedRealtimePostPayload, eventName: string) => void;
   onTableInvite?: (payload: FeedRealtimeTableInvitePayload) => void;
@@ -144,7 +145,10 @@ export function createFeedRealtimeClient(options: FeedRealtimeClientOptions = {}
       options.onPostUpdate?.(payload, feedRealtimeServerEvents.tableInviteSent);
     }),
     socketManager.on<FeedRealtimeNotificationPayload>(feedRealtimeServerEvents.notification, (payload) => {
-      options.onNotification?.(payload);
+      options.onNotification?.(payload, feedRealtimeServerEvents.notification);
+    }),
+    socketManager.on<FeedRealtimeNotificationPayload>(feedRealtimeServerEvents.notificationNew, (payload) => {
+      options.onNotification?.(payload, feedRealtimeServerEvents.notificationNew);
     }),
     socketManager.on<FeedRealtimePlayerInvitedPayload>(feedRealtimeServerEvents.playerInvited, (payload) => {
       options.onPlayerInvited?.(payload);

@@ -10,12 +10,15 @@ import {
   View,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import { useFocusEffect } from '@react-navigation/native';
+import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { MainPlatformNavigation } from '../navigation/MainPlatformNavigation';
 import { routes } from '../../constants/routes';
 import { useAuth } from '../../context/AuthProvider';
+import { useFeedNotifications } from '../../context/FeedNotificationProvider';
 import { usePoker } from '../../context/PokerProvider';
 import { createFeedRealtimeClient } from '../../services/feed/feedRealtimeClient';
 import {
@@ -65,6 +68,7 @@ type PromotionPaymentState = 'idle' | 'creating' | 'pending-payment';
 
 type PlayerFeedScreenProps = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'Feed'>;
+  route: RouteProp<RootStackParamList, 'Feed'>;
 };
 
 function buildCurrentUserHandle(user: {
@@ -143,8 +147,9 @@ type ShareTargetOption = {
   label: string;
 };
 
-export function PlayerFeedScreen({ navigation }: PlayerFeedScreenProps) {
+export function PlayerFeedScreen({ navigation, route }: PlayerFeedScreenProps) {
   const { currentUser, token } = useAuth();
+  const { markFeedNotificationsRead, notifications } = useFeedNotifications();
   const { roomState } = usePoker();
   const [posts, setPosts] = useState<FeedPost[]>([]);
   const [feedLoadState, setFeedLoadState] = useState<FeedLoadState>('idle');
@@ -156,6 +161,8 @@ export function PlayerFeedScreen({ navigation }: PlayerFeedScreenProps) {
   const [sharePost, setSharePost] = useState<FeedPost | null>(null);
   const [chatRooms, setChatRooms] = useState<ChatRoom[]>([]);
 
+  const focusedNotificationId = route.params?.notificationId ?? null;
+  const focusedPostId = route.params?.postId ?? null;
   const activeTableCode = roomState?.roomId ?? null;
   const activeTableId = roomState?.tableId ?? roomState?.roomId ?? null;
   const currentPlayer = useMemo<FeedPlayer | undefined>(
@@ -286,6 +293,18 @@ export function PlayerFeedScreen({ navigation }: PlayerFeedScreenProps) {
       feedRealtimeClient.destroy();
     };
   }, [mergeRealtimePost]);
+
+
+  useFocusEffect(
+    useCallback(() => {
+      markFeedNotificationsRead();
+    }, [markFeedNotificationsRead]),
+  );
+
+  const focusedNotification = useMemo(
+    () => notifications.find((notification) => notification.id === focusedNotificationId) ?? null,
+    [focusedNotificationId, notifications],
+  );
 
   const feedSubtitle = useMemo(
     () =>
@@ -1069,6 +1088,17 @@ export function PlayerFeedScreen({ navigation }: PlayerFeedScreenProps) {
                 <Text style={styles.eyebrow}>Player Feed</Text>
                 <Text style={styles.title}>Table Talk</Text>
                 <Text style={styles.subtitle}>{feedSubtitle}</Text>
+                {focusedNotification ? (
+                  <View style={styles.notificationCallout}>
+                    <Text style={styles.notificationCalloutLabel}>{focusedNotification.label}</Text>
+                    <Text style={styles.notificationCalloutText}>{focusedNotification.body}</Text>
+                  </View>
+                ) : focusedPostId ? (
+                  <View style={styles.notificationCallout}>
+                    <Text style={styles.notificationCalloutLabel}>Feed notification</Text>
+                    <Text style={styles.notificationCalloutText}>Showing activity for post {focusedPostId}.</Text>
+                  </View>
+                ) : null}
               </View>
               <FeedPostBox
                 currentPlayer={currentPlayer}
@@ -1180,6 +1210,27 @@ const styles = StyleSheet.create({
   },
   headerStack: {
     gap: 14,
+  },
+  notificationCallout: {
+    backgroundColor: 'rgba(54,231,255,0.12)',
+    borderColor: colors.secondary,
+    borderRadius: 18,
+    borderWidth: 1,
+    gap: 4,
+    padding: 12,
+  },
+  notificationCalloutLabel: {
+    color: colors.secondary,
+    fontSize: 11,
+    fontWeight: '900',
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+  },
+  notificationCalloutText: {
+    color: colors.text,
+    fontSize: 13,
+    fontWeight: '800',
+    lineHeight: 18,
   },
   root: {
     backgroundColor: colors.background,

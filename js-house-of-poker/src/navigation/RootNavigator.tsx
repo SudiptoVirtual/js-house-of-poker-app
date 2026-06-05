@@ -3,6 +3,7 @@ import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { DefaultTheme, NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
+import { FeedNotificationBanner } from '../components/notifications/FeedNotificationBanner';
 import { routes } from '../constants/routes';
 import { ChatRoomDetailScreen } from '../screens/ChatRoomDetailScreen';
 import { ChatRoomsScreen } from '../screens/ChatRoomsScreen';
@@ -118,6 +119,7 @@ export function RootNavigator() {
           options={{ headerShown: false, orientation: 'landscape' }}
         />
       </Stack.Navigator>
+      <FeedNotificationBanner />
     </NavigationContainer>
   );
 }
