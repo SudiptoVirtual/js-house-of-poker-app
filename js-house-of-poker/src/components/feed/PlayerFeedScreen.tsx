@@ -1,5 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Alert, FlatList, StyleSheet, Text, View } from 'react-native';
+import {
+  Alert,
+  Clipboard,
+  FlatList,
+  Linking,
+  Share,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -8,9 +17,23 @@ import { MainPlatformNavigation } from '../navigation/MainPlatformNavigation';
 import { routes } from '../../constants/routes';
 import { useAuth } from '../../context/AuthProvider';
 import { usePoker } from '../../context/PokerProvider';
-import { createFeedComment, createFeedPost, createFeedPromotion, createFeedShare, fetchFeedPosts, getApiErrorDetails, sendFeedGiftClip, sendFeedTableInvite, toggleFeedSupport } from '../../services/api';
 import { createFeedRealtimeClient } from '../../services/feed/feedRealtimeClient';
-import { createFeedComment, createFeedPost, createFeedPromotion, createFeedShare, deleteFeedComment, fetchFeedComments, fetchFeedPosts, getApiErrorDetails, sendFeedGiftClip, sendFeedTableInvite, toggleFeedSupport, updateFeedComment } from '../../services/api';
+import {
+  createFeedComment,
+  createFeedPost,
+  createFeedPromotion,
+  createFeedShare,
+  deleteFeedComment,
+  fetchFeedComments,
+  fetchFeedPosts,
+  getApiErrorDetails,
+  sendFeedGiftClip,
+  sendFeedTableInvite,
+  toggleFeedSupport,
+  updateFeedComment,
+  type CreateFeedShareInput,
+} from '../../services/api';
+import { fetchChatRooms } from '../../services/api/chatRooms';
 import { getAuthSession } from '../../services/storage/sessionStorage';
 import { env } from '../../config/env';
 import { colors } from '../../theme/colors';
@@ -19,16 +42,34 @@ import { FeedPostBox, type FeedPostBoxProfile } from './FeedPostBox';
 import { FeedPostCard } from './FeedPostCard';
 import { GiftClipsModal } from './GiftClipsModal';
 import { PromoteForCreatorPanel } from './PromoteForCreatorPanel';
-import { ShareMenu } from './ShareMenu';
-import { isBackendShareDestination, type FeedComment, type FeedNavigationRoute, type FeedPlayer, type FeedPost, type ShareDestinationId } from '../../types/feed';
+import { ShareMenu, type ShareSelection } from './ShareMenu';
+import {
+  isBackendShareDestination,
+  type BackendShareDestinationId,
+  type FeedComment,
+  type FeedNavigationRoute,
+  type FeedPlayer,
+  type FeedPost,
+} from '../../types/feed';
+import type { ChatRoom } from '../../types/chatRooms';
 
-type FeedLoadState = 'idle' | 'loading' | 'ready' | 'empty' | 'error' | 'session-expired';
+type FeedLoadState =
+  | 'idle'
+  | 'loading'
+  | 'ready'
+  | 'empty'
+  | 'error'
+  | 'session-expired';
 
 type PlayerFeedScreenProps = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'Feed'>;
 };
 
-function buildCurrentUserHandle(user: { email?: string; id: string; name: string }) {
+function buildCurrentUserHandle(user: {
+  email?: string;
+  id: string;
+  name: string;
+}) {
   const localPart = user.email?.split('@')[0]?.trim();
   const fallback = user.name.trim() || `player-${user.id.slice(-6)}`;
   const handleBase = localPart || fallback;
@@ -45,10 +86,14 @@ function mergeRealtimePostList(
   incomingPost: FeedPost,
   options: { currentUserId?: string | null; eventUserId?: string | null },
 ) {
-  const existingIndex = currentPosts.findIndex((post) => post.id === incomingPost.id);
+  const existingIndex = currentPosts.findIndex(
+    (post) => post.id === incomingPost.id,
+  );
   const existingPost = existingIndex >= 0 ? currentPosts[existingIndex] : null;
   const shouldUseIncomingCurrentUserState = Boolean(
-    options.eventUserId && options.currentUserId && options.eventUserId === options.currentUserId,
+    options.eventUserId &&
+    options.currentUserId &&
+    options.eventUserId === options.currentUserId,
   );
   const mergedPost =
     existingPost && !shouldUseIncomingCurrentUserState
@@ -76,6 +121,26 @@ function buildProfileRoute(playerId: string): FeedNavigationRoute {
   };
 }
 
+function buildFeedPostDeepLink(postId: string) {
+  return `houseofpoker://feed/posts/${encodeURIComponent(postId)}`;
+}
+
+function buildFeedPostUrl(postId: string) {
+  return env.apiBaseUrl
+    ? `${env.apiBaseUrl}/feed/posts/${encodeURIComponent(postId)}`
+    : buildFeedPostDeepLink(postId);
+}
+
+function buildFacebookShareUrl(postUrl: string) {
+  return `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(postUrl)}`;
+}
+
+type ShareTargetOption = {
+  helperText?: string;
+  id: string;
+  label: string;
+};
+
 export function PlayerFeedScreen({ navigation }: PlayerFeedScreenProps) {
   const { currentUser, token } = useAuth();
   const { roomState } = usePoker();
@@ -85,8 +150,10 @@ export function PlayerFeedScreen({ navigation }: PlayerFeedScreenProps) {
   const [giftPost, setGiftPost] = useState<FeedPost | null>(null);
   const [promotePost, setPromotePost] = useState<FeedPost | null>(null);
   const [sharePost, setSharePost] = useState<FeedPost | null>(null);
+  const [chatRooms, setChatRooms] = useState<ChatRoom[]>([]);
 
   const activeTableCode = roomState?.roomId ?? null;
+  const activeTableId = roomState?.tableId ?? roomState?.roomId ?? null;
   const currentPlayer = useMemo<FeedPlayer | undefined>(
     () =>
       currentUser
@@ -139,17 +206,49 @@ export function PlayerFeedScreen({ navigation }: PlayerFeedScreenProps) {
           setFeedLoadState(response.posts.length > 0 ? 'ready' : 'empty');
         }
       } catch (error) {
-        const details = getApiErrorDetails(error, 'Unable to load feed posts right now.');
+        const details = getApiErrorDetails(
+          error,
+          'Unable to load feed posts right now.',
+        );
 
         if (isMounted) {
           setPosts([]);
-          setFeedLoadState(details.status === 401 || details.status === 403 ? 'session-expired' : 'error');
+          setFeedLoadState(
+            details.status === 401 || details.status === 403
+              ? 'session-expired'
+              : 'error',
+          );
           setFeedLoadMessage(details.message);
         }
       }
     }
 
     void loadFeedPosts();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadShareTargets() {
+      try {
+        const session = await getAuthSession();
+        const rooms = await fetchChatRooms(session?.token ?? null);
+
+        if (isMounted) {
+          setChatRooms(rooms);
+        }
+      } catch {
+        if (isMounted) {
+          setChatRooms([]);
+        }
+      }
+    }
+
+    void loadShareTargets();
 
     return () => {
       isMounted = false;
@@ -192,9 +291,55 @@ export function PlayerFeedScreen({ navigation }: PlayerFeedScreenProps) {
     [activeTableCode],
   );
 
+  const chatRoomShareOptions = useMemo<ShareTargetOption[]>(
+    () =>
+      chatRooms.map((room) => ({
+        helperText: `${room.activePlayerCount.toLocaleString()} active • ${room.topic}`,
+        id: room.id,
+        label: room.title,
+      })),
+    [chatRooms],
+  );
+
+  const tableShareOptions = useMemo<ShareTargetOption[]>(() => {
+    const options = new Map<string, ShareTargetOption>();
+
+    if (activeTableId) {
+      options.set(activeTableId, {
+        helperText: 'Your current live table',
+        id: activeTableId,
+        label: `Active table ${activeTableCode ?? activeTableId}`,
+      });
+    }
+
+    if (sharePost?.tableContext?.tableId) {
+      options.set(sharePost.tableContext.tableId, {
+        helperText: sharePost.tableContext.gameLabel,
+        id: sharePost.tableContext.tableId,
+        label: sharePost.tableContext.tableName,
+      });
+    }
+
+    if (
+      sharePost?.tableContext?.tableCode &&
+      !options.has(sharePost.tableContext.tableCode)
+    ) {
+      options.set(sharePost.tableContext.tableCode, {
+        helperText: sharePost.tableContext.gameLabel,
+        id: sharePost.tableContext.tableCode,
+        label: sharePost.tableContext.tableName,
+      });
+    }
+
+    return [...options.values()];
+  }, [activeTableCode, activeTableId, sharePost]);
+
   async function handleCreatePost(content: string) {
     if (!token || !currentUser) {
-      Alert.alert('Sign in required', 'Sign in to publish posts to the player feed.');
+      Alert.alert(
+        'Sign in required',
+        'Sign in to publish posts to the player feed.',
+      );
       throw new Error('Sign in required to publish feed posts.');
     }
 
@@ -212,7 +357,10 @@ export function PlayerFeedScreen({ navigation }: PlayerFeedScreenProps) {
       setFeedLoadMessage('');
       return response.post;
     } catch (error) {
-      const details = getApiErrorDetails(error, 'Unable to publish your post right now.');
+      const details = getApiErrorDetails(
+        error,
+        'Unable to publish your post right now.',
+      );
       Alert.alert('Post not published', details.message);
       throw error;
     }
@@ -230,12 +378,20 @@ export function PlayerFeedScreen({ navigation }: PlayerFeedScreenProps) {
     return undefined;
   }
 
-  async function handleSupportChange(postId: string, nextSupportedState: boolean) {
+  async function handleSupportChange(
+    postId: string,
+    nextSupportedState: boolean,
+  ) {
     const targetPost = posts.find((post) => post.id === postId);
-    const previousSupportedState = Boolean(targetPost?.supportedByCurrentPlayer);
+    const previousSupportedState = Boolean(
+      targetPost?.supportedByCurrentPlayer,
+    );
 
     if (!isBackendFeedPostId(postId)) {
-      Alert.alert('Action unavailable', 'Refresh the feed before supporting this post.');
+      Alert.alert(
+        'Action unavailable',
+        'Refresh the feed before supporting this post.',
+      );
       return;
     }
 
@@ -258,17 +414,32 @@ export function PlayerFeedScreen({ navigation }: PlayerFeedScreenProps) {
 
         return {
           ...post,
-          reactionCounts: { ...(post.reactionCounts ?? {}), support: Math.max(0, post.supportersCount + (nextSupportedState ? 1 : -1)) },
+          reactionCounts: {
+            ...(post.reactionCounts ?? {}),
+            support: Math.max(
+              0,
+              post.supportersCount + (nextSupportedState ? 1 : -1),
+            ),
+          },
           supportedByCurrentPlayer: nextSupportedState,
-          supportersCount: Math.max(0, post.supportersCount + (nextSupportedState ? 1 : -1)),
+          supportersCount: Math.max(
+            0,
+            post.supportersCount + (nextSupportedState ? 1 : -1),
+          ),
         };
       }),
     );
 
     try {
-      const response = await toggleFeedSupport(postId, nextSupportedState, session.token);
+      const response = await toggleFeedSupport(
+        postId,
+        nextSupportedState,
+        session.token,
+      );
 
-      setPosts((currentPosts) => currentPosts.map((post) => (post.id === postId ? response.post : post)));
+      setPosts((currentPosts) =>
+        currentPosts.map((post) => (post.id === postId ? response.post : post)),
+      );
     } catch (error) {
       setPosts((currentPosts) =>
         currentPosts.map((post) =>
@@ -283,14 +454,18 @@ export function PlayerFeedScreen({ navigation }: PlayerFeedScreenProps) {
         ),
       );
 
-      const details = getApiErrorDetails(error, 'Unable to save your support right now.');
+      const details = getApiErrorDetails(
+        error,
+        'Unable to save your support right now.',
+      );
       Alert.alert('Support not saved', details.message);
     }
   }
 
   function handleOpenProfile(playerId: string) {
     const matchingPost = posts.find((post) => post.player.id === playerId);
-    const profileRoute = matchingPost?.actorProfileLink ?? matchingPost?.player.profileRoute;
+    const profileRoute =
+      matchingPost?.actorProfileLink ?? matchingPost?.player.profileRoute;
 
     if (profileRoute?.screen === 'FriendsScreen') {
       navigation.navigate(routes.Friends);
@@ -309,7 +484,9 @@ export function PlayerFeedScreen({ navigation }: PlayerFeedScreenProps) {
     const session = await getAuthSession();
 
     if (!isBackendFeedPostId(post.id)) {
-      throw new Error('Refresh the feed before loading comments for this post.');
+      throw new Error(
+        'Refresh the feed before loading comments for this post.',
+      );
     }
 
     if (!session?.token) {
@@ -320,12 +497,17 @@ export function PlayerFeedScreen({ navigation }: PlayerFeedScreenProps) {
       const response = await fetchFeedComments(post.id, session.token);
 
       setPosts((currentPosts) =>
-        currentPosts.map((currentPost) => (currentPost.id === post.id ? response.post : currentPost)),
+        currentPosts.map((currentPost) =>
+          currentPost.id === post.id ? response.post : currentPost,
+        ),
       );
 
       return response;
     } catch (error) {
-      const details = getApiErrorDetails(error, 'Unable to load comments right now.');
+      const details = getApiErrorDetails(
+        error,
+        'Unable to load comments right now.',
+      );
       throw new Error(details.message);
     }
   }
@@ -335,7 +517,10 @@ export function PlayerFeedScreen({ navigation }: PlayerFeedScreenProps) {
     const session = await getAuthSession();
 
     if (!isBackendFeedPostId(post.id)) {
-      Alert.alert('Action unavailable', 'Refresh the feed before commenting on this post.');
+      Alert.alert(
+        'Action unavailable',
+        'Refresh the feed before commenting on this post.',
+      );
       return undefined;
     }
 
@@ -348,22 +533,34 @@ export function PlayerFeedScreen({ navigation }: PlayerFeedScreenProps) {
       const response = await createFeedComment(post.id, comment, session.token);
 
       setPosts((currentPosts) =>
-        currentPosts.map((currentPost) => (currentPost.id === post.id ? response.post : currentPost)),
+        currentPosts.map((currentPost) =>
+          currentPost.id === post.id ? response.post : currentPost,
+        ),
       );
 
       return response;
     } catch (error) {
-      const details = getApiErrorDetails(error, 'Unable to save your comment right now.');
+      const details = getApiErrorDetails(
+        error,
+        'Unable to save your comment right now.',
+      );
       Alert.alert('Comment not saved', details.message);
       throw error;
     }
   }
 
-  async function handleUpdateComment(post: FeedPost, comment: FeedComment, body: string) {
+  async function handleUpdateComment(
+    post: FeedPost,
+    comment: FeedComment,
+    body: string,
+  ) {
     const session = await getAuthSession();
 
     if (!isBackendFeedPostId(post.id)) {
-      Alert.alert('Action unavailable', 'Refresh the feed before editing this comment.');
+      Alert.alert(
+        'Action unavailable',
+        'Refresh the feed before editing this comment.',
+      );
       return undefined;
     }
 
@@ -373,15 +570,25 @@ export function PlayerFeedScreen({ navigation }: PlayerFeedScreenProps) {
     }
 
     try {
-      const response = await updateFeedComment(post.id, comment.id, body, session.token);
+      const response = await updateFeedComment(
+        post.id,
+        comment.id,
+        body,
+        session.token,
+      );
 
       setPosts((currentPosts) =>
-        currentPosts.map((currentPost) => (currentPost.id === post.id ? response.post : currentPost)),
+        currentPosts.map((currentPost) =>
+          currentPost.id === post.id ? response.post : currentPost,
+        ),
       );
 
       return response;
     } catch (error) {
-      const details = getApiErrorDetails(error, 'Unable to update your comment right now.');
+      const details = getApiErrorDetails(
+        error,
+        'Unable to update your comment right now.',
+      );
       Alert.alert('Comment not updated', details.message);
       throw error;
     }
@@ -391,7 +598,10 @@ export function PlayerFeedScreen({ navigation }: PlayerFeedScreenProps) {
     const session = await getAuthSession();
 
     if (!isBackendFeedPostId(post.id)) {
-      Alert.alert('Action unavailable', 'Refresh the feed before deleting this comment.');
+      Alert.alert(
+        'Action unavailable',
+        'Refresh the feed before deleting this comment.',
+      );
       return undefined;
     }
 
@@ -401,24 +611,124 @@ export function PlayerFeedScreen({ navigation }: PlayerFeedScreenProps) {
     }
 
     try {
-      const response = await deleteFeedComment(post.id, comment.id, session.token);
+      const response = await deleteFeedComment(
+        post.id,
+        comment.id,
+        session.token,
+      );
 
       if (response.post) {
         setPosts((currentPosts) =>
-          currentPosts.map((currentPost) => (currentPost.id === post.id ? response.post ?? currentPost : currentPost)),
+          currentPosts.map((currentPost) =>
+            currentPost.id === post.id
+              ? (response.post ?? currentPost)
+              : currentPost,
+          ),
         );
       }
 
       return response;
     } catch (error) {
-      const details = getApiErrorDetails(error, 'Unable to delete your comment right now.');
+      const details = getApiErrorDetails(
+        error,
+        'Unable to delete your comment right now.',
+      );
       Alert.alert('Comment not deleted', details.message);
       throw error;
     }
   }
 
-  async function handleShare(destinationId: ShareDestinationId) {
-    if (!sharePost || !isBackendShareDestination(destinationId)) {
+  async function saveFeedShare(
+    targetPost: FeedPost,
+    destination: BackendShareDestinationId,
+    input: Omit<CreateFeedShareInput, 'destination'>,
+    token: string,
+  ) {
+    const response = await createFeedShare(
+      targetPost.id,
+      { destination, ...input },
+      token,
+    );
+
+    setPosts((currentPosts) =>
+      currentPosts.map((post) =>
+        post.id === targetPost.id ? response.post : post,
+      ),
+    );
+    return response;
+  }
+
+  async function handleCopyPostLink(
+    targetPost: FeedPost,
+    sessionToken: string,
+  ) {
+    const postUrl = buildFeedPostUrl(targetPost.id);
+    const deepLink = buildFeedPostDeepLink(targetPost.id);
+
+    Clipboard.setString(postUrl);
+    await saveFeedShare(
+      targetPost,
+      'copy-link',
+      {
+        metadata: { deepLink, postUrl },
+        targetId: targetPost.id,
+        targetType: 'feed-post',
+      },
+      sessionToken,
+    );
+    Alert.alert('Link copied', `Copied ${postUrl}`);
+  }
+
+  async function handlePlatformShare(
+    targetPost: FeedPost,
+    destination: Extract<BackendShareDestinationId, 'external' | 'facebook'>,
+    sessionToken: string,
+  ) {
+    const postUrl = buildFeedPostUrl(targetPost.id);
+    const deepLink = buildFeedPostDeepLink(targetPost.id);
+    const message = `Check out ${targetPost.player.name}'s House of Poker post: ${postUrl}`;
+
+    if (destination === 'facebook') {
+      const facebookShareUrl = buildFacebookShareUrl(postUrl);
+      const openedFacebookShare = await Linking.openURL(facebookShareUrl)
+        .then(() => true)
+        .catch(() => false);
+
+      if (!openedFacebookShare) {
+        await Share.share({
+          message,
+          title: 'Share House of Poker post',
+          url: postUrl,
+        });
+      }
+    } else {
+      await Share.share({
+        message,
+        title: 'Share House of Poker post',
+        url: postUrl,
+      });
+    }
+
+    await saveFeedShare(
+      targetPost,
+      destination,
+      {
+        metadata: { deepLink, postUrl, sharedVia: destination },
+        targetId: targetPost.id,
+        targetType: 'feed-post',
+      },
+      sessionToken,
+    );
+    Alert.alert(
+      'Share saved',
+      destination === 'facebook'
+        ? 'Facebook share recorded.'
+        : 'External share recorded.',
+    );
+  }
+
+  async function handleShare(selection: ShareSelection) {
+    if (!sharePost || !isBackendShareDestination(selection.destinationId)) {
       return;
     }
 
@@ -426,7 +736,10 @@ export function PlayerFeedScreen({ navigation }: PlayerFeedScreenProps) {
     const session = await getAuthSession();
 
     if (!isBackendFeedPostId(targetPost.id)) {
-      Alert.alert('Action unavailable', 'Refresh the feed before sharing this post.');
+      Alert.alert(
+        'Action unavailable',
+        'Refresh the feed before sharing this post.',
+      );
       setSharePost(null);
       return;
     }
@@ -437,13 +750,94 @@ export function PlayerFeedScreen({ navigation }: PlayerFeedScreenProps) {
     }
 
     try {
-      const response = await createFeedShare(targetPost.id, { destination: destinationId }, session.token);
+      if (selection.destinationId === 'copy-link') {
+        await handleCopyPostLink(targetPost, session.token);
+      } else if (
+        selection.destinationId === 'facebook' ||
+        selection.destinationId === 'external'
+      ) {
+        await handlePlatformShare(
+          targetPost,
+          selection.destinationId,
+          session.token,
+        );
+      } else if (selection.destinationId === 'chat-room') {
+        if (!selection.roomId) {
+          Alert.alert(
+            'Choose a chat room',
+            'Select a chat room before sharing this post.',
+          );
+          return;
+        }
 
-      setPosts((currentPosts) => currentPosts.map((post) => (post.id === targetPost.id ? response.post : post)));
-      Alert.alert('Share saved', `Shared to ${destinationId.replace(/-/g, ' ')}.`);
+        await saveFeedShare(
+          targetPost,
+          'chat-room',
+          {
+            metadata: {
+              deepLink: buildFeedPostDeepLink(targetPost.id),
+              postUrl: buildFeedPostUrl(targetPost.id),
+            },
+            roomId: selection.roomId,
+            targetId: selection.roomId,
+            targetType: 'chat-room',
+          },
+          session.token,
+        );
+        Alert.alert('Share saved', 'Shared to chat room.');
+      } else if (selection.destinationId === 'table') {
+        const tableId = selection.tableId ?? activeTableId;
+
+        if (!tableId) {
+          Alert.alert(
+            'Choose a table',
+            'Join a table or select a post table before sharing this post.',
+          );
+          return;
+        }
+
+        await saveFeedShare(
+          targetPost,
+          'table',
+          {
+            metadata: {
+              deepLink: buildFeedPostDeepLink(targetPost.id),
+              postUrl: buildFeedPostUrl(targetPost.id),
+            },
+            tableId,
+            targetId: tableId,
+            targetType: 'table',
+          },
+          session.token,
+        );
+        Alert.alert('Share saved', `Shared to table ${tableId}.`);
+      } else {
+        await saveFeedShare(
+          targetPost,
+          selection.destinationId,
+          {
+            metadata: {
+              deepLink: buildFeedPostDeepLink(targetPost.id),
+              postUrl: buildFeedPostUrl(targetPost.id),
+            },
+            targetId: currentUser?.id,
+            targetType:
+              selection.destinationId === 'profile' ? 'profile' : 'feed',
+          },
+          session.token,
+        );
+        Alert.alert(
+          'Share saved',
+          `Shared to ${selection.destinationId.replace(/-/g, ' ')}.`,
+        );
+      }
+
       setSharePost(null);
     } catch (error) {
-      const details = getApiErrorDetails(error, 'Unable to save your share right now.');
+      const details = getApiErrorDetails(
+        error,
+        'Unable to save your share right now.',
+      );
       Alert.alert('Share not saved', details.message);
     }
   }
@@ -457,7 +851,10 @@ export function PlayerFeedScreen({ navigation }: PlayerFeedScreenProps) {
     const session = await getAuthSession();
 
     if (!isBackendFeedPostId(targetPost.id)) {
-      Alert.alert('Action unavailable', 'Refresh the feed before sending Gift Clips.');
+      Alert.alert(
+        'Action unavailable',
+        'Refresh the feed before sending Gift Clips.',
+      );
       return;
     }
 
@@ -467,13 +864,27 @@ export function PlayerFeedScreen({ navigation }: PlayerFeedScreenProps) {
     }
 
     try {
-      const response = await sendFeedGiftClip(targetPost.id, { amount, message }, session.token);
+      const response = await sendFeedGiftClip(
+        targetPost.id,
+        { amount, message },
+        session.token,
+      );
 
-      setPosts((currentPosts) => currentPosts.map((post) => (post.id === targetPost.id ? response.post : post)));
-      Alert.alert('Gift Clips sent', `${amount.toLocaleString()} clips sent to ${targetPost.player.name}.`);
+      setPosts((currentPosts) =>
+        currentPosts.map((post) =>
+          post.id === targetPost.id ? response.post : post,
+        ),
+      );
+      Alert.alert(
+        'Gift Clips sent',
+        `${amount.toLocaleString()} clips sent to ${targetPost.player.name}.`,
+      );
       setGiftPost(null);
     } catch (error) {
-      const details = getApiErrorDetails(error, 'Unable to send Gift Clips right now.');
+      const details = getApiErrorDetails(
+        error,
+        'Unable to send Gift Clips right now.',
+      );
       Alert.alert('Gift Clips not sent', details.message);
     }
   }
@@ -487,7 +898,10 @@ export function PlayerFeedScreen({ navigation }: PlayerFeedScreenProps) {
     const session = await getAuthSession();
 
     if (!isBackendFeedPostId(targetPost.id)) {
-      Alert.alert('Action unavailable', 'Refresh the feed before sponsoring a promotion.');
+      Alert.alert(
+        'Action unavailable',
+        'Refresh the feed before sponsoring a promotion.',
+      );
       return;
     }
 
@@ -502,7 +916,9 @@ export function PlayerFeedScreen({ navigation }: PlayerFeedScreenProps) {
         {
           amount: 500,
           durationDays: 7,
-          ...(env.feedPromotion.paymentProvider ? { paymentProvider: env.feedPromotion.paymentProvider } : {}),
+          ...(env.feedPromotion.paymentProvider
+            ? { paymentProvider: env.feedPromotion.paymentProvider }
+            : {}),
           targeting: {
             audience: ['feed'],
             metadata: { source: 'FeedActionBar' },
@@ -511,11 +927,21 @@ export function PlayerFeedScreen({ navigation }: PlayerFeedScreenProps) {
         session.token,
       );
 
-      setPosts((currentPosts) => currentPosts.map((post) => (post.id === targetPost.id ? response.post : post)));
-      Alert.alert('Promotion sponsored', `${targetPost.player.name}'s post is now sponsored in the feed.`);
+      setPosts((currentPosts) =>
+        currentPosts.map((post) =>
+          post.id === targetPost.id ? response.post : post,
+        ),
+      );
+      Alert.alert(
+        'Promotion sponsored',
+        `${targetPost.player.name}'s post is now sponsored in the feed.`,
+      );
       setPromotePost(null);
     } catch (error) {
-      const details = getApiErrorDetails(error, 'Unable to sponsor this promotion right now.');
+      const details = getApiErrorDetails(
+        error,
+        'Unable to sponsor this promotion right now.',
+      );
       Alert.alert('Promotion not saved', details.message);
     }
   }
@@ -525,17 +951,26 @@ export function PlayerFeedScreen({ navigation }: PlayerFeedScreenProps) {
     const session = await getAuthSession();
 
     if (!isBackendFeedPostId(post.id)) {
-      Alert.alert('Action unavailable', 'Refresh the feed before sending table invites from feed.');
+      Alert.alert(
+        'Action unavailable',
+        'Refresh the feed before sending table invites from feed.',
+      );
       return;
     }
 
     if (!session?.token) {
-      Alert.alert('Sign in required', 'Sign in before sending table invites from feed.');
+      Alert.alert(
+        'Sign in required',
+        'Sign in before sending table invites from feed.',
+      );
       return;
     }
 
     if (!tableCode) {
-      Alert.alert('Table unavailable', 'This feed post does not include a joinable table context yet.');
+      Alert.alert(
+        'Table unavailable',
+        'This feed post does not include a joinable table context yet.',
+      );
       return;
     }
 
@@ -550,10 +985,20 @@ export function PlayerFeedScreen({ navigation }: PlayerFeedScreenProps) {
         session.token,
       );
 
-      setPosts((currentPosts) => currentPosts.map((currentPost) => (currentPost.id === post.id ? response.post : currentPost)));
-      Alert.alert('Table invite sent', `${post.player.name} can join ${response.table.tableName || response.table.tableCode || 'the table'} from their feed notification.`);
+      setPosts((currentPosts) =>
+        currentPosts.map((currentPost) =>
+          currentPost.id === post.id ? response.post : currentPost,
+        ),
+      );
+      Alert.alert(
+        'Table invite sent',
+        `${post.player.name} can join ${response.table.tableName || response.table.tableCode || 'the table'} from their feed notification.`,
+      );
     } catch (error) {
-      const details = getApiErrorDetails(error, 'Unable to send this feed table invite right now.');
+      const details = getApiErrorDetails(
+        error,
+        'Unable to send this feed table invite right now.',
+      );
       Alert.alert('Invite not sent', details.message);
     }
   }
@@ -583,7 +1028,8 @@ export function PlayerFeedScreen({ navigation }: PlayerFeedScreenProps) {
                   : feedLoadState === 'session-expired'
                     ? 'Sign in again to refresh your player feed and publish new posts.'
                     : feedLoadState === 'error'
-                      ? feedLoadMessage || 'Unable to load feed posts right now. Pull back later after the backend is reachable.'
+                      ? feedLoadMessage ||
+                        'Unable to load feed posts right now. Pull back later after the backend is reachable.'
                       : 'The backend feed is empty. Be the first to start table talk by publishing a post.'}
               </Text>
             </View>
@@ -599,7 +1045,9 @@ export function PlayerFeedScreen({ navigation }: PlayerFeedScreenProps) {
                 currentPlayer={currentPlayer}
                 isAuthenticated={Boolean(token && currentUser)}
                 onCreatePost={handleCreatePost}
-                onOpenProfile={(player: FeedPostBoxProfile) => handleOpenProfile(player.id)}
+                onOpenProfile={(player: FeedPostBoxProfile) =>
+                  handleOpenProfile(player.id)
+                }
               />
             </View>
           }
@@ -624,14 +1072,19 @@ export function PlayerFeedScreen({ navigation }: PlayerFeedScreenProps) {
           showsVerticalScrollIndicator={false}
         />
       </SafeAreaView>
-      <SafeAreaView edges={['bottom', 'left', 'right']} style={styles.bottomNavigationSafeArea}>
+      <SafeAreaView
+        edges={['bottom', 'left', 'right']}
+        style={styles.bottomNavigationSafeArea}
+      >
         <MainPlatformNavigation />
       </SafeAreaView>
       <ShareMenu
+        chatRoomOptions={chatRoomShareOptions}
         onClose={() => setSharePost(null)}
         onPromote={() => setPromotePost(sharePost)}
         onShare={handleShare}
         post={sharePost}
+        tableOptions={tableShareOptions}
         visible={Boolean(sharePost)}
       />
       <GiftClipsModal
