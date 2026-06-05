@@ -417,11 +417,50 @@ function initChatRoomSocket(io) {
       });
     });
 
+    socket.on("chat:systemMessage", (payload = {}, ack) => {
+      withChatRoomErrorBoundary(socket, ack, async () => {
+        const response = await chatRoomRealtimeService.createSystemMessage(socket, payload);
+        emitAck(ack, response);
+      });
+    });
+
+    socket.on("aiPrime:open", (payload = {}, ack) => {
+      withChatRoomErrorBoundary(socket, ack, async () => {
+        const response = await chatRoomRealtimeService.recordAIPrimeOpen(socket, payload);
+        emitAck(ack, response);
+      });
+    });
+
+    socket.on("aiPrime:action", (payload = {}, ack) => {
+      withChatRoomErrorBoundary(socket, ack, async () => {
+        const response = await chatRoomRealtimeService.recordAIPrimeAction(socket, payload);
+        emitAck(ack, response);
+      });
+    });
+
+    socket.on("aiPrime:setUpTable", (payload = {}, ack) => {
+      withChatRoomErrorBoundary(socket, ack, async () => {
+        const response = await chatRoomRealtimeService.recordAIPrimeSetUpTable(socket, payload);
+        emitAck(ack, response);
+      });
+    });
+
     socket.on("table:createFromChatRoom", (payload = {}, ack) => {
       withChatRoomErrorBoundary(socket, ack, async () => {
         const response = await chatRoomRealtimeService.createTableFromChatRoom(
           socket,
           payload,
+          realtimeService
+        );
+        emitAck(ack, response);
+      });
+    });
+
+    socket.on("table:createFromAiPrime", (payload = {}, ack) => {
+      withChatRoomErrorBoundary(socket, ack, async () => {
+        const response = await chatRoomRealtimeService.createTableFromChatRoom(
+          socket,
+          { ...payload, aiPrime: true, source: "ai-prime" },
           realtimeService
         );
         emitAck(ack, response);

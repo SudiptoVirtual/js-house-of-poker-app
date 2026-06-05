@@ -26,7 +26,7 @@ export function RoomPlayerInviteSelector({
         onTogglePlayer={onTogglePlayer}
       />
       <Text style={styles.helperText}>
-        Placeholder invite states appear immediately for selected room players until backend notifications are wired.
+        Selected room players are handed to AI Prime and backend invite notifications when the table launches.
       </Text>
     </View>
   );

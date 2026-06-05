@@ -58,6 +58,22 @@ test('Chat Room socket events are registered and delegate to realtime services',
     authenticateSocketUser: async () => ({ _id: '507f1f77bcf86cd799439011' }),
   };
   const chatRoomRealtimeService = {
+    createSystemMessage: async (socket, payload) => {
+      calls.push({ method: 'createSystemMessage', payload });
+      return { ok: true, event: 'system' };
+    },
+    recordAIPrimeAction: async (socket, payload) => {
+      calls.push({ method: 'recordAIPrimeAction', payload });
+      return { ok: true, event: 'ai-action' };
+    },
+    recordAIPrimeOpen: async (socket, payload) => {
+      calls.push({ method: 'recordAIPrimeOpen', payload });
+      return { ok: true, event: 'ai-open' };
+    },
+    recordAIPrimeSetUpTable: async (socket, payload) => {
+      calls.push({ method: 'recordAIPrimeSetUpTable', payload });
+      return { ok: true, event: 'ai-setup' };
+    },
     createTableFromChatRoom: async (socket, payload, realtimeService) => {
       calls.push({ method: 'createTableFromChatRoom', payload, realtimeService });
       return { ok: true, event: 'create' };
@@ -109,13 +125,18 @@ test('Chat Room socket events are registered and delegate to realtime services',
   initChatRoomSocket(io);
 
   assert.deepEqual([...socket.handlers.keys()].sort(), [
+    'aiPrime:action',
+    'aiPrime:open',
+    'aiPrime:setUpTable',
     'chat:joinRoom',
     'chat:leaveRoom',
     'chat:sendMessage',
     'chat:sendGiftClip',
     'chat:giftClips:send',
+    'chat:systemMessage',
     'chat:typing',
     'disconnect',
+    'table:createFromAiPrime',
     'table:createFromChatRoom',
     'table:inviteRoomPlayers',
   ].sort());
@@ -128,7 +149,12 @@ test('Chat Room socket events are registered and delegate to realtime services',
   socket.handlers.get('chat:sendGiftClip')({ amount: 25, recipientUserId: 'player-2', roomId: 'room-a' }, ack);
   socket.handlers.get('chat:giftClips:send')({ amount: 30, recipientUserId: 'player-3', roomId: 'room-a' }, ack);
   socket.handlers.get('chat:typing')({ roomId: 'room-a' }, ack);
+  socket.handlers.get('chat:systemMessage')({ roomId: 'room-a', body: 'system' }, ack);
+  socket.handlers.get('aiPrime:open')({ roomId: 'room-a' }, ack);
+  socket.handlers.get('aiPrime:action')({ roomId: 'room-a', actionId: 'summarizeChat' }, ack);
+  socket.handlers.get('aiPrime:setUpTable')({ roomId: 'room-a' }, ack);
   socket.handlers.get('table:createFromChatRoom')({ roomId: 'room-a' }, ack);
+  socket.handlers.get('table:createFromAiPrime')({ roomId: 'room-a' }, ack);
   socket.handlers.get('table:inviteRoomPlayers')({ roomId: 'room-a', playerIds: [] }, ack);
 
   await new Promise((resolve) => setImmediate(resolve));
@@ -141,12 +167,19 @@ test('Chat Room socket events are registered and delegate to realtime services',
     'sendGiftClip',
     'sendGiftClips',
     'sendTyping',
+    'createSystemMessage',
+    'recordAIPrimeOpen',
+    'recordAIPrimeAction',
+    'recordAIPrimeSetUpTable',
+    'createTableFromChatRoom',
     'createTableFromChatRoom',
     'inviteRoomPlayers',
     'leaveAllRooms',
   ]);
-  assert.equal(calls[6].realtimeService, pokerRealtimeService);
-  assert.equal(calls[7].realtimeService, pokerRealtimeService);
+  assert.equal(calls[10].realtimeService, pokerRealtimeService);
+  assert.equal(calls[11].realtimeService, pokerRealtimeService);
+  assert.equal(calls[11].payload.aiPrime, true);
+  assert.equal(calls[12].realtimeService, pokerRealtimeService);
   assert.deepEqual(ackPayloads.map((payload) => payload.event), [
     'join',
     'leave',
@@ -154,6 +187,11 @@ test('Chat Room socket events are registered and delegate to realtime services',
     'gift-new',
     'gift-legacy',
     'typing',
+    'system',
+    'ai-open',
+    'ai-action',
+    'ai-setup',
+    'create',
     'create',
     'invite',
   ]);
@@ -163,7 +201,11 @@ test('Chat Room socket event errors emit mapped room and chat errors and negativ
   clearChatRoomSocketModules();
 
   const chatRoomRealtimeService = {
+    createSystemMessage: async () => ({ ok: true }),
     createTableFromChatRoom: async () => ({ ok: true }),
+    recordAIPrimeAction: async () => ({ ok: true }),
+    recordAIPrimeOpen: async () => ({ ok: true }),
+    recordAIPrimeSetUpTable: async () => ({ ok: true }),
     inviteRoomPlayers: async () => ({ ok: true }),
     joinRoom: async () => {
       throw new Error('Chat room not found.');

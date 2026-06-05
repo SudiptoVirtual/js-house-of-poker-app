@@ -131,6 +131,10 @@ const chatRoomMessageSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.Mixed,
       default: null,
     },
+    aiPrimeContext: {
+      type: mongoose.Schema.Types.Mixed,
+      default: null,
+    },
     deletedAt: {
       type: Date,
       default: null,

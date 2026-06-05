@@ -146,6 +146,7 @@ test('enforceRateLimit limits social chat per user and per room', () => {
 
 test('createTableFromChatRoom validates context, persists launch metadata, and emits acknowledgement payload', async () => {
   const ChatRoom = require('../src/models/ChatRoom');
+  const ChatRoomMessage = require('../src/models/ChatRoomMessage');
   const Notification = require('../src/models/Notification');
   const originalUpdateOne = ChatRoom.updateOne;
   const originalFindById = ChatRoom.findById;
@@ -262,10 +263,12 @@ test('inviteRoomPlayers persists selected chat room invites and emits per-player
   const originalChatRoomUpdateOne = ChatRoom.updateOne;
   const originalChatRoomFindById = ChatRoom.findById;
   const originalNotificationInsertMany = Notification.insertMany;
+  const originalMessageSave = ChatRoomMessage.prototype.save;
   const originalUserFind = User.find;
   const originalUserFindByIdAndUpdate = User.findByIdAndUpdate;
   const updates = [];
   const referralUpdates = [];
+  const savedSystemMessages = [];
 
   ChatRoom.updateOne = async function updateOneStub(query, update) {
     updates.push({ query, update });
@@ -296,6 +299,11 @@ test('inviteRoomPlayers persists selected chat room invites and emits per-player
   User.findByIdAndUpdate = async function findByIdAndUpdateStub(id, update) {
     referralUpdates.push({ id, update });
     return { acknowledged: true };
+  };
+  ChatRoomMessage.prototype.save = async function saveStub() {
+    this._id = this._id || 'invite-system-message';
+    savedSystemMessages.push(this);
+    return this;
   };
 
   try {
@@ -422,10 +430,13 @@ test('inviteRoomPlayers persists selected chat room invites and emits per-player
     const inviteHistoryUpdate = updates.find((update) => update.update.$push?.tableInviteHistory);
     assert.equal(inviteHistoryUpdate.update.$push.tableInviteHistory.$each[0].tableCode, 'TABLE1');
     assert.equal(referralUpdates[0].update.$inc['referralStats.invitesSent'], 2);
+    assert.equal(savedSystemMessages.length, 1);
+    assert.equal(savedSystemMessages[0].tone, 'system');
   } finally {
     ChatRoom.updateOne = originalChatRoomUpdateOne;
     ChatRoom.findById = originalChatRoomFindById;
     Notification.insertMany = originalNotificationInsertMany;
+    ChatRoomMessage.prototype.save = originalMessageSave;
     User.find = originalUserFind;
     User.findByIdAndUpdate = originalUserFindByIdAndUpdate;
   }

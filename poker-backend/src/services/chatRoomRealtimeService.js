@@ -387,9 +387,33 @@ function serializeChatRoomMessage(message) {
     tone: message.tone || (kind === "system" ? "system" : "player"),
     ...(giftClip ? { giftClip } : {}),
     ...(message.launchContext ? { launchContext: message.launchContext } : {}),
+    ...(message.aiPrimeContext ? { aiPrimeContext: message.aiPrimeContext } : {}),
   };
 }
 
+function getAIPrimeActionLabel(actionId) {
+  const labels = {
+    explain357Rules: "explain 3-5-7 rules",
+    findTable: "find a table",
+    invitePlayers: "invite players",
+    setUpTable: "set up a table",
+    summarizeChat: "summarize the chat",
+    translateChat: "translate the chat",
+  };
+
+  return labels[actionId] || String(actionId || "AI Prime action").replace(/([a-z])([A-Z])/g, "$1 $2").toLowerCase();
+}
+
+function buildAIPrimeContext(action, user, extras = {}) {
+  return {
+    action,
+    actorUserId: user?._id ? String(user._id) : null,
+    actorName: user ? getDisplayName(user) : null,
+    createdAt: new Date().toISOString(),
+    source: "ai-prime",
+    ...extras,
+  };
+}
 
 function getLaunchGameLabel(gameSettings = {}) {
   const game = String(gameSettings.game || "").trim();
@@ -563,7 +587,6 @@ class ChatRoomRealtimeService {
   removePresence(roomId, socket) {
     return this.presenceService.removePresence(roomId, socket);
   }
-
 
   enforceRateLimit(roomId, userId) {
     const now = Date.now();
@@ -803,6 +826,95 @@ class ChatRoomRealtimeService {
     };
   }
 
+  async createSystemMessage(socket, payload = {}, options = {}) {
+    const user = await this.authenticateSocketUser(socket, payload);
+    const room = await this.findRoom(normalizeChatRoomId(payload));
+    const roomId = String(room._id);
+    const text = normalizeMessageText(payload.body || payload.message || payload.text || options.text);
+
+    assertUserCanAccessChatRoom(room, user._id);
+    if (!text) {
+      throw new Error("System message cannot be empty.");
+    }
+
+    const message = new ChatRoomMessage({
+      aiPrimeContext: options.aiPrimeContext || payload.aiPrimeContext || null,
+      kind: "system",
+      messageType: "system",
+      moderation: createAcceptedModeration(),
+      roomId,
+      senderDisplayName: options.senderDisplayName || payload.senderDisplayName || "AI Prime",
+      senderUserId: options.senderUserId === undefined ? user._id : options.senderUserId,
+      text,
+      tone: "system",
+    });
+    await message.save();
+
+    const serializedMessage = serializeChatRoomMessage(message);
+    const eventPayload = {
+      message: serializedMessage,
+      roomId,
+    };
+
+    this.io.to(getChatRoomChannel(roomId)).emit("chat:systemMessage", eventPayload);
+    this.io.to(getChatRoomChannel(roomId)).emit("chat:newMessage", eventPayload);
+
+    return {
+      ok: true,
+      success: true,
+      ...eventPayload,
+    };
+  }
+
+  async recordAIPrimeOpen(socket, payload = {}) {
+    const user = await this.authenticateSocketUser(socket, payload);
+    const room = await this.findRoom(normalizeChatRoomId(payload));
+
+    assertUserCanAccessChatRoom(room, user._id);
+
+    return {
+      actionId: "open",
+      ok: true,
+      roomId: String(room._id),
+      success: true,
+    };
+  }
+
+  async recordAIPrimeAction(socket, payload = {}) {
+    const user = await this.authenticateSocketUser(socket, payload);
+    const actionId = String(payload.actionId || payload.action || "action").trim();
+    const actionLabel = getAIPrimeActionLabel(actionId);
+
+    return this.createSystemMessage(socket, {
+      ...payload,
+      body: payload.body || `AI Prime is ready to ${actionLabel} for this room.`,
+    }, {
+      aiPrimeContext: buildAIPrimeContext(actionId, user, {
+        requestedActionId: actionId,
+      }),
+      senderDisplayName: "AI Prime",
+      senderUserId: user._id,
+    });
+  }
+
+  async recordAIPrimeSetUpTable(socket, payload = {}) {
+    const user = await this.authenticateSocketUser(socket, payload);
+
+    return this.createSystemMessage(socket, {
+      ...payload,
+      body: payload.body || `${getDisplayName(user)} asked AI Prime to set up a table from this room.`,
+    }, {
+      aiPrimeContext: buildAIPrimeContext("setUpTable", user, {
+        gameSettings: payload.gameSettings || null,
+        invitedPlayerIds: normalizePlayerIds(payload.invitedPlayerIds || payload.playerIds),
+        tableTier: payload.tableTier ?? payload.tableTierId ?? null,
+        visibility: payload.visibility || null,
+      }),
+      senderDisplayName: "AI Prime",
+      senderUserId: user._id,
+    });
+  }
+
   async createTableFromChatRoom(socket, payload = {}, pokerRealtimeService) {
     if (!pokerRealtimeService || typeof pokerRealtimeService.createRoomFromChatRoom !== "function") {
       throw new Error("Poker realtime service is required to launch a table from a chat room.");
@@ -885,8 +997,12 @@ class ChatRoomRealtimeService {
       tableTier,
       visibility,
     };
-    const launchText = `${getDisplayName(user)} launched a ${getLaunchGameLabel(gameSettings)} table from this room.`;
+    const isAIPrimeLaunch = payload.aiPrime === true || payload.source === "ai-prime";
+    const launchText = isAIPrimeLaunch
+      ? `AI Prime launched a ${visibility === "private" ? "private" : "room"} ${getLaunchGameLabel(gameSettings)} table for ${getDisplayName(user)}.`
+      : `${getDisplayName(user)} launched a ${getLaunchGameLabel(gameSettings)} table from this room.`;
     const systemMessage = new ChatRoomMessage({
+      aiPrimeContext: isAIPrimeLaunch ? buildAIPrimeContext("launchTable", user, launchPayload) : null,
       kind: "system",
       messageType: "system",
       launchContext: launchPayload,
@@ -1178,6 +1294,29 @@ class ChatRoomRealtimeService {
       );
     }
 
+    let serializedSystemMessage = null;
+    if (successfulPlayerIds.length > 0) {
+      const systemMessage = new ChatRoomMessage({
+        aiPrimeContext: payload.aiPrime === true || payload.source === "ai-prime"
+          ? buildAIPrimeContext("invitePlayers", sender, {
+              invitedPlayerIds: successfulPlayerIds,
+              tableCode: invitePersistence.table.tableCode,
+              tableId: invitePersistence.table.tableId,
+            })
+          : null,
+        kind: "system",
+        messageType: "system",
+        moderation: createAcceptedModeration(),
+        roomId: chatRoom._id,
+        senderDisplayName: payload.aiPrime === true || payload.source === "ai-prime" ? "AI Prime" : "System",
+        senderUserId: sender._id,
+        text: `${payload.aiPrime === true || payload.source === "ai-prime" ? "AI Prime sent" : `${getDisplayName(sender)} sent`} ${successfulPlayerIds.length} table invite${successfulPlayerIds.length === 1 ? "" : "s"} from this room.`,
+        tone: "system",
+      });
+      await systemMessage.save();
+      serializedSystemMessage = serializeChatRoomMessage(systemMessage);
+    }
+
     const inviteNotifications = await createTableInviteNotifications({
       chatRoom,
       inviteRecords: invitePersistence.invites,
@@ -1213,6 +1352,12 @@ class ChatRoomRealtimeService {
       recipient: false,
       sender: true,
     });
+
+    if (serializedSystemMessage) {
+      const systemPayload = { message: serializedSystemMessage, roomId: chatRoomId };
+      this.io.to(getChatRoomChannel(chatRoomId)).emit("chat:systemMessage", systemPayload);
+      this.io.to(getChatRoomChannel(chatRoomId)).emit("chat:newMessage", systemPayload);
+    }
 
     return {
       ok: successfulPlayerIds.length > 0,

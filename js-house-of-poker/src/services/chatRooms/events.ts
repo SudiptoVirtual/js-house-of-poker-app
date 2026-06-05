@@ -1,4 +1,5 @@
 export const chatRoomSocketEvents = {
+  aiPrimeAction: 'aiPrime:action',
   aiPrimeOpen: 'aiPrime:open',
   aiPrimeSetUpTable: 'aiPrime:setUpTable',
   activePlayers: 'chat:activePlayers',
