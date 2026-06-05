@@ -166,6 +166,9 @@ const pokerSocketUrl = configuredPokerBackendUrl;
 const pokerSocketProtocol =
   readEnv('EXPO_PUBLIC_POKER_SOCKET_PROTOCOL') ||
   defaultPublicEnv.EXPO_PUBLIC_POKER_SOCKET_PROTOCOL;
+const feedPromotionPaymentProvider =
+  readEnv('EXPO_PUBLIC_FEED_PROMOTION_PAYMENT_PROVIDER') ||
+  defaultPublicEnv.EXPO_PUBLIC_FEED_PROMOTION_PAYMENT_PROVIDER;
 
 if ((appEnvironment === 'preview' || appEnvironment === 'production') && !apiBaseUrl) {
   throw new Error(
@@ -183,6 +186,12 @@ if (
   );
 }
 
+if (appEnvironment === 'production' && feedPromotionPaymentProvider !== 'stripe') {
+  throw new Error(
+    'APP_ENV=production requires EXPO_PUBLIC_FEED_PROMOTION_PAYMENT_PROVIDER=stripe so feed promotions open Stripe checkout.',
+  );
+}
+
 const publicEnv = {
   ...defaultPublicEnv,
   EXPO_PUBLIC_BASE_URL: apiBaseUrl,
@@ -191,9 +200,7 @@ const publicEnv = {
   EXPO_PUBLIC_POKER_SOCKET_URL: pokerSocketUrl,
   EXPO_PUBLIC_POKER_BACKEND_URL: pokerSocketUrl,
   EXPO_PUBLIC_POKER_SOCKET_PROTOCOL: pokerSocketProtocol,
-  EXPO_PUBLIC_FEED_PROMOTION_PAYMENT_PROVIDER:
-    readEnv('EXPO_PUBLIC_FEED_PROMOTION_PAYMENT_PROVIDER') ||
-    defaultPublicEnv.EXPO_PUBLIC_FEED_PROMOTION_PAYMENT_PROVIDER,
+  EXPO_PUBLIC_FEED_PROMOTION_PAYMENT_PROVIDER: feedPromotionPaymentProvider,
   EXPO_PUBLIC_FIREBASE_API_KEY:
     readEnv('EXPO_PUBLIC_FIREBASE_API_KEY') || defaultPublicEnv.EXPO_PUBLIC_FIREBASE_API_KEY,
   EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN:

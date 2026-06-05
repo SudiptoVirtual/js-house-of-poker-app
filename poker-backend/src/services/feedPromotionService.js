@@ -14,6 +14,70 @@ const {
 const DEFAULT_DURATION_DAYS = 7;
 const MAX_DURATION_DAYS = 90;
 const TARGETING_KEYS = ["audience", "gameTypes", "locations", "tableCodes"];
+const STRIPE_WEBHOOK_SECRET_ENV_KEYS = [
+  "FEED_PROMOTION_STRIPE_WEBHOOK_SECRET",
+  "STRIPE_WEBHOOK_SECRET",
+];
+
+function isProductionEnvironment() {
+  return process.env.NODE_ENV === "production";
+}
+
+function buildConfigError(message, code = "FEED_PROMOTION_CONFIG_ERROR") {
+  const error = new Error(message);
+  error.statusCode = 500;
+  error.code = code;
+  return error;
+}
+
+function readRequiredEnv(name) {
+  const value = String(process.env[name] || "").trim();
+  return value || null;
+}
+
+function getStripeWebhookSecret() {
+  for (const key of STRIPE_WEBHOOK_SECRET_ENV_KEYS) {
+    const value = readRequiredEnv(key);
+    if (value) {
+      return value;
+    }
+  }
+
+  return null;
+}
+
+function validateFeedPromotionProductionConfig() {
+  if (!isProductionEnvironment()) {
+    return;
+  }
+
+  const missing = [];
+  const provider = String(readRequiredEnv("FEED_PROMOTION_PAYMENT_PROVIDER") || "").toLowerCase();
+
+  if (provider !== "stripe") {
+    missing.push("FEED_PROMOTION_PAYMENT_PROVIDER=stripe");
+  }
+
+  for (const key of [
+    "STRIPE_SECRET_KEY",
+    "FEED_PROMOTION_SUCCESS_URL",
+    "FEED_PROMOTION_CANCEL_URL",
+  ]) {
+    if (!readRequiredEnv(key)) {
+      missing.push(key);
+    }
+  }
+
+  if (!getStripeWebhookSecret()) {
+    missing.push("FEED_PROMOTION_STRIPE_WEBHOOK_SECRET or STRIPE_WEBHOOK_SECRET");
+  }
+
+  if (missing.length > 0) {
+    throw buildConfigError(
+      `Production feed promotions require explicit Stripe configuration: ${missing.join(", ")}.`,
+    );
+  }
+}
 
 function normalizeInteger(value, fallback) {
   const parsed = Number.parseInt(value, 10);
@@ -82,16 +146,57 @@ function addDays(date, days) {
 }
 
 function getProvider(inputProvider) {
-  const requestedProvider = String(inputProvider || process.env.FEED_PROMOTION_PAYMENT_PROVIDER || "mock").trim().toLowerCase();
+  const configuredProvider = String(process.env.FEED_PROMOTION_PAYMENT_PROVIDER || "").trim().toLowerCase();
+  const requestedProvider = String(inputProvider || configuredProvider || "mock").trim().toLowerCase();
+
+  if (isProductionEnvironment()) {
+    validateFeedPromotionProductionConfig();
+    if (inputProvider && requestedProvider !== "stripe") {
+      throw buildConfigError(
+        "Production feed promotions only support FEED_PROMOTION_PAYMENT_PROVIDER=stripe.",
+        "FEED_PROMOTION_PROVIDER_NOT_ALLOWED",
+      );
+    }
+    return "stripe";
+  }
+
   return requestedProvider === "stripe" ? "stripe" : requestedProvider === "manual" ? "manual" : "mock";
 }
 
 function getStripeClient() {
-  if (!process.env.STRIPE_SECRET_KEY) {
+  const secretKey = readRequiredEnv("STRIPE_SECRET_KEY");
+  if (!secretKey) {
+    if (isProductionEnvironment()) {
+      throw buildConfigError("STRIPE_SECRET_KEY is required for production feed promotion checkout.");
+    }
     return null;
   }
 
-  return new Stripe(process.env.STRIPE_SECRET_KEY);
+  return new Stripe(secretKey);
+}
+
+function getStripeCheckoutUrls() {
+  const successUrl =
+    readRequiredEnv("FEED_PROMOTION_SUCCESS_URL") ||
+    (!isProductionEnvironment() ? readRequiredEnv("STRIPE_SUCCESS_URL") : null);
+  const cancelUrl =
+    readRequiredEnv("FEED_PROMOTION_CANCEL_URL") ||
+    (!isProductionEnvironment() ? readRequiredEnv("STRIPE_CANCEL_URL") : null);
+
+  if (!successUrl || !cancelUrl) {
+    if (isProductionEnvironment()) {
+      throw buildConfigError(
+        "FEED_PROMOTION_SUCCESS_URL and FEED_PROMOTION_CANCEL_URL are required for production feed promotion checkout.",
+      );
+    }
+
+    return {
+      cancelUrl: cancelUrl || "https://example.com/feed/promotion/cancel",
+      successUrl: successUrl || "https://example.com/feed/promotion/success",
+    };
+  }
+
+  return { cancelUrl, successUrl };
 }
 
 async function createStripeCheckoutSession({ amount, durationDays, post, promotion }) {
@@ -100,8 +205,7 @@ async function createStripeCheckoutSession({ amount, durationDays, post, promoti
     return null;
   }
 
-  const successUrl = process.env.FEED_PROMOTION_SUCCESS_URL || process.env.STRIPE_SUCCESS_URL || "https://example.com/feed/promotion/success";
-  const cancelUrl = process.env.FEED_PROMOTION_CANCEL_URL || process.env.STRIPE_CANCEL_URL || "https://example.com/feed/promotion/cancel";
+  const { cancelUrl, successUrl } = getStripeCheckoutUrls();
 
   return stripe.checkout.sessions.create({
     cancel_url: cancelUrl,
@@ -374,6 +478,45 @@ async function completePromotionPayment({ paymentReference, promotionId, provide
   };
 }
 
+function verifyPromotionWebhookPayload({ body = {}, rawBody, signature } = {}) {
+  const secret = getStripeWebhookSecret();
+
+  if (!secret) {
+    if (isProductionEnvironment()) {
+      throw buildConfigError(
+        "A Stripe webhook secret is required for production feed promotion webhook verification.",
+      );
+    }
+
+    return body || {};
+  }
+
+  if (!signature) {
+    const error = new Error("Missing Stripe webhook signature.");
+    error.statusCode = 400;
+    error.code = "STRIPE_WEBHOOK_SIGNATURE_REQUIRED";
+    throw error;
+  }
+
+  if (!rawBody) {
+    const error = new Error("Raw webhook body is required for Stripe webhook verification.");
+    error.statusCode = 400;
+    error.code = "STRIPE_WEBHOOK_RAW_BODY_REQUIRED";
+    throw error;
+  }
+
+  const stripe = getStripeClient();
+  try {
+    return stripe.webhooks.constructEvent(rawBody, signature, secret);
+  } catch (error) {
+    const verificationError = new Error("Invalid Stripe webhook signature.");
+    verificationError.statusCode = 400;
+    verificationError.code = "STRIPE_WEBHOOK_SIGNATURE_INVALID";
+    verificationError.cause = error;
+    throw verificationError;
+  }
+}
+
 async function handlePaymentWebhook(payload = {}) {
   const eventType = payload.type || payload.eventType;
   const data = payload.data?.object || payload.data || payload;
@@ -395,4 +538,6 @@ module.exports = {
   createPromotionCheckout,
   handlePaymentWebhook,
   normalizeTargeting,
+  validateFeedPromotionProductionConfig,
+  verifyPromotionWebhookPayload,
 };

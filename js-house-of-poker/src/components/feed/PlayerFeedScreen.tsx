@@ -61,6 +61,8 @@ type FeedLoadState =
   | 'error'
   | 'session-expired';
 
+type PromotionPaymentState = 'idle' | 'creating' | 'pending-payment';
+
 type PlayerFeedScreenProps = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'Feed'>;
 };
@@ -149,6 +151,8 @@ export function PlayerFeedScreen({ navigation }: PlayerFeedScreenProps) {
   const [feedLoadMessage, setFeedLoadMessage] = useState('');
   const [giftPost, setGiftPost] = useState<FeedPost | null>(null);
   const [promotePost, setPromotePost] = useState<FeedPost | null>(null);
+  const [promotionPaymentState, setPromotionPaymentState] =
+    useState<PromotionPaymentState>('idle');
   const [sharePost, setSharePost] = useState<FeedPost | null>(null);
   const [chatRooms, setChatRooms] = useState<ChatRoom[]>([]);
 
@@ -911,6 +915,7 @@ export function PlayerFeedScreen({ navigation }: PlayerFeedScreenProps) {
     }
 
     try {
+      setPromotionPaymentState('creating');
       const response = await createFeedPromotion(
         targetPost.id,
         {
@@ -932,12 +937,36 @@ export function PlayerFeedScreen({ navigation }: PlayerFeedScreenProps) {
           post.id === targetPost.id ? response.post : post,
         ),
       );
+      if (response.checkoutUrl) {
+        await Linking.openURL(response.checkoutUrl);
+        setPromotionPaymentState('pending-payment');
+        Alert.alert(
+          'Payment pending',
+          'Complete Stripe checkout in the browser window. This post will be sponsored after payment is confirmed.',
+        );
+        return;
+      }
+
+      if (
+        response.promotion.paymentStatus === 'pending' ||
+        response.promotion.state === 'pending'
+      ) {
+        setPromotionPaymentState('pending-payment');
+        Alert.alert(
+          'Payment pending',
+          'Your promotion was created and will become sponsored after payment is confirmed.',
+        );
+        return;
+      }
+
       Alert.alert(
         'Promotion sponsored',
         `${targetPost.player.name}'s post is now sponsored in the feed.`,
       );
+      setPromotionPaymentState('idle');
       setPromotePost(null);
     } catch (error) {
+      setPromotionPaymentState('idle');
       const details = getApiErrorDetails(
         error,
         'Unable to sponsor this promotion right now.',
@@ -1094,8 +1123,12 @@ export function PlayerFeedScreen({ navigation }: PlayerFeedScreenProps) {
         visible={Boolean(giftPost)}
       />
       <PromoteForCreatorPanel
-        onClose={() => setPromotePost(null)}
+        onClose={() => {
+          setPromotePost(null);
+          setPromotionPaymentState('idle');
+        }}
         onPromote={handlePromote}
+        paymentState={promotionPaymentState}
         post={promotePost}
         visible={Boolean(promotePost)}
       />

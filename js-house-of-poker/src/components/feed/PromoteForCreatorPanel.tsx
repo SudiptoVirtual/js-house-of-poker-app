@@ -5,17 +5,29 @@ import { ActionButton } from '../ActionButton';
 import { colors } from '../../theme/colors';
 import type { FeedPost } from './types';
 
+type PromotionPaymentState = 'idle' | 'creating' | 'pending-payment';
+
 type PromoteForCreatorPanelProps = {
   onClose: () => void;
   onPromote: () => void;
+  paymentState?: PromotionPaymentState;
   post: FeedPost | null;
   visible: boolean;
 };
 
-export function PromoteForCreatorPanel({ onClose, onPromote, post, visible }: PromoteForCreatorPanelProps) {
+export function PromoteForCreatorPanel({
+  onClose,
+  onPromote,
+  paymentState = 'idle',
+  post,
+  visible,
+}: PromoteForCreatorPanelProps) {
   function handlePromote() {
     onPromote();
   }
+
+  const isCreating = paymentState === 'creating';
+  const isPendingPayment = paymentState === 'pending-payment';
 
   return (
     <Modal animationType="fade" transparent visible={visible} onRequestClose={onClose}>
@@ -27,11 +39,22 @@ export function PromoteForCreatorPanel({ onClose, onPromote, post, visible }: Pr
           <Text style={styles.eyebrow}>Promote for Creator</Text>
           <Text style={styles.title}>{post ? `Sponsor ${post.player.name}'s post` : 'Sponsor this post'}</Text>
           <Text style={styles.body}>
-            Promote for Creator creates a paid sponsorship record, confirms checkout, and boosts this post in feed discovery while Support remains free community encouragement.
+            {isPendingPayment
+              ? 'Your sponsorship is waiting on Stripe checkout. Finish payment in the secure browser window and this post will boost after Stripe confirms payment.'
+              : 'Promote for Creator creates a paid sponsorship record, opens secure checkout when payment is required, and boosts this post only after payment is confirmed.'}
           </Text>
           <View style={styles.actionRow}>
             <ActionButton compact fullWidth label="Not now" onPress={onClose} variant="secondary" />
-            <ActionButton compact fullWidth icon="bullhorn-outline" label="Sponsor" onPress={handlePromote} tone="accent" />
+            <ActionButton
+              compact
+              disabled={isPendingPayment}
+              fullWidth
+              icon={isPendingPayment ? 'clock-outline' : 'bullhorn-outline'}
+              label={isPendingPayment ? 'Payment pending' : isCreating ? 'Opening checkout' : 'Sponsor'}
+              loading={isCreating}
+              onPress={handlePromote}
+              tone="accent"
+            />
           </View>
         </Pressable>
       </Pressable>
