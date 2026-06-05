@@ -9,6 +9,7 @@ type ChatInputBarProps = {
   draft: string;
   onChangeDraft: (value: string) => void;
   onOpenAIPrime: () => void;
+  onOpenGiftClips?: () => void;
   onSend: () => void;
   placeholder?: string;
 };
@@ -17,6 +18,7 @@ export function ChatInputBar({
   draft,
   onChangeDraft,
   onOpenAIPrime,
+  onOpenGiftClips,
   onSend,
   placeholder = 'Message the room before launching a table...',
 }: ChatInputBarProps) {
@@ -40,6 +42,16 @@ export function ChatInputBar({
       >
         <MaterialCommunityIcons color={colors.gold} name="emoticon-happy-outline" size={20} />
       </Pressable>
+      {onOpenGiftClips ? (
+        <Pressable
+          accessibilityLabel="Send Gift Clips"
+          accessibilityRole="button"
+          onPress={onOpenGiftClips}
+          style={({ pressed }) => [styles.iconButton, styles.giftButton, pressed ? styles.pressed : null]}
+        >
+          <MaterialCommunityIcons color={colors.gold} name="gift-outline" size={20} />
+        </Pressable>
+      ) : null}
       <AIPrimeButton onPress={onOpenAIPrime} />
       <Pressable
         accessibilityLabel="Send chat message"
@@ -81,6 +93,10 @@ const styles = StyleSheet.create({
   },
   pressed: {
     opacity: 0.78,
+  },
+  giftButton: {
+    backgroundColor: 'rgba(255,201,94,0.16)',
+    borderColor: colors.gold,
   },
   iconButton: {
     alignItems: 'center',
