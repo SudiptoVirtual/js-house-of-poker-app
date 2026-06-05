@@ -1,12 +1,14 @@
 import { StyleSheet, Text, View } from 'react-native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 import { colors } from '../../theme/colors';
-import type { ChatRoomMessage } from '../../types/chatRooms';
+import type { ChatRoomMessage, ChatRoomPlayer } from '../../types/chatRooms';
 import { formatChatTimestamp } from './chatRoomUtils';
 
 type ChatMessageItemProps = {
   currentUserId?: string;
   message: ChatRoomMessage;
+  players?: ChatRoomPlayer[];
 };
 
 function getInitials(name: string) {
@@ -18,20 +20,50 @@ function getInitials(name: string) {
     .toUpperCase();
 }
 
-export function ChatMessageItem({ currentUserId = 'local-player', message }: ChatMessageItemProps) {
+function isGiftClipMessage(message: ChatRoomMessage) {
+  return Boolean(message.giftClip) || message.kind === 'gift_clip' || message.messageType === 'gift_clip';
+}
+
+function getRecipientName(message: ChatRoomMessage, players: ChatRoomPlayer[]) {
+  const recipientUserId = message.giftClip?.recipientUserId;
+
+  if (!recipientUserId) {
+    return 'room player';
+  }
+
+  const recipient = players.find((player) => player.userId === recipientUserId || player.id === recipientUserId);
+
+  return recipient?.displayName ?? 'room player';
+}
+
+export function ChatMessageItem({ currentUserId = 'local-player', message, players = [] }: ChatMessageItemProps) {
   const isSystem = message.tone === 'system';
   const isCurrentUser = message.authorId === currentUserId;
+  const isGiftClip = isGiftClipMessage(message);
+  const giftClipNote = message.giftClip?.message || message.body;
 
   return (
     <View style={[styles.row, isCurrentUser ? styles.localRow : null]}>
-      <View style={[styles.avatar, isSystem ? styles.systemAvatar : null, isCurrentUser ? styles.localAvatar : null]}>
-        <Text style={[styles.avatarText, isCurrentUser ? styles.localAvatarText : null]}>
-          {isSystem ? 'HB' : getInitials(message.authorName)}
-        </Text>
+      <View
+        style={[
+          styles.avatar,
+          isGiftClip ? styles.giftAvatar : null,
+          isSystem ? styles.systemAvatar : null,
+          isCurrentUser ? styles.localAvatar : null,
+        ]}
+      >
+        {isGiftClip ? (
+          <MaterialCommunityIcons color={colors.background} name="gift-outline" size={18} />
+        ) : (
+          <Text style={[styles.avatarText, isCurrentUser ? styles.localAvatarText : null]}>
+            {isSystem ? 'HB' : getInitials(message.authorName)}
+          </Text>
+        )}
       </View>
       <View
         style={[
           styles.messageBubble,
+          isGiftClip ? styles.giftClipBubble : null,
           isSystem ? styles.systemMessageBubble : null,
           isCurrentUser ? styles.localMessageBubble : null,
         ]}
@@ -42,7 +74,21 @@ export function ChatMessageItem({ currentUserId = 'local-player', message }: Cha
             {formatChatTimestamp(message.createdAt)}
           </Text>
         </View>
-        <Text style={[styles.messageBody, isSystem ? styles.systemText : null]}>{message.body}</Text>
+        {isGiftClip ? (
+          <View style={styles.giftClipCard}>
+            <View style={styles.giftClipTitleRow}>
+              <MaterialCommunityIcons color={colors.gold} name="gift-outline" size={18} />
+              <Text style={styles.giftClipTitle}>Gift Clips sent</Text>
+            </View>
+            <Text style={styles.giftClipAmount}>{(message.giftClip?.amount ?? 0).toLocaleString()} Clips</Text>
+            <Text style={styles.giftClipRoute}>
+              {message.authorName} → {getRecipientName(message, players)}
+            </Text>
+            {giftClipNote ? <Text style={styles.giftClipNote}>“{giftClipNote}”</Text> : null}
+          </View>
+        ) : (
+          <Text style={[styles.messageBody, isSystem ? styles.systemText : null]}>{message.body}</Text>
+        )}
       </View>
     </View>
   );
@@ -63,6 +109,46 @@ const styles = StyleSheet.create({
     color: colors.secondary,
     fontSize: 12,
     fontWeight: '900',
+  },
+  giftAvatar: {
+    backgroundColor: colors.gold,
+    borderColor: colors.gold,
+  },
+  giftClipAmount: {
+    color: colors.gold,
+    fontSize: 22,
+    fontWeight: '900',
+  },
+  giftClipBubble: {
+    backgroundColor: 'rgba(255,201,94,0.12)',
+    borderColor: colors.gold,
+  },
+  giftClipCard: {
+    gap: 6,
+  },
+  giftClipNote: {
+    color: colors.text,
+    fontSize: 14,
+    fontStyle: 'italic',
+    fontWeight: '700',
+    lineHeight: 20,
+  },
+  giftClipRoute: {
+    color: colors.mutedText,
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  giftClipTitle: {
+    color: colors.text,
+    fontSize: 14,
+    fontWeight: '900',
+    letterSpacing: 0.4,
+    textTransform: 'uppercase',
+  },
+  giftClipTitleRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 6,
   },
   localAvatar: {
     backgroundColor: colors.success,

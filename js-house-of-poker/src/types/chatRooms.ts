@@ -22,12 +22,30 @@ export interface ChatRoomFriend {
   userId?: string;
 }
 
+export type ChatRoomMessageKind = 'message' | 'system' | 'gift_clip';
+
+export interface ChatRoomGiftClipMetadata {
+  amount: number;
+  message: string;
+  recipientTransactionId: string | null;
+  recipientUserId: string | null;
+  senderTransactionId: string | null;
+  transactionId: string | null;
+  transactionIds: {
+    recipient: string | null;
+    sender: string | null;
+  };
+}
+
 export interface ChatRoomMessage {
   id: string;
   roomId: string;
   authorId: string | null;
   authorName: string;
   body: string;
+  giftClip?: ChatRoomGiftClipMetadata | null;
+  kind?: ChatRoomMessageKind;
+  messageType?: ChatRoomMessageKind;
   playerId?: string | null;
   playerName?: string;
   text?: string;
