@@ -25,6 +25,10 @@ function getDisplayName(user) {
   return user?.name || user?.email || "Player";
 }
 
+function stringifyOptionalId(value) {
+  return value ? String(value) : null;
+}
+
 function trimBody(value, limit = 500) {
   return String(value || "")
     .replace(/\s+/g, " ")
@@ -217,6 +221,58 @@ async function createMessageNotifications({ message, room, sender, presenceSnaps
   return [...chatNotifications, ...mentionNotifications];
 }
 
+async function createChatRoomGiftClipNotifications({
+  amount = null,
+  message,
+  recipientUserId = null,
+  room,
+  sender,
+  transactionIds = null,
+} = {}) {
+  const senderUserId = sender?._id || message?.senderUserId;
+  const chatRoomId = room?._id || message?.roomId;
+  const messageId = message?._id;
+  const giftClip = message?.giftClip || {};
+  const resolvedAmount = Number.parseInt(amount ?? giftClip.amount ?? 0, 10) || 0;
+  const resolvedRecipientUserId = recipientUserId || giftClip.recipientUserId;
+  const normalizedSenderUserId = normalizeObjectIdString(senderUserId);
+  const normalizedRecipientUserId = normalizeObjectIdString(resolvedRecipientUserId);
+  const normalizedChatRoomId = normalizeObjectIdString(chatRoomId);
+  const normalizedMessageId = normalizeObjectIdString(messageId);
+  const roomName = room?.name || null;
+  const senderDisplayName = getDisplayName(
+    sender || {
+      email: message?.senderDisplayName,
+      name: message?.senderDisplayName,
+    }
+  );
+
+  return createNotifications({
+    actorUserId: normalizedSenderUserId,
+    body: `${senderDisplayName} sent you ${resolvedAmount} Gift Clips${roomName ? ` in ${roomName}` : ""}.`,
+    chatRoomId: normalizedChatRoomId,
+    data: {
+      amount: resolvedAmount,
+      chatRoomId: normalizedChatRoomId,
+      message: giftClip.message || message?.text || "",
+      messageId: normalizedMessageId,
+      recipientUserId: normalizedRecipientUserId,
+      roomName,
+      senderDisplayName,
+      senderUserId: normalizedSenderUserId,
+      transactionIds: transactionIds || giftClip.transactionIds || {
+        recipient: stringifyOptionalId(giftClip.recipientTransactionId),
+        sender: stringifyOptionalId(giftClip.senderTransactionId || giftClip.transactionId),
+      },
+      type: "chat_room_gift_clip",
+    },
+    messageId: normalizedMessageId,
+    recipientUserIds: [normalizedRecipientUserId],
+    title: "Gift Clips received",
+    type: "chat_room_gift_clip",
+  });
+}
+
 async function createChatRoomInviteNotifications({ recipientUserIds = [], room, sender }) {
   return createNotifications({
     actorUserId: sender._id,
@@ -347,6 +403,7 @@ function serializeNotification(notification) {
 }
 
 module.exports = {
+  createChatRoomGiftClipNotifications,
   createChatRoomInviteNotifications,
   createMessageNotifications,
   createNotifications,

@@ -7,6 +7,7 @@ const { sendChatRoomGiftClip } = require("./chatRoomGiftClipService");
 const { assertUserCanAccessChatRoom, userCanAccessChatRoom } = require("./chatRoomAccessService");
 const { getChatRoomPresenceService } = require("./chatRoomPresenceService");
 const {
+  createChatRoomGiftClipNotifications,
   createMessageNotifications,
   createTableInviteNotifications,
   createTableLaunchNotifications,
@@ -681,6 +682,19 @@ class ChatRoomRealtimeService {
       message: payload.message,
       recipientUserId: payload.recipientUserId,
       roomId: normalizeChatRoomId(payload),
+    });
+
+    const notificationRecords = await createChatRoomGiftClipNotifications({
+      amount: result.message?.giftClip?.amount,
+      message: result.message,
+      recipientUserId: result.recipient?._id || payload.recipientUserId,
+      room: result.room,
+      sender: result.sender || user,
+      transactionIds: result.transactionIds,
+    });
+    this.emitNotificationRecords(notificationRecords, {
+      fallbackMessage: result.serializedMessage || result.eventPayload?.message,
+      roomId: String(result.room?._id || result.eventPayload?.roomId || normalizeChatRoomId(payload)),
     });
 
     return result.eventPayload;

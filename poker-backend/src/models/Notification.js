@@ -3,6 +3,7 @@ const mongoose = require("mongoose");
 const NOTIFICATION_TYPES = [
   "chat_message",
   "chat_room_invite",
+  "chat_room_gift_clip",
   "table_invite",
   "table_launched_from_chat",
   "mention",
