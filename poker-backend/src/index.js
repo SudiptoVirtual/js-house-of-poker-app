@@ -25,6 +25,7 @@ const { initAdminLiveSocket } = require("./sockets/adminLiveSocket");
 const { initPlayerGameSocket } = require("./sockets/playerGameSocket");
 const { initChatRoomSocket } = require("./sockets/chatRoomSocket");
 const { initFeedSocket } = require("./sockets/feedSocket");
+const { validateFeedPromotionProductionConfig } = require("./services/feedPromotionService");
 const botTableManager = require("./services/botTableManager");
 
 //const adminHandHistoryRoutes = require("./routes/adminHandHistoryRoutes");
@@ -35,6 +36,7 @@ const botTableManager = require("./services/botTableManager");
 
 
 dotenv.config();
+validateFeedPromotionProductionConfig();
 connectDB();
 
 const parseAllowedOrigins = (origins = "") =>
@@ -94,7 +96,15 @@ botTableManager.start().catch((error) => {
 });
 
 app.use(cors(corsOptions));
-app.use(express.json());
+app.use(
+  express.json({
+    verify(req, _res, buf) {
+      if (req.originalUrl?.split("?")[0] === "/api/feed/promotions/webhook") {
+        req.rawBody = buf;
+      }
+    },
+  }),
+);
 
 
 app.get("/", (req, res) => {

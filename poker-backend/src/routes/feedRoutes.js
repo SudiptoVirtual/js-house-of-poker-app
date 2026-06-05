@@ -27,11 +27,28 @@ const {
   updatePost,
 } = require("../controllers/feedController");
 const { optionalUser, protectUser } = require("../middleware/auth");
+const { verifyPromotionWebhookPayload } = require("../services/feedPromotionService");
 
 const router = express.Router();
 
+function verifyPromotionWebhook(req, res, next) {
+  try {
+    req.verifiedPromotionWebhookPayload = verifyPromotionWebhookPayload({
+      body: req.body,
+      rawBody: req.rawBody,
+      signature: req.headers["stripe-signature"],
+    });
+    next();
+  } catch (error) {
+    res.status(error.statusCode || 400).json({
+      code: error.code || "STRIPE_WEBHOOK_VERIFICATION_FAILED",
+      message: error.message || "Unable to verify promotion payment webhook.",
+    });
+  }
+}
+
 router.get("/", optionalUser, listPosts);
-router.post("/promotions/webhook", promotionPaymentWebhook);
+router.post("/promotions/webhook", verifyPromotionWebhook, promotionPaymentWebhook);
 router.post("/promotions/:promotionId/complete", protectUser, completePromotion);
 router.post("/", protectUser, createPost);
 router.get("/discovery", optionalUser, getDiscoveryPayload);

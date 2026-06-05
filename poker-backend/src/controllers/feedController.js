@@ -1289,7 +1289,7 @@ async function completePromotion(req, res) {
 
 async function promotionPaymentWebhook(req, res) {
   try {
-    const result = await handlePaymentWebhook(req.body || {});
+    const result = await handlePaymentWebhook(req.verifiedPromotionWebhookPayload || req.body || {});
     return res.json({ ok: true, ...result });
   } catch (error) {
     return sendServerError(res, error, "Unable to process feed promotion payment webhook");
