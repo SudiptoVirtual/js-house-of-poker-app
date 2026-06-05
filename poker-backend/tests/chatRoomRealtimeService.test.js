@@ -7,6 +7,7 @@ const Notification = require('../src/models/Notification');
 const {
   ChatRoomRealtimeService,
   getChatRoomChannel,
+  serializeChatRoomMessage,
 } = require('../src/services/chatRoomRealtimeService');
 
 const SENDER_ID = '507f1f77bcf86cd799439011';
@@ -262,4 +263,65 @@ test('Typing event emits to other room members', async () => {
       roomId: getChatRoomChannel(ROOM_ID),
     },
   ]);
+});
+
+test('ChatRoomMessage defaults legacy chat messages to text/player payloads', () => {
+  const message = new ChatRoomMessage({
+    roomId: ROOM_ID,
+    senderDisplayName: 'Sender Player',
+    senderUserId: SENDER_ID,
+    text: 'Legacy hello',
+  });
+
+  assert.equal(message.kind, 'text');
+  assert.equal(message.tone, 'player');
+  assert.equal(message.validateSync(), undefined);
+
+  const serialized = serializeChatRoomMessage(message);
+  assert.equal(serialized.kind, 'text');
+  assert.equal(serialized.messageType, 'text');
+  assert.equal(serialized.text, 'Legacy hello');
+  assert.equal(serialized.tone, 'player');
+});
+
+test('serializeChatRoomMessage includes Gift Clip payload details for card rendering', () => {
+  const recipientTransactionId = '507f1f77bcf86cd799439016';
+  const senderTransactionId = '507f1f77bcf86cd799439017';
+  const legacyTransactionId = '507f1f77bcf86cd799439018';
+  const message = new ChatRoomMessage({
+    giftClip: {
+      amount: 250,
+      message: 'Enjoy this clip',
+      recipientTransactionId,
+      recipientUserId: RECIPIENT_ID,
+      senderTransactionId,
+      transactionId: legacyTransactionId,
+    },
+    kind: 'gift_clip',
+    roomId: ROOM_ID,
+    senderDisplayName: 'Sender Player',
+    senderUserId: SENDER_ID,
+  });
+  message._id = '507f1f77bcf86cd799439019';
+  message.createdAt = new Date('2026-01-01T00:00:00.000Z');
+
+  assert.equal(message.validateSync(), undefined);
+
+  const serialized = serializeChatRoomMessage(message);
+  assert.equal(serialized.kind, 'gift_clip');
+  assert.equal(serialized.messageType, 'gift_clip');
+  assert.equal(serialized.text, 'Enjoy this clip');
+  assert.equal(serialized.body, 'Enjoy this clip');
+  assert.deepEqual(serialized.giftClip, {
+    amount: 250,
+    message: 'Enjoy this clip',
+    recipientTransactionId,
+    recipientUserId: RECIPIENT_ID,
+    senderTransactionId,
+    transactionId: legacyTransactionId,
+    transactionIds: {
+      recipient: recipientTransactionId,
+      sender: senderTransactionId,
+    },
+  });
 });

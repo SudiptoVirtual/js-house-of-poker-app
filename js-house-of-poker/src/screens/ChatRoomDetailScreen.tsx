@@ -18,6 +18,7 @@ import {
 } from '../components/chatRooms';
 import { Screen } from '../components/Screen';
 import { SectionCard } from '../components/SectionCard';
+import { GiftClipsModal, type GiftClipsRecipientOption } from '../components/feed/GiftClipsModal';
 import { env } from '../config/env';
 import { usePoker } from '../context/PokerProvider';
 import { routes } from '../constants/routes';
@@ -132,6 +133,9 @@ export function ChatRoomDetailScreen({ navigation, route }: Props) {
   const [selectedRules, setSelectedRules] = useState<ChatRoomTableRules>({});
   const [isLaunchingTable, setIsLaunchingTable] = useState(false);
   const [isSendingMessage, setIsSendingMessage] = useState(false);
+  const [isGiftClipsModalVisible, setIsGiftClipsModalVisible] = useState(false);
+  const [isSendingGiftClip, setIsSendingGiftClip] = useState(false);
+  const [selectedGiftRecipientId, setSelectedGiftRecipientId] = useState<string | null>(null);
   const [isInvitingFriends, setIsInvitingFriends] = useState(false);
   const [roomInviteStatus, setRoomInviteStatus] = useState<string | null>(null);
   const currentUserId = authRef.current?.user.id ?? fallbackUser.id;
@@ -284,7 +288,7 @@ export function ChatRoomDetailScreen({ navigation, route }: Props) {
           return;
         }
 
-        setRoom((currentRoom) => currentRoom ? { ...currentRoom, messages: mergeMessages(currentRoom.messages, [payload.message!]), lastMessagePreview: payload.message!.body } : currentRoom);
+        setRoom((currentRoom) => currentRoom ? { ...currentRoom, messages: mergeMessages(currentRoom.messages, [payload.message!]), lastMessagePreview: payload.message!.kind === 'gift_clip' || payload.message!.messageType === 'gift_clip' ? `${payload.message!.authorName} sent Gift Clips` : payload.message!.body } : currentRoom);
       });
       socket.on('chat:activePlayers', (payload: { players?: ChatRoomPlayer[]; activePlayerCount?: number }) => {
         setRoom((currentRoom) => currentRoom ? { ...currentRoom, activePlayerCount: payload.activePlayerCount ?? payload.players?.length ?? currentRoom.activePlayerCount, players: payload.players ?? currentRoom.players } : currentRoom);
@@ -334,6 +338,24 @@ export function ChatRoomDetailScreen({ navigation, route }: Props) {
   const selectedTier = defaultTableTierOptions.find((option) => option.id === selectedTierId);
   const selectedRule = defaultTableRulesOptions.find((option) => option.id === selectedRuleId);
   const rulesSummary = selectedRule?.label ?? selectedTier?.rulesLabel ?? room?.tableConfig.stakesLabel ?? 'Room table rules';
+  const giftClipRecipients = useMemo<GiftClipsRecipientOption[]>(() => {
+    if (!room) {
+      return [];
+    }
+
+    return room.players
+      .filter((player) => {
+        const candidateIds = [player.id, player.userId].filter(Boolean);
+
+        return !candidateIds.includes(currentUserId);
+      })
+      .map((player) => ({
+        id: player.userId ?? player.id,
+        label: player.displayName,
+        subtitle: player.handle,
+      }));
+  }, [currentUserId, room]);
+
   const inviteableFriends = useMemo(() => {
     if (!room) {
       return [];
@@ -409,6 +431,75 @@ export function ChatRoomDetailScreen({ navigation, route }: Props) {
       setRealtimeError(error instanceof Error ? error.message : 'Unable to send chat message.');
     } finally {
       setIsSendingMessage(false);
+    }
+  }
+
+
+  function handleOpenGiftClips() {
+    const token = authRef.current?.token;
+
+    if (!token) {
+      setRealtimeError('Sign in to send Gift Clips.');
+      return;
+    }
+
+    if (giftClipRecipients.length === 0) {
+      setRealtimeError('No other room participants are available for Gift Clips right now.');
+      return;
+    }
+
+    setSelectedGiftRecipientId((currentRecipientId) => currentRecipientId ?? giftClipRecipients[0]?.id ?? null);
+    setRealtimeError(null);
+    setIsGiftClipsModalVisible(true);
+  }
+
+  async function handleSendGiftClip(amount: number, message: string, recipientUserId?: string) {
+    const token = authRef.current?.token;
+    const resolvedRecipientUserId = recipientUserId ?? selectedGiftRecipientId;
+
+    if (!room || !token || !resolvedRecipientUserId || !socketRef.current?.connected || isSendingGiftClip) {
+      setRealtimeError('Gift Clips require a live room connection and selected recipient.');
+      return;
+    }
+
+    setIsSendingGiftClip(true);
+
+    try {
+      const ack = await new Promise<ChatRoomSocketAck>((resolve, reject) => {
+        socketRef.current?.timeout(10000).emit(
+          'chat:sendGiftClip',
+          { amount, message, recipientUserId: resolvedRecipientUserId, roomId: room.id, token },
+          (error: Error | null, response: ChatRoomSocketAck) => {
+            if (error) {
+              reject(error);
+              return;
+            }
+
+            resolve(response);
+          },
+        );
+      });
+
+      if (!ack.ok && !ack.success) {
+        const messageText = normalizeSocketError(ack.error);
+        setRealtimeError(isInvalidUserTokenMessage(messageText) ? expiredSessionMessage : messageText);
+        return;
+      }
+
+      if (ack.message) {
+        setRoom((currentRoom) => currentRoom ? {
+          ...currentRoom,
+          lastMessagePreview: `${ack.message?.authorName ?? 'Player'} sent Gift Clips`,
+          messages: mergeMessages(currentRoom.messages, [ack.message!]),
+        } : currentRoom);
+      }
+
+      setIsGiftClipsModalVisible(false);
+      setRealtimeError(null);
+    } catch (error) {
+      setRealtimeError(error instanceof Error ? error.message : 'Unable to send Gift Clips.');
+    } finally {
+      setIsSendingGiftClip(false);
     }
   }
 
@@ -626,12 +717,13 @@ export function ChatRoomDetailScreen({ navigation, route }: Props) {
         <View style={styles.messageStack}>
           {room.messages.length === 0 ? <Text style={styles.helperText}>No messages yet. Start the conversation.</Text> : null}
           {room.messages.map((message) => (
-            <ChatMessageItem currentUserId={currentUserId} key={message.id} message={message} />
+            <ChatMessageItem currentUserId={currentUserId} key={message.id} message={message} players={room.players} />
           ))}
         </View>
         <ChatInputBar
           draft={draft}
           onChangeDraft={setDraft}
+          onOpenGiftClips={handleOpenGiftClips}
           onOpenAIPrime={() => {
             // TODO(aiPrime/socket): Emit aiPrime:open when AI Prime analytics are connected.
             setIsAIPrimePanelVisible(true);
@@ -697,6 +789,20 @@ export function ChatRoomDetailScreen({ navigation, route }: Props) {
         visible={isAIPrimePanelVisible}
         onClose={() => setIsAIPrimePanelVisible(false)}
         onSelectAction={handleSelectAIPrimeAction}
+      />
+
+      <GiftClipsModal
+        disabled={!selectedGiftRecipientId || isSendingGiftClip}
+        helperText="Send Gift Clips directly to another participant in this room."
+        onClose={() => setIsGiftClipsModalVisible(false)}
+        onSelectRecipient={setSelectedGiftRecipientId}
+        onSendGift={(amount, message, recipientId) => { void handleSendGiftClip(amount, message, recipientId); }}
+        post={null}
+        recipientOptions={giftClipRecipients}
+        selectedRecipientId={selectedGiftRecipientId}
+        sendLabelPrefix={isSendingGiftClip ? 'Sending' : 'Send'}
+        title="Send Gift Clips in chat"
+        visible={isGiftClipsModalVisible}
       />
 
       <SetUpTableFlow

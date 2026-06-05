@@ -3,8 +3,11 @@ const mongoose = require("mongoose");
 const ChatRoom = require("../models/ChatRoom");
 const ChatRoomMessage = require("../models/ChatRoomMessage");
 const User = require("../models/User");
+const { sendChatRoomGiftClip } = require("./chatRoomGiftClipService");
+const { assertUserCanAccessChatRoom, userCanAccessChatRoom } = require("./chatRoomAccessService");
 const { getChatRoomPresenceService } = require("./chatRoomPresenceService");
 const {
+  createChatRoomGiftClipNotifications,
   createMessageNotifications,
   createTableInviteNotifications,
   createTableLaunchNotifications,
@@ -199,26 +202,6 @@ function assertUserCanLaunchFromRoom(room, userId) {
   }
 }
 
-function userCanAccessChatRoom(room, userId) {
-  if (room.isPublic !== false) {
-    return true;
-  }
-
-  const userIdString = String(userId);
-  const isCreator = room.createdByUserId && String(room.createdByUserId) === userIdString;
-  const isParticipant = (room.participantStates || []).some(
-    (state) => String(state.userId) === userIdString
-  );
-
-  return Boolean(isCreator || isParticipant);
-}
-
-function assertUserCanAccessChatRoom(room, userId) {
-  if (!userCanAccessChatRoom(room, userId)) {
-    throw new Error("You are not allowed to invite players from this chat room.");
-  }
-}
-
 function buildRoomMemberIdSet(room, presenceSnapshot) {
   const memberIds = new Set(
     (room.participantStates || [])
@@ -345,23 +328,64 @@ function registerChatRateLimitHit(bucketMap, key, now, limit, windowMs) {
   return { allowed: true, retryAfterMs: 0 };
 }
 
+function stringifyOptionalId(value) {
+  return value ? String(value) : null;
+}
+
+function getChatRoomMessageKind(message) {
+  if (message.kind) {
+    return message.kind;
+  }
+
+  if (message.messageType) {
+    return message.messageType;
+  }
+
+  return message.tone === "system" ? "system" : "text";
+}
+
+function serializeGiftClipPayload(giftClip) {
+  if (!giftClip) {
+    return null;
+  }
+
+  return {
+    amount: giftClip.amount || 0,
+    message: giftClip.message || "",
+    recipientTransactionId: stringifyOptionalId(giftClip.recipientTransactionId),
+    recipientUserId: stringifyOptionalId(giftClip.recipientUserId),
+    senderTransactionId: stringifyOptionalId(giftClip.senderTransactionId),
+    transactionId: stringifyOptionalId(giftClip.transactionId),
+    transactionIds: {
+      recipient: stringifyOptionalId(giftClip.recipientTransactionId),
+      sender: stringifyOptionalId(giftClip.senderTransactionId || giftClip.transactionId),
+    },
+  };
+}
+
 function serializeChatRoomMessage(message) {
   const roomId = String(message.roomId);
   const authorId = message.senderUserId ? String(message.senderUserId) : null;
   const createdAt = message.createdAt || new Date();
+  const kind = getChatRoomMessageKind(message);
+  const giftClip = serializeGiftClipPayload(message.giftClip);
+  const text = message.text || giftClip?.message || "";
 
   return {
     authorId,
     authorName: message.senderDisplayName,
-    body: message.text,
+    body: text,
     createdAt: createdAt instanceof Date ? createdAt.toISOString() : new Date(createdAt).toISOString(),
     id: String(message._id),
+    kind,
+    messageType: kind,
     moderation: message.moderation || createAcceptedModeration(),
     playerId: authorId,
     playerName: message.senderDisplayName,
     roomId,
-    text: message.text,
-    tone: message.tone || "player",
+    text,
+    tone: message.tone || (kind === "system" ? "system" : "player"),
+    ...(giftClip ? { giftClip } : {}),
     ...(message.launchContext ? { launchContext: message.launchContext } : {}),
   };
 }
@@ -648,6 +672,38 @@ class ChatRoomRealtimeService {
     return response;
   }
 
+  async sendGiftClip(socket, payload = {}) {
+    const user = await this.authenticateSocketUser(socket, payload);
+
+    const result = await sendChatRoomGiftClip({
+      amount: payload.amount || payload.clips,
+      currentUserId: user._id,
+      io: this.io,
+      message: payload.message,
+      recipientUserId: payload.recipientUserId,
+      roomId: normalizeChatRoomId(payload),
+    });
+
+    const notificationRecords = await createChatRoomGiftClipNotifications({
+      amount: result.message?.giftClip?.amount,
+      message: result.message,
+      recipientUserId: result.recipient?._id || payload.recipientUserId,
+      room: result.room,
+      sender: result.sender || user,
+      transactionIds: result.transactionIds,
+    });
+    this.emitNotificationRecords(notificationRecords, {
+      fallbackMessage: result.serializedMessage || result.eventPayload?.message,
+      roomId: String(result.room?._id || result.eventPayload?.roomId || normalizeChatRoomId(payload)),
+    });
+
+    return result.eventPayload;
+  }
+
+  async sendGiftClips(socket, payload = {}) {
+    return this.sendGiftClip(socket, payload);
+  }
+
   async sendMessage(socket, payload = {}) {
     const user = await this.authenticateSocketUser(socket, payload);
     const room = await this.findRoom(normalizeChatRoomId(payload));
@@ -663,6 +719,8 @@ class ChatRoomRealtimeService {
 
     const moderation = moderateChatRoomMessage({ text });
     const message = new ChatRoomMessage({
+      kind: "text",
+      messageType: "text",
       moderation,
       roomId,
       senderDisplayName: getDisplayName(user),
@@ -829,6 +887,8 @@ class ChatRoomRealtimeService {
     };
     const launchText = `${getDisplayName(user)} launched a ${getLaunchGameLabel(gameSettings)} table from this room.`;
     const systemMessage = new ChatRoomMessage({
+      kind: "system",
+      messageType: "system",
       launchContext: launchPayload,
       moderation: createAcceptedModeration(),
       roomId: chatRoom._id,

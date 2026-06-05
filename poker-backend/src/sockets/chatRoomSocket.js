@@ -396,6 +396,20 @@ function initChatRoomSocket(io) {
       });
     });
 
+    socket.on("chat:sendGiftClip", (payload = {}, ack) => {
+      withChatRoomErrorBoundary(socket, ack, async () => {
+        const response = await chatRoomRealtimeService.sendGiftClip(socket, payload);
+        emitAck(ack, response);
+      });
+    });
+
+    socket.on("chat:giftClips:send", (payload = {}, ack) => {
+      withChatRoomErrorBoundary(socket, ack, async () => {
+        const response = await chatRoomRealtimeService.sendGiftClips(socket, payload);
+        emitAck(ack, response);
+      });
+    });
+
     socket.on("chat:typing", (payload = {}, ack) => {
       withChatRoomErrorBoundary(socket, ack, async () => {
         const response = await chatRoomRealtimeService.sendTyping(socket, payload);

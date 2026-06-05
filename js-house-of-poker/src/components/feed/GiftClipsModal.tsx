@@ -8,14 +8,39 @@ import type { FeedPost } from './types';
 
 const presetAmounts = [100, 500, 1000, 5000, 10000];
 
+export type GiftClipsRecipientOption = {
+  id: string;
+  label: string;
+  subtitle?: string;
+};
+
 type GiftClipsModalProps = {
+  disabled?: boolean;
+  helperText?: string;
   onClose: () => void;
-  onSendGift: (amount: number, message: string) => void;
+  onSelectRecipient?: (recipientId: string) => void;
+  onSendGift: (amount: number, message: string, recipientId?: string) => void;
   post: FeedPost | null;
+  recipientOptions?: GiftClipsRecipientOption[];
+  selectedRecipientId?: string | null;
+  sendLabelPrefix?: string;
+  title?: string;
   visible: boolean;
 };
 
-export function GiftClipsModal({ onClose, onSendGift, post, visible }: GiftClipsModalProps) {
+export function GiftClipsModal({
+  disabled = false,
+  helperText = 'Gift Clips are a direct premium-help placeholder. They do not count as free Support.',
+  onClose,
+  onSelectRecipient,
+  onSendGift,
+  post,
+  recipientOptions = [],
+  selectedRecipientId,
+  sendLabelPrefix = 'Send',
+  title,
+  visible,
+}: GiftClipsModalProps) {
   const [customAmount, setCustomAmount] = useState('');
   const [message, setMessage] = useState('');
   const [selectedAmount, setSelectedAmount] = useState(500);
@@ -27,9 +52,7 @@ export function GiftClipsModal({ onClose, onSendGift, post, visible }: GiftClips
   }, [customAmount, selectedAmount]);
 
   function handleSend() {
-    // TODO(feed:giftClips): Replace mock state with wallet/clip transfer API.
-    // TODO(notification:giftClips): Notify recipient when the backend confirms the gift.
-    onSendGift(resolvedAmount, message.trim());
+    onSendGift(resolvedAmount, message.trim(), selectedRecipientId ?? undefined);
     setCustomAmount('');
     setMessage('');
     setSelectedAmount(500);
@@ -42,16 +65,40 @@ export function GiftClipsModal({ onClose, onSendGift, post, visible }: GiftClips
           <View style={styles.headerRow}>
             <View style={styles.headingCopy}>
               <Text style={styles.eyebrow}>Gift Clips</Text>
-              <Text style={styles.title}>{post ? `Support ${post.player.name}` : 'Send Gift Clips'}</Text>
+              <Text style={styles.title}>{title ?? (post ? `Support ${post.player.name}` : 'Send Gift Clips')}</Text>
             </View>
             <Pressable accessibilityLabel="Close gift clips" accessibilityRole="button" onPress={onClose} style={styles.closeButton}>
               <MaterialCommunityIcons color={colors.text} name="close" size={20} />
             </Pressable>
           </View>
 
-          <Text style={styles.helperText}>
-            Gift Clips are a direct premium-help placeholder. They do not count as free Support.
-          </Text>
+          <Text style={styles.helperText}>{helperText}</Text>
+
+          {recipientOptions.length > 0 ? (
+            <View style={styles.recipientStack}>
+              <Text style={styles.fieldLabel}>Choose recipient</Text>
+              <View style={styles.recipientGrid}>
+                {recipientOptions.map((recipient) => {
+                  const isSelected = selectedRecipientId === recipient.id;
+
+                  return (
+                    <Pressable
+                      accessibilityLabel={`Send Gift Clips to ${recipient.label}`}
+                      accessibilityRole="button"
+                      key={recipient.id}
+                      onPress={() => onSelectRecipient?.(recipient.id)}
+                      style={[styles.recipientChip, isSelected ? styles.recipientChipSelected : null]}
+                    >
+                      <Text style={[styles.recipientLabel, isSelected ? styles.recipientLabelSelected : null]}>
+                        {recipient.label}
+                      </Text>
+                      {recipient.subtitle ? <Text style={styles.recipientSubtitle}>{recipient.subtitle}</Text> : null}
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </View>
+          ) : null}
 
           <View style={styles.amountGrid}>
             {presetAmounts.map((amount) => {
@@ -94,8 +141,9 @@ export function GiftClipsModal({ onClose, onSendGift, post, visible }: GiftClips
 
           <ActionButton
             fullWidth
+            disabled={disabled}
             icon="gift-outline"
-            label={`Send ${resolvedAmount.toLocaleString()} Gift Clips`}
+            label={`${sendLabelPrefix} ${resolvedAmount.toLocaleString()} Gift Clips`}
             onPress={handleSend}
             tone="accent"
           />
@@ -163,6 +211,11 @@ const styles = StyleSheet.create({
   headingCopy: {
     flex: 1,
   },
+  fieldLabel: {
+    color: colors.text,
+    fontSize: 13,
+    fontWeight: '900',
+  },
   helperText: {
     color: colors.mutedText,
     fontSize: 13,
@@ -182,6 +235,42 @@ const styles = StyleSheet.create({
   messageInput: {
     minHeight: 78,
     textAlignVertical: 'top',
+  },
+  recipientChip: {
+    backgroundColor: colors.surfaceMuted,
+    borderColor: colors.border,
+    borderRadius: 15,
+    borderWidth: 1,
+    flexGrow: 1,
+    gap: 2,
+    minWidth: '44%',
+    paddingHorizontal: 10,
+    paddingVertical: 9,
+  },
+  recipientChipSelected: {
+    backgroundColor: 'rgba(77,243,199,0.14)',
+    borderColor: colors.success,
+  },
+  recipientGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  recipientLabel: {
+    color: colors.text,
+    fontSize: 13,
+    fontWeight: '900',
+  },
+  recipientLabelSelected: {
+    color: colors.success,
+  },
+  recipientStack: {
+    gap: 8,
+  },
+  recipientSubtitle: {
+    color: colors.mutedText,
+    fontSize: 11,
+    fontWeight: '700',
   },
   panel: {
     backgroundColor: colors.surface,

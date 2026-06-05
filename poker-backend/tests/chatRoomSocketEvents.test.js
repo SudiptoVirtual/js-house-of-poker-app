@@ -81,6 +81,14 @@ test('Chat Room socket events are registered and delegate to realtime services',
       calls.push({ method: 'sendMessage', payload });
       return { ok: true, event: 'message' };
     },
+    sendGiftClip: async (socket, payload) => {
+      calls.push({ method: 'sendGiftClip', payload });
+      return { ok: true, event: 'gift-new' };
+    },
+    sendGiftClips: async (socket, payload) => {
+      calls.push({ method: 'sendGiftClips', payload });
+      return { ok: true, event: 'gift-legacy' };
+    },
     sendTyping: async (socket, payload) => {
       calls.push({ method: 'sendTyping', payload });
       return { ok: true, event: 'typing' };
@@ -104,6 +112,8 @@ test('Chat Room socket events are registered and delegate to realtime services',
     'chat:joinRoom',
     'chat:leaveRoom',
     'chat:sendMessage',
+    'chat:sendGiftClip',
+    'chat:giftClips:send',
     'chat:typing',
     'disconnect',
     'table:createFromChatRoom',
@@ -115,6 +125,8 @@ test('Chat Room socket events are registered and delegate to realtime services',
   socket.handlers.get('chat:joinRoom')({ roomId: 'room-a' }, ack);
   socket.handlers.get('chat:leaveRoom')({ roomId: 'room-a' }, ack);
   socket.handlers.get('chat:sendMessage')({ roomId: 'room-a', text: 'hello' }, ack);
+  socket.handlers.get('chat:sendGiftClip')({ amount: 25, recipientUserId: 'player-2', roomId: 'room-a' }, ack);
+  socket.handlers.get('chat:giftClips:send')({ amount: 30, recipientUserId: 'player-3', roomId: 'room-a' }, ack);
   socket.handlers.get('chat:typing')({ roomId: 'room-a' }, ack);
   socket.handlers.get('table:createFromChatRoom')({ roomId: 'room-a' }, ack);
   socket.handlers.get('table:inviteRoomPlayers')({ roomId: 'room-a', playerIds: [] }, ack);
@@ -126,17 +138,21 @@ test('Chat Room socket events are registered and delegate to realtime services',
     'joinRoom',
     'leaveRoom',
     'sendMessage',
+    'sendGiftClip',
+    'sendGiftClips',
     'sendTyping',
     'createTableFromChatRoom',
     'inviteRoomPlayers',
     'leaveAllRooms',
   ]);
-  assert.equal(calls[4].realtimeService, pokerRealtimeService);
-  assert.equal(calls[5].realtimeService, pokerRealtimeService);
+  assert.equal(calls[6].realtimeService, pokerRealtimeService);
+  assert.equal(calls[7].realtimeService, pokerRealtimeService);
   assert.deepEqual(ackPayloads.map((payload) => payload.event), [
     'join',
     'leave',
     'message',
+    'gift-new',
+    'gift-legacy',
     'typing',
     'create',
     'invite',
@@ -155,6 +171,8 @@ test('Chat Room socket event errors emit mapped room and chat errors and negativ
     leaveAllRooms: () => undefined,
     leaveRoom: async () => ({ ok: true }),
     sendMessage: async () => ({ ok: true }),
+    sendGiftClip: async () => ({ ok: true }),
+    sendGiftClips: async () => ({ ok: true }),
     sendTyping: async () => ({ ok: true }),
   };
 

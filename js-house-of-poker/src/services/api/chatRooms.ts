@@ -201,14 +201,19 @@ function toChatRoomMessage(
     seenMessageIds,
   );
 
+  const kind = message.kind ?? message.messageType ?? (message.tone === 'system' ? 'system' : 'message');
+
   return {
     authorId,
     authorName,
     body,
     createdAt,
+    giftClip: message.giftClip ?? null,
     id,
+    kind,
+    messageType: message.messageType ?? kind,
     roomId,
-    tone: message.tone ?? 'player',
+    tone: message.tone ?? (kind === 'system' ? 'system' : 'player'),
   };
 }
 

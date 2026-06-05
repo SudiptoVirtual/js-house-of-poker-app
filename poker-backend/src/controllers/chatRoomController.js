@@ -6,6 +6,7 @@ const GameTable = require("../models/GameTable");
 const User = require("../models/User");
 const { DEFAULT_CHAT_ROOMS, seedChatRooms } = require("../scripts/seedChatRooms");
 const { getChatRoomPresenceService } = require("../services/chatRoomPresenceService");
+const { sendChatRoomGiftClip: sendChatRoomGiftClipService } = require("../services/chatRoomGiftClipService");
 const {
   createChatRoomInviteNotifications,
   serializeNotification,
@@ -99,22 +100,59 @@ function serializeChatRoomPlayer(player) {
   };
 }
 
+function stringifyOptionalId(value) {
+  return value ? String(value) : null;
+}
+
+function getChatRoomMessageKind(message) {
+  if (message.kind) {
+    return message.kind;
+  }
+
+  return message.tone === "system" ? "system" : "text";
+}
+
+function serializeGiftClipPayload(giftClip) {
+  if (!giftClip) {
+    return null;
+  }
+
+  return {
+    amount: giftClip.amount || 0,
+    message: giftClip.message || "",
+    recipientTransactionId: stringifyOptionalId(giftClip.recipientTransactionId),
+    recipientUserId: stringifyOptionalId(giftClip.recipientUserId),
+    senderTransactionId: stringifyOptionalId(giftClip.senderTransactionId),
+    transactionId: stringifyOptionalId(giftClip.transactionId),
+    transactionIds: {
+      recipient: stringifyOptionalId(giftClip.recipientTransactionId),
+      sender: stringifyOptionalId(giftClip.senderTransactionId || giftClip.transactionId),
+    },
+  };
+}
+
 function serializeChatRoomMessage(message) {
   const createdAt = message.createdAt || new Date();
   const roomId = String(message.roomId);
   const authorId = message.senderUserId ? String(message.senderUserId) : null;
+  const kind = getChatRoomMessageKind(message);
+  const giftClip = serializeGiftClipPayload(message.giftClip);
+  const text = message.text || giftClip?.message || "";
 
   return {
     authorId,
     authorName: message.senderDisplayName,
-    body: message.text,
+    body: text,
     createdAt: createdAt instanceof Date ? createdAt.toISOString() : new Date(createdAt).toISOString(),
     id: String(message._id),
+    kind,
+    messageType: kind,
     playerId: authorId,
     playerName: message.senderDisplayName,
     roomId,
-    text: message.text,
-    tone: message.tone || "player",
+    text,
+    tone: message.tone || (kind === "system" ? "system" : "player"),
+    ...(giftClip ? { giftClip } : {}),
   };
 }
 
@@ -342,6 +380,16 @@ async function serializeSocialChatRoomDetail(room, recentMessageLimit, userId = 
     recentMessages: serializedMessages,
     roomId,
   };
+}
+
+function sendServerError(res, error, fallbackMessage = "Chat room request failed") {
+  console.error(fallbackMessage, error);
+
+  if (error?.statusCode) {
+    return res.status(error.statusCode).json({ code: error.code, message: error.message });
+  }
+
+  return res.status(500).json({ message: fallbackMessage });
 }
 
 function parsePositiveInteger(value, fallback, maximum) {
@@ -803,6 +851,23 @@ const inviteChatRoomFriends = async (req, res) => {
   }
 };
 
+async function sendChatRoomGiftClip(req, res) {
+  try {
+    const result = await sendChatRoomGiftClipService({
+      amount: req.body?.amount || req.body?.clips,
+      currentUserId: req.user._id,
+      io: getIO(),
+      message: req.body?.message,
+      recipientUserId: req.body?.recipientUserId,
+      roomId: req.params.roomId,
+    });
+
+    return res.status(201).json(result.eventPayload);
+  } catch (error) {
+    return sendServerError(res, error, "Unable to send chat room Gift Clip");
+  }
+}
+
 const seedDefaultChatRooms = async (req, res) => {
   try {
     if (isRestrictedChatRoomSeedEnvironment()) {
@@ -837,4 +902,5 @@ module.exports = {
   getChatRooms,
   inviteChatRoomFriends,
   seedDefaultChatRooms,
+  sendChatRoomGiftClip,
 };
