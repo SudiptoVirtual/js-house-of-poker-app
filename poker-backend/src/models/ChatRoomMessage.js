@@ -99,6 +99,12 @@ const chatRoomMessageSchema = new mongoose.Schema(
       default: "text",
       index: true,
     },
+    messageType: {
+      type: String,
+      enum: CHAT_ROOM_MESSAGE_KINDS,
+      default: "text",
+      index: true,
+    },
     text: {
       type: String,
       required() {
