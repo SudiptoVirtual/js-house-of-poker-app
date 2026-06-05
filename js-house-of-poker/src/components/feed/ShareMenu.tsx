@@ -2,70 +2,203 @@ import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 import { colors } from '../../theme/colors';
-import type { FeedPost, ShareDestination, ShareDestinationId } from './types';
+import type { BackendShareDestinationId, FeedPost } from '../../types/feed';
 
-const shareDestinations: ShareDestination[] = [
+type BackendShareDestination = {
+  icon: keyof typeof MaterialCommunityIcons.glyphMap;
+  id: BackendShareDestinationId;
+  label: string;
+};
+
+const shareDestinations: BackendShareDestination[] = [
   { icon: 'link-variant', id: 'copy-link', label: 'Copy Link' },
   { icon: 'account-circle-outline', id: 'profile', label: 'Share to Profile' },
   { icon: 'newspaper-variant-outline', id: 'feed', label: 'Share to Feed' },
   { icon: 'forum-outline', id: 'chat-room', label: 'Share to Chat Room' },
   { icon: 'poker-chip', id: 'table', label: 'Share to Table' },
   { icon: 'facebook', id: 'facebook', label: 'Share to Facebook' },
-  { icon: 'bullhorn-outline', id: 'promote', label: 'Promote for Creator' },
+  { icon: 'share-variant-outline', id: 'external', label: 'Share Externally' },
 ];
+
+type ShareTargetOption = {
+  helperText?: string;
+  id: string;
+  label: string;
+};
+
+export type ShareSelection = {
+  destinationId: BackendShareDestinationId;
+  roomId?: string;
+  tableId?: string;
+};
 
 type ShareMenuProps = {
   onClose: () => void;
   onPromote: () => void;
-  onShare: (destinationId: ShareDestinationId) => void;
+  chatRoomOptions: ShareTargetOption[];
+  onShare: (selection: ShareSelection) => void;
   post: FeedPost | null;
+  tableOptions: ShareTargetOption[];
   visible: boolean;
 };
 
-export function ShareMenu({ onClose, onPromote, onShare, post, visible }: ShareMenuProps) {
-  function handleDestinationPress(destination: ShareDestination) {
-    if (destination.id === 'promote') {
-      onClose();
-      onPromote();
+export function ShareMenu({
+  chatRoomOptions,
+  onClose,
+  onPromote,
+  onShare,
+  post,
+  tableOptions,
+  visible,
+}: ShareMenuProps) {
+  function handleDestinationPress(destination: BackendShareDestination) {
+    if (destination.id === 'chat-room' || destination.id === 'table') {
       return;
     }
 
-    // TODO(feed:sharePost): Send selected destination to backend/share socket when ready.
-    onShare(destination.id);
+    onShare({ destinationId: destination.id });
+  }
+
+  function handlePromotePress() {
+    onClose();
+    onPromote();
   }
 
   return (
-    <Modal animationType="fade" transparent visible={visible} onRequestClose={onClose}>
+    <Modal
+      animationType="fade"
+      transparent
+      visible={visible}
+      onRequestClose={onClose}
+    >
       <Pressable style={styles.backdrop} onPress={onClose}>
         <Pressable style={styles.panel}>
           <View style={styles.headerRow}>
             <View>
               <Text style={styles.eyebrow}>Share this table story</Text>
-              <Text style={styles.title}>{post ? `From ${post.player.name}` : 'Share post'}</Text>
+              <Text style={styles.title}>
+                {post ? `From ${post.player.name}` : 'Share post'}
+              </Text>
             </View>
-            <Pressable accessibilityLabel="Close share menu" accessibilityRole="button" onPress={onClose} style={styles.closeButton}>
-              <MaterialCommunityIcons color={colors.text} name="close" size={20} />
+            <Pressable
+              accessibilityLabel="Close share menu"
+              accessibilityRole="button"
+              onPress={onClose}
+              style={styles.closeButton}
+            >
+              <MaterialCommunityIcons
+                color={colors.text}
+                name="close"
+                size={20}
+              />
             </Pressable>
           </View>
           <Text style={styles.helperText}>
-            Share increases visibility. Promote for Creator is a separate paid sponsorship placeholder.
+            Share increases visibility. Promote for Creator is a separate paid
+            sponsorship placeholder.
           </Text>
           <View style={styles.destinationStack}>
-            {shareDestinations.map((destination) => (
-              <Pressable
-                accessibilityRole="button"
-                key={destination.id}
-                onPress={() => handleDestinationPress(destination)}
-                style={({ pressed }) => [styles.destination, pressed ? styles.destinationPressed : null]}
-              >
-                <MaterialCommunityIcons
-                  color={destination.id === 'promote' ? colors.gold : colors.secondary}
-                  name={destination.icon}
-                  size={20}
-                />
-                <Text style={styles.destinationLabel}>{destination.label}</Text>
-              </Pressable>
-            ))}
+            {shareDestinations.map((destination) => {
+              const isChatRoomDestination = destination.id === 'chat-room';
+              const isTableDestination = destination.id === 'table';
+              const targetOptions = isChatRoomDestination
+                ? chatRoomOptions
+                : isTableDestination
+                  ? tableOptions
+                  : [];
+
+              return (
+                <View key={destination.id} style={styles.destinationGroup}>
+                  <Pressable
+                    accessibilityRole="button"
+                    disabled={isChatRoomDestination || isTableDestination}
+                    onPress={() => handleDestinationPress(destination)}
+                    style={({ pressed }) => [
+                      styles.destination,
+                      isChatRoomDestination || isTableDestination
+                        ? styles.destinationHeader
+                        : null,
+                      pressed ? styles.destinationPressed : null,
+                    ]}
+                  >
+                    <MaterialCommunityIcons
+                      color={colors.secondary}
+                      name={destination.icon}
+                      size={20}
+                    />
+                    <Text style={styles.destinationLabel}>
+                      {destination.label}
+                    </Text>
+                  </Pressable>
+                  {isChatRoomDestination || isTableDestination ? (
+                    targetOptions.length > 0 ? (
+                      <View style={styles.targetStack}>
+                        {targetOptions.map((option) => (
+                          <Pressable
+                            accessibilityRole="button"
+                            key={option.id}
+                            onPress={() =>
+                              onShare(
+                                isChatRoomDestination
+                                  ? {
+                                      destinationId: 'chat-room',
+                                      roomId: option.id,
+                                    }
+                                  : {
+                                      destinationId: 'table',
+                                      tableId: option.id,
+                                    },
+                              )
+                            }
+                            style={({ pressed }) => [
+                              styles.targetOption,
+                              pressed ? styles.destinationPressed : null,
+                            ]}
+                          >
+                            <View style={styles.targetTextStack}>
+                              <Text style={styles.targetLabel}>
+                                {option.label}
+                              </Text>
+                              {option.helperText ? (
+                                <Text style={styles.targetHelper}>
+                                  {option.helperText}
+                                </Text>
+                              ) : null}
+                            </View>
+                            <MaterialCommunityIcons
+                              color={colors.mutedText}
+                              name="chevron-right"
+                              size={18}
+                            />
+                          </Pressable>
+                        ))}
+                      </View>
+                    ) : (
+                      <Text style={styles.emptyTargetText}>
+                        {isChatRoomDestination
+                          ? 'No chat rooms are available to share into right now.'
+                          : 'No active or post table is available to share into right now.'}
+                      </Text>
+                    )
+                  ) : null}
+                </View>
+              );
+            })}
+            <Pressable
+              accessibilityRole="button"
+              onPress={handlePromotePress}
+              style={({ pressed }) => [
+                styles.destination,
+                pressed ? styles.destinationPressed : null,
+              ]}
+            >
+              <MaterialCommunityIcons
+                color={colors.gold}
+                name="bullhorn-outline"
+                size={20}
+              />
+              <Text style={styles.destinationLabel}>Promote for Creator</Text>
+            </Pressable>
           </View>
         </Pressable>
       </Pressable>
@@ -98,6 +231,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 13,
     paddingVertical: 12,
   },
+  destinationGroup: {
+    gap: 6,
+  },
+  destinationHeader: {
+    opacity: 0.95,
+  },
   destinationLabel: {
     color: colors.text,
     flex: 1,
@@ -109,6 +248,13 @@ const styles = StyleSheet.create({
   },
   destinationStack: {
     gap: 8,
+  },
+  emptyTargetText: {
+    color: colors.mutedText,
+    fontSize: 12,
+    fontWeight: '700',
+    lineHeight: 17,
+    paddingHorizontal: 12,
   },
   eyebrow: {
     color: colors.primary,
@@ -135,6 +281,36 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     gap: 14,
     padding: 18,
+  },
+  targetHelper: {
+    color: colors.mutedText,
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  targetLabel: {
+    color: colors.text,
+    fontSize: 13,
+    fontWeight: '900',
+  },
+  targetOption: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    borderColor: colors.border,
+    borderRadius: 14,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 8,
+    justifyContent: 'space-between',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  targetStack: {
+    gap: 6,
+    paddingLeft: 18,
+  },
+  targetTextStack: {
+    flex: 1,
+    gap: 2,
   },
   title: {
     color: colors.text,
