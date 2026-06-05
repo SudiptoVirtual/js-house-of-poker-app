@@ -1,45 +1,91 @@
 import type { PokerGameSettingsUpdate } from '../../types/poker';
-import type { ChatRoomMessage, ChatRoomPlayer, ChatRoomTableConfig } from '../../types/chatRooms';
+import type { ChatRoomMessage, ChatRoomPlayer } from '../../types/chatRooms';
 
-// TODO(chatRooms:socket): These request/response shapes are typed integration
-// placeholders for the future chat-room backend. Do not treat them as production
-// backend behavior until the socket contract is agreed and wired end-to-end.
-export type ChatRoomSocketAck = {
-  error?: string;
-  requestId?: string;
-  success: boolean;
+export type ChatRoomSocketError = string | {
+  code?: string;
+  message?: string;
 };
 
-export type JoinChatRoomRequest = {
+export type ChatRoomSocketAck = {
+  error?: ChatRoomSocketError;
+  ok?: boolean;
+  requestId?: string;
+  success?: boolean;
+};
+
+export type ChatRoomAuthenticatedRequest = {
+  token?: string | null;
+};
+
+export type ChatRoomIdRequest = ChatRoomAuthenticatedRequest & {
+  chatRoomId?: string;
+  chatRoomRoomId?: string;
   roomId: string;
+  sourceRoomId?: string;
+};
+
+export type ChatRoomInviteEligibility = {
+  eligiblePlayerIds: string[];
+  ineligiblePlayerIds?: string[];
+  invitedPlayerIds: string[];
+  reasonByPlayerId?: Record<string, string | null>;
+  reasonByUserId?: Record<string, string | null>;
+};
+
+export type ChatRoomPresencePlayer = ChatRoomPlayer & {
+  avatar?: string | null;
+  displayName: string;
+  handle: string;
+  id?: string;
+  inviteEligible?: boolean;
+  inviteEligibilityReason?: string | null;
+  isConnected?: boolean;
+  isOnline?: boolean;
+  joinedAt?: string | null;
+  lastSeenAt?: string | null;
+  playerId?: string;
+  socketCount?: number;
+  socketId?: string | null;
+  socketIds?: string[];
   userId: string;
 };
+
+export type ChatRoomPresencePayload = {
+  activePlayerCount: number;
+  inviteEligibility: ChatRoomInviteEligibility;
+  players: ChatRoomPresencePlayer[];
+  roomId: string;
+  totalPlayerCount: number;
+  updatedAt: string;
+};
+
+export type JoinChatRoomRequest = ChatRoomIdRequest;
 
 export type JoinChatRoomResponse = ChatRoomSocketAck & {
+  activePlayers?: ChatRoomPresencePlayer[];
   messages?: ChatRoomMessage[];
-  players?: ChatRoomPlayer[];
-  roomId: string;
+  playerId?: string;
+  players?: ChatRoomPresencePlayer[];
+  presenceSnapshot?: ChatRoomPresencePayload;
+  readAt?: string | Date;
+  roomId?: string;
+  unreadCount?: number;
 };
 
-export type LeaveChatRoomRequest = {
-  roomId: string;
-  userId: string;
-};
+export type LeaveChatRoomRequest = ChatRoomIdRequest;
 
 export type LeaveChatRoomResponse = ChatRoomSocketAck & {
-  roomId: string;
+  activePlayers?: ChatRoomPresencePlayer[];
+  players?: ChatRoomPresencePlayer[];
+  presenceSnapshot?: ChatRoomPresencePayload;
+  roomId?: string;
 };
 
-export type SendChatRoomMessageRequest = {
-  body: string;
+export type SendChatRoomMessageRequest = ChatRoomIdRequest & {
+  body?: string;
   clientMessageId?: string;
-  roomId: string;
-  userId: string;
-};
-
-export type SendChatRoomMessageResponse = ChatRoomSocketAck & {
-  message?: ChatRoomMessage;
-  roomId: string;
+  message?: string;
+  text?: string;
 };
 
 export type NewChatRoomMessagePayload = {
@@ -47,80 +93,149 @@ export type NewChatRoomMessagePayload = {
   roomId: string;
 };
 
-export type ChatRoomTypingPayload = {
-  isTyping: boolean;
-  roomId: string;
-  userId: string;
+export type SendChatRoomMessageResponse = ChatRoomSocketAck & NewChatRoomMessagePayload;
+
+export type SendChatRoomGiftClipRequest = ChatRoomIdRequest & {
+  amount?: number;
+  clips?: number;
+  message?: string;
+  recipientUserId: string;
 };
 
+export type SendChatRoomGiftClipResponse = ChatRoomSocketAck & NewChatRoomMessagePayload & {
+  recipient?: unknown;
+  sender?: unknown;
+  transactionIds?: string[] | Record<string, string | null>;
+};
+
+export type SendChatRoomGiftClipsRequest = SendChatRoomGiftClipRequest;
+export type SendChatRoomGiftClipsResponse = SendChatRoomGiftClipResponse;
+
+export type ChatRoomTypingRequest = ChatRoomIdRequest & {
+  isTyping?: boolean;
+};
+
+export type ChatRoomTypingPayload = {
+  isTyping: boolean;
+  playerId: string;
+  playerName: string;
+  roomId: string;
+  userId?: string;
+};
+
+export type ChatRoomTypingResponse = ChatRoomSocketAck & ChatRoomTypingPayload;
+
 export type ChatRoomMessageNotificationPayload = {
-  message: ChatRoomMessage;
+  message?: ChatRoomMessage | null;
+  notification?: unknown;
+  preview?: string;
+  roomId?: string | null;
+  type?: string;
+  unreadCount?: number;
+};
+
+export type ChatRoomNotificationsReadPayload = {
+  modifiedCount?: number;
+  readAt?: string | Date;
   roomId: string;
   unreadCount: number;
 };
 
-export type CreateTableFromChatRoomRequest = {
+export type CreateTableFromChatRoomRequest = ChatRoomIdRequest & {
   gameSettings?: PokerGameSettingsUpdate;
-  invitedPlayerIds: string[];
-  roomId: string;
-  tableConfig?: Partial<ChatRoomTableConfig>;
+  invitedPlayerIds?: string[];
+  name?: string;
+  playerCount?: number;
+  rules?: unknown;
   tableName?: string;
-  userId: string;
+  tableTier?: string | Record<string, unknown> | null;
+  tableTierId?: string | Record<string, unknown> | null;
+  visibility?: 'room' | 'private' | 'public' | 'invite-only' | string;
 };
 
-export type CreateTableFromChatRoomResponse = ChatRoomSocketAck & {
-  chatRoomId?: string;
+export type LaunchFromChatRoomPayload = {
+  chatRoomId: string;
   createdAt?: string;
+  createdByPlayerId?: string | null;
   deliveredPlayerIds?: string[];
   gameSettings?: PokerGameSettingsUpdate;
   invitedPlayerIds?: string[];
+  launchedAt?: string;
   launchedByUserId?: string;
-  roomId: string;
+  roomId?: string;
+  sender?: boolean;
+  success?: boolean;
   tableCode?: string;
   tableDbId?: string;
   tableId?: string;
   tableName?: string;
+  tableTier?: string | Record<string, unknown> | null;
+  visibility?: string;
 };
 
-export type InviteRoomPlayersRequest = {
-  invitedPlayerIds: string[];
-  roomId: string;
+export type CreateTableFromChatRoomResponse = ChatRoomSocketAck & LaunchFromChatRoomPayload;
+
+export type InviteRoomPlayersRequest = ChatRoomIdRequest & {
+  alreadyInvitedPlayerIds?: string[];
+  invitedPlayerIds?: string[];
+  message?: string;
+  playerIds?: string[];
+  tableCode?: string;
   tableId: string;
-  userId: string;
 };
 
-export type InviteRoomPlayersResponse = ChatRoomSocketAck & {
-  invitedPlayerIds: string[];
-  roomId: string;
-  tableId: string;
+export type ChatRoomTableInvite = {
+  createdAt?: string | Date;
+  giftBuyInChips?: number;
+  giftBuyInClips?: number;
+  id: string;
+  message?: string | null;
+  recipientAccountId?: string;
+  recipientHandle?: string;
+  recipientLabel?: string;
+  senderPlayerId?: string;
+  senderPlayerName?: string;
+  source?: string;
+  status?: string;
+};
+
+export type InviteRoomPlayerResult = {
+  inviteId?: string;
+  ok: boolean;
+  playerId: string;
+  reason?: string;
+  status: 'failed' | 'invited' | 'pending' | string;
+  success: boolean;
 };
 
 export type ChatRoomPlayerInvitedPayload = {
-  invitedByUserId?: string;
+  chatRoomId: string;
+  deliveredPlayerIds?: string[];
+  invite?: ChatRoomTableInvite;
+  inviteEligibility?: ChatRoomInviteEligibility;
+  inviteId?: string;
   invitedPlayerId?: string;
   invitedPlayerIds?: string[];
-  roomId: string;
+  invites?: ChatRoomTableInvite[];
+  message?: string | null;
+  playerId?: string;
+  playerIds?: string[];
+  recipient?: boolean;
+  results?: InviteRoomPlayerResult[];
+  sender?: boolean;
+  senderPlayerId?: string;
+  senderPlayerName?: string;
+  tableCode?: string | null;
+  tableDbId?: string | null;
+  tableId?: string | null;
+  tableName?: string | null;
+};
+
+export type InviteRoomPlayersResponse = ChatRoomSocketAck & ChatRoomPlayerInvitedPayload;
+
+export type LaunchFromChatRoomRequest = ChatRoomIdRequest & {
   tableCode?: string;
   tableId: string;
 };
 
-export type LaunchFromChatRoomRequest = {
-  roomId: string;
-  tableId: string;
-  userId: string;
-};
-
-export type LaunchFromChatRoomResponse = ChatRoomSocketAck & {
-  chatRoomId?: string;
-  createdAt?: string;
-  deliveredPlayerIds?: string[];
-  gameSettings?: PokerGameSettingsUpdate;
-  invitedPlayerIds?: string[];
-  launchedByUserId?: string;
-  launchUrl?: string;
-  roomId: string;
-  tableCode?: string;
-  tableDbId?: string;
-  tableId: string;
-  tableName?: string;
-};
+export type LaunchFromChatRoomResponse = ChatRoomSocketAck & LaunchFromChatRoomPayload;
