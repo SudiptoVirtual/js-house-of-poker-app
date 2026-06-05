@@ -27,11 +27,18 @@ import { clearAuthSession, getAuthSession } from '../services/storage/sessionSto
 import { colors } from '../theme/colors';
 import { chatRoomSocketEvents } from '../services/chatRooms/events';
 import type {
+  AIPrimeActionRequest,
+  AIPrimeActionResponse,
   ChatRoomMessageNotificationPayload,
   ChatRoomPlayerInvitedPayload,
+  ChatRoomSystemMessageRequest,
+  ChatRoomSystemMessageResponse,
   ChatRoomPresencePayload,
   ChatRoomSocketAck,
-  CreateTableFromChatRoomResponse,
+  CreateTableFromAiPrimeRequest,
+  CreateTableFromAiPrimeResponse,
+  InviteRoomPlayersRequest,
+  InviteRoomPlayersResponse,
   JoinChatRoomRequest,
   JoinChatRoomResponse,
   LeaveChatRoomRequest,
@@ -117,7 +124,7 @@ function mergeMessages(currentMessages: ChatRoomMessage[], incomingMessages: Cha
 }
 
 export function ChatRoomDetailScreen({ navigation, route }: Props) {
-  const { createTableFromChatRoom, errorMessage, transportKind } = usePoker();
+  const { transportKind } = usePoker();
   const socketRef = useRef<Socket | null>(null);
   const authRef = useRef<{ token: string | null; user: { id?: string; name?: string; email?: string } } | null>(null);
   const [room, setRoom] = useState<ChatRoom | null>(null);
@@ -147,6 +154,66 @@ export function ChatRoomDetailScreen({ navigation, route }: Props) {
   const [roomInviteStatus, setRoomInviteStatus] = useState<string | null>(null);
   const currentUserId = authRef.current?.user.id ?? fallbackUser.id;
   const currentUserName = authRef.current?.user.name ?? authRef.current?.user.email ?? fallbackUser.name;
+
+  function handleRealtimeAckError(ack: ChatRoomSocketAck) {
+    const message = normalizeSocketError(ack.error);
+    setRealtimeError(isInvalidUserTokenMessage(message) ? expiredSessionMessage : message);
+
+    if (isInvalidUserTokenMessage(message)) {
+      void clearAuthSession();
+      authRef.current = { token: null, user: fallbackUser };
+    }
+  }
+
+  function requireLiveChatSocket(actionLabel: string) {
+    const token = authRef.current?.token;
+
+    if (!room || !token || !socketRef.current?.connected) {
+      setRealtimeError(`${actionLabel} requires a live room connection.`);
+      return null;
+    }
+
+    return { room, socket: socketRef.current, token };
+  }
+
+  async function emitChatRoomEvent<Response extends ChatRoomSocketAck>(
+    eventName: string,
+    payload: Record<string, unknown>,
+  ) {
+    const live = requireLiveChatSocket('AI Prime');
+
+    if (!live) {
+      return null;
+    }
+
+    try {
+      const ack = await new Promise<Response>((resolve, reject) => {
+        live.socket.timeout(10000).emit(
+          eventName,
+          { roomId: live.room.id, token: live.token, ...payload },
+          (error: Error | null, response: Response) => {
+            if (error) {
+              reject(error);
+              return;
+            }
+
+            resolve(response);
+          },
+        );
+      });
+
+      if (!ack.ok && !ack.success) {
+        handleRealtimeAckError(ack);
+        return null;
+      }
+
+      setRealtimeError(null);
+      return ack;
+    } catch (error) {
+      setRealtimeError(error instanceof Error ? error.message : 'Realtime AI Prime request failed.');
+      return null;
+    }
+  }
 
   const loadRoom = useCallback(async () => {
     setIsLoadingRoom(true);
@@ -297,6 +364,17 @@ export function ChatRoomDetailScreen({ navigation, route }: Props) {
 
         setRoom((currentRoom) => currentRoom ? { ...currentRoom, messages: mergeMessages(currentRoom.messages, [payload.message!]), lastMessagePreview: payload.message!.kind === 'gift_clip' || payload.message!.messageType === 'gift_clip' ? `${payload.message!.authorName} sent Gift Clips` : payload.message!.body } : currentRoom);
       });
+      socket.on(chatRoomSocketEvents.chatSystemMessage, (payload: Partial<NewChatRoomMessagePayload>) => {
+        if (!payload.message) {
+          return;
+        }
+
+        setRoom((currentRoom) => currentRoom ? {
+          ...currentRoom,
+          lastMessagePreview: payload.message!.body,
+          messages: mergeMessages(currentRoom.messages, [payload.message!]),
+        } : currentRoom);
+      });
       socket.on(chatRoomSocketEvents.activePlayers, (payload: Partial<ChatRoomPresencePayload>) => {
         setRoom((currentRoom) => currentRoom ? { ...currentRoom, activePlayerCount: payload.activePlayerCount ?? payload.players?.length ?? currentRoom.activePlayerCount, players: payload.players ?? currentRoom.players } : currentRoom);
       });
@@ -316,6 +394,15 @@ export function ChatRoomDetailScreen({ navigation, route }: Props) {
       socket.on(chatRoomSocketEvents.playerInvited, (payload: ChatRoomPlayerInvitedPayload) => {
         const playerIds = payload.invitedPlayerIds ?? payload.playerIds ?? [];
         setInvitedPlayerIds((currentIds) => Array.from(new Set([...currentIds, ...playerIds])));
+      });
+      socket.on(chatRoomSocketEvents.notificationTableInvite, (payload: ChatRoomPlayerInvitedPayload) => {
+        const playerIds = payload.invitedPlayerIds ?? payload.playerIds ?? (payload.invitedPlayerId ? [payload.invitedPlayerId] : []);
+        setInvitedPlayerIds((currentIds) => Array.from(new Set([...currentIds, ...playerIds])));
+      });
+      socket.on(chatRoomSocketEvents.launchFromChatRoom, (payload: { invitedPlayerIds?: string[] }) => {
+        if (payload.invitedPlayerIds?.length) {
+          setInvitedPlayerIds((currentIds) => Array.from(new Set([...currentIds, ...payload.invitedPlayerIds!])));
+        }
       });
 
       socket.connect();
@@ -344,12 +431,6 @@ export function ChatRoomDetailScreen({ navigation, route }: Props) {
     }),
     [invitedPlayerIds, isPrivate, room?.id, route.params.roomId, selectedPlayerIds, selectedTierId, transportKind],
   );
-
-  useEffect(() => {
-    if (errorMessage && isLaunchingTable) {
-      setIsLaunchingTable(false);
-    }
-  }, [errorMessage, isLaunchingTable]);
 
   const selectedTier = defaultTableTierOptions.find((option) => option.id === selectedTierId);
   const selectedRule = defaultTableRulesOptions.find((option) => option.id === selectedRuleId);
@@ -449,7 +530,6 @@ export function ChatRoomDetailScreen({ navigation, route }: Props) {
       setIsSendingMessage(false);
     }
   }
-
 
   function handleOpenGiftClips() {
     const token = authRef.current?.token;
@@ -584,30 +664,24 @@ export function ChatRoomDetailScreen({ navigation, route }: Props) {
     }
   }
 
-  function appendSystemMessage(body: string) {
-    if (!room) {
-      return;
+  async function appendSystemMessage(body: string) {
+    const ack = await emitChatRoomEvent<ChatRoomSystemMessageResponse>(
+      chatRoomSocketEvents.chatSystemMessage,
+      { body, senderDisplayName: 'AI Prime' } satisfies Omit<ChatRoomSystemMessageRequest, 'roomId' | 'token'>,
+    );
+
+    if (ack?.message) {
+      setRoom((currentRoom) => currentRoom ? {
+        ...currentRoom,
+        lastMessagePreview: ack.message!.body,
+        messages: mergeMessages(currentRoom.messages, [ack.message!]),
+      } : currentRoom);
     }
 
-    // TODO(aiPrime/socket): Replace this local placeholder with chat:systemMessage when the backend broadcasts AI Prime room activity.
-    const systemMessage: ChatRoomMessage = {
-      id: `ai-prime-${Date.now()}`,
-      roomId: room.id,
-      authorId: null,
-      authorName: 'AI Prime',
-      body,
-      createdAt: new Date().toISOString(),
-      tone: 'system',
-    };
-
-    setRoom((currentRoom) => currentRoom ? {
-      ...currentRoom,
-      lastMessagePreview: body,
-      messages: mergeMessages(currentRoom.messages, [systemMessage]),
-    } : currentRoom);
+    return ack;
   }
 
-  function handleInviteSelectedPlayers() {
+  async function handleInviteSelectedPlayers() {
     if (!room) {
       return;
     }
@@ -619,12 +693,18 @@ export function ChatRoomDetailScreen({ navigation, route }: Props) {
       return;
     }
 
-    // TODO(aiPrime/socket): Emit table:inviteRoomPlayers and handle table:playerInvited / notification:tableInvite once backend invites are ready.
+    const ack = await appendSystemMessage(
+      `AI Prime queued ${eligibleSelectedPlayerIds.length} room table invite${eligibleSelectedPlayerIds.length === 1 ? '' : 's'} for launch.`,
+    );
+
+    if (ack === null) {
+      return;
+    }
+
     setInvitedPlayerIds((currentIds) => Array.from(new Set([...currentIds, ...eligibleSelectedPlayerIds])));
     setSelectedPlayerIds((currentIds) =>
       currentIds.filter((currentId) => !eligibleSelectedPlayerIds.includes(currentId)),
     );
-    appendSystemMessage(`AI Prime queued ${eligibleSelectedPlayerIds.length} room table invite${eligibleSelectedPlayerIds.length === 1 ? '' : 's'}.`);
   }
 
   function handleSelectGame(gameId: string) {
@@ -657,20 +737,39 @@ export function ChatRoomDetailScreen({ navigation, route }: Props) {
     setSelectedRules(rules);
   }
 
-  function handleSelectAIPrimeAction(actionId: AIPrimeActionId) {
+  async function handleSelectAIPrimeAction(actionId: AIPrimeActionId) {
+    setIsAIPrimePanelVisible(false);
+
     if (actionId !== 'setUpTable') {
-      appendSystemMessage(`AI Prime placeholder: ${actionId} will be connected after assistant services are ready.`);
-      setIsAIPrimePanelVisible(false);
+      await emitChatRoomEvent<AIPrimeActionResponse>(
+        chatRoomSocketEvents.aiPrimeAction,
+        { actionId } satisfies Omit<AIPrimeActionRequest, 'roomId' | 'token'>,
+      );
       return;
     }
 
-    // TODO(aiPrime/socket): Emit aiPrime:setUpTable when assistant telemetry and orchestration are available.
-    setIsAIPrimePanelVisible(false);
-    setIsSetUpTableFlowVisible(true);
+    const ack = await emitChatRoomEvent<AIPrimeActionResponse>(
+      chatRoomSocketEvents.aiPrimeSetUpTable,
+      {
+        actionId,
+        tableTierId: selectedTierId,
+        visibility: isPrivate ? 'private' : 'room',
+      } satisfies Omit<AIPrimeActionRequest, 'roomId' | 'token'>,
+    );
+
+    if (ack) {
+      setIsSetUpTableFlowVisible(true);
+    }
   }
 
   async function handleLaunchTable() {
     if (!room || isLaunchingTable) {
+      return;
+    }
+
+    const live = requireLiveChatSocket('Launching an AI Prime table');
+
+    if (!live) {
       return;
     }
 
@@ -680,30 +779,53 @@ export function ChatRoomDetailScreen({ navigation, route }: Props) {
       ...(selectedRules.lowRule ? { lowRule: selectedRules.lowRule } : {}),
       ...(selectedRules.wildCards ? { wildCards: selectedRules.wildCards } : {}),
     };
+    const allInviteIds = Array.from(new Set([...invitedPlayerIds, ...selectedPlayerIds]));
 
-    // TODO(aiPrime/socket): Emit table:createFromAiPrime before table:createFromChatRoom when backend supports the AI Prime handoff.
     setIsLaunchingTable(true);
 
     try {
-      const launchAcknowledgement: CreateTableFromChatRoomResponse = await createTableFromChatRoom({
-        chatRoomId: isolatedLaunchMetadata.chatRoomId,
-        gameSettings,
-        invitedPlayerIds: Array.from(new Set([...invitedPlayerIds, ...selectedPlayerIds])),
-        name: currentUserName,
-        playerCount: room.tableConfig.maxSeats,
-        tableName: `${room.title} Table`,
-        tableTierId: selectedTierId,
-        visibility: isPrivate ? 'private' : 'room',
-      });
+      const launchAcknowledgement = await emitChatRoomEvent<CreateTableFromAiPrimeResponse>(
+        chatRoomSocketEvents.createTableFromAiPrime,
+        {
+          chatRoomId: isolatedLaunchMetadata.chatRoomId,
+          gameSettings,
+          invitedPlayerIds: allInviteIds,
+          name: currentUserName,
+          playerCount: room.tableConfig.maxSeats,
+          tableName: `${room.title} Table`,
+          tableTierId: selectedTierId,
+          visibility: isPrivate ? 'private' : 'room',
+        } satisfies Omit<CreateTableFromAiPrimeRequest, 'roomId' | 'token'>,
+      );
 
-      if (launchAcknowledgement.ok || launchAcknowledgement.success) {
-        const allInviteIds = Array.from(new Set([...invitedPlayerIds, ...selectedPlayerIds]));
-        setInvitedPlayerIds((currentIds) => Array.from(new Set([...currentIds, ...allInviteIds])));
-        appendSystemMessage(`AI Prime launched a ${isPrivate ? 'private' : 'public'} table and sent ${allInviteIds.length} invite${allInviteIds.length === 1 ? '' : 's'}.`);
-        // TODO(aiPrime/socket): Emit table:launchFromChatRoom after table:createFromAiPrime and broadcast notification:tableInvite.
-        setIsSetUpTableFlowVisible(false);
-        navigation.navigate(routes.Game);
+      if (!launchAcknowledgement) {
+        return;
       }
+
+      const launchedTableId = launchAcknowledgement.tableDbId ?? launchAcknowledgement.tableId;
+
+      if (allInviteIds.length > 0 && launchedTableId) {
+        const inviteAcknowledgement = await emitChatRoomEvent<InviteRoomPlayersResponse>(
+          chatRoomSocketEvents.inviteRoomPlayers,
+          {
+            alreadyInvitedPlayerIds: [],
+            invitedPlayerIds: allInviteIds,
+            message: `AI Prime invited you to ${launchAcknowledgement.tableName ?? room.title}.`,
+            playerIds: allInviteIds,
+            source: 'ai-prime',
+            tableCode: launchAcknowledgement.tableCode,
+            tableId: launchedTableId,
+          } satisfies Omit<InviteRoomPlayersRequest, 'roomId' | 'token'> & { source: string },
+        );
+
+        if (inviteAcknowledgement?.invitedPlayerIds?.length) {
+          setInvitedPlayerIds((currentIds) => Array.from(new Set([...currentIds, ...inviteAcknowledgement.invitedPlayerIds!])));
+        }
+      }
+
+      setSelectedPlayerIds([]);
+      setIsSetUpTableFlowVisible(false);
+      navigation.navigate(routes.Game);
     } finally {
       setIsLaunchingTable(false);
     }
@@ -741,7 +863,7 @@ export function ChatRoomDetailScreen({ navigation, route }: Props) {
           onChangeDraft={setDraft}
           onOpenGiftClips={handleOpenGiftClips}
           onOpenAIPrime={() => {
-            // TODO(aiPrime/socket): Emit aiPrime:open when AI Prime analytics are connected.
+            void emitChatRoomEvent<AIPrimeActionResponse>(chatRoomSocketEvents.aiPrimeOpen, {});
             setIsAIPrimePanelVisible(true);
           }}
           onSend={() => { void handleSendMessage(); }}

@@ -95,6 +95,29 @@ export type NewChatRoomMessagePayload = {
 
 export type SendChatRoomMessageResponse = ChatRoomSocketAck & NewChatRoomMessagePayload;
 
+export type ChatRoomSystemMessageRequest = ChatRoomIdRequest & {
+  aiPrimeContext?: Record<string, unknown> | null;
+  body?: string;
+  message?: string;
+  senderDisplayName?: string;
+  text?: string;
+};
+
+export type ChatRoomSystemMessageResponse = ChatRoomSocketAck & NewChatRoomMessagePayload;
+
+export type AIPrimeActionRequest = ChatRoomIdRequest & {
+  actionId?: string;
+  body?: string;
+  gameSettings?: PokerGameSettingsUpdate;
+  invitedPlayerIds?: string[];
+  tableTierId?: string | Record<string, unknown> | null;
+  visibility?: string;
+};
+
+export type AIPrimeActionResponse = ChatRoomSocketAck & Partial<NewChatRoomMessagePayload> & {
+  actionId?: string;
+};
+
 export type SendChatRoomGiftClipRequest = ChatRoomIdRequest & {
   amount?: number;
   clips?: number;
@@ -174,6 +197,8 @@ export type LaunchFromChatRoomPayload = {
 };
 
 export type CreateTableFromChatRoomResponse = ChatRoomSocketAck & LaunchFromChatRoomPayload;
+export type CreateTableFromAiPrimeRequest = CreateTableFromChatRoomRequest & { aiPrime?: boolean; source?: string };
+export type CreateTableFromAiPrimeResponse = CreateTableFromChatRoomResponse;
 
 export type InviteRoomPlayersRequest = ChatRoomIdRequest & {
   alreadyInvitedPlayerIds?: string[];

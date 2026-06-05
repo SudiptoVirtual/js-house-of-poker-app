@@ -2,6 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 
 const ChatRoom = require('../src/models/ChatRoom');
+const ChatRoomMessage = require('../src/models/ChatRoomMessage');
 const Notification = require('../src/models/Notification');
 const User = require('../src/models/User');
 const { ChatRoomRealtimeService } = require('../src/services/chatRoomRealtimeService');
@@ -85,9 +86,11 @@ test('User can invite multiple room players and recipients receive table:playerI
   const originalFind = User.find;
   const originalFindByIdAndUpdate = User.findByIdAndUpdate;
   const originalUpdateOne = ChatRoom.updateOne;
+  const originalMessageSave = ChatRoomMessage.prototype.save;
   const originalFindById = ChatRoom.findById;
   const originalInsertMany = Notification.insertMany;
   const updates = [];
+  const savedSystemMessages = [];
   const notifications = [];
 
   User.find = async function findStub(query) {
@@ -105,6 +108,11 @@ test('User can invite multiple room players and recipients receive table:playerI
   ChatRoom.updateOne = async function updateOneStub(query, update) {
     updates.push({ query, update });
     return { acknowledged: true };
+  };
+  ChatRoomMessage.prototype.save = async function saveStub() {
+    this._id = this._id || 'invite-system-message';
+    savedSystemMessages.push(this);
+    return this;
   };
   ChatRoom.findById = function findByIdStub() {
     return {
@@ -126,6 +134,7 @@ test('User can invite multiple room players and recipients receive table:playerI
     User.find = originalFind;
     User.findByIdAndUpdate = originalFindByIdAndUpdate;
     ChatRoom.updateOne = originalUpdateOne;
+    ChatRoomMessage.prototype.save = originalMessageSave;
     ChatRoom.findById = originalFindById;
     Notification.insertMany = originalInsertMany;
   });
@@ -187,6 +196,8 @@ test('User can invite multiple room players and recipients receive table:playerI
   assert.equal(updates.some((entry) => entry.update.$push?.tableInviteHistory), true);
   assert.equal(notifications.length, 2);
   assert.equal(notifications.every((notification) => notification.type === 'table_invite'), true);
+  assert.equal(savedSystemMessages.length, 1);
+  assert.equal(savedSystemMessages[0].tone, 'system');
 
   for (const recipientSocket of [recipientOneSocket, recipientTwoSocket]) {
     const inviteEvent = recipientSocket.emitted.find((entry) => entry.event === 'table:playerInvited');
