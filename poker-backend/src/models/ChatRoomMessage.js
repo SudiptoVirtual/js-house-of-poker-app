@@ -1,6 +1,8 @@
 const mongoose = require("mongoose");
 const ChatRoom = require("./ChatRoom");
 
+const CHAT_ROOM_MESSAGE_KINDS = ["text", "system", "gift_clip"];
+
 const moderationSchema = new mongoose.Schema(
   {
     flags: {
@@ -30,6 +32,47 @@ const moderationSchema = new mongoose.Schema(
   { _id: false }
 );
 
+const giftClipSchema = new mongoose.Schema(
+  {
+    amount: {
+      type: Number,
+      min: 1,
+      default: null,
+    },
+    recipientUserId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+      index: true,
+    },
+    senderTransactionId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Transaction",
+      default: null,
+      index: true,
+    },
+    recipientTransactionId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Transaction",
+      default: null,
+      index: true,
+    },
+    transactionId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Transaction",
+      default: null,
+      index: true,
+    },
+    message: {
+      type: String,
+      default: "",
+      trim: true,
+      maxlength: 500,
+    },
+  },
+  { _id: false }
+);
+
 const chatRoomMessageSchema = new mongoose.Schema(
   {
     roomId: {
@@ -50,11 +93,24 @@ const chatRoomMessageSchema = new mongoose.Schema(
       trim: true,
       maxlength: 80,
     },
+    kind: {
+      type: String,
+      enum: CHAT_ROOM_MESSAGE_KINDS,
+      default: "text",
+      index: true,
+    },
     text: {
       type: String,
-      required: true,
+      required() {
+        return this.kind !== "gift_clip";
+      },
       trim: true,
       maxlength: 1000,
+      default: "",
+    },
+    giftClip: {
+      type: giftClipSchema,
+      default: null,
     },
     moderation: {
       type: moderationSchema,
@@ -94,9 +150,24 @@ const chatRoomMessageSchema = new mongoose.Schema(
 chatRoomMessageSchema.index({ roomId: 1, createdAt: -1 });
 chatRoomMessageSchema.index({ "moderation.status": 1, createdAt: -1 });
 
+function getMessagePreviewText(message) {
+  if (message.text) {
+    return message.text;
+  }
+
+  if (message.kind === "gift_clip") {
+    const amount = message.giftClip?.amount;
+    const amountLabel = amount ? ` ${amount}` : "";
+    const giftMessage = message.giftClip?.message ? `: ${message.giftClip.message}` : "";
+    return `sent a${amountLabel} Gift Clip${giftMessage}`;
+  }
+
+  return "";
+}
+
 function buildMessagePreview(message) {
   const prefix = message.senderDisplayName ? `${message.senderDisplayName}: ` : "";
-  const preview = `${prefix}${message.text}`.replace(/\s+/g, " ").trim();
+  const preview = `${prefix}${getMessagePreviewText(message)}`.replace(/\s+/g, " ").trim();
 
   return preview.length > 240 ? `${preview.slice(0, 237)}...` : preview;
 }
@@ -129,4 +200,8 @@ chatRoomMessageSchema.post("save", function updateRoomPreview(message) {
   );
 });
 
-module.exports = mongoose.model("ChatRoomMessage", chatRoomMessageSchema);
+const ChatRoomMessage = mongoose.model("ChatRoomMessage", chatRoomMessageSchema);
+
+ChatRoomMessage.KINDS = CHAT_ROOM_MESSAGE_KINDS;
+
+module.exports = ChatRoomMessage;

@@ -345,23 +345,60 @@ function registerChatRateLimitHit(bucketMap, key, now, limit, windowMs) {
   return { allowed: true, retryAfterMs: 0 };
 }
 
+function stringifyOptionalId(value) {
+  return value ? String(value) : null;
+}
+
+function getChatRoomMessageKind(message) {
+  if (message.kind) {
+    return message.kind;
+  }
+
+  return message.tone === "system" ? "system" : "text";
+}
+
+function serializeGiftClipPayload(giftClip) {
+  if (!giftClip) {
+    return null;
+  }
+
+  return {
+    amount: giftClip.amount || 0,
+    message: giftClip.message || "",
+    recipientTransactionId: stringifyOptionalId(giftClip.recipientTransactionId),
+    recipientUserId: stringifyOptionalId(giftClip.recipientUserId),
+    senderTransactionId: stringifyOptionalId(giftClip.senderTransactionId),
+    transactionId: stringifyOptionalId(giftClip.transactionId),
+    transactionIds: {
+      recipient: stringifyOptionalId(giftClip.recipientTransactionId),
+      sender: stringifyOptionalId(giftClip.senderTransactionId || giftClip.transactionId),
+    },
+  };
+}
+
 function serializeChatRoomMessage(message) {
   const roomId = String(message.roomId);
   const authorId = message.senderUserId ? String(message.senderUserId) : null;
   const createdAt = message.createdAt || new Date();
+  const kind = getChatRoomMessageKind(message);
+  const giftClip = serializeGiftClipPayload(message.giftClip);
+  const text = message.text || giftClip?.message || "";
 
   return {
     authorId,
     authorName: message.senderDisplayName,
-    body: message.text,
+    body: text,
     createdAt: createdAt instanceof Date ? createdAt.toISOString() : new Date(createdAt).toISOString(),
     id: String(message._id),
+    kind,
+    messageType: kind,
     moderation: message.moderation || createAcceptedModeration(),
     playerId: authorId,
     playerName: message.senderDisplayName,
     roomId,
-    text: message.text,
-    tone: message.tone || "player",
+    text,
+    tone: message.tone || (kind === "system" ? "system" : "player"),
+    ...(giftClip ? { giftClip } : {}),
     ...(message.launchContext ? { launchContext: message.launchContext } : {}),
   };
 }
@@ -663,6 +700,7 @@ class ChatRoomRealtimeService {
 
     const moderation = moderateChatRoomMessage({ text });
     const message = new ChatRoomMessage({
+      kind: "text",
       moderation,
       roomId,
       senderDisplayName: getDisplayName(user),
@@ -829,6 +867,7 @@ class ChatRoomRealtimeService {
     };
     const launchText = `${getDisplayName(user)} launched a ${getLaunchGameLabel(gameSettings)} table from this room.`;
     const systemMessage = new ChatRoomMessage({
+      kind: "system",
       launchContext: launchPayload,
       moderation: createAcceptedModeration(),
       roomId: chatRoom._id,
