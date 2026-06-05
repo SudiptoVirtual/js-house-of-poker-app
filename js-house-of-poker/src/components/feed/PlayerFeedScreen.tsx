@@ -8,7 +8,7 @@ import { MainPlatformNavigation } from '../navigation/MainPlatformNavigation';
 import { routes } from '../../constants/routes';
 import { useAuth } from '../../context/AuthProvider';
 import { usePoker } from '../../context/PokerProvider';
-import { createFeedComment, createFeedPost, createFeedPromotion, createFeedShare, fetchFeedPosts, getApiErrorDetails, sendFeedGiftClip, sendFeedTableInvite, toggleFeedSupport } from '../../services/api';
+import { createFeedComment, createFeedPost, createFeedPromotion, createFeedShare, deleteFeedComment, fetchFeedComments, fetchFeedPosts, getApiErrorDetails, sendFeedGiftClip, sendFeedTableInvite, toggleFeedSupport, updateFeedComment } from '../../services/api';
 import { getAuthSession } from '../../services/storage/sessionStorage';
 import { env } from '../../config/env';
 import { colors } from '../../theme/colors';
@@ -18,7 +18,7 @@ import { FeedPostCard } from './FeedPostCard';
 import { GiftClipsModal } from './GiftClipsModal';
 import { PromoteForCreatorPanel } from './PromoteForCreatorPanel';
 import { ShareMenu } from './ShareMenu';
-import { isBackendShareDestination, type FeedNavigationRoute, type FeedPlayer, type FeedPost, type ShareDestinationId } from '../../types/feed';
+import { isBackendShareDestination, type FeedComment, type FeedNavigationRoute, type FeedPlayer, type FeedPost, type ShareDestinationId } from '../../types/feed';
 
 type FeedLoadState = 'idle' | 'loading' | 'ready' | 'empty' | 'error' | 'session-expired';
 
@@ -230,6 +230,31 @@ export function PlayerFeedScreen({ navigation }: PlayerFeedScreenProps) {
     navigation.navigate(routes.Profile);
   }
 
+  async function handleFetchComments(post: FeedPost) {
+    const session = await getAuthSession();
+
+    if (!isBackendFeedPostId(post.id)) {
+      throw new Error('Refresh the feed before loading comments for this post.');
+    }
+
+    if (!session?.token) {
+      throw new Error('Sign in to load comments for this post.');
+    }
+
+    try {
+      const response = await fetchFeedComments(post.id, session.token);
+
+      setPosts((currentPosts) =>
+        currentPosts.map((currentPost) => (currentPost.id === post.id ? response.post : currentPost)),
+      );
+
+      return response;
+    } catch (error) {
+      const details = getApiErrorDetails(error, 'Unable to load comments right now.');
+      throw new Error(details.message);
+    }
+  }
+
   async function handleComment(post: FeedPost, comment: string) {
     // TODO(notification:feedActivity): Notify post owner of new feed comment after backend confirmation.
     const session = await getAuthSession();
@@ -255,6 +280,64 @@ export function PlayerFeedScreen({ navigation }: PlayerFeedScreenProps) {
     } catch (error) {
       const details = getApiErrorDetails(error, 'Unable to save your comment right now.');
       Alert.alert('Comment not saved', details.message);
+      throw error;
+    }
+  }
+
+  async function handleUpdateComment(post: FeedPost, comment: FeedComment, body: string) {
+    const session = await getAuthSession();
+
+    if (!isBackendFeedPostId(post.id)) {
+      Alert.alert('Action unavailable', 'Refresh the feed before editing this comment.');
+      return undefined;
+    }
+
+    if (!session?.token) {
+      Alert.alert('Sign in required', 'Sign in to edit your comment.');
+      return undefined;
+    }
+
+    try {
+      const response = await updateFeedComment(post.id, comment.id, body, session.token);
+
+      setPosts((currentPosts) =>
+        currentPosts.map((currentPost) => (currentPost.id === post.id ? response.post : currentPost)),
+      );
+
+      return response;
+    } catch (error) {
+      const details = getApiErrorDetails(error, 'Unable to update your comment right now.');
+      Alert.alert('Comment not updated', details.message);
+      throw error;
+    }
+  }
+
+  async function handleDeleteComment(post: FeedPost, comment: FeedComment) {
+    const session = await getAuthSession();
+
+    if (!isBackendFeedPostId(post.id)) {
+      Alert.alert('Action unavailable', 'Refresh the feed before deleting this comment.');
+      return undefined;
+    }
+
+    if (!session?.token) {
+      Alert.alert('Sign in required', 'Sign in to delete your comment.');
+      return undefined;
+    }
+
+    try {
+      const response = await deleteFeedComment(post.id, comment.id, session.token);
+
+      if (response.post) {
+        setPosts((currentPosts) =>
+          currentPosts.map((currentPost) => (currentPost.id === post.id ? response.post ?? currentPost : currentPost)),
+        );
+      }
+
+      return response;
+    } catch (error) {
+      const details = getApiErrorDetails(error, 'Unable to delete your comment right now.');
+      Alert.alert('Comment not deleted', details.message);
       throw error;
     }
   }
@@ -449,13 +532,17 @@ export function PlayerFeedScreen({ navigation }: PlayerFeedScreenProps) {
             <FeedPostCard
               actionsDisabled={Boolean(getPostActionDisabledMessage(item))}
               actionsDisabledMessage={getPostActionDisabledMessage(item)}
+              currentUserId={currentUser?.id}
               onComment={handleComment}
+              onDeleteComment={handleDeleteComment}
+              onFetchComments={handleFetchComments}
               onGiftClips={setGiftPost}
               onInviteToTable={handleInviteToTable}
               onOpenProfile={handleOpenProfile}
               onPromote={setPromotePost}
               onShare={setSharePost}
               onSupportChange={handleSupportChange}
+              onUpdateComment={handleUpdateComment}
               post={item}
             />
           )}
