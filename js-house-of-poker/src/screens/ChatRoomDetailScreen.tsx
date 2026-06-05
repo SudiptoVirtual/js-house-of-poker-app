@@ -31,6 +31,7 @@ import type {
   AIPrimeActionResponse,
   ChatRoomMessageNotificationPayload,
   ChatRoomPlayerInvitedPayload,
+  LaunchFromChatRoomPayload,
   ChatRoomSystemMessageRequest,
   ChatRoomSystemMessageResponse,
   ChatRoomPresencePayload,
@@ -55,6 +56,45 @@ import type { RootStackParamList } from '../types/navigation';
 type Props = NativeStackScreenProps<RootStackParamList, 'ChatRoomDetail'>;
 
 type ChatRoomTableRules = Pick<PokerGameSettingsUpdate, 'lowRule' | 'mode' | 'wildCards'>;
+
+type ChatRoomNotificationRecord = {
+  body?: string;
+  chatRoomId?: string | null;
+  data?: {
+    invites?: ChatRoomTableInviteNotificationData[];
+    launchedAt?: string;
+    roomName?: string;
+    senderDisplayName?: string;
+    tableCode?: string | null;
+    tableName?: string | null;
+  } | null;
+  tableId?: string | null;
+  title?: string;
+  type?: string;
+  userId?: string;
+};
+
+type ChatRoomTableInviteNotificationData = {
+  id?: string;
+  message?: string | null;
+  recipientAccountId?: string;
+  status?: string;
+};
+
+type TableInviteDeliveryStatus = 'delivered' | 'failed' | 'invited' | 'launched' | 'pending';
+
+type TableInviteDelivery = {
+  delivered: boolean;
+  error?: string | null;
+  inviteId?: string;
+  playerId: string;
+  recipientName: string;
+  status: TableInviteDeliveryStatus;
+  tableCode?: string | null;
+  tableId?: string | null;
+  tableName?: string | null;
+  updatedAt: string;
+};
 
 const fallbackUser = { id: 'signed-in-player', name: 'Player' };
 const expiredSessionMessage = 'Your sign-in session expired. Sign in again to use realtime chat and room invites.';
@@ -85,6 +125,87 @@ function getInviteEligiblePlayerIds(players: ChatRoomPlayer[], playerIds: string
   );
 
   return playerIds.filter((playerId) => eligibleIds.has(playerId));
+}
+
+
+function getPlayerIdsFromInvitePayload(payload: ChatRoomPlayerInvitedPayload) {
+  return Array.from(new Set([
+    ...(payload.invitedPlayerIds ?? []),
+    ...(payload.playerIds ?? []),
+    ...(payload.invitedPlayerId ? [payload.invitedPlayerId] : []),
+    ...(payload.playerId ? [payload.playerId] : []),
+  ].filter(Boolean)));
+}
+
+function getSuccessfulInvitePlayerIds(payload: ChatRoomPlayerInvitedPayload) {
+  const successfulResultIds = payload.results?.filter((result) => result.ok || result.success).map((result) => result.playerId) ?? [];
+  const payloadIds = payload.invitedPlayerIds ?? (payload.invitedPlayerId ? [payload.invitedPlayerId] : []);
+
+  return Array.from(new Set([...(successfulResultIds.length > 0 ? successfulResultIds : payloadIds)].filter(Boolean)));
+}
+
+function getPlayerDisplayName(players: ChatRoomPlayer[], playerId: string, fallback?: string | null) {
+  const player = players.find((candidate) => candidate.id === playerId || candidate.userId === playerId);
+  return player?.displayName ?? fallback ?? `Player ${playerId.slice(-4)}`;
+}
+
+function getInviteRecipientName(payload: ChatRoomPlayerInvitedPayload, playerId: string, players: ChatRoomPlayer[]) {
+  const invite = payload.invites?.find((candidate) => candidate.recipientAccountId === playerId)
+    ?? (payload.invite?.recipientAccountId === playerId ? payload.invite : undefined);
+
+  return getPlayerDisplayName(players, playerId, invite?.recipientLabel ?? invite?.recipientHandle ?? null);
+}
+
+function getInviteFailureReason(reason?: string) {
+  if (!reason) {
+    return null;
+  }
+
+  return reason
+    .split('-')
+    .filter(Boolean)
+    .map((word) => `${word.charAt(0).toUpperCase()}${word.slice(1)}`)
+    .join(' ');
+}
+
+function getDeliveredInviteSummary(deliveries: TableInviteDelivery[]) {
+  const deliveredCount = deliveries.filter((delivery) => delivery.delivered).length;
+  const failedCount = deliveries.filter((delivery) => delivery.status === 'failed').length;
+  const latest = deliveries[0];
+
+  if (!latest) {
+    return null;
+  }
+
+  const tableLabel = latest.tableName ?? latest.tableCode ?? 'the table';
+  const deliveredLabel = deliveredCount > 0 ? `${deliveredCount} delivered` : 'No realtime deliveries yet';
+  const failedLabel = failedCount > 0 ? ` • ${failedCount} failed` : '';
+
+  return `${deliveredLabel}${failedLabel} for ${tableLabel}.`;
+}
+
+function mergeTableInviteDeliveries(
+  currentDeliveries: TableInviteDelivery[],
+  incomingDeliveries: TableInviteDelivery[],
+) {
+  const deliveryByPlayerAndTable = new Map(
+    currentDeliveries.map((delivery) => [`${delivery.playerId}:${delivery.tableId ?? delivery.tableCode ?? ''}`, delivery]),
+  );
+
+  incomingDeliveries.forEach((delivery) => {
+    deliveryByPlayerAndTable.set(`${delivery.playerId}:${delivery.tableId ?? delivery.tableCode ?? ''}`, {
+      ...deliveryByPlayerAndTable.get(`${delivery.playerId}:${delivery.tableId ?? delivery.tableCode ?? ''}`),
+      ...delivery,
+    });
+  });
+
+  return [...deliveryByPlayerAndTable.values()].sort(
+    (left, right) => new Date(right.updatedAt).getTime() - new Date(left.updatedAt).getTime(),
+  );
+}
+
+function isChatRoomNotificationRecord(notification: unknown): notification is ChatRoomNotificationRecord {
+  return typeof notification === 'object' && notification !== null;
 }
 
 function getTierIdFromRoomConfig(room: ChatRoom | null) {
@@ -127,6 +248,7 @@ export function ChatRoomDetailScreen({ navigation, route }: Props) {
   const { transportKind } = usePoker();
   const socketRef = useRef<Socket | null>(null);
   const authRef = useRef<{ token: string | null; user: { id?: string; name?: string; email?: string } } | null>(null);
+  const roomPlayersRef = useRef<ChatRoomPlayer[]>([]);
   const [room, setRoom] = useState<ChatRoom | null>(null);
   const [isLoadingRoom, setIsLoadingRoom] = useState(true);
   const [roomError, setRoomError] = useState<string | null>(null);
@@ -152,8 +274,156 @@ export function ChatRoomDetailScreen({ navigation, route }: Props) {
   const [selectedGiftRecipientId, setSelectedGiftRecipientId] = useState<string | null>(null);
   const [isInvitingFriends, setIsInvitingFriends] = useState(false);
   const [roomInviteStatus, setRoomInviteStatus] = useState<string | null>(null);
+  const [tableInviteDeliveries, setTableInviteDeliveries] = useState<TableInviteDelivery[]>([]);
+  const [tableInviteFeedback, setTableInviteFeedback] = useState<string | null>(null);
   const currentUserId = authRef.current?.user.id ?? fallbackUser.id;
   const currentUserName = authRef.current?.user.name ?? authRef.current?.user.email ?? fallbackUser.name;
+
+
+  useEffect(() => {
+    roomPlayersRef.current = room?.players ?? [];
+  }, [room?.players]);
+
+  function applyTableInvitePayload(payload: ChatRoomPlayerInvitedPayload) {
+    const successfulPlayerIds = getSuccessfulInvitePlayerIds(payload);
+    const allPlayerIds = getPlayerIdsFromInvitePayload(payload);
+    const failedResults = payload.results?.filter((result) => !result.ok && !result.success) ?? [];
+    const failedPlayerIds = failedResults.map((result) => result.playerId);
+    const deliveredPlayerIds = new Set(payload.deliveredPlayerIds ?? []);
+    const now = new Date().toISOString();
+    const players = roomPlayersRef.current;
+    const deliveries: TableInviteDelivery[] = [
+      ...successfulPlayerIds.map((playerId) => ({
+        delivered: deliveredPlayerIds.has(playerId) || payload.recipient === true,
+        inviteId: payload.invites?.find((invite) => invite.recipientAccountId === playerId)?.id ?? payload.inviteId,
+        playerId,
+        recipientName: getInviteRecipientName(payload, playerId, players),
+        status: deliveredPlayerIds.has(playerId) || payload.recipient === true ? ('delivered' as const) : ('invited' as const),
+        tableCode: payload.tableCode,
+        tableId: payload.tableDbId ?? payload.tableId,
+        tableName: payload.tableName,
+        updatedAt: now,
+      })),
+      ...failedResults.map((result) => ({
+        delivered: false,
+        error: getInviteFailureReason(result.reason),
+        inviteId: result.inviteId,
+        playerId: result.playerId,
+        recipientName: getPlayerDisplayName(players, result.playerId),
+        status: 'failed' as const,
+        tableCode: payload.tableCode,
+        tableId: payload.tableDbId ?? payload.tableId,
+        tableName: payload.tableName,
+        updatedAt: now,
+      })),
+    ];
+
+    if (successfulPlayerIds.length > 0) {
+      setInvitedPlayerIds((currentIds) => Array.from(new Set([...currentIds, ...successfulPlayerIds])));
+      setSelectedPlayerIds((currentIds) => currentIds.filter((currentId) => !successfulPlayerIds.includes(currentId)));
+    }
+
+    if (deliveries.length > 0) {
+      setTableInviteDeliveries((currentDeliveries) => mergeTableInviteDeliveries(currentDeliveries, deliveries));
+    }
+
+    const tableLabel = payload.tableName ?? payload.tableCode ?? 'the table';
+
+    if (failedPlayerIds.length > 0) {
+      const failedNames = failedPlayerIds.map((playerId) => getPlayerDisplayName(players, playerId)).join(', ');
+      setTableInviteFeedback(`Invite failed for ${failedNames} (${tableLabel}).`);
+      return;
+    }
+
+    if (successfulPlayerIds.length > 0 || allPlayerIds.length > 0) {
+      const recipientNames = (successfulPlayerIds.length > 0 ? successfulPlayerIds : allPlayerIds)
+        .map((playerId) => getInviteRecipientName(payload, playerId, players))
+        .join(', ');
+      const deliveredCount = payload.deliveredPlayerIds?.length ?? 0;
+      setTableInviteFeedback(
+        `${deliveredCount > 0 ? `${deliveredCount} delivered, ` : ''}${recipientNames} invited to ${tableLabel}.`,
+      );
+    }
+  }
+
+  function applyLaunchFromChatRoomPayload(payload: LaunchFromChatRoomPayload) {
+    const launchedPlayerIds = payload.invitedPlayerIds ?? [];
+    const deliveredPlayerIds = new Set(payload.deliveredPlayerIds ?? []);
+    const now = new Date().toISOString();
+    const deliveries = launchedPlayerIds.map((playerId) => ({
+      delivered: deliveredPlayerIds.has(playerId),
+      playerId,
+      recipientName: getPlayerDisplayName(roomPlayersRef.current, playerId),
+      status: deliveredPlayerIds.has(playerId) ? ('delivered' as const) : ('launched' as const),
+      tableCode: payload.tableCode,
+      tableId: payload.tableDbId ?? payload.tableId,
+      tableName: payload.tableName,
+      updatedAt: now,
+    }));
+
+    if (launchedPlayerIds.length > 0) {
+      setInvitedPlayerIds((currentIds) => Array.from(new Set([...currentIds, ...launchedPlayerIds])));
+    }
+
+    if (deliveries.length > 0) {
+      setTableInviteDeliveries((currentDeliveries) => mergeTableInviteDeliveries(currentDeliveries, deliveries));
+    }
+
+    const tableLabel = payload.tableName ?? payload.tableCode ?? 'the launched table';
+    setTableInviteFeedback(
+      payload.sender
+        ? `${tableLabel} launched. ${payload.deliveredPlayerIds?.length ?? 0} invited player${payload.deliveredPlayerIds?.length === 1 ? '' : 's'} notified.`
+        : `${tableLabel} launched from this chat room.`,
+    );
+  }
+
+  function applyMessageNotificationPayload(payload: ChatRoomMessageNotificationPayload) {
+    if (payload.message) {
+      setRoom((currentRoom) => currentRoom ? {
+        ...currentRoom,
+        lastMessagePreview: payload.preview ?? payload.message?.body ?? currentRoom.lastMessagePreview,
+        messages: mergeMessages(currentRoom.messages, [payload.message!]),
+        unreadCount: payload.unreadCount ?? currentRoom.unreadCount,
+      } : currentRoom);
+    }
+
+    if (!isChatRoomNotificationRecord(payload.notification)) {
+      return;
+    }
+
+    const notification = payload.notification;
+    const tableCode = notification.data?.tableCode ?? null;
+    const tableName = notification.data?.tableName ?? null;
+    const tableId = notification.tableId ?? null;
+
+    if (notification.type === 'table_invite') {
+      const now = new Date().toISOString();
+      const deliveries = (notification.data?.invites ?? [])
+        .filter((invite) => invite.recipientAccountId)
+        .map((invite) => ({
+          delivered: true,
+          inviteId: invite.id,
+          playerId: invite.recipientAccountId!,
+          recipientName: getPlayerDisplayName(roomPlayersRef.current, invite.recipientAccountId!),
+          status: 'delivered' as const,
+          tableCode,
+          tableId,
+          tableName,
+          updatedAt: now,
+        }));
+
+      if (deliveries.length > 0) {
+        setInvitedPlayerIds((currentIds) => Array.from(new Set([...currentIds, ...deliveries.map((delivery) => delivery.playerId)])));
+        setTableInviteDeliveries((currentDeliveries) => mergeTableInviteDeliveries(currentDeliveries, deliveries));
+      }
+
+      setTableInviteFeedback(payload.preview ?? notification.body ?? `Table invite delivered for ${tableName ?? tableCode ?? 'a table'}.`);
+    }
+
+    if (notification.type === 'table_launched_from_chat') {
+      setTableInviteFeedback(payload.preview ?? notification.body ?? `${tableName ?? tableCode ?? 'A table'} launched from this room.`);
+    }
+  }
 
   function handleRealtimeAckError(ack: ChatRoomSocketAck) {
     const message = normalizeSocketError(ack.error);
@@ -382,27 +652,16 @@ export function ChatRoomDetailScreen({ navigation, route }: Props) {
         setRoom((currentRoom) => currentRoom ? { ...currentRoom, activePlayerCount: payload.activePlayerCount ?? payload.players?.length ?? currentRoom.activePlayerCount, players: payload.players ?? currentRoom.players } : currentRoom);
       });
       socket.on(chatRoomSocketEvents.messageNotification, (payload: ChatRoomMessageNotificationPayload) => {
-        if (payload.message) {
-          setRoom((currentRoom) => currentRoom ? {
-            ...currentRoom,
-            lastMessagePreview: payload.preview ?? payload.message?.body ?? currentRoom.lastMessagePreview,
-            messages: mergeMessages(currentRoom.messages, [payload.message!]),
-            unreadCount: payload.unreadCount ?? currentRoom.unreadCount,
-          } : currentRoom);
-        }
+        applyMessageNotificationPayload(payload);
       });
       socket.on(chatRoomSocketEvents.playerInvited, (payload: ChatRoomPlayerInvitedPayload) => {
-        const playerIds = payload.invitedPlayerIds ?? payload.playerIds ?? [];
-        setInvitedPlayerIds((currentIds) => Array.from(new Set([...currentIds, ...playerIds])));
+        applyTableInvitePayload(payload);
       });
       socket.on(chatRoomSocketEvents.notificationTableInvite, (payload: ChatRoomPlayerInvitedPayload) => {
-        const playerIds = payload.invitedPlayerIds ?? payload.playerIds ?? (payload.invitedPlayerId ? [payload.invitedPlayerId] : []);
-        setInvitedPlayerIds((currentIds) => Array.from(new Set([...currentIds, ...playerIds])));
+        applyTableInvitePayload(payload);
       });
-      socket.on(chatRoomSocketEvents.launchFromChatRoom, (payload: { invitedPlayerIds?: string[] }) => {
-        if (payload.invitedPlayerIds?.length) {
-          setInvitedPlayerIds((currentIds) => Array.from(new Set([...currentIds, ...payload.invitedPlayerIds!])));
-        }
+      socket.on(chatRoomSocketEvents.launchFromChatRoom, (payload: LaunchFromChatRoomPayload) => {
+        applyLaunchFromChatRoomPayload(payload);
       });
 
       socket.connect();
@@ -701,7 +960,23 @@ export function ChatRoomDetailScreen({ navigation, route }: Props) {
       return;
     }
 
+    const now = new Date().toISOString();
+    const pendingDeliveries = eligibleSelectedPlayerIds.map((playerId) => ({
+      delivered: false,
+      playerId,
+      recipientName: getPlayerDisplayName(room.players, playerId),
+      status: 'pending' as const,
+      tableCode: room.tableConfig.tableCode,
+      tableId: null,
+      tableName: `${room.title} Table`,
+      updatedAt: now,
+    }));
+
     setInvitedPlayerIds((currentIds) => Array.from(new Set([...currentIds, ...eligibleSelectedPlayerIds])));
+    setTableInviteDeliveries((currentDeliveries) => mergeTableInviteDeliveries(currentDeliveries, pendingDeliveries));
+    setTableInviteFeedback(
+      `${eligibleSelectedPlayerIds.map((playerId) => getPlayerDisplayName(room.players, playerId)).join(', ')} queued for ${room.title} Table.`,
+    );
     setSelectedPlayerIds((currentIds) =>
       currentIds.filter((currentId) => !eligibleSelectedPlayerIds.includes(currentId)),
     );
@@ -818,8 +1093,8 @@ export function ChatRoomDetailScreen({ navigation, route }: Props) {
           } satisfies Omit<InviteRoomPlayersRequest, 'roomId' | 'token'> & { source: string },
         );
 
-        if (inviteAcknowledgement?.invitedPlayerIds?.length) {
-          setInvitedPlayerIds((currentIds) => Array.from(new Set([...currentIds, ...inviteAcknowledgement.invitedPlayerIds!])));
+        if (inviteAcknowledgement) {
+          applyTableInvitePayload(inviteAcknowledgement);
         }
       }
 
@@ -878,6 +1153,45 @@ export function ChatRoomDetailScreen({ navigation, route }: Props) {
           players={room.players}
           selectedPlayerIds={selectedPlayerIds}
         />
+        {tableInviteFeedback || tableInviteDeliveries.length > 0 ? (
+          <View style={styles.tableInviteStatusCard}>
+            <Text style={styles.subsectionTitle}>Table invite delivery</Text>
+            {tableInviteFeedback ? <Text style={styles.helperText}>{tableInviteFeedback}</Text> : null}
+            {getDeliveredInviteSummary(tableInviteDeliveries) ? (
+              <Text style={styles.helperText}>{getDeliveredInviteSummary(tableInviteDeliveries)}</Text>
+            ) : null}
+            <View style={styles.tableInviteDeliveryStack}>
+              {tableInviteDeliveries.slice(0, 6).map((delivery) => (
+                <View key={`${delivery.playerId}:${delivery.tableId ?? delivery.tableCode ?? delivery.updatedAt}`} style={styles.tableInviteDeliveryRow}>
+                  <View style={styles.tableInviteDeliveryCopy}>
+                    <Text style={styles.tableInviteRecipient}>{delivery.recipientName}</Text>
+                    <Text style={styles.tableInviteMeta}>
+                      {[delivery.tableName, delivery.tableCode ? `Code ${delivery.tableCode}` : null].filter(Boolean).join(' • ')}
+                    </Text>
+                    {delivery.error ? <Text style={styles.tableInviteError}>{delivery.error}</Text> : null}
+                  </View>
+                  <Text
+                    style={[
+                      styles.tableInvitePill,
+                      delivery.status === 'failed' ? styles.tableInvitePillFailed : null,
+                      delivery.delivered ? styles.tableInvitePillDelivered : null,
+                    ]}
+                  >
+                    {delivery.status === 'failed'
+                      ? 'Failed'
+                      : delivery.delivered
+                        ? 'Delivered'
+                        : delivery.status === 'pending'
+                          ? 'Queued'
+                          : delivery.status === 'launched'
+                            ? 'Launched'
+                            : 'Invited'}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        ) : null}
         <View style={styles.roomInviteStack}>
           <Text style={styles.subsectionTitle}>Invite active friends</Text>
           {!authRef.current?.token ? (
@@ -1021,6 +1335,68 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     gap: 10,
     paddingTop: 12,
+  },
+  tableInviteDeliveryCopy: {
+    flex: 1,
+    gap: 3,
+  },
+  tableInviteDeliveryRow: {
+    alignItems: 'center',
+    borderColor: colors.border,
+    borderRadius: 14,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 9,
+  },
+  tableInviteDeliveryStack: {
+    gap: 8,
+  },
+  tableInviteError: {
+    color: colors.danger,
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  tableInviteMeta: {
+    color: colors.mutedText,
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  tableInvitePill: {
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderColor: colors.border,
+    borderRadius: 999,
+    borderWidth: 1,
+    color: colors.text,
+    fontSize: 11,
+    fontWeight: '900',
+    overflow: 'hidden',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  tableInvitePillDelivered: {
+    backgroundColor: 'rgba(77,243,199,0.14)',
+    borderColor: colors.success,
+    color: colors.success,
+  },
+  tableInvitePillFailed: {
+    backgroundColor: 'rgba(255,91,110,0.12)',
+    borderColor: colors.danger,
+    color: colors.danger,
+  },
+  tableInviteRecipient: {
+    color: colors.text,
+    fontSize: 13,
+    fontWeight: '900',
+  },
+  tableInviteStatusCard: {
+    backgroundColor: colors.surfaceMuted,
+    borderColor: colors.border,
+    borderRadius: 18,
+    borderWidth: 1,
+    gap: 10,
+    padding: 12,
   },
   subsectionTitle: {
     color: colors.text,
