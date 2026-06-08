@@ -17,6 +17,7 @@ router.post("/accept", protectUser, acceptFriend);
 router.post("/decline", protectUser, declineFriend);
 router.get("/search", protectUser, searchPlayers);
 router.get("/status/:userId", protectUser, getFriendStatus);
+router.get("/", protectUser, getFriendList);
 router.get("/list", protectUser, getFriendList);
 
 module.exports = router;
