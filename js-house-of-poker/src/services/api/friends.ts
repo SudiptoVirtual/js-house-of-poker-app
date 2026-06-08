@@ -196,7 +196,7 @@ async function requestFirstAvailable<T>(paths: string[], token: string) {
 }
 
 export async function fetchFriends(token: string) {
-  const response = await requestFirstAvailable<FriendListResponse>(['/api/friends', '/api/friends/list'], token);
+  const response = await apiRequest<FriendListResponse>('/api/friends', { token });
 
   return normalizePlayers(response, 'friend');
 }
