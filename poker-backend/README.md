@@ -101,6 +101,25 @@ EXPO_PUBLIC_POKER_SOCKET_PROTOCOL=table-v1
 
 For local Expo development, keep `EXPO_PUBLIC_BASE_URL=http://localhost:5000` in `js-house-of-poker/.env.local` or in your developer shell.
 
+**Rebuild preview after environment or deployment changes.** Expo public environment values are embedded at build time. After changing preview environment values or the backend proxy/deployment, create and install a new EAS preview build; an already-installed preview APK continues using its old `EXPO_PUBLIC_BASE_URL`.
+
+Before building, confirm the resolved preview configuration from the repository root:
+
+```bash
+cd js-house-of-poker
+APP_ENV=preview npx expo config --type public
+```
+
+Confirm that `extra.publicEnv.EXPO_PUBLIC_BASE_URL` and the other public backend values point to the intended preview backend. `app.config.ts` loads `.env`, resolves `APP_ENV`, and then loads the matching profile file such as `.env.preview`; the `preview` EAS profile also sets `APP_ENV=preview`.
+
+Build and install a fresh Android preview APK:
+
+```bash
+eas build --profile preview --platform android
+```
+
+After installing the new APK, retest feed loading, feed post creation, friends loading, and friends search.
+
 5. Seed default chat rooms once after production MongoDB is configured:
 
 ```bash
