@@ -1,5 +1,6 @@
+import { env } from '../../config/env';
 import type { BackendShareDestinationId, FeedComment, FeedPost, FeedReactionSummary } from '../../types/feed';
-import { apiRequest } from './client';
+import { ApiError, apiRequest } from './client';
 
 
 export type FeedShare = {
@@ -222,12 +223,34 @@ export type FeedCommentsResponse = {
   post: FeedPost;
 };
 
+type FeedApiRequestOptions = NonNullable<Parameters<typeof apiRequest>[1]>;
+
+function normalizeFeedApiError(error: unknown) {
+  if (error instanceof ApiError && error.status === 404) {
+    const configuredHost = env.apiBaseUrl || 'the configured API host';
+
+    return new Error(
+      `Feed API route was not found on ${configuredHost}. Set EXPO_PUBLIC_BASE_URL to the poker-backend server.`,
+    );
+  }
+
+  return error;
+}
+
+async function feedApiRequest<T>(path: string, options: FeedApiRequestOptions = {}) {
+  try {
+    return await apiRequest<T>(path, options);
+  } catch (error) {
+    throw normalizeFeedApiError(error);
+  }
+}
+
 export async function fetchFeedPosts(token?: string | null) {
-  return apiRequest<FeedPostsResponse>('/api/feed', { token });
+  return feedApiRequest<FeedPostsResponse>('/api/feed', { token });
 }
 
 export async function createFeedPost(input: CreateFeedPostInput, token: string): Promise<CreateFeedPostResponse> {
-  return apiRequest<CreateFeedPostResponse>('/api/feed', {
+  return feedApiRequest<CreateFeedPostResponse>('/api/feed', {
     body: input,
     method: 'POST',
     token,
@@ -235,7 +258,7 @@ export async function createFeedPost(input: CreateFeedPostInput, token: string):
 }
 
 export async function createFeedComment(postId: string, comment: string, token: string) {
-  return apiRequest<FeedCommentResponse>(`/api/feed/${encodeURIComponent(postId)}/comments`, {
+  return feedApiRequest<FeedCommentResponse>(`/api/feed/${encodeURIComponent(postId)}/comments`, {
     body: { comment },
     method: 'POST',
     token,
@@ -243,11 +266,11 @@ export async function createFeedComment(postId: string, comment: string, token: 
 }
 
 export async function fetchFeedComments(postId: string, token?: string | null) {
-  return apiRequest<FeedCommentsResponse>(`/api/feed/${encodeURIComponent(postId)}/comments`, { token });
+  return feedApiRequest<FeedCommentsResponse>(`/api/feed/${encodeURIComponent(postId)}/comments`, { token });
 }
 
 export async function updateFeedComment(postId: string, commentId: string, comment: string, token: string) {
-  return apiRequest<FeedCommentResponse>(
+  return feedApiRequest<FeedCommentResponse>(
     `/api/feed/${encodeURIComponent(postId)}/comments/${encodeURIComponent(commentId)}`,
     {
       body: { comment },
@@ -258,7 +281,7 @@ export async function updateFeedComment(postId: string, commentId: string, comme
 }
 
 export async function deleteFeedComment(postId: string, commentId: string, token: string) {
-  return apiRequest<DeleteFeedCommentResponse>(
+  return feedApiRequest<DeleteFeedCommentResponse>(
     `/api/feed/${encodeURIComponent(postId)}/comments/${encodeURIComponent(commentId)}`,
     {
       method: 'DELETE',
@@ -269,7 +292,7 @@ export async function deleteFeedComment(postId: string, commentId: string, token
 
 
 export async function toggleFeedSupport(postId: string, supported: boolean, token: string) {
-  return apiRequest<FeedSupportResponse>(`/api/feed/${encodeURIComponent(postId)}/reactions`, {
+  return feedApiRequest<FeedSupportResponse>(`/api/feed/${encodeURIComponent(postId)}/reactions`, {
     body: { reactionType: 'support', supported },
     method: 'POST',
     token,
@@ -277,12 +300,12 @@ export async function toggleFeedSupport(postId: string, supported: boolean, toke
 }
 
 export async function fetchFeedReactionSummaries(postId: string, token?: string | null) {
-  return apiRequest<FeedReactionSummariesResponse>(`/api/feed/${encodeURIComponent(postId)}/reactions`, { token });
+  return feedApiRequest<FeedReactionSummariesResponse>(`/api/feed/${encodeURIComponent(postId)}/reactions`, { token });
 }
 
 
 export async function createFeedShare(postId: string, input: CreateFeedShareInput, token: string) {
-  return apiRequest<FeedShareResponse>(`/api/feed/${encodeURIComponent(postId)}/shares`, {
+  return feedApiRequest<FeedShareResponse>(`/api/feed/${encodeURIComponent(postId)}/shares`, {
     body: input,
     method: 'POST',
     token,
@@ -291,7 +314,7 @@ export async function createFeedShare(postId: string, input: CreateFeedShareInpu
 
 
 export async function sendFeedGiftClip(postId: string, input: SendFeedGiftClipInput, token: string) {
-  return apiRequest<FeedGiftClipResponse>(`/api/feed/${encodeURIComponent(postId)}/gift-clips`, {
+  return feedApiRequest<FeedGiftClipResponse>(`/api/feed/${encodeURIComponent(postId)}/gift-clips`, {
     body: input,
     method: 'POST',
     token,
@@ -299,7 +322,7 @@ export async function sendFeedGiftClip(postId: string, input: SendFeedGiftClipIn
 }
 
 export async function sendFeedTableInvite(postId: string, input: SendFeedTableInviteInput, token: string) {
-  return apiRequest<FeedTableInviteResponse>(`/api/feed/${encodeURIComponent(postId)}/table-invites`, {
+  return feedApiRequest<FeedTableInviteResponse>(`/api/feed/${encodeURIComponent(postId)}/table-invites`, {
     body: input,
     method: 'POST',
     token,
@@ -308,7 +331,7 @@ export async function sendFeedTableInvite(postId: string, input: SendFeedTableIn
 
 
 export async function createFeedPromotion(postId: string, input: CreateFeedPromotionInput, token: string) {
-  return apiRequest<FeedPromotionResponse>(`/api/feed/${encodeURIComponent(postId)}/promotions/checkout`, {
+  return feedApiRequest<FeedPromotionResponse>(`/api/feed/${encodeURIComponent(postId)}/promotions/checkout`, {
     body: input,
     method: 'POST',
     token,
