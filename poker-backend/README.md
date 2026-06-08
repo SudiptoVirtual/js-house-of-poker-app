@@ -87,7 +87,7 @@ pm2 start deploy/pm2/ecosystem.config.cjs
 pm2 save
 ```
 
-3. Configure Nginx with `deploy/nginx/jshouseofpoker.com.conf`, adjusting the certificate paths if needed. The proxy target must match the backend `PORT`, and websocket upgrade headers must be present for Socket.IO.
+3. Configure Nginx with `deploy/nginx/jshouseofpoker.com.conf`, adjusting the certificate paths if needed. The proxy target must match the backend `PORT`. Apply the explicit `/api/` and `/socket.io/` locations on the public host even if another service serves the website at `/`; Socket.IO also requires its websocket upgrade headers.
 4. Configure Expo/EAS preview and production to use the same public origin for all backend values. These non-secret values are checked in through `js-house-of-poker/.env.preview`, `js-house-of-poker/.env.production`, and `js-house-of-poker/eas.json`:
 
 ```bash
@@ -112,8 +112,13 @@ Verify the live backend after deployment:
 ```bash
 curl -i https://www.jshouseofpoker.com/
 curl -i https://www.jshouseofpoker.com/api/chat-rooms
+curl -i https://www.jshouseofpoker.com/api/feed
+curl -i https://www.jshouseofpoker.com/api/friends/list
+curl -i -X POST -H 'Content-Type: application/json' -d '{}' https://www.jshouseofpoker.com/api/feed
 curl -i "https://www.jshouseofpoker.com/socket.io/?EIO=4&transport=polling"
 ```
+
+`/api/friends/list` and the unauthenticated feed `POST` should return `401 Not authorized`; that is an expected backend response and confirms those requests are no longer being answered by the website's route-not-found handler. The feed `GET` should return a backend response rather than a website route `404`.
 
 ---
 
