@@ -66,6 +66,80 @@ async function safelyCreateAndEmitFriendNotification(createNotification) {
   }
 }
 
+function escapeRegExp(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function getSearchQuery(req) {
+  return String(req.query?.q || req.query?.query || "").trim();
+}
+
+function buildSearchFilter(query, currentUserId) {
+  const safeQuery = escapeRegExp(query);
+  const containsQuery = new RegExp(safeQuery, "i");
+  const emailPrefixQuery = new RegExp(`^${safeQuery}`, "i");
+
+  return {
+    _id: { $ne: currentUserId },
+    isBlocked: { $ne: true },
+    status: { $nin: ["blocked", "suspended"] },
+    $or: [
+      { name: containsQuery },
+      { username: containsQuery },
+      { handle: containsQuery },
+      { displayName: containsQuery },
+      { email: emailPrefixQuery },
+      { phone: containsQuery },
+    ],
+  };
+}
+
+function serializeSearchPlayer(user, relationship) {
+  const request = serializeRequest(relationship?.request);
+
+  return {
+    ...serializeFriend(user),
+    displayName: user.displayName || user.name,
+    handle: user.handle,
+    relationshipStatus: relationship?.status || "not_friends",
+    requestId: request?.id || null,
+    request,
+    username: user.username || user.handle || (user.email ? user.email.split("@")[0] : undefined),
+  };
+}
+
+function buildRelationshipMap(currentUserId, currentUser, users, requests) {
+  const friendIds = getFriendIds(currentUser);
+  const relationships = new Map();
+
+  for (const user of users) {
+    const userId = String(user._id);
+
+    relationships.set(userId, {
+      status: friendIds.has(userId) ? "friend" : "not_friends",
+      request: null,
+    });
+  }
+
+  for (const request of requests) {
+    const otherUserId = areSameObjectId(request.senderUserId, currentUserId)
+      ? String(request.receiverUserId)
+      : String(request.senderUserId);
+
+    if (!relationships.has(otherUserId) || relationships.get(otherUserId).status === "friend") {
+      continue;
+    }
+
+    const status = areSameObjectId(request.senderUserId, currentUserId)
+      ? "request_sent"
+      : "request_received";
+
+    relationships.set(otherUserId, { status, request });
+  }
+
+  return relationships;
+}
+
 function serializeFriend(user) {
   return {
     id: String(user._id),
@@ -363,6 +437,42 @@ const declineFriend = async (req, res) => {
   }
 };
 
+const searchPlayers = async (req, res) => {
+  try {
+    const query = getSearchQuery(req);
+
+    if (!query) {
+      return res.status(200).json({ count: 0, players: [], query });
+    }
+
+    const currentUserId = req.user._id;
+    const users = await User.find(buildSearchFilter(query, currentUserId))
+      .select("name username handle displayName email avatar isOnline status playerStatus phone")
+      .limit(25)
+      .lean();
+
+    const pairKeys = users.map((user) => FriendRequest.buildFriendPairKey(currentUserId, user._id));
+    const pendingRequests = pairKeys.length
+      ? await FriendRequest.find({ pairKey: { $in: pairKeys }, status: "pending" })
+          .sort({ createdAt: -1 })
+          .select("senderUserId receiverUserId status createdAt updatedAt")
+          .lean()
+      : [];
+    const relationships = buildRelationshipMap(currentUserId, req.user, users, pendingRequests);
+    const players = users.map((user) =>
+      serializeSearchPlayer(user, relationships.get(String(user._id)))
+    );
+
+    return res.status(200).json({
+      count: players.length,
+      players,
+      query,
+    });
+  } catch (error) {
+    return res.status(500).json({ message: "Error searching players", error: error.message });
+  }
+};
+
 const getFriendStatus = async (req, res) => {
   try {
     const userId = normalizeObjectId(req.params.userId);
@@ -415,4 +525,5 @@ module.exports = {
   getFriendList,
   getFriendStatus,
   requestFriend,
+  searchPlayers,
 };
