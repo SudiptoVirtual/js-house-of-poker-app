@@ -556,21 +556,116 @@ function serializeComment(comment, currentUserId = null) {
   });
 }
 
-async function runCommentTransaction(callback) {
+async function runCommentTransaction(callback, fallback) {
   const session = await mongoose.startSession();
+  let transactionStarted = false;
 
   try {
-    let result;
-    await session.withTransaction(async () => {
-      result = await callback(session);
-    });
+    session.startTransaction();
+    transactionStarted = true;
+
+    // Deliberately invoke the callback once. Mongoose's withTransaction helper may
+    // retry callbacks after transient errors, which is unsafe once fallback writes
+    // are possible.
+    const result = await callback(session);
+    await session.commitTransaction();
+    transactionStarted = false;
     return result;
+  } catch (error) {
+    if (transactionStarted) {
+      await session.abortTransaction().catch(() => {});
+    }
+
+    if (!isTransactionUnsupportedError(error) || typeof fallback !== "function") {
+      throw error;
+    }
   } finally {
     await session.endSession();
   }
+
+  return fallback();
+}
+
+function isTransactionUnsupportedError(error) {
+  const message = String(error?.message || "");
+
+  // Match deployment-capability errors only. Other transaction failures must be
+  // surfaced rather than replayed through the non-transactional path.
+  return (
+    /transaction numbers are only allowed on a replica set member or mongos/i.test(message) ||
+    /transactions? (?:are|is) not supported (?:by|on|for|in) (?:(?:this|the|your|a) )?(?:deployment|topology|server|standalone)/i.test(message) ||
+    /this mongodb deployment does not support transactions/i.test(message)
+  );
+}
+
+async function createComment({ body, parentCommentId, postId, user }, session = null) {
+  const [comment] = await FeedComment.create(
+    [
+      {
+        authorSnapshot: buildPlayerSnapshot(user),
+        authorUserId: user._id,
+        body,
+        parentCommentId,
+        postId,
+      },
+    ],
+    session ? { session } : undefined,
+  );
+
+  return comment;
+}
+
+async function incrementPostCommentCount(postId, session = null) {
+  return FeedPost.findOneAndUpdate(
+    { _id: postId },
+    { $inc: { "counters.commentCount": 1 } },
+    { new: true, ...(session ? { session } : {}) },
+  );
+}
+
+async function reconcilePostCommentCount(postId) {
+  const commentCount = await FeedComment.countDocuments({ deletedAt: null, postId });
+  return FeedPost.findOneAndUpdate(
+    { _id: postId },
+    { $set: { "counters.commentCount": commentCount } },
+    { new: true },
+  );
+}
+
+async function createCommentWithoutTransaction({ body, currentUserId, parentCommentId, postId, user }) {
+  const post = await findVisiblePost(postId, currentUserId);
+  if (!post) {
+    return null;
+  }
+
+  const comment = await createComment({ body, parentCommentId, postId, user });
+  let updatedPost;
+
+  try {
+    updatedPost = await incrementPostCommentCount(post._id);
+    if (!updatedPost) {
+      await FeedComment.deleteOne({ _id: comment._id });
+      return null;
+    }
+  } catch (error) {
+    try {
+      await FeedComment.deleteOne({ _id: comment._id });
+    } catch (compensationError) {
+      await reconcilePostCommentCount(post._id).catch(() => {});
+    }
+    throw error;
+  }
+
+  if (currentUserId) {
+    await hydrateCurrentUserReaction([updatedPost], currentUserId);
+  }
+
+  return { comment, post: updatedPost };
 }
 
 async function createCommentAndIncrementPost({ body, currentUserId, parentCommentId = null, postId, user }) {
+  const options = { body, currentUserId, parentCommentId, postId, user };
+
   return runCommentTransaction(async (session) => {
     const post = await findVisiblePost(postId, currentUserId, session);
 
@@ -578,38 +673,30 @@ async function createCommentAndIncrementPost({ body, currentUserId, parentCommen
       return null;
     }
 
-    const [comment] = await FeedComment.create(
-      [
-        {
-          authorSnapshot: buildPlayerSnapshot(user),
-          authorUserId: user._id,
-          body,
-          parentCommentId,
-          postId,
-        },
-      ],
-      { session },
-    );
-
-    const updatedPost = await FeedPost.findOneAndUpdate(
-      { _id: post._id },
-      { $inc: { "counters.commentCount": 1 } },
-      { new: true, session },
-    );
+    const comment = await createComment({ body, parentCommentId, postId, user }, session);
+    const updatedPost = await incrementPostCommentCount(post._id, session);
 
     if (updatedPost && currentUserId) {
       await hydrateCurrentUserReaction([updatedPost], currentUserId, session);
     }
 
     return { comment, post: updatedPost };
-  });
+  }, () => createCommentWithoutTransaction(options));
 }
 
-async function decrementPostCommentCount(postId, session) {
+async function decrementPostCommentCount(postId, session = null) {
   return FeedPost.findOneAndUpdate(
     { _id: postId },
-    { $inc: { "counters.commentCount": -1 } },
-    { new: true, session },
+    [
+      {
+        $set: {
+          "counters.commentCount": {
+            $max: [0, { $subtract: [{ $ifNull: ["$counters.commentCount", 0] }, 1] }],
+          },
+        },
+      },
+    ],
+    { new: true, ...(session ? { session } : {}) },
   );
 }
 
@@ -965,13 +1052,14 @@ async function deleteComment(req, res) {
     const commentId = requireObjectId(req.params.commentId, res, "comment id");
     if (!commentId) return null;
 
-    const result = await runCommentTransaction(async (session) => {
+    const deleteCommentOperation = async (session = null) => {
       const visiblePost = await findVisiblePost(postId, req.user._id, session);
       if (!visiblePost) {
         return { status: "post_not_found" };
       }
 
-      const comment = await FeedComment.findOne({ _id: commentId, deletedAt: null, postId }).session(session);
+      const commentQuery = FeedComment.findOne({ _id: commentId, deletedAt: null, postId });
+      const comment = session ? await commentQuery.session(session) : await commentQuery;
 
       if (!comment || comment.moderation?.status === "blocked") {
         return { status: "not_found" };
@@ -982,17 +1070,34 @@ async function deleteComment(req, res) {
       }
 
       comment.deletedAt = new Date();
-      await comment.save({ session });
+      await comment.save(session ? { session } : undefined);
 
-      const post = await decrementPostCommentCount(postId, session);
+      let post;
+      try {
+        post = await decrementPostCommentCount(postId, session);
+      } catch (error) {
+        if (!session) {
+          try {
+            comment.deletedAt = null;
+            await comment.save();
+          } catch (compensationError) {
+            await reconcilePostCommentCount(postId).catch(() => {});
+          }
+        }
+        throw error;
+      }
+
       if (post) {
-        post.counters.commentCount = Math.max(0, post.counters?.commentCount || 0);
-        await post.save({ session });
         await hydrateCurrentUserReaction([post], req.user._id, session);
       }
 
       return { comment, post, status: "deleted" };
-    });
+    };
+
+    const result = await runCommentTransaction(
+      (session) => deleteCommentOperation(session),
+      () => deleteCommentOperation(),
+    );
 
     if (result.status === "not_found") {
       return res.status(404).json({ message: "Feed comment not found" });
