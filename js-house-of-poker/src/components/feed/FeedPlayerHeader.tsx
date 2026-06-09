@@ -22,6 +22,21 @@ function getPlayerInitials(name: string) {
     .join('') || 'HP';
 }
 
+function formatPostTimestamp(timestamp: string) {
+  const date = new Date(timestamp);
+
+  if (Number.isNaN(date.getTime())) {
+    return timestamp;
+  }
+
+  const pad = (value: number) => String(value).padStart(2, '0');
+
+  return [
+    `${pad(date.getDate())}-${pad(date.getMonth() + 1)}-${date.getFullYear()}`,
+    `${pad(date.getHours())}:${pad(date.getMinutes())}`,
+  ].join(' ');
+}
+
 export function FeedPlayerHeader({ isPromoted = false, onOpenProfile, player, timestamp }: FeedPlayerHeaderProps) {
   return (
     <Pressable
@@ -37,7 +52,6 @@ export function FeedPlayerHeader({ isPromoted = false, onOpenProfile, player, ti
           <Text numberOfLines={1} style={styles.name}>
             {player.name}
           </Text>
-          <Text style={styles.timestamp}>· {timestamp}</Text>
         </View>
         <View style={styles.metaRow}>
           <Text numberOfLines={1} style={styles.handle}>
@@ -50,6 +64,7 @@ export function FeedPlayerHeader({ isPromoted = false, onOpenProfile, player, ti
             </View>
           ) : null}
         </View>
+        <Text style={styles.timestamp}>{formatPostTimestamp(timestamp)}</Text>
         <PlayerStatusBadge status={player.status} statusTier={player.statusTier} />
       </View>
     </Pressable>
@@ -110,6 +125,5 @@ const styles = StyleSheet.create({
     color: colors.mutedText,
     fontSize: 12,
     fontWeight: '700',
-    marginLeft: 4,
   },
 });
