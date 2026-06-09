@@ -39,7 +39,7 @@ Create a `.env` file for local development and configure the same variables in y
 
 ### Required
 
-- `MONGODB_URI` - MongoDB connection string used by the API and seed script.
+- `MONGODB_URI` - MongoDB connection string used by the API and seed script. Standalone MongoDB deployments are supported. Feed comment create/delete operations prefer transactions on replica-set or sharded deployments, but specifically fall back to ordered non-transactional writes on standalone deployments. If the post-counter write fails, the controller compensates the comment write and attempts counter reconciliation if compensation also fails.
 - `JWT_SECRET` - Secret used to sign and verify admin/player JWTs.
 - `ALLOWED_ORIGINS` - Comma-separated list of browser origins that may call the Express API and Socket.IO server, for example `https://www.jshouseofpoker.com,https://admin.jshouseofpoker.com`. Include `https://www.jshouseofpoker.com` for production and any Expo-hosted preview/web origins you deploy. This must be set in production; do not use `*`.
 
