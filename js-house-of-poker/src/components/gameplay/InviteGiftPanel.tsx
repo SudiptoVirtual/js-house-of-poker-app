@@ -30,7 +30,7 @@ type Props = {
   inviteContextLabel?: string | null;
   inviteOptions: InviteOption[];
   inviteRecipients: PokerInviteRecipient[];
-  onSendInvite: (input: SendPokerTableInviteInput) => void;
+  onSendInvite: (input: SendPokerTableInviteInput) => void | Promise<void>;
   openSeats: number;
   sentInvites: PokerTableInvite[];
   tableCode: string;
@@ -96,6 +96,7 @@ export function InviteGiftPanel({
   const [inviteMessage, setInviteMessage] = useState('');
   const [composerMode, setComposerMode] = useState<ComposerMode>(null);
   const [showAllNotifications, setShowAllNotifications] = useState(false);
+  const [isSendingInvite, setIsSendingInvite] = useState(false);
 
   const clipToChipRate = economy?.compliance.clipToChipRate ?? 40;
   const activeRecipients = useMemo(
@@ -179,8 +180,8 @@ export function InviteGiftPanel({
     setComposerMode(composerIntentMode);
   }, [composerIntentMode, composerIntentToken]);
 
-  function handleSend() {
-    if (!selectedRecipient) {
+  async function handleSend() {
+    if (!selectedRecipient || isSendingInvite) {
       return;
     }
 
@@ -198,10 +199,16 @@ export function InviteGiftPanel({
       payload.giftClips = selectedGiftClips;
     }
 
-    onSendInvite(payload);
-    setInviteMessage('');
-    setSelectedGiftClips(0);
-    setComposerMode(null);
+    setIsSendingInvite(true);
+
+    try {
+      await onSendInvite(payload);
+      setInviteMessage('');
+      setSelectedGiftClips(0);
+      setComposerMode(null);
+    } finally {
+      setIsSendingInvite(false);
+    }
   }
 
   return (
@@ -336,11 +343,12 @@ export function InviteGiftPanel({
 
           <ActionButton
             compact
-            disabled={!canSend}
+            disabled={!canSend || isSendingInvite}
             fullWidth
             icon={composerMode === 'gift' ? 'gift-outline' : 'account-plus-outline'}
             label={composerMode === 'gift' ? 'Send Invite + Gift' : 'Send Invite'}
-            onPress={handleSend}
+            loading={isSendingInvite}
+            onPress={() => { void handleSend().catch(() => undefined); }}
             tone={composerMode === 'gift' ? 'accent' : 'neutral'}
           />
         </View>

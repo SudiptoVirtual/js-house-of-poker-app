@@ -72,3 +72,10 @@ export async function fetchCurrentUser(token: string) {
 
   return response.user;
 }
+
+export async function logoutUser(token: string) {
+  return apiRequest<{ message: string }>('/api/auth/logout', {
+    method: 'POST',
+    token,
+  });
+}

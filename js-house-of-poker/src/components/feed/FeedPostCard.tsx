@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import {
+  ActivityIndicator,
   Alert,
   Pressable,
   StyleSheet,
@@ -44,6 +45,7 @@ type FeedPostCardProps = {
     post: FeedPost,
     comment: string,
   ) => Promise<FeedCommentSubmitResult | void> | FeedCommentSubmitResult | void;
+  onCommentInputFocus?: (inputHandle: number) => void;
   onDeleteComment: (
     post: FeedPost,
     comment: FeedComment,
@@ -76,6 +78,7 @@ export function FeedPostCard({
   actionsDisabledMessage = "Sign in and refresh the feed before using post actions.",
   currentUserId,
   onComment,
+  onCommentInputFocus,
   onDeleteComment,
   onFetchComments,
   onGiftClips,
@@ -94,6 +97,8 @@ export function FeedPostCard({
     useState<CommentPanelLoadState>("idle");
   const [commentPanelError, setCommentPanelError] = useState("");
   const [isSubmittingComment, setIsSubmittingComment] = useState(false);
+  const [isInvitingToTable, setIsInvitingToTable] = useState(false);
+  const [isSupporting, setIsSupporting] = useState(false);
   const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
   const [editingCommentDraft, setEditingCommentDraft] = useState("");
   const [updatingCommentId, setUpdatingCommentId] = useState<string | null>(
@@ -274,6 +279,34 @@ export function FeedPostCard({
     }
   }
 
+  async function handleSupport() {
+    if (isSupporting) {
+      return;
+    }
+
+    setIsSupporting(true);
+
+    try {
+      await onSupportChange(post.id, !post.supportedByCurrentPlayer);
+    } finally {
+      setIsSupporting(false);
+    }
+  }
+
+  async function handleInviteToTable() {
+    if (isInvitingToTable) {
+      return;
+    }
+
+    setIsInvitingToTable(true);
+
+    try {
+      await onInviteToTable(post);
+    } finally {
+      setIsInvitingToTable(false);
+    }
+  }
+
   return (
     <View style={styles.card}>
       <FeedPlayerHeader
@@ -350,19 +383,18 @@ export function FeedPostCard({
 
       <FeedActionBar
         actionsDisabled={actionsDisabled}
+        commentLoading={commentPanelLoadState === "loading"}
+        inviteLoading={isInvitingToTable}
         isSupported={Boolean(post.supportedByCurrentPlayer)}
         isTableRelated={Boolean(post.isTableRelated || post.tableContext)}
         supportersCount={post.supportersCount}
         onComment={handleToggleCommentPanel}
         onGiftClips={() => guardAction(() => onGiftClips(post))}
-        onInviteToTable={() => guardAction(() => onInviteToTable(post))}
+        onInviteToTable={() => guardAction(() => { void handleInviteToTable(); })}
         onPromote={() => guardAction(() => onPromote(post))}
         onShare={() => guardAction(() => onShare(post))}
-        onSupport={() => {
-          guardAction(() => {
-            void onSupportChange(post.id, !post.supportedByCurrentPlayer);
-          });
-        }}
+        onSupport={() => guardAction(() => { void handleSupport(); })}
+        supportLoading={isSupporting}
       />
 
       {isCommentPanelVisible ? (
@@ -412,6 +444,7 @@ export function FeedPostCard({
                         <TextInput
                           editable={!isUpdatingComment}
                           onChangeText={setEditingCommentDraft}
+                          onFocus={(event) => onCommentInputFocus?.(event.nativeEvent.target)}
                           placeholder="Update your comment..."
                           placeholderTextColor={colors.mutedText}
                           style={styles.commentEditInput}
@@ -442,11 +475,15 @@ export function FeedPostCard({
                                   : null,
                               ]}
                             >
-                              <MaterialCommunityIcons
-                                color={colors.text}
-                                name="check"
-                                size={16}
-                              />
+                              {isUpdatingComment ? (
+                                <ActivityIndicator color={colors.text} size="small" />
+                              ) : (
+                                <MaterialCommunityIcons
+                                  color={colors.text}
+                                  name="check"
+                                  size={16}
+                                />
+                              )}
                             </Pressable>
                             <Pressable
                               accessibilityRole="button"
@@ -487,11 +524,15 @@ export function FeedPostCard({
                                   : null,
                               ]}
                             >
-                              <MaterialCommunityIcons
-                                color={colors.danger}
-                                name="trash-can-outline"
-                                size={16}
-                              />
+                              {isDeletingComment ? (
+                                <ActivityIndicator color={colors.danger} size="small" />
+                              ) : (
+                                <MaterialCommunityIcons
+                                  color={colors.danger}
+                                  name="trash-can-outline"
+                                  size={16}
+                                />
+                              )}
                             </Pressable>
                           </>
                         )}
@@ -509,6 +550,7 @@ export function FeedPostCard({
           <View style={styles.commentPanel}>
             <TextInput
               onChangeText={setCommentDraft}
+              onFocus={(event) => onCommentInputFocus?.(event.nativeEvent.target)}
               placeholder="Add a table-side comment..."
               placeholderTextColor={colors.mutedText}
               editable={!actionsDisabled && !isSubmittingComment}
@@ -526,11 +568,15 @@ export function FeedPostCard({
                   : null,
               ]}
             >
-              <MaterialCommunityIcons
-                color={colors.text}
-                name="send-outline"
-                size={18}
-              />
+              {isSubmittingComment ? (
+                <ActivityIndicator color={colors.text} size="small" />
+              ) : (
+                <MaterialCommunityIcons
+                  color={colors.text}
+                  name="send-outline"
+                  size={18}
+                />
+              )}
             </Pressable>
           </View>
         </View>

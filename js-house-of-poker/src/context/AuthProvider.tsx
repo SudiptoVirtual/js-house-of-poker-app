@@ -1,6 +1,6 @@
 import { createContext, PropsWithChildren, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 
-import { fetchCurrentUser, type AuthUser } from '../services/api/auth';
+import { fetchCurrentUser, logoutUser, type AuthUser } from '../services/api/auth';
 import { clearAuthSession, getAuthSession, saveAuthSession } from '../services/storage/sessionStorage';
 
 type AuthContextValue = {
@@ -57,10 +57,18 @@ export function AuthProvider({ children }: PropsWithChildren) {
   );
 
   const signOut = useCallback(async () => {
+    try {
+      if (token) {
+        await logoutUser(token);
+      }
+    } catch (error) {
+      console.warn('Unable to notify the server about sign out.', error);
+    }
+
+    await clearAuthSession();
     setToken(null);
     setCurrentUser(null);
-    await clearAuthSession();
-  }, []);
+  }, [token]);
 
   useEffect(() => {
     let isMounted = true;

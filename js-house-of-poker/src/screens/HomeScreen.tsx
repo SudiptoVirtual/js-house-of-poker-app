@@ -89,7 +89,9 @@ export function HomeScreen({ navigation }: Props) {
   const [joinGuardMessage, setJoinGuardMessage] = useState<string | null>(null);
   const [isRefreshingLobby, setIsRefreshingLobby] = useState(false);
   const [pendingGameLaunch, setPendingGameLaunch] = useState<{
+    actionId: string;
     roomIdBefore: string | null;
+    updatedAtBefore: number | null;
   } | null>(null);
 
   useEffect(() => {
@@ -106,12 +108,13 @@ export function HomeScreen({ navigation }: Props) {
     if (
       pendingGameLaunch &&
       roomState?.roomId &&
-      roomState.roomId !== pendingGameLaunch.roomIdBefore
+      (roomState.roomId !== pendingGameLaunch.roomIdBefore ||
+        roomState.updatedAt !== pendingGameLaunch.updatedAtBefore)
     ) {
       navigation.navigate(routes.Game);
       setPendingGameLaunch(null);
     }
-  }, [navigation, pendingGameLaunch, roomState?.roomId]);
+  }, [navigation, pendingGameLaunch, roomState?.roomId, roomState?.updatedAt]);
 
   useEffect(() => {
     if (errorMessage && pendingGameLaunch) {
@@ -132,12 +135,20 @@ export function HomeScreen({ navigation }: Props) {
   }, [connect, refreshCurrentUser]);
 
   function handleCreateTable() {
+    if (pendingGameLaunch) {
+      return;
+    }
+
     const trimmedName =
       transportKind === 'socket'
         ? authPlayerName || playerName.trim() || 'Player'
         : playerName.trim() || 'Player';
 
-    setPendingGameLaunch({ roomIdBefore: roomState?.roomId ?? null });
+    setPendingGameLaunch({
+      actionId: 'create-table',
+      roomIdBefore: roomState?.roomId ?? null,
+      updatedAtBefore: roomState?.updatedAt ?? null,
+    });
     createRoom({
       gameSettings: {
         game: gameType === '3-5-7' ? '357' : 'holdem',
@@ -149,6 +160,10 @@ export function HomeScreen({ navigation }: Props) {
   }
 
   async function handleJoinTable() {
+    if (pendingGameLaunch) {
+      return;
+    }
+
     if (transportKind === 'socket') {
       if (!token) {
         setPendingGameLaunch(null);
@@ -166,16 +181,28 @@ export function HomeScreen({ navigation }: Props) {
         ? authPlayerName || playerName.trim() || 'Player'
         : playerName.trim() || 'Player';
 
-    setPendingGameLaunch({ roomIdBefore: roomState?.roomId ?? null });
+    setPendingGameLaunch({
+      actionId: 'join-table',
+      roomIdBefore: roomState?.roomId ?? null,
+      updatedAtBefore: roomState?.updatedAt ?? null,
+    });
     joinTable({ name: trimmedName, tableId: tableCode.trim().toUpperCase() });
   }
 
-  function handleEnterBotTrainingTable(tableId: string) {
+  function handleEnterBotTrainingTable(tableId: string, actionId: string) {
+    if (pendingGameLaunch) {
+      return;
+    }
+
     const trimmedName =
       transportKind === 'socket'
         ? authPlayerName || playerName.trim() || 'Player'
         : playerName.trim() || 'Player';
-    setPendingGameLaunch({ roomIdBefore: roomState?.roomId ?? null });
+    setPendingGameLaunch({
+      actionId,
+      roomIdBefore: roomState?.roomId ?? null,
+      updatedAtBefore: roomState?.updatedAt ?? null,
+    });
     joinTable({ name: trimmedName, tableId });
   }
 
@@ -184,10 +211,10 @@ export function HomeScreen({ navigation }: Props) {
       navigation.navigate(routes.Friends);
     },
     learn357: () => {
-      handleEnterBotTrainingTable(TRAINING_357_TABLE_ID);
+      handleEnterBotTrainingTable(TRAINING_357_TABLE_ID, 'learn357');
     },
     quickStart: () => {
-      handleEnterBotTrainingTable(TRAINING_DEFAULT_TABLE_ID);
+      handleEnterBotTrainingTable(TRAINING_DEFAULT_TABLE_ID, 'quickStart');
     },
     watchDemo: () => {
       navigation.navigate(routes.Feed);
@@ -239,9 +266,11 @@ export function HomeScreen({ navigation }: Props) {
             {trainingLobbyActions.map((action) => (
               <View key={action.actionId} style={styles.featuredActionButton}>
                 <ActionButton
+                  disabled={Boolean(pendingGameLaunch && pendingGameLaunch.actionId !== action.actionId)}
                   fullWidth
                   icon={action.icon}
                   label={action.label}
+                  loading={pendingGameLaunch?.actionId === action.actionId}
                   onPress={trainingActionHandlers[action.actionId]}
                   variant={action.actionId === 'quickStart' ? 'primary' : 'secondary'}
                 />
@@ -277,7 +306,7 @@ export function HomeScreen({ navigation }: Props) {
               <ActionButton
                 icon="robot-outline"
                 label="Enter bot training"
-                onPress={() => handleEnterBotTrainingTable(table.id)}
+                onPress={() => handleEnterBotTrainingTable(table.id, `training-${table.id}`)}
                 variant="secondary"
               />
             </View>
@@ -340,7 +369,9 @@ export function HomeScreen({ navigation }: Props) {
 
         <View style={styles.buttonRow}>
           <ActionButton
+            disabled={Boolean(pendingGameLaunch && pendingGameLaunch.actionId !== 'create-table')}
             label="Create table"
+            loading={pendingGameLaunch?.actionId === 'create-table'}
             onPress={handleCreateTable}
           />
         </View>
@@ -366,7 +397,9 @@ export function HomeScreen({ navigation }: Props) {
         {joinGuardMessage ? <Text style={styles.error}>{joinGuardMessage}</Text> : null}
         <View style={styles.buttonRow}>
           <ActionButton
+            disabled={Boolean(pendingGameLaunch && pendingGameLaunch.actionId !== 'join-table')}
             label="Join table"
+            loading={pendingGameLaunch?.actionId === 'join-table'}
             onPress={handleJoinTable}
             variant="secondary"
           />

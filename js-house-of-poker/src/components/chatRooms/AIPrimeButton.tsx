@@ -1,22 +1,28 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { colors } from '../../theme/colors';
 
 type AIPrimeButtonProps = {
+  loading?: boolean;
   onPress: () => void;
 };
 
-export function AIPrimeButton({ onPress }: AIPrimeButtonProps) {
+export function AIPrimeButton({ loading = false, onPress }: AIPrimeButtonProps) {
   return (
     <Pressable
       accessibilityLabel="Open AI Prime chat actions"
       accessibilityRole="button"
+      disabled={loading}
       onPress={onPress}
       style={({ pressed }) => [styles.button, pressed ? styles.pressed : null]}
     >
       <View style={styles.iconHalo}>
-        <MaterialCommunityIcons color={colors.background} name="creation" size={17} />
+        {loading ? (
+          <ActivityIndicator color={colors.background} size="small" />
+        ) : (
+          <MaterialCommunityIcons color={colors.background} name="creation" size={17} />
+        )}
       </View>
       <Text style={styles.label}>AI</Text>
     </Pressable>

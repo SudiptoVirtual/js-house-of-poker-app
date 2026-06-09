@@ -258,6 +258,7 @@ export function ChatRoomDetailScreen({ navigation, route }: Props) {
   const [draft, setDraft] = useState('');
   const [activeFriends, setActiveFriends] = useState<ChatRoomFriend[]>([]);
   const [isAIPrimePanelVisible, setIsAIPrimePanelVisible] = useState(false);
+  const [isOpeningAIPrime, setIsOpeningAIPrime] = useState(false);
   const [isSetUpTableFlowVisible, setIsSetUpTableFlowVisible] = useState(false);
   const [invitedPlayerIds, setInvitedPlayerIds] = useState<string[]>([]);
   const [roomInvitedFriendIds, setRoomInvitedFriendIds] = useState<string[]>([]);
@@ -1030,13 +1031,12 @@ export function ChatRoomDetailScreen({ navigation, route }: Props) {
   }
 
   async function handleSelectAIPrimeAction(actionId: AIPrimeActionId) {
-    setIsAIPrimePanelVisible(false);
-
     if (actionId !== 'setUpTable') {
       await emitChatRoomEvent<AIPrimeActionResponse>(
         chatRoomSocketEvents.aiPrimeAction,
         { actionId } satisfies Omit<AIPrimeActionRequest, 'roomId' | 'token'>,
       );
+      setIsAIPrimePanelVisible(false);
       return;
     }
 
@@ -1050,7 +1050,26 @@ export function ChatRoomDetailScreen({ navigation, route }: Props) {
     );
 
     if (ack) {
+      setIsAIPrimePanelVisible(false);
       setIsSetUpTableFlowVisible(true);
+    }
+  }
+
+  async function handleOpenAIPrime() {
+    if (isOpeningAIPrime) {
+      return;
+    }
+
+    setIsOpeningAIPrime(true);
+
+    try {
+      const ack = await emitChatRoomEvent<AIPrimeActionResponse>(chatRoomSocketEvents.aiPrimeOpen, {});
+
+      if (ack) {
+        setIsAIPrimePanelVisible(true);
+      }
+    } finally {
+      setIsOpeningAIPrime(false);
     }
   }
 
@@ -1157,12 +1176,11 @@ export function ChatRoomDetailScreen({ navigation, route }: Props) {
           draft={draft}
           onChangeDraft={setDraft}
           onOpenGiftClips={handleOpenGiftClips}
-          onOpenAIPrime={() => {
-            void emitChatRoomEvent<AIPrimeActionResponse>(chatRoomSocketEvents.aiPrimeOpen, {});
-            setIsAIPrimePanelVisible(true);
-          }}
+          onOpenAIPrime={() => { void handleOpenAIPrime(); }}
           onSend={() => { void handleSendMessage(); }}
           placeholder={isSendingMessage ? 'Sending…' : 'Message the live room…'}
+          openingAIPrime={isOpeningAIPrime}
+          sending={isSendingMessage}
         />
       </SectionCard>
 
@@ -1268,7 +1286,8 @@ export function ChatRoomDetailScreen({ navigation, route }: Props) {
         helperText="Send Gift Clips directly to another participant in this room."
         onClose={() => setIsGiftClipsModalVisible(false)}
         onSelectRecipient={setSelectedGiftRecipientId}
-        onSendGift={(amount, message, recipientId) => { void handleSendGiftClip(amount, message, recipientId); }}
+        onSendGift={(amount, message, recipientId) => handleSendGiftClip(amount, message, recipientId)}
+        loading={isSendingGiftClip}
         post={null}
         recipientOptions={giftClipRecipients}
         selectedRecipientId={selectedGiftRecipientId}

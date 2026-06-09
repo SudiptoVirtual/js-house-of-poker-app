@@ -169,7 +169,9 @@ export function ActionButton({
         />
 
         <View style={styles.content}>
-          {icon ? (
+          {loading ? (
+            <ActivityIndicator color={visuals.textColor} size="small" />
+          ) : icon ? (
             <MaterialCommunityIcons color={visuals.textColor} name={icon} size={compact ? 16 : 18} />
           ) : null}
           <Text style={[styles.label, compact ? styles.labelCompact : null, { color: visuals.textColor }]}>

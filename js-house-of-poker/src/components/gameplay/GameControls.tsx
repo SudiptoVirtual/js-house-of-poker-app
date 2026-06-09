@@ -1,5 +1,5 @@
 import { memo, useEffect, useMemo, useState } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 
 import type { PokerAction, PokerControls, PokerPlayerState } from '../../types/poker';
@@ -71,19 +71,23 @@ function ControlButton({
           styles[`${tone}Button`],
         ]}
       >
-        <Text
-          adjustsFontSizeToFit
-          minimumFontScale={0.72}
-          numberOfLines={1}
-          style={[
-            styles.buttonLabel,
-            compact ? styles.buttonLabelCompact : null,
-            large ? styles.buttonLabelLarge : null,
-            styles[`${tone}Text`],
-          ]}
-        >
-          {loading ? '...' : label}
-        </Text>
+        {loading ? (
+          <ActivityIndicator color="#FFFFFF" size="small" />
+        ) : (
+          <Text
+            adjustsFontSizeToFit
+            minimumFontScale={0.72}
+            numberOfLines={1}
+            style={[
+              styles.buttonLabel,
+              compact ? styles.buttonLabelCompact : null,
+              large ? styles.buttonLabelLarge : null,
+              styles[`${tone}Text`],
+            ]}
+          >
+            {label}
+          </Text>
+        )}
         {subtitle ? (
           <Text
             numberOfLines={1}

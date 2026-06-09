@@ -23,6 +23,7 @@
         "backgroundColor": "#f7f2e8"
       },
       "edgeToEdgeEnabled": true,
+      "softwareKeyboardLayoutMode": "pan",
       "predictiveBackGestureEnabled": false
     },
     "web": {

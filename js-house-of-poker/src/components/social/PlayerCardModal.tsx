@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 import { PlayerAvatar } from '../PlayerAvatar';
@@ -412,7 +412,11 @@ export function PlayerCardModal({
                     pressed && !disabled ? styles.pressed : null,
                   ]}
                 >
-                  <MaterialCommunityIcons color={action.tone === 'danger' ? colors.danger : colors.text} name={loading ? 'loading' : action.icon} size={22} />
+                  {loading ? (
+                    <ActivityIndicator color={action.tone === 'danger' ? colors.danger : colors.text} size="small" />
+                  ) : (
+                    <MaterialCommunityIcons color={action.tone === 'danger' ? colors.danger : colors.text} name={action.icon} size={22} />
+                  )}
                   <View style={styles.actionCopy}>
                     <Text style={styles.actionLabel}>{loading ? 'Working…' : action.label}</Text>
                     {action.helper ? <Text style={styles.actionHelper}>{action.helper}</Text> : null}

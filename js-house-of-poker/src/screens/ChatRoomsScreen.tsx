@@ -41,14 +41,13 @@ export function ChatRoomsScreen({ navigation }: Props) {
     } else {
       setIsLoadingRooms(true);
     }
-    setRoomsError(null);
-
     try {
       const session = await getAuthSession();
       const token = session?.token ?? null;
 
       setAuthToken(token);
       setRooms(await fetchChatRooms(token));
+      setRoomsError(null);
 
       if (!token) {
         setActiveFriends([]);
@@ -225,7 +224,14 @@ export function ChatRoomsScreen({ navigation }: Props) {
         {roomsError ? (
           <View style={styles.statusStack}>
             <Text style={styles.errorText}>{roomsError}</Text>
-            <ActionButton compact icon="refresh" label="Retry" onPress={() => { void loadRooms(); }} variant="secondary" />
+            <ActionButton
+              compact
+              icon="refresh"
+              label={isLoadingRooms ? 'Retrying...' : 'Retry'}
+              loading={isLoadingRooms}
+              onPress={() => { void loadRooms(); }}
+              variant="secondary"
+            />
           </View>
         ) : null}
         {isLoadingRooms ? <Text style={styles.helperText}>Loading live chat rooms…</Text> : null}

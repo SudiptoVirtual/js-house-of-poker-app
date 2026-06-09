@@ -33,10 +33,12 @@ function formatCount(value: number | undefined) {
 }
 
 export function ProfileScreen({ navigation }: Props) {
-  const { currentUser, refreshCurrentUser } = useAuth();
+  const { currentUser, refreshCurrentUser, signOut } = useAuth();
   const { roomState } = usePoker();
   const [isRefreshingProfile, setIsRefreshingProfile] = useState(false);
+  const [isSigningOut, setIsSigningOut] = useState(false);
   const [refreshError, setRefreshError] = useState<string | null>(null);
+  const [signOutError, setSignOutError] = useState<string | null>(null);
   const activeTableCode = roomState?.roomId ?? null;
   const displayName = currentUser?.name?.trim() || 'Player';
   const handle = buildHandle(currentUser?.email);
@@ -61,6 +63,23 @@ export function ProfileScreen({ navigation }: Props) {
       setIsRefreshingProfile(false);
     }
   }, [refreshCurrentUser]);
+
+  const handleSignOut = useCallback(async () => {
+    setIsSigningOut(true);
+    setSignOutError(null);
+
+    try {
+      await signOut();
+      navigation.reset({
+        index: 0,
+        routes: [{ name: routes.Login }],
+      });
+    } catch (error) {
+      setSignOutError(error instanceof Error ? error.message : 'Unable to log out right now.');
+    } finally {
+      setIsSigningOut(false);
+    }
+  }, [navigation, signOut]);
 
   return (
     <Screen
@@ -131,6 +150,18 @@ export function ProfileScreen({ navigation }: Props) {
             variant="secondary"
           />
         </View>
+      </SectionCard>
+
+      <SectionCard title="">
+        {signOutError ? <Text style={styles.errorText}>{signOutError}</Text> : null}
+        <ActionButton
+          fullWidth
+          icon="logout"
+          label="Log out"
+          loading={isSigningOut}
+          onPress={() => { void handleSignOut(); }}
+          tone="danger"
+        />
       </SectionCard>
 
       {/* <ComplianceNotice /> */}

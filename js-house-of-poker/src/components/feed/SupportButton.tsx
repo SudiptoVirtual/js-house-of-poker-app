@@ -1,4 +1,4 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 import { colors } from '../../theme/colors';
@@ -6,25 +6,30 @@ import { colors } from '../../theme/colors';
 type SupportButtonProps = {
   disabled?: boolean;
   isSupported: boolean;
+  loading?: boolean;
   onPress: () => void;
   supportersCount: number;
 };
 
-export function SupportButton({ disabled = false, isSupported, onPress, supportersCount }: SupportButtonProps) {
+export function SupportButton({ disabled = false, isSupported, loading = false, onPress, supportersCount }: SupportButtonProps) {
   const supportersLabel = supportersCount === 1 ? '1 Supporter' : `${supportersCount.toLocaleString()} Supporters`;
 
   return (
     <Pressable
       accessibilityRole="button"
-      disabled={disabled}
+      disabled={disabled || loading}
       onPress={onPress}
       style={({ pressed }) => [styles.button, isSupported ? styles.buttonActive : null, disabled ? styles.disabled : null, pressed ? styles.pressed : null]}
     >
-      <MaterialCommunityIcons
-        color={isSupported ? colors.gold : colors.mutedText}
-        name={isSupported ? 'cards-heart' : 'cards-heart-outline'}
-        size={18}
-      />
+      {loading ? (
+        <ActivityIndicator color={isSupported ? colors.gold : colors.mutedText} size="small" />
+      ) : (
+        <MaterialCommunityIcons
+          color={isSupported ? colors.gold : colors.mutedText}
+          name={isSupported ? 'cards-heart' : 'cards-heart-outline'}
+          size={18}
+        />
+      )}
       <View style={styles.copy}>
         <Text style={[styles.label, isSupported ? styles.labelActive : null]}>Support</Text>
         <Text style={[styles.countLabel, isSupported ? styles.countLabelActive : null]}>{supportersLabel}</Text>

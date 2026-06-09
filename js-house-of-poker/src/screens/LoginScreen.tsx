@@ -157,7 +157,7 @@ export function LoginScreen({ navigation }: Props) {
           value={password}
         />
         {errorMessage ? <Text style={styles.error}>{errorMessage}</Text> : null}
-        <ActionButton label="Login" loading={isSubmitting} onPress={() => void handleLogin()} />
+        <ActionButton disabled={isBusy} label="Login" loading={isSubmitting} onPress={() => void handleLogin()} />
       </SectionCard>
 
       <View style={styles.dividerRow}>

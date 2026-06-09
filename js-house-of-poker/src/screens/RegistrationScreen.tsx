@@ -208,6 +208,7 @@ export function RegistrationScreen({ navigation }: Props) {
         />
         {errorMessage ? <Text style={styles.error}>{errorMessage}</Text> : null}
         <ActionButton
+          disabled={isBusy}
           label="Create account"
           loading={isSubmitting}
           onPress={() => void handleRegistration()}

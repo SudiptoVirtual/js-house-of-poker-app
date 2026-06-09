@@ -1,5 +1,5 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, TextInput, View } from 'react-native';
 
 import { AIPrimeButton } from './AIPrimeButton';
 
@@ -8,21 +8,25 @@ import { colors } from '../../theme/colors';
 type ChatInputBarProps = {
   draft: string;
   onChangeDraft: (value: string) => void;
+  openingAIPrime?: boolean;
   onOpenAIPrime: () => void;
   onOpenGiftClips?: () => void;
   onSend: () => void;
   placeholder?: string;
+  sending?: boolean;
 };
 
 export function ChatInputBar({
   draft,
   onChangeDraft,
+  openingAIPrime = false,
   onOpenAIPrime,
   onOpenGiftClips,
   onSend,
   placeholder = 'Message the room before launching a table...',
+  sending = false,
 }: ChatInputBarProps) {
-  const canSend = Boolean(draft.trim());
+  const canSend = Boolean(draft.trim()) && !sending;
 
   return (
     <View style={styles.composer}>
@@ -31,6 +35,7 @@ export function ChatInputBar({
         onChangeText={onChangeDraft}
         placeholder={placeholder}
         placeholderTextColor={colors.mutedText}
+        editable={!sending}
         style={styles.composerInput}
         value={draft}
       />
@@ -52,7 +57,7 @@ export function ChatInputBar({
           <MaterialCommunityIcons color={colors.gold} name="gift-outline" size={20} />
         </Pressable>
       ) : null}
-      <AIPrimeButton onPress={onOpenAIPrime} />
+      <AIPrimeButton loading={openingAIPrime} onPress={onOpenAIPrime} />
       <Pressable
         accessibilityLabel="Send chat message"
         accessibilityRole="button"
@@ -64,7 +69,11 @@ export function ChatInputBar({
           pressed ? styles.pressed : null,
         ]}
       >
-        <MaterialCommunityIcons color={colors.background} name="send" size={18} />
+        {sending ? (
+          <ActivityIndicator color={colors.background} size="small" />
+        ) : (
+          <MaterialCommunityIcons color={colors.background} name="send" size={18} />
+        )}
       </Pressable>
     </View>
   );

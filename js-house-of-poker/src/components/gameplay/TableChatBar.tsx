@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
+  ActivityIndicator,
   Image,
   Pressable,
   ScrollView,
@@ -37,7 +38,7 @@ type Props = {
   messages: PokerTableChatMessage[];
   onExitTrainingPress?: () => void;
   onInvitePress?: () => void;
-  onSendMessage: (message: string) => void;
+  onSendMessage: (message: string) => Promise<void>;
   onToggleTopBar?: () => void;
   selfId: string | null;
   showExitTrainingButton?: boolean;
@@ -106,6 +107,7 @@ export function TableChatBar({
   const { height, width } = useWindowDimensions();
   const [draft, setDraft] = useState('');
   const [isComposeFocused, setIsComposeFocused] = useState(false);
+  const [isSendingMessage, setIsSendingMessage] = useState(false);
   const [openPanel, setOpenPanel] = useState<'messages' | 'notifications' | null>(null);
   const pendingSentRef = useRef<string | null>(null);
   const seenMessageIdsRef = useRef(new Set(messages.map((message) => message.id)));
@@ -118,7 +120,7 @@ export function TableChatBar({
     ? { maxHeight: topRailHeight, minHeight: topRailHeight }
     : null;
   const normalizedDraft = normalizeTableChatText(draft);
-  const canSend = normalizedDraft.length > 0;
+  const canSend = normalizedDraft.length > 0 && !isSendingMessage;
   const shouldPrioritizeCompose = isCompact && isComposeFocused;
   const tickerMessages = useMemo(() => getVisibleTableChatMessages(messages), [messages]);
   const notificationHeadlines = useMemo(() => {
@@ -192,13 +194,21 @@ export function TableChatBar({
     }
   }, [isTopBarExpanded]);
 
-  function handleSend() {
-    if (!normalizedDraft) {
+  async function handleSend() {
+    if (!normalizedDraft || isSendingMessage) {
       return;
     }
 
     pendingSentRef.current = normalizedDraft;
-    onSendMessage(normalizedDraft);
+    setIsSendingMessage(true);
+
+    try {
+      await onSendMessage(normalizedDraft);
+    } catch {
+      pendingSentRef.current = null;
+    } finally {
+      setIsSendingMessage(false);
+    }
   }
 
   function handleAddEmoji(emoji: string) {
@@ -271,6 +281,7 @@ export function TableChatBar({
           placeholder="Type your message..."
           placeholderTextColor="rgba(235, 231, 255, 0.4)"
           returnKeyType="done"
+          editable={!isSendingMessage}
           style={styles.composeInput}
           value={draft}
         />
@@ -291,12 +302,16 @@ export function TableChatBar({
         <Pressable
           accessibilityRole="button"
           disabled={!canSend}
-          onPress={handleSend}
+          onPress={() => { void handleSend(); }}
           style={[styles.sendButton, canSend ? styles.sendButtonEnabled : null]}
         >
-          <Text style={[styles.sendButtonText, canSend ? styles.sendButtonTextEnabled : null]}>
-            SEND
-          </Text>
+          {isSendingMessage ? (
+            <ActivityIndicator color="#FFFFFF" size="small" />
+          ) : (
+            <Text style={[styles.sendButtonText, canSend ? styles.sendButtonTextEnabled : null]}>
+              SEND
+            </Text>
+          )}
         </Pressable>
       </View>
     );

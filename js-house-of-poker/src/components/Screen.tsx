@@ -1,8 +1,10 @@
 import type { PropsWithChildren } from 'react';
-import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Platform, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { KeyboardSafeView } from './KeyboardSafeView';
+import { useKeyboardVisible } from '../hooks/useKeyboardVisible';
 import { MainPlatformNavigation } from './navigation/MainPlatformNavigation';
 import { colors } from '../theme/colors';
 
@@ -24,15 +26,21 @@ export function Screen({
   title,
   children,
 }: ScreenProps) {
+  const isKeyboardVisible = useKeyboardVisible();
+
   return (
     <View style={styles.root}>
-      <SafeAreaView edges={['top', 'left', 'right']} style={styles.safeArea}>
-        <StatusBar style="light" />
-        <ScrollView
+      <KeyboardSafeView>
+        <SafeAreaView edges={['top', 'left', 'right']} style={styles.safeArea}>
+          <StatusBar style="light" />
+          <ScrollView
+          automaticallyAdjustKeyboardInsets
           contentContainerStyle={[
             styles.content,
             showPlatformNavigation ? styles.contentWithBottomNavigation : null,
           ]}
+          keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+          keyboardShouldPersistTaps="handled"
           refreshControl={onRefresh ? (
             <RefreshControl
               colors={[colors.primary, colors.secondary]}
@@ -44,16 +52,17 @@ export function Screen({
               titleColor={colors.mutedText}
             />
           ) : undefined}
-        >
-          <View style={styles.header}>
-            {eyebrow ? <Text style={styles.eyebrow}>{eyebrow}</Text> : null}
-            <Text style={styles.title}>{title}</Text>
-            {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
-          </View>
-          <View style={styles.body}>{children}</View>
-        </ScrollView>
-      </SafeAreaView>
-      {showPlatformNavigation ? (
+          >
+            <View style={styles.header}>
+              {eyebrow ? <Text style={styles.eyebrow}>{eyebrow}</Text> : null}
+              <Text style={styles.title}>{title}</Text>
+              {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
+            </View>
+            <View style={styles.body}>{children}</View>
+          </ScrollView>
+        </SafeAreaView>
+      </KeyboardSafeView>
+      {showPlatformNavigation && !isKeyboardVisible ? (
         <SafeAreaView edges={['bottom', 'left', 'right']} style={styles.bottomNavigationSafeArea}>
           <MainPlatformNavigation />
         </SafeAreaView>

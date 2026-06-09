@@ -3,11 +3,14 @@ import {
   Alert,
   Clipboard,
   FlatList,
+  Keyboard,
   Linking,
+  Platform,
   RefreshControl,
   Share,
   StyleSheet,
   Text,
+  UIManager,
   View,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
@@ -16,11 +19,13 @@ import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { KeyboardSafeView } from '../KeyboardSafeView';
 import { MainPlatformNavigation } from '../navigation/MainPlatformNavigation';
 import { routes } from '../../constants/routes';
 import { useAuth } from '../../context/AuthProvider';
 import { useFeedNotifications } from '../../context/FeedNotificationProvider';
 import { usePoker } from '../../context/PokerProvider';
+import { useKeyboardVisible } from '../../hooks/useKeyboardVisible';
 import { createFeedRealtimeClient } from '../../services/feed/feedRealtimeClient';
 import {
   createFeedComment,
@@ -150,14 +155,18 @@ type ShareTargetOption = {
 
 export function PlayerFeedScreen({ navigation, route }: PlayerFeedScreenProps) {
   const { currentUser, token } = useAuth();
+  const isKeyboardVisible = useKeyboardVisible();
   const { markFeedNotificationsRead, notifications } = useFeedNotifications();
   const { roomState } = usePoker();
+  const feedListRef = useRef<FlatList<FeedPost>>(null);
+  const feedScrollOffsetRef = useRef(0);
   const isMountedRef = useRef(true);
   const [posts, setPosts] = useState<FeedPost[]>([]);
   const [feedLoadState, setFeedLoadState] = useState<FeedLoadState>('idle');
   const [feedLoadMessage, setFeedLoadMessage] = useState('');
   const [isRefreshingFeed, setIsRefreshingFeed] = useState(false);
   const [giftPost, setGiftPost] = useState<FeedPost | null>(null);
+  const [isSendingGift, setIsSendingGift] = useState(false);
   const [promotePost, setPromotePost] = useState<FeedPost | null>(null);
   const [promotionPaymentState, setPromotionPaymentState] =
     useState<PromotionPaymentState>('idle');
@@ -201,6 +210,30 @@ export function PlayerFeedScreen({ navigation, route }: PlayerFeedScreenProps) {
     },
     [currentUser?.id],
   );
+
+  const handleCommentInputFocus = useCallback((inputHandle: number) => {
+    setTimeout(() => {
+      const keyboardTop = Keyboard.metrics()?.screenY;
+
+      if (keyboardTop == null) {
+        return;
+      }
+
+      UIManager.measure(
+        inputHandle,
+        (_inputX, _inputY, _inputWidth, inputHeight, _inputPageX, inputPageY) => {
+          const overlap = inputPageY + inputHeight + 16 - keyboardTop;
+
+          if (overlap > 0) {
+            feedListRef.current?.scrollToOffset({
+              animated: true,
+              offset: feedScrollOffsetRef.current + overlap,
+            });
+          }
+        },
+      );
+    }, Platform.OS === 'android' ? 350 : 0);
+  }, []);
 
   const loadFeedPosts = useCallback(async (isRefresh = false) => {
     if (isRefresh) {
@@ -883,7 +916,7 @@ export function PlayerFeedScreen({ navigation, route }: PlayerFeedScreenProps) {
   }
 
   async function handleSendGift(amount: number, message: string) {
-    if (!giftPost) {
+    if (!giftPost || isSendingGift) {
       return;
     }
 
@@ -902,6 +935,8 @@ export function PlayerFeedScreen({ navigation, route }: PlayerFeedScreenProps) {
       Alert.alert('Sign in required', 'Sign in before sending Gift Clips.');
       return;
     }
+
+    setIsSendingGift(true);
 
     try {
       const response = await sendFeedGiftClip(
@@ -926,6 +961,8 @@ export function PlayerFeedScreen({ navigation, route }: PlayerFeedScreenProps) {
         'Unable to send Gift Clips right now.',
       );
       Alert.alert('Gift Clips not sent', details.message);
+    } finally {
+      setIsSendingGift(false);
     }
   }
 
@@ -1070,12 +1107,20 @@ export function PlayerFeedScreen({ navigation, route }: PlayerFeedScreenProps) {
 
   return (
     <View style={styles.root}>
-      <SafeAreaView edges={['top', 'left', 'right']} style={styles.safeArea}>
-        <StatusBar style="light" />
-        <FlatList
+      <KeyboardSafeView>
+        <SafeAreaView edges={['top', 'left', 'right']} style={styles.safeArea}>
+          <StatusBar style="light" />
+          <FlatList
+          automaticallyAdjustKeyboardInsets
           contentContainerStyle={styles.content}
           data={posts}
+          keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+          keyboardShouldPersistTaps="handled"
           keyExtractor={(item) => item.id}
+          onScroll={(event) => {
+            feedScrollOffsetRef.current = event.nativeEvent.contentOffset.y;
+          }}
+          ref={feedListRef}
           ListEmptyComponent={
             <View style={styles.emptyState}>
               <Text style={styles.emptyTitle}>
@@ -1144,6 +1189,7 @@ export function PlayerFeedScreen({ navigation, route }: PlayerFeedScreenProps) {
               actionsDisabledMessage={getPostActionDisabledMessage(item)}
               currentUserId={currentUser?.id}
               onComment={handleComment}
+              onCommentInputFocus={handleCommentInputFocus}
               onDeleteComment={handleDeleteComment}
               onFetchComments={handleFetchComments}
               onGiftClips={setGiftPost}
@@ -1156,15 +1202,19 @@ export function PlayerFeedScreen({ navigation, route }: PlayerFeedScreenProps) {
               post={item}
             />
           )}
-          showsVerticalScrollIndicator={false}
-        />
-      </SafeAreaView>
-      <SafeAreaView
-        edges={['bottom', 'left', 'right']}
-        style={styles.bottomNavigationSafeArea}
-      >
-        <MainPlatformNavigation />
-      </SafeAreaView>
+            scrollEventThrottle={16}
+            showsVerticalScrollIndicator={false}
+          />
+        </SafeAreaView>
+      </KeyboardSafeView>
+      {!isKeyboardVisible ? (
+        <SafeAreaView
+          edges={['bottom', 'left', 'right']}
+          style={styles.bottomNavigationSafeArea}
+        >
+          <MainPlatformNavigation />
+        </SafeAreaView>
+      ) : null}
       <ShareMenu
         chatRoomOptions={chatRoomShareOptions}
         onClose={() => setSharePost(null)}
@@ -1175,9 +1225,12 @@ export function PlayerFeedScreen({ navigation, route }: PlayerFeedScreenProps) {
         visible={Boolean(sharePost)}
       />
       <GiftClipsModal
+        disabled={isSendingGift}
+        loading={isSendingGift}
         onClose={() => setGiftPost(null)}
         onSendGift={handleSendGift}
         post={giftPost}
+        sendLabelPrefix={isSendingGift ? 'Sending' : 'Send'}
         visible={Boolean(giftPost)}
       />
       <PromoteForCreatorPanel

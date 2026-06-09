@@ -1,4 +1,5 @@
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 import { colors } from '../../theme/colors';
@@ -36,7 +37,7 @@ type ShareMenuProps = {
   onClose: () => void;
   onPromote: () => void;
   chatRoomOptions: ShareTargetOption[];
-  onShare: (selection: ShareSelection) => void;
+  onShare: (selection: ShareSelection) => void | Promise<void>;
   post: FeedPost | null;
   tableOptions: ShareTargetOption[];
   visible: boolean;
@@ -51,12 +52,38 @@ export function ShareMenu({
   tableOptions,
   visible,
 }: ShareMenuProps) {
+  const [loadingSelectionKey, setLoadingSelectionKey] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!visible) {
+      setLoadingSelectionKey(null);
+    }
+  }, [visible]);
+
+  function getSelectionKey(selection: ShareSelection) {
+    return `${selection.destinationId}:${selection.roomId ?? selection.tableId ?? ''}`;
+  }
+
+  async function handleShare(selection: ShareSelection) {
+    if (loadingSelectionKey) {
+      return;
+    }
+
+    setLoadingSelectionKey(getSelectionKey(selection));
+
+    try {
+      await onShare(selection);
+    } finally {
+      setLoadingSelectionKey(null);
+    }
+  }
+
   function handleDestinationPress(destination: BackendShareDestination) {
     if (destination.id === 'chat-room' || destination.id === 'table') {
       return;
     }
 
-    onShare({ destinationId: destination.id });
+    void handleShare({ destinationId: destination.id });
   }
 
   function handlePromotePress() {
@@ -69,9 +96,17 @@ export function ShareMenu({
       animationType="fade"
       transparent
       visible={visible}
-      onRequestClose={onClose}
+      onRequestClose={() => {
+        if (!loadingSelectionKey) {
+          onClose();
+        }
+      }}
     >
-      <Pressable style={styles.backdrop} onPress={onClose}>
+      <Pressable
+        disabled={Boolean(loadingSelectionKey)}
+        style={styles.backdrop}
+        onPress={onClose}
+      >
         <Pressable style={styles.panel}>
           <View style={styles.headerRow}>
             <View>
@@ -83,6 +118,7 @@ export function ShareMenu({
             <Pressable
               accessibilityLabel="Close share menu"
               accessibilityRole="button"
+              disabled={Boolean(loadingSelectionKey)}
               onPress={onClose}
               style={styles.closeButton}
             >
@@ -106,12 +142,14 @@ export function ShareMenu({
                 : isTableDestination
                   ? tableOptions
                   : [];
+              const destinationSelectionKey = getSelectionKey({ destinationId: destination.id });
+              const isDestinationLoading = loadingSelectionKey === destinationSelectionKey;
 
               return (
                 <View key={destination.id} style={styles.destinationGroup}>
                   <Pressable
                     accessibilityRole="button"
-                    disabled={isChatRoomDestination || isTableDestination}
+                    disabled={Boolean(loadingSelectionKey) || isChatRoomDestination || isTableDestination}
                     onPress={() => handleDestinationPress(destination)}
                     style={({ pressed }) => [
                       styles.destination,
@@ -121,11 +159,15 @@ export function ShareMenu({
                       pressed ? styles.destinationPressed : null,
                     ]}
                   >
-                    <MaterialCommunityIcons
-                      color={colors.secondary}
-                      name={destination.icon}
-                      size={20}
-                    />
+                    {isDestinationLoading ? (
+                      <ActivityIndicator color={colors.secondary} size="small" />
+                    ) : (
+                      <MaterialCommunityIcons
+                        color={colors.secondary}
+                        name={destination.icon}
+                        size={20}
+                      />
+                    )}
                     <Text style={styles.destinationLabel}>
                       {destination.label}
                     </Text>
@@ -133,23 +175,17 @@ export function ShareMenu({
                   {isChatRoomDestination || isTableDestination ? (
                     targetOptions.length > 0 ? (
                       <View style={styles.targetStack}>
-                        {targetOptions.map((option) => (
-                          <Pressable
+                        {targetOptions.map((option) => {
+                          const selection = isChatRoomDestination
+                            ? { destinationId: 'chat-room' as const, roomId: option.id }
+                            : { destinationId: 'table' as const, tableId: option.id };
+                          const isTargetLoading = loadingSelectionKey === getSelectionKey(selection);
+
+                          return <Pressable
                             accessibilityRole="button"
+                            disabled={Boolean(loadingSelectionKey)}
                             key={option.id}
-                            onPress={() =>
-                              onShare(
-                                isChatRoomDestination
-                                  ? {
-                                      destinationId: 'chat-room',
-                                      roomId: option.id,
-                                    }
-                                  : {
-                                      destinationId: 'table',
-                                      tableId: option.id,
-                                    },
-                              )
-                            }
+                            onPress={() => { void handleShare(selection); }}
                             style={({ pressed }) => [
                               styles.targetOption,
                               pressed ? styles.destinationPressed : null,
@@ -165,13 +201,17 @@ export function ShareMenu({
                                 </Text>
                               ) : null}
                             </View>
-                            <MaterialCommunityIcons
-                              color={colors.mutedText}
-                              name="chevron-right"
-                              size={18}
-                            />
+                            {isTargetLoading ? (
+                              <ActivityIndicator color={colors.mutedText} size="small" />
+                            ) : (
+                              <MaterialCommunityIcons
+                                color={colors.mutedText}
+                                name="chevron-right"
+                                size={18}
+                              />
+                            )}
                           </Pressable>
-                        ))}
+                        })}
                       </View>
                     ) : (
                       <Text style={styles.emptyTargetText}>
@@ -186,6 +226,7 @@ export function ShareMenu({
             })}
             <Pressable
               accessibilityRole="button"
+              disabled={Boolean(loadingSelectionKey)}
               onPress={handlePromotePress}
               style={({ pressed }) => [
                 styles.destination,

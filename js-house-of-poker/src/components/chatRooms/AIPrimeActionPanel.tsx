@@ -1,5 +1,6 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { colors } from '../../theme/colors';
 
@@ -20,7 +21,7 @@ type AIPrimeAction = {
 
 type AIPrimeActionPanelProps = {
   onClose: () => void;
-  onSelectAction: (actionId: AIPrimeActionId) => void;
+  onSelectAction: (actionId: AIPrimeActionId) => void | Promise<void>;
   visible: boolean;
 };
 
@@ -64,10 +65,36 @@ const aiPrimeActions: AIPrimeAction[] = [
 ];
 
 export function AIPrimeActionPanel({ onClose, onSelectAction, visible }: AIPrimeActionPanelProps) {
+  const [activeActionId, setActiveActionId] = useState<AIPrimeActionId | null>(null);
+
+  useEffect(() => {
+    if (!visible) {
+      setActiveActionId(null);
+    }
+  }, [visible]);
+
+  async function handleSelectAction(actionId: AIPrimeActionId) {
+    if (activeActionId) {
+      return;
+    }
+
+    setActiveActionId(actionId);
+
+    try {
+      await onSelectAction(actionId);
+    } finally {
+      setActiveActionId(null);
+    }
+  }
+
   return (
-    <Modal animationType="fade" onRequestClose={onClose} transparent visible={visible}>
+    <Modal animationType="fade" onRequestClose={() => {
+      if (!activeActionId) {
+        onClose();
+      }
+    }} transparent visible={visible}>
       <View style={styles.backdrop}>
-        <Pressable accessibilityLabel="Close AI Prime actions" style={styles.backdropPressable} onPress={onClose} />
+        <Pressable accessibilityLabel="Close AI Prime actions" disabled={Boolean(activeActionId)} style={styles.backdropPressable} onPress={onClose} />
         <View style={styles.panel}>
           <View style={styles.headerRow}>
             <View style={styles.titleCopy}>
@@ -75,7 +102,7 @@ export function AIPrimeActionPanel({ onClose, onSelectAction, visible }: AIPrime
               <Text style={styles.title}>Chat room assistant</Text>
               <Text style={styles.subtitle}>Keep the room social, then launch table actions from the conversation.</Text>
             </View>
-            <Pressable accessibilityLabel="Close AI Prime actions" accessibilityRole="button" onPress={onClose} style={styles.closeButton}>
+            <Pressable accessibilityLabel="Close AI Prime actions" accessibilityRole="button" disabled={Boolean(activeActionId)} onPress={onClose} style={styles.closeButton}>
               <MaterialCommunityIcons color={colors.text} name="close" size={20} />
             </Pressable>
           </View>
@@ -87,8 +114,9 @@ export function AIPrimeActionPanel({ onClose, onSelectAction, visible }: AIPrime
               return (
                 <Pressable
                   accessibilityRole="button"
+                  disabled={Boolean(activeActionId)}
                   key={action.id}
-                  onPress={() => onSelectAction(action.id)}
+                  onPress={() => { void handleSelectAction(action.id); }}
                   style={({ pressed }) => [
                     styles.actionCard,
                     isPrimary ? styles.primaryActionCard : null,
@@ -96,7 +124,11 @@ export function AIPrimeActionPanel({ onClose, onSelectAction, visible }: AIPrime
                   ]}
                 >
                   <View style={[styles.actionIcon, isPrimary ? styles.primaryActionIcon : null]}>
-                    <MaterialCommunityIcons color={isPrimary ? colors.background : colors.secondary} name={action.icon} size={21} />
+                    {activeActionId === action.id ? (
+                      <ActivityIndicator color={isPrimary ? colors.background : colors.secondary} size="small" />
+                    ) : (
+                      <MaterialCommunityIcons color={isPrimary ? colors.background : colors.secondary} name={action.icon} size={21} />
+                    )}
                   </View>
                   <View style={styles.actionCopy}>
                     <Text style={styles.actionLabel}>{index + 1}. {action.label}</Text>

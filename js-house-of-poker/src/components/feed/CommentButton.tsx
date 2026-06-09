@@ -1,17 +1,22 @@
-import { Pressable, StyleSheet, Text } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 import { colors } from '../../theme/colors';
 
 type CommentButtonProps = {
   disabled?: boolean;
+  loading?: boolean;
   onPress: () => void;
 };
 
-export function CommentButton({ disabled = false, onPress }: CommentButtonProps) {
+export function CommentButton({ disabled = false, loading = false, onPress }: CommentButtonProps) {
   return (
-    <Pressable accessibilityRole="button" disabled={disabled} onPress={onPress} style={({ pressed }) => [styles.button, disabled ? styles.disabled : null, pressed ? styles.pressed : null]}>
-      <MaterialCommunityIcons color={colors.mutedText} name="comment-text-outline" size={18} />
+    <Pressable accessibilityRole="button" disabled={disabled || loading} onPress={onPress} style={({ pressed }) => [styles.button, disabled ? styles.disabled : null, pressed ? styles.pressed : null]}>
+      {loading ? (
+        <ActivityIndicator color={colors.mutedText} size="small" />
+      ) : (
+        <MaterialCommunityIcons color={colors.mutedText} name="comment-text-outline" size={18} />
+      )}
       <Text style={styles.label}>Comment</Text>
     </Pressable>
   );

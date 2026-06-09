@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import type { FriendsPlayer } from '../../types/friends';
@@ -8,10 +9,10 @@ import { SendFriendRequestButton } from './SendFriendRequestButton';
 
 type FriendQuickActionsProps = {
   hasActiveTable: boolean;
-  onInviteToChat: (player: FriendsPlayer) => void;
-  onInviteToTable: (player: FriendsPlayer) => void;
-  onRespondToRequest?: (player: FriendsPlayer, response: 'accept' | 'reject') => void;
-  onSendFriendRequest: (player: FriendsPlayer) => void;
+  onInviteToChat: (player: FriendsPlayer) => void | Promise<void>;
+  onInviteToTable: (player: FriendsPlayer) => void | Promise<void>;
+  onRespondToRequest?: (player: FriendsPlayer, response: 'accept' | 'reject') => void | Promise<void>;
+  onSendFriendRequest: (player: FriendsPlayer) => void | Promise<void>;
   onViewProfile: (player: FriendsPlayer) => void;
   player: FriendsPlayer;
   showFriendRequestAction?: boolean;
@@ -28,6 +29,21 @@ export function FriendQuickActions({
   showFriendRequestAction = false,
 }: FriendQuickActionsProps) {
   const canInviteOnlinePlayer = player.isOnline;
+  const [pendingAction, setPendingAction] = useState<string | null>(null);
+
+  async function runAction(actionId: string, action: () => void | Promise<void>) {
+    if (pendingAction) {
+      return;
+    }
+
+    setPendingAction(actionId);
+
+    try {
+      await action();
+    } finally {
+      setPendingAction(null);
+    }
+  }
 
   return (
     <View style={styles.actionStack}>
@@ -41,29 +57,48 @@ export function FriendQuickActions({
       />
       {canInviteOnlinePlayer ? (
         <View style={styles.actionRow}>
-          <InviteToChatButton fullWidth={false} onPress={() => onInviteToChat(player)} />
-          <InviteToTableButton fullWidth={false} hasActiveTable={hasActiveTable} onPress={() => onInviteToTable(player)} />
+          <InviteToChatButton
+            disabled={Boolean(pendingAction)}
+            fullWidth={false}
+            loading={pendingAction === 'invite-chat'}
+            onPress={() => { void runAction('invite-chat', () => onInviteToChat(player)); }}
+          />
+          <InviteToTableButton
+            disabled={Boolean(pendingAction)}
+            fullWidth={false}
+            hasActiveTable={hasActiveTable}
+            loading={pendingAction === 'invite-table'}
+            onPress={() => { void runAction('invite-table', () => onInviteToTable(player)); }}
+          />
         </View>
       ) : null}
       {showFriendRequestAction && player.relationshipStatus === 'not_friends' ? (
-        <SendFriendRequestButton onPress={() => onSendFriendRequest(player)} />
+        <SendFriendRequestButton
+          disabled={Boolean(pendingAction)}
+          loading={pendingAction === 'send-request'}
+          onPress={() => { void runAction('send-request', () => onSendFriendRequest(player)); }}
+        />
       ) : null}
       {showFriendRequestAction && player.relationshipStatus === 'request_received' && onRespondToRequest ? (
         <View style={styles.actionRow}>
           <ActionButton
             compact
+            disabled={Boolean(pendingAction)}
             fullWidth
             icon="account-check-outline"
             label="Accept"
-            onPress={() => onRespondToRequest(player, 'accept')}
+            loading={pendingAction === 'accept-request'}
+            onPress={() => { void runAction('accept-request', () => onRespondToRequest(player, 'accept')); }}
             tone="success"
           />
           <ActionButton
             compact
+            disabled={Boolean(pendingAction)}
             fullWidth
             icon="account-cancel-outline"
             label="Reject"
-            onPress={() => onRespondToRequest(player, 'reject')}
+            loading={pendingAction === 'reject-request'}
+            onPress={() => { void runAction('reject-request', () => onRespondToRequest(player, 'reject')); }}
             tone="danger"
             variant="secondary"
           />

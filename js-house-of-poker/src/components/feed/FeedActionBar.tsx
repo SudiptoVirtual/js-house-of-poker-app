@@ -8,6 +8,8 @@ import { SupportButton } from './SupportButton';
 
 type FeedActionBarProps = {
   actionsDisabled?: boolean;
+  commentLoading?: boolean;
+  inviteLoading?: boolean;
   isSupported: boolean;
   isTableRelated?: boolean;
   supportersCount: number;
@@ -17,10 +19,13 @@ type FeedActionBarProps = {
   onPromote: () => void;
   onShare: () => void;
   onSupport: () => void;
+  supportLoading?: boolean;
 };
 
 export function FeedActionBar({
   actionsDisabled = false,
+  commentLoading = false,
+  inviteLoading = false,
   isSupported,
   isTableRelated = false,
   onComment,
@@ -30,12 +35,13 @@ export function FeedActionBar({
   onShare,
   onSupport,
   supportersCount,
+  supportLoading = false,
 }: FeedActionBarProps) {
   return (
     <View style={styles.container}>
       <View style={styles.primaryRow}>
-        <SupportButton disabled={actionsDisabled} isSupported={isSupported} onPress={onSupport} supportersCount={supportersCount} />
-        <CommentButton disabled={actionsDisabled} onPress={onComment} />
+        <SupportButton disabled={actionsDisabled} isSupported={isSupported} loading={supportLoading} onPress={onSupport} supportersCount={supportersCount} />
+        <CommentButton disabled={actionsDisabled} loading={commentLoading} onPress={onComment} />
         <Pressable
           accessibilityRole="button"
           disabled={actionsDisabled}
@@ -66,7 +72,7 @@ export function FeedActionBar({
           <Text style={styles.secondaryLabel}>Promote</Text>
         </Pressable>
       </View>
-      {isTableRelated ? <InviteToTableButton disabled={actionsDisabled} onPress={onInviteToTable} /> : null}
+      {isTableRelated ? <InviteToTableButton disabled={actionsDisabled} loading={inviteLoading} onPress={onInviteToTable} /> : null}
     </View>
   );
 }

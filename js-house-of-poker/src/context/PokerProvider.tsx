@@ -46,7 +46,7 @@ type PokerActions = {
   rebuy: () => void;
   sendAction: (type: PokerAction, amount?: number) => void;
   sendTableInvite: (input: SendPokerTableInviteInput) => Promise<void>;
-  sendTableChatMessage: (message: string) => void;
+  sendTableChatMessage: (message: string) => Promise<void>;
   sitAtSeat: (seatIndex: number) => void;
   startGame: () => void;
   startHand: () => void;
@@ -213,7 +213,7 @@ export function PokerProvider({ children }: PropsWithChildren) {
         return runCommand(transportRef.current!.sendTableInvite(input), 'Unable to send table invite.');
       },
       sendTableChatMessage(message) {
-        run(transportRef.current!.sendTableChatMessage(message));
+        return runCommand(transportRef.current!.sendTableChatMessage(message), 'Unable to send table chat message.');
       },
       sitAtSeat(seatIndex) {
         run(transportRef.current!.sitAtSeat({ seatIndex }));

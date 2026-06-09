@@ -103,7 +103,14 @@ export function FeedPostBox({ currentPlayer, isAuthenticated = false, onCreatePo
       </View>
       <View style={styles.footerRow}>
         <Text style={styles.helperText}>{statusMessage}</Text>
-        <ActionButton compact disabled={!canSubmit} icon="send-outline" label={isSubmitting ? 'Posting' : 'Post'} onPress={handleSubmit} />
+        <ActionButton
+          compact
+          disabled={!canSubmit}
+          icon="send-outline"
+          label={isSubmitting ? 'Posting' : 'Post'}
+          loading={isSubmitting}
+          onPress={handleSubmit}
+        />
       </View>
     </View>
   );

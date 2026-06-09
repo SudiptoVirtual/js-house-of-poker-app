@@ -30,8 +30,12 @@ export function PromoteForCreatorPanel({
   const isPendingPayment = paymentState === 'pending-payment';
 
   return (
-    <Modal animationType="fade" transparent visible={visible} onRequestClose={onClose}>
-      <Pressable style={styles.backdrop} onPress={onClose}>
+    <Modal animationType="fade" transparent visible={visible} onRequestClose={() => {
+      if (!isCreating) {
+        onClose();
+      }
+    }}>
+      <Pressable disabled={isCreating} style={styles.backdrop} onPress={onClose}>
         <Pressable style={styles.panel}>
           <View style={styles.iconShell}>
             <MaterialCommunityIcons color={colors.gold} name="bullhorn-outline" size={30} />
@@ -44,7 +48,7 @@ export function PromoteForCreatorPanel({
               : 'Promote for Creator creates a paid sponsorship record, opens secure checkout when payment is required, and boosts this post only after payment is confirmed.'}
           </Text>
           <View style={styles.actionRow}>
-            <ActionButton compact fullWidth label="Not now" onPress={onClose} variant="secondary" />
+            <ActionButton compact disabled={isCreating} fullWidth label="Not now" onPress={onClose} variant="secondary" />
             <ActionButton
               compact
               disabled={isPendingPayment}
