@@ -251,6 +251,7 @@ export function ChatRoomDetailScreen({ navigation, route }: Props) {
   const roomPlayersRef = useRef<ChatRoomPlayer[]>([]);
   const [room, setRoom] = useState<ChatRoom | null>(null);
   const [isLoadingRoom, setIsLoadingRoom] = useState(true);
+  const [isRefreshingRoom, setIsRefreshingRoom] = useState(false);
   const [roomError, setRoomError] = useState<string | null>(null);
   const [realtimeError, setRealtimeError] = useState<string | null>(null);
   const [isRealtimeConnected, setIsRealtimeConnected] = useState(false);
@@ -485,8 +486,12 @@ export function ChatRoomDetailScreen({ navigation, route }: Props) {
     }
   }
 
-  const loadRoom = useCallback(async () => {
-    setIsLoadingRoom(true);
+  const loadRoom = useCallback(async (isRefresh = false) => {
+    if (isRefresh) {
+      setIsRefreshingRoom(true);
+    } else {
+      setIsLoadingRoom(true);
+    }
     setRoomError(null);
 
     try {
@@ -499,15 +504,21 @@ export function ChatRoomDetailScreen({ navigation, route }: Props) {
       const nextGameId = getGameIdFromRoomLabel(nextRoom.tableConfig.gameLabel);
       const nextTierId = getTierIdFromRoomConfig(nextRoom);
 
-      setRoom(nextRoom);
-      setIsPrivate(nextRoom.tableConfig.isPrivate);
-      setSelectedGameId(nextGameId);
-      setSelectedTierId(nextTierId);
-      setSelectedRuleId(nextGameId === '3-5-7' ? '357-hostest' : nextTierId === '5k-casual' ? '8-or-better' : 'friendly-holdem');
-      setSelectedRules({
-        ...(defaultRulesByTierId[nextTierId] ?? {}),
-        ...(nextGameId === '3-5-7' ? { mode: 'HOSTEST' } : {}),
-      });
+      setRoom((currentRoom) => currentRoom ? {
+        ...nextRoom,
+        messages: mergeMessages(currentRoom.messages, nextRoom.messages),
+      } : nextRoom);
+
+      if (!isRefresh) {
+        setIsPrivate(nextRoom.tableConfig.isPrivate);
+        setSelectedGameId(nextGameId);
+        setSelectedTierId(nextTierId);
+        setSelectedRuleId(nextGameId === '3-5-7' ? '357-hostest' : nextTierId === '5k-casual' ? '8-or-better' : 'friendly-holdem');
+        setSelectedRules({
+          ...(defaultRulesByTierId[nextTierId] ?? {}),
+          ...(nextGameId === '3-5-7' ? { mode: 'HOSTEST' } : {}),
+        });
+      }
 
       if (!session?.token) {
         setActiveFriends([]);
@@ -531,7 +542,11 @@ export function ChatRoomDetailScreen({ navigation, route }: Props) {
     } catch (error) {
       setRoomError(error instanceof Error ? error.message : 'Unable to load chat room.');
     } finally {
-      setIsLoadingRoom(false);
+      if (isRefresh) {
+        setIsRefreshingRoom(false);
+      } else {
+        setIsLoadingRoom(false);
+      }
     }
   }, [route.params.roomId]);
 
@@ -736,6 +751,8 @@ export function ChatRoomDetailScreen({ navigation, route }: Props) {
       <Screen
         showPlatformNavigation
         eyebrow="Chat room"
+        onRefresh={() => { void loadRoom(true); }}
+        refreshing={isRefreshingRoom}
         title="Room not found"
         subtitle={roomError ?? 'This social chat room is unavailable. Return to the chat room directory to pick another space.'}
       >
@@ -1110,6 +1127,8 @@ export function ChatRoomDetailScreen({ navigation, route }: Props) {
     <Screen
       showPlatformNavigation
       eyebrow="Social chat room"
+      onRefresh={() => { void loadRoom(true); }}
+      refreshing={isRefreshingRoom}
       title={room.title}
       subtitle={room.description}
     >
@@ -1126,6 +1145,7 @@ export function ChatRoomDetailScreen({ navigation, route }: Props) {
           Messages are loaded from the backend and streamed over the chat room socket in realtime. Gameplay chat
           remains isolated inside active tables.
         </Text>
+        {roomError ? <Text style={styles.errorText}>{roomError}</Text> : null}
         {realtimeError ? <Text style={styles.errorText}>{realtimeError}</Text> : null}
         <View style={styles.messageStack}>
           {room.messages.length === 0 ? <Text style={styles.helperText}>No messages yet. Start the conversation.</Text> : null}

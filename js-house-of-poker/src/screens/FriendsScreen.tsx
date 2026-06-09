@@ -46,6 +46,7 @@ export function FriendsScreen({ navigation }: Props) {
   const [searchResults, setSearchResults] = useState<FriendsPlayer[]>([]);
   const [query, setQuery] = useState('');
   const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
+  const [isRefreshingFriends, setIsRefreshingFriends] = useState(false);
   const activeTableCode = roomState?.roomId ?? null;
   const trimmedQuery = query.trim();
   const isSearchActive = trimmedQuery.length > 0;
@@ -112,6 +113,24 @@ export function FriendsScreen({ navigation }: Props) {
       clearTimeout(searchTimeout);
     };
   }, [isSearchActive, token, trimmedQuery]);
+
+  const handleRefreshFriends = useCallback(async () => {
+    setIsRefreshingFriends(true);
+
+    try {
+      await loadFriends();
+
+      if (isSearchActive && token) {
+        const results = await searchPlayers(trimmedQuery, token);
+        setSearchResults(results);
+      }
+    } catch (error) {
+      const { message } = getApiErrorDetails(error, 'Unable to refresh friends.');
+      setFeedbackMessage(message);
+    } finally {
+      setIsRefreshingFriends(false);
+    }
+  }, [isSearchActive, loadFriends, token, trimmedQuery]);
 
   function handleViewProfile(player: FriendsPlayer) {
     // TODO(profile:openFromFriends): Deep-link to the selected player's public profile when profile routes accept player IDs.
@@ -203,6 +222,8 @@ export function FriendsScreen({ navigation }: Props) {
     <Screen
       showPlatformNavigation
       eyebrow="Friends"
+      onRefresh={() => { void handleRefreshFriends(); }}
+      refreshing={isRefreshingFriends}
       title="Friends"
       subtitle="Online friends and player search"
     >

@@ -32,7 +32,7 @@ type PokerActions = {
   bet: (amount: number) => void;
   call: () => void;
   check: () => void;
-  connect: () => void;
+  connect: () => Promise<void>;
   createRoom: (input: CreatePokerRoomInput) => void;
   createTable: (input: CreatePokerRoomInput) => void;
   createTableFromChatRoom: (input: CreatePokerTableFromChatRoomInput) => Promise<CreatePokerTableFromChatRoomAck>;
@@ -159,7 +159,7 @@ export function PokerProvider({ children }: PropsWithChildren) {
         run(transportRef.current!.check());
       },
       connect() {
-        run(transportRef.current!.connect());
+        return runCommand(transportRef.current!.connect(), 'Unable to refresh the poker connection.');
       },
       createRoom(input) {
         run(transportRef.current!.createTable(input));

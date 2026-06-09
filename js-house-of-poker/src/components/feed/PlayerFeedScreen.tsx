@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   Clipboard,
   FlatList,
   Linking,
+  RefreshControl,
   Share,
   StyleSheet,
   Text,
@@ -151,9 +152,11 @@ export function PlayerFeedScreen({ navigation, route }: PlayerFeedScreenProps) {
   const { currentUser, token } = useAuth();
   const { markFeedNotificationsRead, notifications } = useFeedNotifications();
   const { roomState } = usePoker();
+  const isMountedRef = useRef(true);
   const [posts, setPosts] = useState<FeedPost[]>([]);
   const [feedLoadState, setFeedLoadState] = useState<FeedLoadState>('idle');
   const [feedLoadMessage, setFeedLoadMessage] = useState('');
+  const [isRefreshingFeed, setIsRefreshingFeed] = useState(false);
   const [giftPost, setGiftPost] = useState<FeedPost | null>(null);
   const [promotePost, setPromotePost] = useState<FeedPost | null>(null);
   const [promotionPaymentState, setPromotionPaymentState] =
@@ -199,47 +202,61 @@ export function PlayerFeedScreen({ navigation, route }: PlayerFeedScreenProps) {
     [currentUser?.id],
   );
 
-  useEffect(() => {
-    let isMounted = true;
-
-    async function loadFeedPosts() {
-      if (isMounted) {
-        setFeedLoadState('loading');
-        setFeedLoadMessage('');
-      }
-
-      try {
-        const session = await getAuthSession();
-        const response = await fetchFeedPosts(session?.token ?? null);
-
-        if (isMounted) {
-          setPosts(response.posts);
-          setFeedLoadState(response.posts.length > 0 ? 'ready' : 'empty');
-        }
-      } catch (error) {
-        const details = getApiErrorDetails(
-          error,
-          'Unable to load feed posts right now.',
-        );
-
-        if (isMounted) {
-          setPosts([]);
-          setFeedLoadState(
-            details.status === 401 || details.status === 403
-              ? 'session-expired'
-              : 'error',
-          );
-          setFeedLoadMessage(details.message);
-        }
-      }
+  const loadFeedPosts = useCallback(async (isRefresh = false) => {
+    if (isRefresh) {
+      setIsRefreshingFeed(true);
+    } else {
+      setFeedLoadState('loading');
+      setFeedLoadMessage('');
     }
 
+    try {
+      const session = await getAuthSession();
+      const response = await fetchFeedPosts(session?.token ?? null);
+
+      if (!isMountedRef.current) {
+        return;
+      }
+
+      setPosts(response.posts);
+      setFeedLoadState(response.posts.length > 0 ? 'ready' : 'empty');
+      setFeedLoadMessage('');
+    } catch (error) {
+      const details = getApiErrorDetails(
+        error,
+        'Unable to load feed posts right now.',
+      );
+
+      if (!isMountedRef.current) {
+        return;
+      }
+
+      if (isRefresh) {
+        Alert.alert('Feed not refreshed', details.message);
+      } else {
+        setPosts([]);
+        setFeedLoadState(
+          details.status === 401 || details.status === 403
+            ? 'session-expired'
+            : 'error',
+        );
+        setFeedLoadMessage(details.message);
+      }
+    } finally {
+      if (isRefresh && isMountedRef.current) {
+        setIsRefreshingFeed(false);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    isMountedRef.current = true;
     void loadFeedPosts();
 
     return () => {
-      isMounted = false;
+      isMountedRef.current = false;
     };
-  }, []);
+  }, [loadFeedPosts]);
 
   useEffect(() => {
     let isMounted = true;
@@ -1109,6 +1126,17 @@ export function PlayerFeedScreen({ navigation, route }: PlayerFeedScreenProps) {
                 }
               />
             </View>
+          }
+          refreshControl={
+            <RefreshControl
+              colors={[colors.primary, colors.secondary]}
+              onRefresh={() => { void loadFeedPosts(true); }}
+              progressBackgroundColor={colors.surface}
+              refreshing={isRefreshingFeed}
+              tintColor={colors.primary}
+              title="Refreshing..."
+              titleColor={colors.mutedText}
+            />
           }
           renderItem={({ item }) => (
             <FeedPostCard

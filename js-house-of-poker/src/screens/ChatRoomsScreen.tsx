@@ -30,12 +30,17 @@ export function ChatRoomsScreen({ navigation }: Props) {
   const [newRoomName, setNewRoomName] = useState('');
   const [selectedFriendIds, setSelectedFriendIds] = useState<string[]>([]);
   const [isLoadingRooms, setIsLoadingRooms] = useState(true);
+  const [isRefreshingRooms, setIsRefreshingRooms] = useState(false);
   const [isCreatingRoom, setIsCreatingRoom] = useState(false);
   const [roomsError, setRoomsError] = useState<string | null>(null);
   const [createRoomError, setCreateRoomError] = useState<string | null>(null);
 
-  const loadRooms = useCallback(async () => {
-    setIsLoadingRooms(true);
+  const loadRooms = useCallback(async (isRefresh = false) => {
+    if (isRefresh) {
+      setIsRefreshingRooms(true);
+    } else {
+      setIsLoadingRooms(true);
+    }
     setRoomsError(null);
 
     try {
@@ -67,7 +72,11 @@ export function ChatRoomsScreen({ navigation }: Props) {
     } catch (error) {
       setRoomsError(error instanceof Error ? error.message : 'Unable to load chat rooms.');
     } finally {
-      setIsLoadingRooms(false);
+      if (isRefresh) {
+        setIsRefreshingRooms(false);
+      } else {
+        setIsLoadingRooms(false);
+      }
     }
   }, []);
 
@@ -129,6 +138,8 @@ export function ChatRoomsScreen({ navigation }: Props) {
     <Screen
       showPlatformNavigation
       eyebrow="Chat rooms"
+      onRefresh={() => { void loadRooms(true); }}
+      refreshing={isRefreshingRooms}
       title="Platform chat rooms"
       subtitle="Join production social rooms backed by the API and realtime socket messaging."
     >

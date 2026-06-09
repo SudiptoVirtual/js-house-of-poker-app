@@ -152,6 +152,7 @@ export function LoginScreen({ navigation }: Props) {
           }}
           placeholder="Enter your password"
           secureTextEntry
+          showPasswordToggle
           textContentType="password"
           value={password}
         />

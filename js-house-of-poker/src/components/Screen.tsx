@@ -1,5 +1,5 @@
 import type { PropsWithChildren } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -8,12 +8,22 @@ import { colors } from '../theme/colors';
 
 type ScreenProps = PropsWithChildren<{
   eyebrow?: string;
+  onRefresh?: () => void;
+  refreshing?: boolean;
   subtitle?: string;
   showPlatformNavigation?: boolean;
   title: string;
 }>;
 
-export function Screen({ eyebrow, showPlatformNavigation = false, subtitle, title, children }: ScreenProps) {
+export function Screen({
+  eyebrow,
+  onRefresh,
+  refreshing = false,
+  showPlatformNavigation = false,
+  subtitle,
+  title,
+  children,
+}: ScreenProps) {
   return (
     <View style={styles.root}>
       <SafeAreaView edges={['top', 'left', 'right']} style={styles.safeArea}>
@@ -23,6 +33,17 @@ export function Screen({ eyebrow, showPlatformNavigation = false, subtitle, titl
             styles.content,
             showPlatformNavigation ? styles.contentWithBottomNavigation : null,
           ]}
+          refreshControl={onRefresh ? (
+            <RefreshControl
+              colors={[colors.primary, colors.secondary]}
+              onRefresh={onRefresh}
+              progressBackgroundColor={colors.surface}
+              refreshing={refreshing}
+              tintColor={colors.primary}
+              title="Refreshing..."
+              titleColor={colors.mutedText}
+            />
+          ) : undefined}
         >
           <View style={styles.header}>
             {eyebrow ? <Text style={styles.eyebrow}>{eyebrow}</Text> : null}

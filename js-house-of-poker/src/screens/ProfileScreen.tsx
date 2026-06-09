@@ -1,3 +1,4 @@
+import { useCallback, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
@@ -32,8 +33,10 @@ function formatCount(value: number | undefined) {
 }
 
 export function ProfileScreen({ navigation }: Props) {
-  const { currentUser } = useAuth();
+  const { currentUser, refreshCurrentUser } = useAuth();
   const { roomState } = usePoker();
+  const [isRefreshingProfile, setIsRefreshingProfile] = useState(false);
+  const [refreshError, setRefreshError] = useState<string | null>(null);
   const activeTableCode = roomState?.roomId ?? null;
   const displayName = currentUser?.name?.trim() || 'Player';
   const handle = buildHandle(currentUser?.email);
@@ -46,13 +49,29 @@ export function ProfileScreen({ navigation }: Props) {
     { label: 'Chips', value: formatCount(currentUser?.chips) },
   ];
 
+  const handleRefreshProfile = useCallback(async () => {
+    setIsRefreshingProfile(true);
+    setRefreshError(null);
+
+    try {
+      await refreshCurrentUser();
+    } catch (error) {
+      setRefreshError(error instanceof Error ? error.message : 'Unable to refresh your profile.');
+    } finally {
+      setIsRefreshingProfile(false);
+    }
+  }, [refreshCurrentUser]);
+
   return (
     <Screen
       showPlatformNavigation
       eyebrow="Player profile"
+      onRefresh={() => { void handleRefreshProfile(); }}
+      refreshing={isRefreshingProfile}
       title={displayName}
       subtitle={statusLine}
     >
+      {refreshError ? <Text style={styles.errorText}>{refreshError}</Text> : null}
       <SectionCard title="Player card">
         <Text style={styles.metaLine}>Chips: {formatCount(currentUser?.chips)}</Text>
         <Text style={styles.metaLine}>Wallet / bankroll: {formatCurrency(currentUser?.walletBalance)}</Text>
@@ -127,6 +146,12 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: 15,
     lineHeight: 22,
+  },
+  errorText: {
+    color: colors.danger,
+    fontSize: 14,
+    fontWeight: '700',
+    lineHeight: 20,
   },
   metaLine: {
     color: colors.mutedText,

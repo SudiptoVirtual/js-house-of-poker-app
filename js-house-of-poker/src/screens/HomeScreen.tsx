@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -71,8 +71,9 @@ const socialEntrypoints: Array<{
 ];
 
 export function HomeScreen({ navigation }: Props) {
-  const { currentUser, token } = useAuth();
+  const { currentUser, refreshCurrentUser, token } = useAuth();
   const {
+    connect,
     createRoom,
     errorMessage,
     joinTable,
@@ -86,6 +87,7 @@ export function HomeScreen({ navigation }: Props) {
   const [gameType, setGameType] = useState<GameTypeOption>('3-5-7');
   const [tableCode, setTableCode] = useState('');
   const [joinGuardMessage, setJoinGuardMessage] = useState<string | null>(null);
+  const [isRefreshingLobby, setIsRefreshingLobby] = useState(false);
   const [pendingGameLaunch, setPendingGameLaunch] = useState<{
     roomIdBefore: string | null;
   } | null>(null);
@@ -116,6 +118,18 @@ export function HomeScreen({ navigation }: Props) {
       setPendingGameLaunch(null);
     }
   }, [errorMessage, pendingGameLaunch]);
+
+  const handleRefreshLobby = useCallback(async () => {
+    setIsRefreshingLobby(true);
+
+    try {
+      await Promise.all([connect(), refreshCurrentUser()]);
+    } catch (error) {
+      setJoinGuardMessage(error instanceof Error ? error.message : 'Unable to refresh the lobby.');
+    } finally {
+      setIsRefreshingLobby(false);
+    }
+  }, [connect, refreshCurrentUser]);
 
   function handleCreateTable() {
     const trimmedName =
@@ -184,6 +198,8 @@ export function HomeScreen({ navigation }: Props) {
     <Screen
       showPlatformNavigation
       eyebrow="Free-play social poker"
+      onRefresh={() => { void handleRefreshLobby(); }}
+      refreshing={isRefreshingLobby}
       title="J's House of Poker Lobby"
       subtitle="Create private tables, explore player surfaces, and keep invites flowing through one shared table system."
     >

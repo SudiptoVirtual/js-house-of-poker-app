@@ -202,6 +202,7 @@ export function RegistrationScreen({ navigation }: Props) {
           }}
           placeholder="Create a password"
           secureTextEntry
+          showPasswordToggle
           textContentType="newPassword"
           value={password}
         />
