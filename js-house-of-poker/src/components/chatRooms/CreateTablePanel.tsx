@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { ActionButton } from '../ActionButton';
@@ -17,7 +18,7 @@ type CreateTablePanelProps = {
   invitedPlayerIds: string[];
   isLaunching?: boolean;
   isPrivate: boolean;
-  onInviteSelectedPlayers: () => void;
+  onInviteSelectedPlayers: () => void | Promise<void>;
   onLaunchTable: () => void;
   onSelectGame: (gameId: string) => void;
   onSelectTier: (tierId: string) => void;
@@ -49,8 +50,23 @@ export function CreateTablePanel({
   selectedTierId,
   tierOptions = defaultTableTierOptions,
 }: CreateTablePanelProps) {
+  const [isInvitingSelectedPlayers, setIsInvitingSelectedPlayers] = useState(false);
   const selectedGame = gameOptions.find((option) => option.id === selectedGameId);
   const selectedTier = tierOptions.find((option) => option.id === selectedTierId);
+
+  async function handleInviteSelectedPlayers() {
+    if (isInvitingSelectedPlayers) {
+      return;
+    }
+
+    setIsInvitingSelectedPlayers(true);
+
+    try {
+      await onInviteSelectedPlayers();
+    } finally {
+      setIsInvitingSelectedPlayers(false);
+    }
+  }
 
   return (
     <SectionCard title="Create table">
@@ -90,10 +106,11 @@ export function CreateTablePanel({
         </Text>
         <ActionButton
           compact
-          disabled={selectedPlayerIds.length === 0}
+          disabled={selectedPlayerIds.length === 0 || isInvitingSelectedPlayers}
           icon="email-fast-outline"
           label={`Queue Invites (${selectedPlayerIds.length})`}
-          onPress={onInviteSelectedPlayers}
+          loading={isInvitingSelectedPlayers}
+          onPress={() => { void handleInviteSelectedPlayers().catch(() => undefined); }}
           tone="accent"
           variant="secondary"
         />
@@ -114,6 +131,7 @@ export function CreateTablePanel({
         disabled={isLaunching}
         icon="rocket-launch-outline"
         label={isLaunching ? 'Launching table…' : 'Launch table'}
+        loading={isLaunching}
         onPress={onLaunchTable}
         tone="success"
       />

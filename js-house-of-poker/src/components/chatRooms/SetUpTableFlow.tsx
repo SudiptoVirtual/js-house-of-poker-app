@@ -67,7 +67,15 @@ export function SetUpTableFlow({
   const selectedTier = tierOptions.find((option) => option.id === selectedTierId);
 
   return (
-    <Modal animationType="slide" onRequestClose={onClose} visible={visible}>
+    <Modal
+      animationType="slide"
+      onRequestClose={() => {
+        if (!isLaunching) {
+          onClose();
+        }
+      }}
+      visible={visible}
+    >
       <View style={styles.container}>
         <View style={styles.headerRow}>
           <View style={styles.headerCopy}>
@@ -77,7 +85,13 @@ export function SetUpTableFlow({
               Pick Game → Set Tier / Rules → Choose Public or Private → Invite Room Players → Launch Table.
             </Text>
           </View>
-          <Pressable accessibilityLabel="Close table setup" accessibilityRole="button" onPress={onClose} style={styles.closeButton}>
+          <Pressable
+            accessibilityLabel="Close table setup"
+            accessibilityRole="button"
+            disabled={isLaunching}
+            onPress={onClose}
+            style={styles.closeButton}
+          >
             <MaterialCommunityIcons color={colors.text} name="close" size={20} />
           </Pressable>
         </View>

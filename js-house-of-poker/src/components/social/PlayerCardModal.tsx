@@ -335,9 +335,24 @@ export function PlayerCardModal({
       : null;
 
   return (
-    <Modal animationType="fade" onRequestClose={onClose} transparent visible={visible}>
+    <Modal
+      animationType="fade"
+      onRequestClose={() => {
+        if (!actionLoading) {
+          onClose();
+        }
+      }}
+      transparent
+      visible={visible}
+    >
       <View style={styles.root}>
-        <Pressable accessibilityLabel="Close player card" accessibilityRole="button" onPress={onClose} style={styles.backdrop} />
+        <Pressable
+          accessibilityLabel="Close player card"
+          accessibilityRole="button"
+          disabled={Boolean(actionLoading)}
+          onPress={onClose}
+          style={styles.backdrop}
+        />
         <View style={styles.sheet}>
           <View style={styles.grabber} />
           <View style={styles.header}>
@@ -348,7 +363,13 @@ export function PlayerCardModal({
               <Text numberOfLines={1} style={styles.handle}>{getProfileHandle(player)}</Text>
               <Text numberOfLines={1} style={styles.statusLine}>{getTableCopy(player, currentTableId)}</Text>
             </View>
-            <Pressable accessibilityLabel="Close player card" accessibilityRole="button" onPress={onClose} style={({ pressed }) => [styles.closeButton, pressed ? styles.pressed : null]}>
+            <Pressable
+              accessibilityLabel="Close player card"
+              accessibilityRole="button"
+              disabled={Boolean(actionLoading)}
+              onPress={onClose}
+              style={({ pressed }) => [styles.closeButton, pressed ? styles.pressed : null]}
+            >
               <MaterialCommunityIcons color={colors.text} name="close" size={20} />
             </Pressable>
           </View>
