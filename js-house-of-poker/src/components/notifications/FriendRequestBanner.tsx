@@ -16,7 +16,6 @@ export function FriendRequestBanner() {
   if (!banner) return null;
 
   function openFriends() {
-    clearBanner();
     navigation.navigate(routes.Friends);
   }
 
