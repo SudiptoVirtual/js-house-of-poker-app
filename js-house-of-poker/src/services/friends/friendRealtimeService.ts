@@ -3,6 +3,7 @@ import { createSocketManager } from '../socket/socketManager';
 
 export const friendRealtimeEvents = {
   notification: 'friend:notification',
+  presenceUpdated: 'friends:presence_updated',
   requestAccepted: 'friends:request_accepted',
   requestDeclined: 'friends:request_declined',
   requestReceived: 'friends:request_received',
@@ -26,14 +27,21 @@ export type FriendRealtimeRequest = {
   status?: string;
 };
 
+export type FriendPresencePayload = {
+  isOnline: boolean;
+  userId: string;
+};
+
 export type FriendRealtimePayload = {
   actorUserId?: string | null;
+  isOnline?: boolean;
   notification?: { id?: string; [key: string]: unknown };
   otherUser?: FriendRealtimeUser | null;
   otherUserId?: string | null;
   request?: FriendRealtimeRequest | null;
   requestId?: string | null;
   status?: string;
+  userId?: string;
   [key: string]: unknown;
 };
 

@@ -38,3 +38,38 @@ test('Friends screen realtime merge inserts an incoming request immediately and 
   assert.equal(first[0].requestId, 'request-1');
   assert.equal(duplicate.length, 1);
 });
+
+test('presence events add and remove friends from the online-friends list without a refresh', () => {
+  const { mergeFriendPresenceUpdate } = loadHelpers();
+  const friend = {
+    activityStatus: 'offline',
+    displayName: 'Sam Sender',
+    id: 'sender-1',
+    isOnline: false,
+    relationshipStatus: 'friend',
+    username: 'sam',
+  };
+  const onlineFriends = (players) => players.filter((player) => player.relationshipStatus === 'friend' && player.isOnline);
+
+  const afterOnlineEvent = mergeFriendPresenceUpdate([friend], { userId: 'sender-1', isOnline: true });
+  const afterOfflineEvent = mergeFriendPresenceUpdate(afterOnlineEvent, { userId: 'sender-1', isOnline: false });
+
+  assert.deepEqual(onlineFriends(afterOnlineEvent).map(({ id }) => id), ['sender-1']);
+  assert.deepEqual(onlineFriends(afterOfflineEvent), []);
+  assert.equal(afterOnlineEvent[0].activityStatus, 'online');
+  assert.equal(afterOfflineEvent[0].activityStatus, 'offline');
+});
+
+test('presence events update matching player search results', () => {
+  const { mergeFriendPresenceUpdate } = loadHelpers();
+  const searchResults = [{
+    activityStatus: 'offline',
+    displayName: 'Sam Sender',
+    id: 'sender-1',
+    isOnline: false,
+    relationshipStatus: 'not_friends',
+    username: 'sam',
+  }];
+
+  assert.equal(mergeFriendPresenceUpdate(searchResults, { userId: 'sender-1', isOnline: true })[0].isOnline, true);
+});

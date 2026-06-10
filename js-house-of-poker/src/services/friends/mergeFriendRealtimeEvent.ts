@@ -83,3 +83,28 @@ export function buildFriendRequestBanner(payload: FriendRealtimePayload) {
     senderName: payload.otherUser?.name?.trim() || 'A player',
   };
 }
+
+export function mergeFriendPresenceUpdate(
+  players: FriendsPlayer[],
+  payload: FriendRealtimePayload,
+): FriendsPlayer[] {
+  if (!payload.userId || typeof payload.isOnline !== 'boolean') {
+    return players;
+  }
+
+  const isOnline = payload.isOnline;
+
+  return players.map((player) => {
+    if (player.id !== payload.userId) {
+      return player;
+    }
+
+    return {
+      ...player,
+      activityStatus: isOnline
+        ? player.activityStatus === 'offline' ? 'online' : player.activityStatus
+        : 'offline',
+      isOnline,
+    };
+  });
+}

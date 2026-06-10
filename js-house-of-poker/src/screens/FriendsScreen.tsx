@@ -24,6 +24,7 @@ import {
 } from '../services/api';
 import { friendRealtimeEvents } from '../services/friends/friendRealtimeService';
 import {
+  mergeFriendPresenceUpdate,
   mergeIncomingFriendRequest,
   mergeIncomingFriendRequests,
   removeIncomingFriendRequest,
@@ -105,8 +106,15 @@ export function FriendsScreen({ navigation }: Props) {
     [...friendRealtimeEventsReceived].reverse().forEach((realtimeEvent) => {
       const { eventName, payload } = realtimeEvent;
       const requestId = payload.requestId ?? payload.request?.id ?? '';
-      const playerId = payload.otherUser?.id ?? payload.otherUserId ?? '';
-      const eventKey = `${eventName}:${requestId}:${playerId}:${payload.status ?? ''}`;
+      const playerId = payload.userId ?? payload.otherUser?.id ?? payload.otherUserId ?? '';
+      const eventKey = `${eventName}:${requestId}:${playerId}:${payload.status ?? ''}:${payload.isOnline ?? ''}`;
+
+      // Reapply the bounded presence-event history oldest-to-newest so repeated online/offline cycles remain valid.
+      if (eventName === friendRealtimeEvents.presenceUpdated) {
+        setPlayers((currentPlayers) => mergeFriendPresenceUpdate(currentPlayers, payload));
+        setSearchResults((currentResults) => mergeFriendPresenceUpdate(currentResults, payload));
+        return;
+      }
 
       if (processedRealtimeEventsRef.current.has(eventKey)) {
         return;
