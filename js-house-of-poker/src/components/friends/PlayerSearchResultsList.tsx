@@ -5,6 +5,7 @@ import type { FriendsPlayer } from '../../types/friends';
 import { PlayerSearchResultCard } from './PlayerSearchResultCard';
 
 type PlayerSearchResultsListProps = {
+  emptyMessage?: string;
   hasActiveTable: boolean;
   isSearchActive: boolean;
   onInviteToChat: (player: FriendsPlayer) => void;
@@ -16,6 +17,7 @@ type PlayerSearchResultsListProps = {
 };
 
 export function PlayerSearchResultsList({
+  emptyMessage = 'No players match that name or username.',
   hasActiveTable,
   isSearchActive,
   onInviteToChat,
@@ -35,7 +37,7 @@ export function PlayerSearchResultsList({
       keyExtractor={(player) => player.id}
       ListEmptyComponent={
         <View style={styles.emptyCard}>
-          <Text style={styles.emptyText}>No players match that name or username.</Text>
+          <Text style={styles.emptyText}>{emptyMessage}</Text>
         </View>
       }
       renderItem={({ item }) => (

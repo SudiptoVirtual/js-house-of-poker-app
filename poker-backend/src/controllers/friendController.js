@@ -497,6 +497,52 @@ const getFriendStatus = async (req, res) => {
   }
 };
 
+const getIncomingFriendRequests = async (req, res) => {
+  try {
+    const requests = await FriendRequest.find({
+      receiverUserId: req.user._id,
+      status: "pending",
+    })
+      .sort({ createdAt: -1 })
+      .populate({
+        path: "senderUserId",
+        select: "name username handle displayName email avatar isOnline status playerStatus",
+      })
+      .lean();
+
+    const players = requests
+      .filter((request) => request.senderUserId)
+      .map((request) => {
+        const sender = request.senderUserId;
+        const serializedRequest = serializeRequest({ ...request, senderUserId: sender._id });
+
+        return {
+          ...serializeFriend(sender),
+          displayName: sender.displayName || sender.name,
+          handle: sender.handle,
+          relationshipStatus: "pending_received",
+          requestId: serializedRequest.id,
+          request: serializedRequest,
+          username:
+            sender.username ||
+            sender.handle ||
+            (sender.email ? sender.email.split("@")[0] : undefined),
+        };
+      });
+
+    return res.status(200).json({
+      count: players.length,
+      requests: players,
+      status: "pending_received",
+    });
+  } catch (error) {
+    return res.status(500).json({
+      message: "Error fetching incoming friend requests",
+      error: error.message,
+    });
+  }
+};
+
 const getFriendList = async (req, res) => {
   try {
     const user = await User.findById(req.user._id)
@@ -524,6 +570,7 @@ module.exports = {
   declineFriend,
   getFriendList,
   getFriendStatus,
+  getIncomingFriendRequests,
   requestFriend,
   searchPlayers,
 };
