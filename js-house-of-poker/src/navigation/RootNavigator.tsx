@@ -4,6 +4,7 @@ import { DefaultTheme, NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
 import { FeedNotificationBanner } from '../components/notifications/FeedNotificationBanner';
+import { FriendRequestBanner } from '../components/notifications/FriendRequestBanner';
 import { routes } from '../constants/routes';
 import { ChatRoomDetailScreen } from '../screens/ChatRoomDetailScreen';
 import { ChatRoomsScreen } from '../screens/ChatRoomsScreen';
@@ -120,6 +121,7 @@ export function RootNavigator() {
         />
       </Stack.Navigator>
       <FeedNotificationBanner />
+      <FriendRequestBanner />
     </NavigationContainer>
   );
 }

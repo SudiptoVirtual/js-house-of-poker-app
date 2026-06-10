@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type Dispatch, type SetStateAction } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from 'react';
 import { StyleSheet, Text } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
@@ -10,6 +10,7 @@ import { Screen } from '../components/Screen';
 import { SectionCard } from '../components/SectionCard';
 import { routes } from '../constants/routes';
 import { useAuth } from '../context/AuthProvider';
+import { useFriendNotifications } from '../context/FriendNotificationProvider';
 import { usePoker } from '../context/PokerProvider';
 import {
   acceptFriendRequest,
@@ -20,6 +21,8 @@ import {
   sendChatInvite,
   sendFriendRequest,
 } from '../services/api';
+import { friendRealtimeEvents } from '../services/friends/friendRealtimeService';
+import { mergeIncomingFriendRequest } from '../services/friends/mergeFriendRealtimeEvent';
 import { colors } from '../theme/colors';
 import type { FriendsPlayer, RelationshipStatus } from '../types/friends';
 import type { RootStackParamList } from '../types/navigation';
@@ -41,16 +44,22 @@ function updatePlayerRelationship(
 
 export function FriendsScreen({ navigation }: Props) {
   const { token } = useAuth();
+  const { events: friendRealtimeEventsReceived } = useFriendNotifications();
   const { roomState, sendTableInvite } = usePoker();
   const [players, setPlayers] = useState<FriendsPlayer[]>([]);
   const [searchResults, setSearchResults] = useState<FriendsPlayer[]>([]);
   const [query, setQuery] = useState('');
   const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
   const [isRefreshingFriends, setIsRefreshingFriends] = useState(false);
+  const processedRealtimeEventsRef = useRef<Set<string>>(new Set());
   const activeTableCode = roomState?.roomId ?? null;
   const trimmedQuery = query.trim();
   const isSearchActive = trimmedQuery.length > 0;
 
+  const incomingRequests = useMemo(
+    () => players.filter((player) => player.relationshipStatus === 'request_received'),
+    [players],
+  );
   const onlineFriends = useMemo(
     () => players.filter((player) => player.relationshipStatus === 'friend' && player.isOnline === true),
     [players],
@@ -76,6 +85,40 @@ export function FriendsScreen({ navigation }: Props) {
   useEffect(() => {
     void loadFriends();
   }, [loadFriends]);
+
+  useEffect(() => {
+    processedRealtimeEventsRef.current.clear();
+  }, [token]);
+
+  useEffect(() => {
+    [...friendRealtimeEventsReceived].reverse().forEach((realtimeEvent) => {
+      const { eventName, payload } = realtimeEvent;
+      const requestId = payload.requestId ?? payload.request?.id ?? '';
+      const playerId = payload.otherUser?.id ?? payload.otherUserId ?? '';
+      const eventKey = `${eventName}:${requestId}:${playerId}:${payload.status ?? ''}`;
+
+      if (processedRealtimeEventsRef.current.has(eventKey)) {
+        return;
+      }
+      processedRealtimeEventsRef.current.add(eventKey);
+
+      if (eventName === friendRealtimeEvents.requestReceived) {
+        setPlayers((currentPlayers) => mergeIncomingFriendRequest(currentPlayers, payload));
+        setSearchResults((currentResults) => mergeIncomingFriendRequest(currentResults, payload));
+        return;
+      }
+
+      if (!playerId) {
+        return;
+      }
+
+      if (eventName === friendRealtimeEvents.requestAccepted || payload.status === 'friends') {
+        updatePlayerRelationship(playerId, 'friend', setPlayers, setSearchResults);
+      } else if (eventName === friendRealtimeEvents.requestDeclined || payload.status === 'none') {
+        updatePlayerRelationship(playerId, 'not_friends', setPlayers, setSearchResults);
+      }
+    });
+  }, [friendRealtimeEventsReceived]);
 
   useEffect(() => {
     if (!isSearchActive) {
@@ -236,6 +279,21 @@ export function FriendsScreen({ navigation }: Props) {
           onlineFriendCount={onlineFriends.length}
         />
       </SectionCard>
+
+      {incomingRequests.length > 0 ? (
+        <SectionCard title="Incoming requests">
+          <PlayerSearchResultsList
+            hasActiveTable={Boolean(activeTableCode)}
+            isSearchActive
+            onInviteToChat={handleInviteToChat}
+            onInviteToTable={handleInviteToTable}
+            onRespondToRequest={handleRespondToRequest}
+            onSendFriendRequest={handleSendFriendRequest}
+            onViewProfile={handleViewProfile}
+            players={incomingRequests}
+          />
+        </SectionCard>
+      ) : null}
 
       {isSearchActive ? (
         <SectionCard title="Search results">
