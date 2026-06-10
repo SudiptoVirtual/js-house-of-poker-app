@@ -120,11 +120,13 @@ eas build --profile preview --platform android
 
 After installing the new APK, retest feed loading, feed post creation, friends loading, and friends search.
 
-5. Seed default chat rooms once after production MongoDB is configured:
+5. Run the one-time cleanup after deploying the chat-room discovery changes:
 
 ```bash
-NODE_ENV=production npm run seed:chat-rooms
+NODE_ENV=production npm run cleanup:obsolete-chat-data
 ```
+
+This removes the retired default chat-room slugs and obsolete training/demo game tables. Bot training tables may be recreated by `BotTableManager`, but they remain excluded from the chat-room API.
 
 Verify the live backend after deployment:
 
