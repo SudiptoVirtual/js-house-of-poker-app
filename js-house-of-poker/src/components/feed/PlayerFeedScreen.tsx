@@ -61,6 +61,7 @@ import {
   type FeedPost,
 } from '../../types/feed';
 import type { ChatRoom } from '../../types/chatRooms';
+import { mergeRealtimePostList } from './mergeRealtimePostList';
 
 type FeedLoadState =
   | 'idle'
@@ -91,37 +92,6 @@ function buildCurrentUserHandle(user: {
 
 function isBackendFeedPostId(postId: string) {
   return /^[a-f0-9]{24}$/i.test(postId);
-}
-
-function mergeRealtimePostList(
-  currentPosts: FeedPost[],
-  incomingPost: FeedPost,
-  options: { currentUserId?: string | null; eventUserId?: string | null },
-) {
-  const existingIndex = currentPosts.findIndex(
-    (post) => post.id === incomingPost.id,
-  );
-  const existingPost = existingIndex >= 0 ? currentPosts[existingIndex] : null;
-  const shouldUseIncomingCurrentUserState = Boolean(
-    options.eventUserId &&
-    options.currentUserId &&
-    options.eventUserId === options.currentUserId,
-  );
-  const mergedPost =
-    existingPost && !shouldUseIncomingCurrentUserState
-      ? {
-          ...incomingPost,
-          supportedByCurrentPlayer: existingPost.supportedByCurrentPlayer,
-        }
-      : incomingPost;
-
-  if (existingIndex < 0) {
-    return [mergedPost, ...currentPosts];
-  }
-
-  const nextPosts = [...currentPosts];
-  nextPosts[existingIndex] = mergedPost;
-  return nextPosts;
 }
 
 function buildProfileRoute(playerId: string): FeedNavigationRoute {
@@ -425,7 +395,12 @@ export function PlayerFeedScreen({ navigation, route }: PlayerFeedScreenProps) {
         token,
       );
 
-      setPosts((currentPosts) => [response.post, ...currentPosts]);
+      setPosts((currentPosts) =>
+        mergeRealtimePostList(currentPosts, response.post, {
+          currentUserId: currentUser.id,
+          eventUserId: currentUser.id,
+        }),
+      );
       setFeedLoadState('ready');
       setFeedLoadMessage('');
       return response.post;

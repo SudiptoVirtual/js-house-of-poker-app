@@ -760,7 +760,15 @@ async function createPost(req, res) {
       visibility,
     });
 
-    return res.status(201).json({ post: serializePost(post, req.user._id) });
+    const serializedPost = serializePost(post, req.user._id);
+
+    getFeedRealtimeService()?.broadcastPostCreated({
+      ok: true,
+      post: serializedPost,
+      userId: String(req.user._id),
+    });
+
+    return res.status(201).json({ post: serializedPost });
   } catch (error) {
     return sendServerError(res, error, "Unable to create feed post");
   }
