@@ -4,7 +4,6 @@ const ChatRoom = require("../models/ChatRoom");
 const ChatRoomMessage = require("../models/ChatRoomMessage");
 const GameTable = require("../models/GameTable");
 const User = require("../models/User");
-const { DEFAULT_CHAT_ROOMS, seedChatRooms } = require("../scripts/seedChatRooms");
 const { getChatRoomPresenceService } = require("../services/chatRoomPresenceService");
 const { sendChatRoomGiftClip: sendChatRoomGiftClipService } = require("../services/chatRoomGiftClipService");
 const {
@@ -12,52 +11,12 @@ const {
   serializeNotification,
 } = require("../services/chatRoomNotificationService");
 const { getIO } = require("../sockets/socketRegistry");
+const { buildExternalGameTableFilter } = require("../utils/internalGameTables");
 
 const DEFAULT_RECENT_MESSAGE_LIMIT = 25;
 const MAX_RECENT_MESSAGE_LIMIT = 100;
 const DEFAULT_ROOM_LIST_LIMIT = 50;
 const MAX_ROOM_LIST_LIMIT = 100;
-const DEFAULT_CHAT_ROOM_SLUGS = DEFAULT_CHAT_ROOMS.map((room) => room.slug);
-const RESTRICTED_CHAT_ROOM_SEED_ENVIRONMENTS = new Set(["production", "preview"]);
-
-function isTruthyFlag(value) {
-  return ["1", "true", "yes", "on"].includes(String(value || "").trim().toLowerCase());
-}
-
-function getChatRoomSeedEnvironments() {
-  return [
-    process.env.NODE_ENV,
-    process.env.APP_ENV,
-    process.env.APP_ENVIRONMENT,
-    process.env.VERCEL_ENV,
-    process.env.RENDER_ENV,
-  ]
-    .map((value) => String(value || "").trim().toLowerCase())
-    .filter(Boolean);
-}
-
-function isRestrictedChatRoomSeedEnvironment() {
-  return getChatRoomSeedEnvironments().some((environment) =>
-    RESTRICTED_CHAT_ROOM_SEED_ENVIRONMENTS.has(environment)
-  );
-}
-
-function shouldIncludeDefaultChatRooms(req) {
-  if (isTruthyFlag(process.env.CHAT_ROOMS_INCLUDE_DEFAULTS)) {
-    return true;
-  }
-
-  if (isRestrictedChatRoomSeedEnvironment()) {
-    return false;
-  }
-
-  return (
-    isTruthyFlag(req.query?.includeDefaultRooms) ||
-    isTruthyFlag(req.query?.includeSeedRooms) ||
-    isTruthyFlag(req.query?.devIncludeDefaultRooms)
-  );
-}
-
 function buildChatRoomIdentifiers(roomId) {
   const normalizedRoomId = String(roomId || "").trim();
 
@@ -404,6 +363,7 @@ function parsePositiveInteger(value, fallback, maximum) {
 
 function buildOpenRoomFilter() {
   return {
+    ...buildExternalGameTableFilter(),
     status: { $ne: "closed" },
     tableCode: { $exists: true, $ne: null },
   };
@@ -435,21 +395,6 @@ function getRecentMessages(table, limit = DEFAULT_RECENT_MESSAGE_LIMIT) {
       text: message.text,
       tone: message.tone || "player",
     }));
-}
-
-function getRecentMessagePreview(table) {
-  const [message] = getRecentMessages(table, 1);
-
-  if (!message) {
-    return null;
-  }
-
-  return {
-    createdAt: message.createdAt,
-    playerName: message.playerName,
-    text: message.text,
-    tone: message.tone,
-  };
 }
 
 function getActivePlayers(table) {
@@ -507,27 +452,6 @@ function getPresenceSnapshot(table) {
     players: getActivePlayers(table),
     totalPlayerCount: players.filter((player) => !player.pendingRemoval).length,
     updatedAt: table.updatedAt,
-  };
-}
-
-function serializeRoomListItem(table) {
-  const runtimePresence = getRuntimePresenceSnapshot(table);
-  const activePlayerCount = runtimePresence?.activePlayerCount ?? getActivePlayers(table).length;
-  const recentMessagePreview = getRecentMessagePreview(table);
-
-  return {
-    activePlayerCount,
-    gameType: table.gameType,
-    id: getRoomId(table),
-    maxPlayers: table.maxPlayers,
-    name: table.tableName,
-    phase: table.phase,
-    recentMessagePreview,
-    roomId: getRoomId(table),
-    status: table.status,
-    tableCode: table.tableCode || null,
-    tableName: table.tableName,
-    unreadCount: 0,
   };
 }
 
@@ -591,39 +515,22 @@ const getChatRooms = async (req, res) => {
       DEFAULT_ROOM_LIST_LIMIT,
       MAX_ROOM_LIST_LIMIT
     );
-    const includeDefaultRooms = shouldIncludeDefaultChatRooms(req);
-
     const findRoomListOptions = {
-      excludeSlugs: includeDefaultRooms ? [] : DEFAULT_CHAT_ROOM_SLUGS,
       limit,
-      requireCreator: !includeDefaultRooms,
+      requireCreator: true,
     };
 
     if (req.user?._id) {
       findRoomListOptions.userId = req.user._id;
     }
 
-    const userCreatedRooms = await ChatRoom.findRoomList(findRoomListOptions);
-
-    if (userCreatedRooms.length > 0) {
-      return res.status(200).json({
-        count: userCreatedRooms.length,
-        rooms: userCreatedRooms,
-      });
-    }
-
-    const rooms = await GameTable.find(buildOpenRoomFilter())
-      .sort({ updatedAt: -1, createdAt: -1 })
-      .limit(limit)
-      .lean();
-    const serializedRooms = rooms.map(serializeRoomListItem);
-
+    const rooms = await ChatRoom.findRoomList(findRoomListOptions);
     const responseBody = {
-      count: serializedRooms.length,
-      rooms: serializedRooms,
+      count: rooms.length,
+      rooms,
     };
 
-    if (serializedRooms.length === 0) {
+    if (rooms.length === 0) {
       responseBody.message = "No live chat rooms are available.";
     }
 
@@ -868,39 +775,11 @@ async function sendChatRoomGiftClip(req, res) {
   }
 }
 
-const seedDefaultChatRooms = async (req, res) => {
-  try {
-    if (isRestrictedChatRoomSeedEnvironment()) {
-      return res.status(403).json({
-        message: "Default chat room seeding is disabled in production and preview environments.",
-      });
-    }
-
-    const { rooms, upsertedCount, modifiedCount, matchedCount } = await seedChatRooms({
-      logger: { log: () => {} },
-    });
-
-    return res.status(201).json({
-      count: rooms.length,
-      matchedCount,
-      modifiedCount,
-      upsertedCount,
-      rooms,
-    });
-  } catch (error) {
-    return res.status(500).json({
-      message: "Error seeding default chat rooms",
-      error: error.message,
-    });
-  }
-};
-
 module.exports = {
   createChatRoom,
   getActiveChatRoomFriends,
   getChatRoomById,
   getChatRooms,
   inviteChatRoomFriends,
-  seedDefaultChatRooms,
   sendChatRoomGiftClip,
 };
