@@ -8,6 +8,26 @@ const FRIEND_SOCKET_EVENTS = {
   statusUpdated: "friends:status_updated",
 };
 
+function initFriendSocket(io) {
+  const { getPlayerRealtimeService } = require("./playerGameSocket");
+  const playerRealtimeService = getPlayerRealtimeService(io);
+
+  io.on("connection", (socket) => {
+    Promise.resolve()
+      .then(async () => {
+        const authenticatedUser = await playerRealtimeService.authenticateSocketUser(socket);
+        socket.data.userId = String(authenticatedUser._id);
+        joinUserRoom(socket, authenticatedUser._id);
+      })
+      .catch((error) => {
+        socket.emit("friends:error", {
+          code: "FRIEND_SOCKET_AUTH_FAILED",
+          message: error.message || "Unable to authenticate friend notifications.",
+        });
+      });
+  });
+}
+
 function getUserRoom(userId) {
   const normalizedUserId = String(userId || "").trim();
   return normalizedUserId ? `user:${normalizedUserId}` : null;
@@ -162,5 +182,6 @@ module.exports = {
   emitFriendRequestCreated,
   emitFriendRequestDeclined,
   getUserRoom,
+  initFriendSocket,
   joinUserRoom,
 };

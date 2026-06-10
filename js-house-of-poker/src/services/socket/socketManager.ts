@@ -309,6 +309,9 @@ export function createSocketManager(options: CreateSocketManagerOptions) {
         socket.off(eventName, handler);
       };
     },
+    setAuth(auth: Record<string, unknown>) {
+      socket.auth = auth;
+    },
     onConnection(listener: SocketManagerConnectionListener) {
       connectionListeners.add(listener);
 
