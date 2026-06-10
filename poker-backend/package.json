@@ -7,7 +7,7 @@
     "start": "node src/index.js",
     "seed:admin": "node src/scripts/seedAdmin.js",
     "test": "node --test tests",
-    "seed:chat-rooms": "node src/scripts/seedChatRooms.js"
+    "cleanup:obsolete-chat-data": "node src/scripts/cleanupObsoleteChatData.js"
   },
   "keywords": [],
   "author": "",
