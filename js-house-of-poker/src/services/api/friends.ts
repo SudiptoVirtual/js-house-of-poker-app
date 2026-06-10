@@ -53,6 +53,7 @@ type FriendListResponse = {
   count?: number;
   friends?: BackendFriendPlayer[];
   players?: BackendFriendPlayer[];
+  requests?: BackendFriendPlayer[];
   results?: BackendFriendPlayer[];
   users?: BackendFriendPlayer[];
 };
@@ -144,7 +145,7 @@ function normalizeRelationshipStatus(status: BackendRelationshipStatus): Relatio
 }
 
 function getPlayersFromResponse(response: FriendListResponse) {
-  return response.friends ?? response.players ?? response.users ?? response.results ?? [];
+  return response.friends ?? response.players ?? response.requests ?? response.users ?? response.results ?? [];
 }
 
 function toFriendsPlayer(player: BackendFriendPlayer, defaultRelationshipStatus: RelationshipStatus): FriendsPlayer | null {
@@ -199,6 +200,15 @@ export async function fetchFriends(token: string) {
   const response = await apiRequest<FriendListResponse>('/api/friends', { token });
 
   return normalizePlayers(response, 'friend');
+}
+
+export async function fetchIncomingFriendRequests(token: string) {
+  const response = await apiRequest<FriendListResponse>('/api/friends/requests/incoming', { token });
+
+  return normalizePlayers(response, 'request_received').map((player) => ({
+    ...player,
+    relationshipStatus: 'request_received' as const,
+  }));
 }
 
 export async function fetchOnlineFriends(token: string) {

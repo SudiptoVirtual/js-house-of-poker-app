@@ -15,6 +15,7 @@ import { usePoker } from '../context/PokerProvider';
 import {
   acceptFriendRequest,
   fetchFriends,
+  fetchIncomingFriendRequests,
   getApiErrorDetails,
   rejectFriendRequest,
   searchPlayers,
@@ -22,7 +23,11 @@ import {
   sendFriendRequest,
 } from '../services/api';
 import { friendRealtimeEvents } from '../services/friends/friendRealtimeService';
-import { mergeIncomingFriendRequest } from '../services/friends/mergeFriendRealtimeEvent';
+import {
+  mergeIncomingFriendRequest,
+  mergeIncomingFriendRequests,
+  removeIncomingFriendRequest,
+} from '../services/friends/mergeFriendRealtimeEvent';
 import { colors } from '../theme/colors';
 import type { FriendsPlayer, RelationshipStatus } from '../types/friends';
 import type { RootStackParamList } from '../types/navigation';
@@ -47,6 +52,7 @@ export function FriendsScreen({ navigation }: Props) {
   const { events: friendRealtimeEventsReceived } = useFriendNotifications();
   const { roomState, sendTableInvite } = usePoker();
   const [players, setPlayers] = useState<FriendsPlayer[]>([]);
+  const [incomingRequests, setIncomingRequests] = useState<FriendsPlayer[]>([]);
   const [searchResults, setSearchResults] = useState<FriendsPlayer[]>([]);
   const [query, setQuery] = useState('');
   const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
@@ -56,25 +62,30 @@ export function FriendsScreen({ navigation }: Props) {
   const trimmedQuery = query.trim();
   const isSearchActive = trimmedQuery.length > 0;
 
-  const incomingRequests = useMemo(
-    () => players.filter((player) => player.relationshipStatus === 'request_received'),
-    [players],
-  );
   const onlineFriends = useMemo(
     () => players.filter((player) => player.relationshipStatus === 'friend' && player.isOnline === true),
     [players],
   );
 
-  const loadFriends = useCallback(async () => {
+  const loadFriends = useCallback(async (reconcileIncomingRequests = false) => {
     if (!token) {
       setPlayers([]);
+      setIncomingRequests([]);
       setFeedbackMessage('Sign in to load your friends.');
       return;
     }
 
     try {
-      const friends = await fetchFriends(token);
+      const [friends, pendingRequests] = await Promise.all([
+        fetchFriends(token),
+        fetchIncomingFriendRequests(token),
+      ]);
       setPlayers(friends);
+      setIncomingRequests((currentRequests) =>
+        reconcileIncomingRequests
+          ? pendingRequests
+          : mergeIncomingFriendRequests(currentRequests, pendingRequests),
+      );
       setFeedbackMessage(null);
     } catch (error) {
       const { message } = getApiErrorDetails(error, 'Unable to load friends.');
@@ -103,7 +114,7 @@ export function FriendsScreen({ navigation }: Props) {
       processedRealtimeEventsRef.current.add(eventKey);
 
       if (eventName === friendRealtimeEvents.requestReceived) {
-        setPlayers((currentPlayers) => mergeIncomingFriendRequest(currentPlayers, payload));
+        setIncomingRequests((currentRequests) => mergeIncomingFriendRequest(currentRequests, payload));
         setSearchResults((currentResults) => mergeIncomingFriendRequest(currentResults, payload));
         return;
       }
@@ -113,8 +124,14 @@ export function FriendsScreen({ navigation }: Props) {
       }
 
       if (eventName === friendRealtimeEvents.requestAccepted || payload.status === 'friends') {
+        setIncomingRequests((currentRequests) =>
+          removeIncomingFriendRequest(currentRequests, requestId || undefined, playerId),
+        );
         updatePlayerRelationship(playerId, 'friend', setPlayers, setSearchResults);
       } else if (eventName === friendRealtimeEvents.requestDeclined || payload.status === 'none') {
+        setIncomingRequests((currentRequests) =>
+          removeIncomingFriendRequest(currentRequests, requestId || undefined, playerId),
+        );
         updatePlayerRelationship(playerId, 'not_friends', setPlayers, setSearchResults);
       }
     });
@@ -161,7 +178,7 @@ export function FriendsScreen({ navigation }: Props) {
     setIsRefreshingFriends(true);
 
     try {
-      await loadFriends();
+      await loadFriends(true);
 
       if (isSearchActive && token) {
         const results = await searchPlayers(trimmedQuery, token);
@@ -206,6 +223,9 @@ export function FriendsScreen({ navigation }: Props) {
     try {
       if (response === 'accept') {
         await acceptFriendRequest({ requestId: player.requestId, userId: player.id }, token);
+        setIncomingRequests((currentRequests) =>
+          removeIncomingFriendRequest(currentRequests, player.requestId, player.id),
+        );
         updatePlayerRelationship(player.id, 'friend', setPlayers, setSearchResults);
         await loadFriends();
         setFeedbackMessage(`Friend request accepted for ${player.displayName}.`);
@@ -213,6 +233,9 @@ export function FriendsScreen({ navigation }: Props) {
       }
 
       await rejectFriendRequest({ requestId: player.requestId, userId: player.id }, token);
+      setIncomingRequests((currentRequests) =>
+          removeIncomingFriendRequest(currentRequests, player.requestId, player.id),
+        );
       updatePlayerRelationship(player.id, 'not_friends', setPlayers, setSearchResults);
       setFeedbackMessage(`Friend request rejected for ${player.displayName}.`);
     } catch (error) {
@@ -280,20 +303,19 @@ export function FriendsScreen({ navigation }: Props) {
         />
       </SectionCard>
 
-      {incomingRequests.length > 0 ? (
-        <SectionCard title="Incoming requests">
-          <PlayerSearchResultsList
-            hasActiveTable={Boolean(activeTableCode)}
-            isSearchActive
-            onInviteToChat={handleInviteToChat}
-            onInviteToTable={handleInviteToTable}
-            onRespondToRequest={handleRespondToRequest}
-            onSendFriendRequest={handleSendFriendRequest}
-            onViewProfile={handleViewProfile}
-            players={incomingRequests}
-          />
-        </SectionCard>
-      ) : null}
+      <SectionCard title="Pending friend requests">
+        <PlayerSearchResultsList
+          emptyMessage="You have no pending friend requests."
+          hasActiveTable={Boolean(activeTableCode)}
+          isSearchActive
+          onInviteToChat={handleInviteToChat}
+          onInviteToTable={handleInviteToTable}
+          onRespondToRequest={handleRespondToRequest}
+          onSendFriendRequest={handleSendFriendRequest}
+          onViewProfile={handleViewProfile}
+          players={incomingRequests}
+        />
+      </SectionCard>
 
       {isSearchActive ? (
         <SectionCard title="Search results">

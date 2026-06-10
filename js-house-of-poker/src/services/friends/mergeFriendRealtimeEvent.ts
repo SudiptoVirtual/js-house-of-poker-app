@@ -40,6 +40,37 @@ export function mergeIncomingFriendRequest(
   );
 }
 
+export function mergeIncomingFriendRequests(
+  currentRequests: FriendsPlayer[],
+  fetchedRequests: FriendsPlayer[],
+): FriendsPlayer[] {
+  const currentByRequest = new Map(
+    currentRequests.map((player) => [player.requestId ?? player.id, player]),
+  );
+
+  return [
+    ...fetchedRequests.map((player) => ({
+      ...currentByRequest.get(player.requestId ?? player.id),
+      ...player,
+    })),
+    ...currentRequests.filter((player) =>
+      !fetchedRequests.some((fetched) =>
+        (fetched.requestId && fetched.requestId === player.requestId) || fetched.id === player.id,
+      ),
+    ),
+  ];
+}
+
+export function removeIncomingFriendRequest(
+  players: FriendsPlayer[],
+  requestId: string | undefined,
+  playerId: string,
+): FriendsPlayer[] {
+  return players.filter((player) =>
+    requestId ? player.requestId !== requestId : player.id !== playerId,
+  );
+}
+
 export function buildFriendRequestBanner(payload: FriendRealtimePayload) {
   const id = requestIdOf(payload);
 

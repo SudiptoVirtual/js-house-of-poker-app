@@ -41,6 +41,7 @@ export type {
 export {
   acceptFriendRequest,
   fetchFriends,
+  fetchIncomingFriendRequests,
   fetchOnlineFriends,
   rejectFriendRequest,
   searchPlayers,
