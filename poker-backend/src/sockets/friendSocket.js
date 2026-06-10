@@ -1,4 +1,8 @@
 const { getIO } = require("./socketRegistry");
+const {
+  registerAuthenticatedSocket,
+  unregisterAuthenticatedSocket,
+} = require("../services/userPresenceService");
 
 const FRIEND_SOCKET_EVENTS = {
   requestAccepted: "friends:request_accepted",
@@ -6,6 +10,7 @@ const FRIEND_SOCKET_EVENTS = {
   requestReceived: "friends:request_received",
   requestSent: "friends:request_sent",
   statusUpdated: "friends:status_updated",
+  presenceUpdated: "friends:presence_updated",
 };
 
 function initFriendSocket(io) {
@@ -18,6 +23,12 @@ function initFriendSocket(io) {
         const authenticatedUser = await playerRealtimeService.authenticateSocketUser(socket);
         socket.data.userId = String(authenticatedUser._id);
         joinUserRoom(socket, authenticatedUser._id);
+        socket.on("disconnect", () => {
+          void unregisterAuthenticatedSocket(socket.id).catch((error) => {
+            console.error("Unable to unregister authenticated socket presence", error);
+          });
+        });
+        await registerAuthenticatedSocket(authenticatedUser._id, socket.id);
       })
       .catch((error) => {
         socket.emit("friends:error", {
