@@ -80,11 +80,11 @@ export function FriendQuickActions({
         />
       ) : null}
       {showFriendRequestAction && player.relationshipStatus === 'request_received' && onRespondToRequest ? (
-        <View style={styles.actionRow}>
+        <View style={styles.requestActionRow}>
           <ActionButton
             compact
+            containerStyle={styles.requestActionButton}
             disabled={Boolean(pendingAction)}
-            fullWidth
             icon="account-check-outline"
             label="Accept"
             loading={pendingAction === 'accept-request'}
@@ -93,10 +93,10 @@ export function FriendQuickActions({
           />
           <ActionButton
             compact
+            containerStyle={styles.requestActionButton}
             disabled={Boolean(pendingAction)}
-            fullWidth
             icon="account-cancel-outline"
-            label="Reject"
+            label="Decline"
             loading={pendingAction === 'reject-request'}
             onPress={() => { void runAction('reject-request', () => onRespondToRequest(player, 'reject')); }}
             tone="danger"
@@ -114,6 +114,14 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   actionStack: {
+    gap: 8,
+  },
+  requestActionButton: {
+    flex: 1,
+    minWidth: 0,
+  },
+  requestActionRow: {
+    flexDirection: 'row',
     gap: 8,
   },
 });
