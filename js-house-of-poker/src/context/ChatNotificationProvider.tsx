@@ -22,7 +22,8 @@ type ChatNotificationContextValue = {
   clearBanner: () => void;
   markRoomRead: (roomId: string) => Promise<void>;
   queueLength: number;
-  setActiveRoomId: (roomId: string | null) => void;
+  clearActiveRoom: (roomId?: string) => void;
+  setActiveRoom: (roomId: string) => void;
   totalUnreadMessageCount: number;
   unreadByRoom: Record<string, number>;
 };
@@ -40,16 +41,23 @@ export function ChatNotificationProvider({ children }: PropsWithChildren) {
   const reconcileUnreadCounts = useCallback(async () => {
     if (!token) return;
     const rooms = await fetchChatRooms(token);
-    setUnreadByRoom(getUnreadByRoom(rooms));
+    setUnreadByRoom({
+      ...getUnreadByRoom(rooms),
+      ...(activeRoomIdRef.current ? { [activeRoomIdRef.current]: 0 } : {}),
+    });
   }, [token]);
 
-  const setActiveRoomId = useCallback((roomId: string | null) => {
+  const setActiveRoom = useCallback((roomId: string) => {
     activeRoomIdRef.current = roomId;
     setActiveRoomIdState(roomId);
+    setUnreadByRoom((current) => ({ ...current, [roomId]: 0 }));
+  }, []);
 
-    if (roomId) {
-      setUnreadByRoom((current) => ({ ...current, [roomId]: 0 }));
-    }
+  const clearActiveRoom = useCallback((roomId?: string) => {
+    if (roomId && activeRoomIdRef.current !== roomId) return;
+
+    activeRoomIdRef.current = null;
+    setActiveRoomIdState(null);
   }, []);
 
   const markRoomRead = useCallback(async (roomId: string) => {
@@ -86,12 +94,16 @@ export function ChatNotificationProvider({ children }: PropsWithChildren) {
           isViewingRoom,
         ),
       }));
+
+      if (isViewingRoom) {
+        void markRoomRead(notification.roomId);
+      }
     }
 
     if (shouldShowChatNotification(notification, activeRoomIdRef.current)) {
       setBannerQueue((current) => enqueueChatNotification(current, notification));
     }
-  }, []);
+  }, [markRoomRead]);
 
   useEffect(() => {
     if (!token) {
@@ -136,9 +148,9 @@ export function ChatNotificationProvider({ children }: PropsWithChildren) {
 
   const totalUnreadMessageCount = useMemo(() => getTotalUnreadMessageCount(unreadByRoom), [unreadByRoom]);
   const value = useMemo(() => ({
-    activeRoomId, banner: bannerQueue[0] ?? null, clearBanner, markRoomRead, queueLength: bannerQueue.length,
-    setActiveRoomId, totalUnreadMessageCount, unreadByRoom,
-  }), [activeRoomId, bannerQueue, clearBanner, markRoomRead, setActiveRoomId, totalUnreadMessageCount, unreadByRoom]);
+    activeRoomId, banner: bannerQueue[0] ?? null, clearActiveRoom, clearBanner, markRoomRead, queueLength: bannerQueue.length,
+    setActiveRoom, totalUnreadMessageCount, unreadByRoom,
+  }), [activeRoomId, bannerQueue, clearActiveRoom, clearBanner, markRoomRead, setActiveRoom, totalUnreadMessageCount, unreadByRoom]);
 
   return <ChatNotificationContext.Provider value={value}>{children}</ChatNotificationContext.Provider>;
 }

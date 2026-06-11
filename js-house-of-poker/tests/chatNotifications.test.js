@@ -115,6 +115,88 @@ test('chat navigation badge uses the Feed badge style and caps message counts at
   assert.match(JSON.stringify(MainPlatformNavigation()), /9\+/);
 });
 
+async function createChatNotificationProviderHarness() {
+  const state = [];
+  const refs = [];
+  const messageHandlers = new Map();
+  const markReadCalls = [];
+  let stateIndex = 0;
+  let refIndex = 0;
+  const socketManager = {
+    connect: async () => {},
+    destroy: () => {},
+    getConnectionState: () => ({ status: 'idle' }),
+    onConnection: () => () => {},
+    on: (eventName, handler) => { messageHandlers.set(eventName, handler); return () => {}; },
+    setAuth: () => {},
+  };
+  const react = {
+    createContext: () => ({ Provider: 'Provider' }),
+    useCallback: (callback) => callback,
+    useContext: () => null,
+    useEffect: (effect) => { effect(); },
+    useMemo: (factory) => factory(),
+    useRef: (initial) => {
+      const index = refIndex++;
+      refs[index] ??= { current: initial };
+      return refs[index];
+    },
+    useState: (initial) => {
+      const index = stateIndex++;
+      state[index] ??= initial;
+      return [state[index], (next) => { state[index] = typeof next === 'function' ? next(state[index]) : next; }];
+    },
+  };
+  const { ChatNotificationProvider } = loadTypeScriptModule('../src/context/ChatNotificationProvider.tsx', {
+    react,
+    '../config/env': { env: { poker: { socketUrl: 'https://socket.example.test' } } },
+    './AuthProvider': { useAuth: () => ({ token: 'session-token' }) },
+    '../services/chatRooms/chatNotifications': helpers,
+    '../services/chatRooms/events': { chatRoomSocketEvents: { messageNotification: 'chat:messageNotification', roomInvited: 'chat:roomInvited' } },
+    '../services/api/chatRooms': {
+      fetchChatRooms: async () => [{ id: 'room-1', unreadCount: 4 }, { id: 'room-2', unreadCount: 0 }],
+      markChatRoomNotificationsRead: async (roomId) => { markReadCalls.push(roomId); return { ok: true }; },
+    },
+    '../services/socket/socketManager': { createSocketManager: () => socketManager },
+  });
+
+  const tree = ChatNotificationProvider({ children: 'child' });
+  await Promise.resolve();
+  return { context: tree.props.value, markReadCalls, messageHandlers, state };
+}
+
+test('messages received while viewing the same room remain read and are marked read on the server', async () => {
+  const harness = await createChatNotificationProviderHarness();
+  harness.context.setActiveRoom('room-1');
+
+  harness.messageHandlers.get('chat:messageNotification')(messagePayload);
+  await Promise.resolve();
+
+  assert.equal(harness.state[2]['room-1'], 0);
+  assert.deepEqual(harness.markReadCalls, ['room-1']);
+  assert.deepEqual(harness.state[1], []);
+});
+
+test('messages received from another room increment unread state without being marked read', async () => {
+  const harness = await createChatNotificationProviderHarness();
+  harness.context.setActiveRoom('room-1');
+  const otherRoomPayload = {
+    ...messagePayload,
+    message: { ...messagePayload.message, id: 'message-2', roomId: 'room-2' },
+    notification: { ...messagePayload.notification, id: 'notification-2', messageId: 'message-2' },
+    roomId: 'room-2',
+    unreadCount: 2,
+  };
+
+  harness.messageHandlers.get('chat:messageNotification')(otherRoomPayload);
+  await Promise.resolve();
+
+  assert.equal(harness.state[2]['room-1'], 0);
+  assert.equal(harness.state[2]['room-2'], 2);
+  assert.deepEqual(harness.markReadCalls, []);
+  assert.deepEqual(harness.state[1].map(({ id }) => id), ['notification-2']);
+});
+
 test('global provider authenticates one session socket and subscribes to both chat notification events', async () => {
   const subscriptions = [];
   const authCalls = [];
