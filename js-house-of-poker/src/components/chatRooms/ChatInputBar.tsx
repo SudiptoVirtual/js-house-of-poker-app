@@ -47,7 +47,7 @@ export function ChatInputBar({
           onPress={() => undefined}
           style={({ pressed }) => [styles.iconButton, pressed ? styles.pressed : null]}
         >
-          <MaterialCommunityIcons color={colors.gold} name="emoticon-happy-outline" size={18} />
+          <MaterialCommunityIcons color={colors.gold} name="emoticon-happy-outline" size={15} />
         </Pressable>
         {onOpenGiftClips ? (
           <Pressable
@@ -57,7 +57,7 @@ export function ChatInputBar({
             onPress={onOpenGiftClips}
             style={({ pressed }) => [styles.iconButton, styles.giftButton, pressed ? styles.pressed : null]}
           >
-            <MaterialCommunityIcons color={colors.gold} name="gift-outline" size={18} />
+            <MaterialCommunityIcons color={colors.gold} name="gift-outline" size={15} />
           </Pressable>
         ) : null}
         <AIPrimeButton loading={openingAIPrime} onPress={onOpenAIPrime} />
@@ -76,7 +76,7 @@ export function ChatInputBar({
           {sending ? (
             <ActivityIndicator color={colors.background} size="small" />
           ) : (
-            <MaterialCommunityIcons color={colors.background} name="send" size={17} />
+            <MaterialCommunityIcons color={colors.background} name="send" size={14} />
           )}
         </Pressable>
       </View>

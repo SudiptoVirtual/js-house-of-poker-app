@@ -84,3 +84,13 @@ test('two-row chat composer stays within the previous height envelope', () => {
   assert.equal(restingHeight, 65);
   assert.equal(maxHeight, 129);
 });
+
+test('non-AI composer icons are at least 15% smaller than their previous sizes', () => {
+  const composer = renderChatInputBar();
+  const actions = composer.props.children[1];
+  const [emojiButton, giftButton, , sendButton] = actions.props.children;
+
+  assert.ok(emojiButton.props.children.props.size <= 18 * 0.85);
+  assert.ok(giftButton.props.children.props.size <= 18 * 0.85);
+  assert.ok(sendButton.props.children.props.size <= 17 * 0.85);
+});
