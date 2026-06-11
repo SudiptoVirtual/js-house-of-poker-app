@@ -11,6 +11,7 @@ type FriendQuickActionsProps = {
   hasActiveTable: boolean;
   onInviteToChat: (player: FriendsPlayer) => void | Promise<void>;
   onInviteToTable: (player: FriendsPlayer) => void | Promise<void>;
+  onRemoveFriend?: (player: FriendsPlayer) => void | Promise<void>;
   onRespondToRequest?: (player: FriendsPlayer, response: 'accept' | 'reject') => void | Promise<void>;
   onSendFriendRequest: (player: FriendsPlayer) => void | Promise<void>;
   onViewProfile: (player: FriendsPlayer) => void;
@@ -22,6 +23,7 @@ export function FriendQuickActions({
   hasActiveTable,
   onInviteToChat,
   onInviteToTable,
+  onRemoveFriend,
   onRespondToRequest,
   onSendFriendRequest,
   onViewProfile,
@@ -77,6 +79,18 @@ export function FriendQuickActions({
           disabled={Boolean(pendingAction)}
           loading={pendingAction === 'send-request'}
           onPress={() => { void runAction('send-request', () => onSendFriendRequest(player)); }}
+        />
+      ) : null}
+      {player.relationshipStatus === 'friend' && onRemoveFriend ? (
+        <ActionButton
+          compact
+          disabled={Boolean(pendingAction)}
+          icon="account-minus-outline"
+          label="Remove friend"
+          loading={pendingAction === 'remove-friend'}
+          onPress={() => { void runAction('remove-friend', () => onRemoveFriend(player)); }}
+          tone="danger"
+          variant="secondary"
         />
       ) : null}
       {showFriendRequestAction && player.relationshipStatus === 'request_received' && onRespondToRequest ? (

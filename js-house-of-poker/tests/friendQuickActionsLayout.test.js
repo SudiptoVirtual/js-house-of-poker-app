@@ -77,6 +77,22 @@ function renderRequestActions(onRespondToRequest = () => {}) {
   });
 }
 
+function renderFriendActions() {
+  const QuickActions = loadFriendQuickActions();
+  return QuickActions({
+    hasActiveTable: false, onInviteToChat: () => {}, onInviteToTable: () => {}, onRemoveFriend: () => {},
+    onSendFriendRequest: () => {}, onViewProfile: () => {},
+    player: { ...requestPlayer, relationshipStatus: 'friend' },
+  });
+}
+
+test('an existing friend renders exactly one Remove friend action', () => {
+  const tree = renderFriendActions();
+  const removeActions = findElements(tree, (element) => element.type === ActionButton && element.props.label === 'Remove friend');
+
+  assert.equal(removeActions.length, 1);
+});
+
 test('Accept and Decline render as equal-width side-by-side request actions at the minimum viewport width', () => {
   const tree = renderRequestActions();
   const requestButtons = findElements(tree, (element) => element.type === ActionButton && ['Accept', 'Decline'].includes(element.props.label));
