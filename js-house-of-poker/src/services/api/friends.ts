@@ -67,18 +67,6 @@ type FriendActionResponse = {
   status?: BackendRelationshipStatus;
 };
 
-type ChatInviteInput = {
-  message?: string;
-  roomId?: string;
-  userId: string;
-};
-
-type ChatInviteResponse = {
-  invitedPlayerIds?: string[];
-  message?: string;
-  status?: string;
-};
-
 function normalizeIdentifier(value: BackendId): string {
   if (value == null) {
     return '';
@@ -258,14 +246,6 @@ export async function acceptFriendRequest(input: { requestId?: string; userId: s
 export async function rejectFriendRequest(input: { requestId?: string; userId: string }, token: string) {
   return apiRequest<FriendActionResponse>('/api/friends/decline', {
     body: input.requestId ? { requestId: input.requestId } : { senderUserId: input.userId },
-    method: 'POST',
-    token,
-  });
-}
-
-export async function sendChatInvite({ message, roomId, userId }: ChatInviteInput, token: string) {
-  return apiRequest<ChatInviteResponse>('/api/friends/invites/chat', {
-    body: { message, receiverUserId: userId, roomId },
     method: 'POST',
     token,
   });
