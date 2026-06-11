@@ -117,6 +117,32 @@ test('provider loads pending requests, merges realtime receipts by request ID, a
   assert.equal(harness.render().pendingRequestCount, 0);
 });
 
+test('an accepted outgoing request does not decrement the incoming request badge count', async () => {
+  const harness = createProviderHarness();
+  harness.render();
+  await Promise.resolve();
+  assert.equal(harness.render().pendingRequestCount, 1);
+
+  harness.options().onEvent({ userId: 'sender-1' }, 'accepted');
+
+  const value = harness.render();
+  assert.equal(value.pendingRequestCount, 1);
+  assert.deepEqual(value.pendingRequests.map(({ requestId }) => requestId), ['request-1']);
+});
+
+test('a declined outgoing request does not decrement the incoming request badge count', async () => {
+  const harness = createProviderHarness();
+  harness.render();
+  await Promise.resolve();
+  assert.equal(harness.render().pendingRequestCount, 1);
+
+  harness.options().onEvent({ userId: 'sender-1' }, 'declined');
+
+  const value = harness.render();
+  assert.equal(value.pendingRequestCount, 1);
+  assert.deepEqual(value.pendingRequests.map(({ requestId }) => requestId), ['request-1']);
+});
+
 test('provider resets on logout and reconciles pending requests after reconnect', async () => {
   const harness = createProviderHarness();
   harness.render();
