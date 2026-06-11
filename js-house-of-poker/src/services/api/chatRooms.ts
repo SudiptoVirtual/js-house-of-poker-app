@@ -23,9 +23,12 @@ type BackendChatRoomMetadata = {
 
 type BackendChatRoomListItem = {
   activePlayerCount?: number;
+  canLeave?: boolean;
   description?: string;
   gameType?: string;
   id?: BackendId;
+  isCreator?: boolean;
+  isMember?: boolean;
   lastMessageAt?: string | null;
   lastMessagePreview?: string | null;
   maxPlayers?: number;
@@ -264,7 +267,7 @@ function toChatRoomFriend(friend: BackendChatRoomPlayer, index: number, seenFrie
   };
 }
 
-function toChatRoom(room: BackendChatRoomDetail, index = 0, seenRoomIds = new Set<string>()): ChatRoom {
+export function toChatRoom(room: BackendChatRoomDetail, index = 0, seenRoomIds = new Set<string>()): ChatRoom {
   const title = getBackendRoomName(room);
   const id = getUniqueIdentifier(
     normalizeIdentifier(room.id ?? room.roomId ?? room.metadata?.roomId ?? room.slug),
@@ -287,6 +290,7 @@ function toChatRoom(room: BackendChatRoomDetail, index = 0, seenRoomIds = new Se
 
   return {
     activePlayerCount: room.activePlayerCount ?? players.length,
+    canLeave: room.canLeave === true,
     description: room.description ?? 'Live social chat room.',
     id,
     inviteState: {
@@ -295,6 +299,8 @@ function toChatRoom(room: BackendChatRoomDetail, index = 0, seenRoomIds = new Se
       shareLink: `houseofpoker://chat-rooms/${room.slug ?? id}`,
       suggestedHandles: [],
     },
+    isCreator: room.isCreator === true,
+    isMember: room.isMember === true,
     lastMessagePreview,
     messages,
     players,

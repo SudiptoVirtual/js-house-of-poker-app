@@ -1,5 +1,6 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
+const mongoose = require("mongoose");
 
 const ChatRoom = require("../src/models/ChatRoom");
 const GameTable = require("../src/models/GameTable");
@@ -111,6 +112,81 @@ test("game-table detail lookup rejects BotTableManager and internal/demo table n
 
   assert.equal(response.statusCode, 404);
   assert.deepEqual(response.body, { message: "Chat room not found" });
+});
+
+
+test("game-table detail exposes public-visitor membership capabilities", async (t) => {
+  const originalChatRoomFindOne = ChatRoom.findOne;
+  const originalGameTableFindOne = GameTable.findOne;
+
+  ChatRoom.findOne = async function findOneStub() {
+    return null;
+  };
+  GameTable.findOne = function findOneStub() {
+    return {
+      lean: async () => ({
+        chatMessages: [],
+        hostUserId: "507f1f77bcf86cd799439031",
+        players: [],
+        status: "waiting",
+        tableCode: "PUBLIC1",
+      }),
+    };
+  };
+
+  t.after(() => {
+    ChatRoom.findOne = originalChatRoomFindOne;
+    GameTable.findOne = originalGameTableFindOne;
+  });
+
+  const response = createResponseRecorder();
+  await getChatRoomById({
+    params: { roomId: "PUBLIC1" },
+    query: {},
+    user: { _id: "507f1f77bcf86cd799439032" },
+  }, response);
+
+  assert.equal(response.statusCode, 200);
+  assert.deepEqual(
+    { canLeave: response.body.room.canLeave, isCreator: response.body.room.isCreator, isMember: response.body.room.isMember },
+    { canLeave: false, isCreator: false, isMember: false },
+  );
+});
+
+test("social-room serialization exposes membership capabilities and prevents leaving public rooms", () => {
+  const creatorId = new mongoose.Types.ObjectId("507f1f77bcf86cd799439021");
+  const memberId = new mongoose.Types.ObjectId("507f1f77bcf86cd799439022");
+  const visitorId = new mongoose.Types.ObjectId("507f1f77bcf86cd799439023");
+  const privateRoom = new ChatRoom({
+    createdByUserId: creatorId,
+    isPublic: false,
+    name: "Private friends",
+    participantStates: [{ userId: memberId }],
+    slug: "private-friends",
+    visibility: "private",
+  });
+  const publicRoom = new ChatRoom({
+    createdByUserId: creatorId,
+    isPublic: true,
+    name: "Public lounge",
+    participantStates: [],
+    slug: "public-lounge",
+    visibility: "public",
+  });
+
+  assert.deepEqual(privateRoom.getMembershipCapabilities(memberId), {
+    canLeave: true, isCreator: false, isMember: true,
+  });
+  assert.deepEqual(privateRoom.getMembershipCapabilities(creatorId), {
+    canLeave: false, isCreator: true, isMember: true,
+  });
+  assert.deepEqual(publicRoom.getMembershipCapabilities(visitorId), {
+    canLeave: false, isCreator: false, isMember: false,
+  });
+
+  assert.equal(privateRoom.toRoomListItem(memberId).canLeave, true);
+  assert.equal(privateRoom.toRoomListItem(creatorId).canLeave, false);
+  assert.equal(publicRoom.toRoomListItem(visitorId).canLeave, false);
 });
 
 test("one-time cleanup removes retired default rooms and internal/demo game tables", async (t) => {

@@ -1151,6 +1151,18 @@ export function ChatRoomDetailScreen({ navigation, route }: Props) {
     }
   }
 
+  function handleLeaveChatRoom() {
+    if (!room) {
+      return;
+    }
+
+    socketRef.current?.emit(
+      chatRoomSocketEvents.leaveRoom,
+      { roomId: room.id, token: authRef.current?.token } satisfies LeaveChatRoomRequest,
+    );
+    navigation.goBack();
+  }
+
   return (
     <Screen
       showPlatformNavigation
@@ -1167,6 +1179,17 @@ export function ChatRoomDetailScreen({ navigation, route }: Props) {
         statusLabel={`${room.topic} • ${isRealtimeConnected ? 'Live' : 'Connecting'}`}
         title={room.title}
       />
+
+      {room.canLeave ? (
+        <ActionButton
+          compact
+          icon="exit-to-app"
+          label="Leave chat room"
+          onPress={handleLeaveChatRoom}
+          tone="danger"
+          variant="secondary"
+        />
+      ) : null}
 
       <SectionCard title="Room messages">
         <Text style={styles.helperText}>
