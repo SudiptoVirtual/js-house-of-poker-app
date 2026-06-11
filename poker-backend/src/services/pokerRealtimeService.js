@@ -1546,7 +1546,6 @@ class PokerRealtimeService {
     const seatNumber = 0;
 
     user.chips -= DEFAULT_BUY_IN;
-    user.isOnline = true;
     await user.save();
 
     const player = buildPlayerFromUser(
@@ -1843,7 +1842,6 @@ class PokerRealtimeService {
     }
 
     user.chips -= room.buyInAmount;
-    user.isOnline = true;
     await user.save();
 
     const player = buildPlayerFromUser(user, seatNumber, socket.id, room.buyInAmount);

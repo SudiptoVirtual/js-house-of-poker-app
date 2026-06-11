@@ -1,5 +1,6 @@
 const User = require("../models/User");
 const generateUserToken = require("../utils/generateUserToken");
+const { setOfflineIfNoAuthenticatedSockets } = require("../services/userPresenceService");
 const {
   generateUniqueReferralCode,
   normalizeReferralCode,
@@ -66,7 +67,6 @@ const registerUser = async (req, res) => {
     }
 
     const user = await User.create({
-      isOnline: true,
       lastLoginAt: new Date(),
       name: trimmedName,
       email: normalizedEmail,
@@ -147,7 +147,6 @@ const loginUser = async (req, res) => {
     user.security.lastFailedLoginAt = null;
     user.security.lockUntil = null;
     user.lastLoginAt = new Date();
-    user.isOnline = true;
     await user.save();
 
     return sendAuthResponse(res, 200, "Login successful", user);
@@ -204,7 +203,6 @@ const authenticateWithGoogle = async (req, res) => {
         avatar: googleProfile.avatar,
         email: googleProfile.email,
         firebaseUid: googleProfile.firebaseUid,
-        isOnline: true,
         lastLoginAt: new Date(),
         name: googleProfile.name,
         phone: "",
@@ -222,7 +220,6 @@ const authenticateWithGoogle = async (req, res) => {
     user.security.lastFailedLoginAt = null;
     user.security.lockUntil = null;
     user.lastLoginAt = new Date();
-    user.isOnline = true;
 
     if (!user.googleId && googleProfile.googleId) {
       user.googleId = googleProfile.googleId;
@@ -278,9 +275,7 @@ const getMe = async (req, res) => {
 
 const logoutUser = async (req, res) => {
   try {
-    await User.findByIdAndUpdate(req.user._id, {
-      isOnline: false,
-    });
+    await setOfflineIfNoAuthenticatedSockets(req.user._id);
 
     return res.status(200).json({
       message: "Logout successful",
