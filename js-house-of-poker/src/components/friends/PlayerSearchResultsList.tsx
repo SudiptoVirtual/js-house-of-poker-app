@@ -10,6 +10,7 @@ type PlayerSearchResultsListProps = {
   isSearchActive: boolean;
   onInviteToChat: (player: FriendsPlayer) => void;
   onInviteToTable: (player: FriendsPlayer) => void;
+  onRemoveFriend?: (player: FriendsPlayer) => void;
   onRespondToRequest: (player: FriendsPlayer, response: 'accept' | 'reject') => void;
   onSendFriendRequest: (player: FriendsPlayer) => void;
   onViewProfile: (player: FriendsPlayer) => void;
@@ -22,6 +23,7 @@ export function PlayerSearchResultsList({
   isSearchActive,
   onInviteToChat,
   onInviteToTable,
+  onRemoveFriend,
   onRespondToRequest,
   onSendFriendRequest,
   onViewProfile,
@@ -45,6 +47,7 @@ export function PlayerSearchResultsList({
           hasActiveTable={hasActiveTable}
           onInviteToChat={onInviteToChat}
           onInviteToTable={onInviteToTable}
+          onRemoveFriend={onRemoveFriend}
           onRespondToRequest={onRespondToRequest}
           onSendFriendRequest={onSendFriendRequest}
           onViewProfile={onViewProfile}

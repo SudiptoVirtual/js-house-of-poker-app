@@ -11,6 +11,7 @@ type PlayerSearchResultCardProps = {
   hasActiveTable: boolean;
   onInviteToChat: (player: FriendsPlayer) => void;
   onInviteToTable: (player: FriendsPlayer) => void;
+  onRemoveFriend?: (player: FriendsPlayer) => void;
   onRespondToRequest: (player: FriendsPlayer, response: 'accept' | 'reject') => void;
   onSendFriendRequest: (player: FriendsPlayer) => void;
   onViewProfile: (player: FriendsPlayer) => void;
@@ -21,6 +22,7 @@ export function PlayerSearchResultCard({
   hasActiveTable,
   onInviteToChat,
   onInviteToTable,
+  onRemoveFriend,
   onRespondToRequest,
   onSendFriendRequest,
   onViewProfile,
@@ -50,6 +52,7 @@ export function PlayerSearchResultCard({
         hasActiveTable={hasActiveTable}
         onInviteToChat={onInviteToChat}
         onInviteToTable={onInviteToTable}
+        onRemoveFriend={onRemoveFriend}
         onRespondToRequest={onRespondToRequest}
         onSendFriendRequest={onSendFriendRequest}
         onViewProfile={onViewProfile}

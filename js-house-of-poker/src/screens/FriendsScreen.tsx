@@ -3,7 +3,6 @@ import { StyleSheet, Text } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import { FriendsHeader } from '../components/friends/FriendsHeader';
-import { OnlineFriendsList } from '../components/friends/OnlineFriendsList';
 import { PlayerSearchInput } from '../components/friends/PlayerSearchInput';
 import { PlayerSearchResultsList } from '../components/friends/PlayerSearchResultsList';
 import { Screen } from '../components/Screen';
@@ -65,9 +64,13 @@ export function FriendsScreen({ navigation }: Props) {
   const trimmedQuery = query.trim();
   const isSearchActive = trimmedQuery.length > 0;
 
-  const onlineFriends = useMemo(
-    () => players.filter((player) => player.relationshipStatus === 'friend' && player.isOnline === true),
+  const friends = useMemo(
+    () => players.filter((player) => player.relationshipStatus === 'friend'),
     [players],
+  );
+  const onlineFriendCount = useMemo(
+    () => friends.filter((player) => player.isOnline === true).length,
+    [friends],
   );
 
   const loadFriends = useCallback(async () => {
@@ -244,6 +247,11 @@ export function FriendsScreen({ navigation }: Props) {
     }
   }
 
+  function handleRemoveFriend(player: FriendsPlayer) {
+    updatePlayerRelationship(player.id, 'not_friends', setPlayers, setSearchResults);
+    setFeedbackMessage(`${player.displayName} removed from your friends.`);
+  }
+
   async function handleInviteToChat(player: FriendsPlayer) {
     if (!token) {
       setFeedbackMessage('Sign in to send chat invites.');
@@ -293,7 +301,7 @@ export function FriendsScreen({ navigation }: Props) {
       onRefresh={() => { void handleRefreshFriends(); }}
       refreshing={isRefreshingFriends}
       title="Friends"
-      subtitle="Online friends and player search"
+      subtitle="Friends and player search"
     >
       <SectionCard title="Find players">
         <PlayerSearchInput onChangeText={setQuery} value={query} />
@@ -301,7 +309,7 @@ export function FriendsScreen({ navigation }: Props) {
           activeTableCode={activeTableCode}
           feedbackMessage={feedbackMessage}
           isSearchActive={isSearchActive}
-          onlineFriendCount={onlineFriends.length}
+          onlineFriendCount={onlineFriendCount}
         />
       </SectionCard>
 
@@ -331,6 +339,7 @@ export function FriendsScreen({ navigation }: Props) {
             isSearchActive={isSearchActive}
             onInviteToChat={handleInviteToChat}
             onInviteToTable={handleInviteToTable}
+            onRemoveFriend={handleRemoveFriend}
             onRespondToRequest={handleRespondToRequest}
             onSendFriendRequest={handleSendFriendRequest}
             onViewProfile={handleViewProfile}
@@ -338,13 +347,18 @@ export function FriendsScreen({ navigation }: Props) {
           />
         </SectionCard>
       ) : (
-        <SectionCard title="Online friends">
-          <OnlineFriendsList
+        <SectionCard title="All friends">
+          <PlayerSearchResultsList
+            emptyMessage="You have no friends yet."
             hasActiveTable={Boolean(activeTableCode)}
+            isSearchActive
             onInviteToChat={handleInviteToChat}
             onInviteToTable={handleInviteToTable}
+            onRemoveFriend={handleRemoveFriend}
+            onRespondToRequest={handleRespondToRequest}
+            onSendFriendRequest={handleSendFriendRequest}
             onViewProfile={handleViewProfile}
-            players={onlineFriends}
+            players={friends}
           />
         </SectionCard>
       )}

@@ -36,6 +36,8 @@ function flattenStyle(style) {
 
 function ActionButton() {}
 function FriendQuickActions() {}
+function InviteToChatButton() {}
+function InviteToTableButton() {}
 
 const reactNativeMock = {
   Animated: {
@@ -58,8 +60,8 @@ function loadFriendQuickActions() {
     react: { ...require('react'), useState: () => [null, () => {}] },
     'react-native': reactNativeMock,
     '../ActionButton': { ActionButton },
-    './InviteToChatButton': { InviteToChatButton: () => null },
-    './InviteToTableButton': { InviteToTableButton: () => null },
+    './InviteToChatButton': { InviteToChatButton },
+    './InviteToTableButton': { InviteToTableButton },
     './SendFriendRequestButton': { SendFriendRequestButton: () => null },
   }).FriendQuickActions;
 }
@@ -86,10 +88,35 @@ function renderFriendActions() {
   });
 }
 
-test('an existing friend renders exactly one Remove friend action', () => {
+test('an offline friend renders Remove friend without online-only invite actions', () => {
   const tree = renderFriendActions();
   const removeActions = findElements(tree, (element) => element.type === ActionButton && element.props.label === 'Remove friend');
 
+  assert.equal(removeActions.length, 1);
+  assert.equal(findElements(tree, (element) => [InviteToChatButton, InviteToTableButton].includes(element.type)).length, 0);
+});
+
+test('a friend returned through player search exposes the forwarded Remove friend action', () => {
+  const QuickActions = loadFriendQuickActions();
+  const onRemoveFriend = () => {};
+  const searchFriend = { ...requestPlayer, relationshipStatus: 'friend' };
+  const { PlayerSearchResultCard } = compileComponent('../src/components/friends/PlayerSearchResultCard.tsx', {
+    'react-native': reactNativeMock,
+    '../../theme/colors': { colors: {} },
+    './FriendQuickActions': { FriendQuickActions: QuickActions },
+    './PlayerAvatar': { PlayerAvatar: () => null },
+    './PlayerStatusBadge': { PlayerStatusBadge: () => null },
+    './RelationshipStatusBadge': { RelationshipStatusBadge: () => null },
+  });
+  const card = PlayerSearchResultCard({
+    hasActiveTable: false, onInviteToChat: () => {}, onInviteToTable: () => {}, onRemoveFriend,
+    onRespondToRequest: () => {}, onSendFriendRequest: () => {}, onViewProfile: () => {}, player: searchFriend,
+  });
+  const quickActionsElement = findElements(card, (element) => element.type === QuickActions)[0];
+  const quickActions = QuickActions(quickActionsElement.props);
+  const removeActions = findElements(quickActions, (element) => element.type === ActionButton && element.props.label === 'Remove friend');
+
+  assert.equal(quickActionsElement.props.onRemoveFriend, onRemoveFriend);
   assert.equal(removeActions.length, 1);
 });
 

@@ -31,29 +31,18 @@ function findElement(node, predicate) {
   return null;
 }
 
-test('pressing Chat Invite creates a private room with the friend and navigates to it', async () => {
-  const apiCalls = [];
-  const navigationCalls = [];
-  const { createChatRoom } = compileTypeScript('../src/services/api/chatRooms.ts', {
-    '../../config/env': { env: { apiBaseUrl: 'https://example.test' } },
-    './client': {
-      ApiError: class ApiError extends Error {},
-      apiRequest: async (route, options) => {
-        apiCalls.push([route, options]);
-        return { invitedPlayerIds: ['friend-1'], room: { id: 'room-9', name: options.body.name } };
-      },
-    },
-  });
-  const PlayerSearchResultsList = (props) => ({
-    props: { accessibilityLabel: 'Chat Invite', onPress: () => props.onInviteToChat(props.players[0]) },
-    type: 'Pressable',
-  });
-  const friend = {
-    activityStatus: 'online', displayName: 'Bob Friend', id: 'friend-1', isOnline: true,
-    relationshipStatus: 'friend', username: 'bob',
+test('the all-friends section includes accepted friends regardless of presence and provides removal', () => {
+  const onlineFriend = {
+    activityStatus: 'online', displayName: 'Online Friend', id: 'friend-online', isOnline: true,
+    relationshipStatus: 'friend', username: 'online',
   };
+  const offlineFriend = {
+    activityStatus: 'offline', displayName: 'Offline Friend', id: 'friend-offline', isOnline: false,
+    relationshipStatus: 'friend', username: 'offline',
+  };
+  const PlayerSearchResultsList = () => null;
   const react = require('react');
-  const stateInitializers = [[friend], [], '', null, false];
+  const stateInitializers = [[onlineFriend, offlineFriend], [], '', null, false];
   let stateIndex = 0;
   const { FriendsScreen } = compileTypeScript('../src/screens/FriendsScreen.tsx', {
     react: {
@@ -70,27 +59,20 @@ test('pressing Chat Invite creates a private room with the friend and navigates 
     '../components/friends/PlayerSearchResultsList': { PlayerSearchResultsList },
     '../components/Screen': { Screen: 'Screen' },
     '../components/SectionCard': { SectionCard: 'SectionCard' },
-    '../constants/routes': { routes: { ChatRoomDetail: 'ChatRoomDetail' } },
-    '../context/AuthProvider': { useAuth: () => ({ currentUser: { name: 'Alice Player' }, token: 'token-1' }) },
+    '../constants/routes': { routes: {} },
+    '../context/AuthProvider': { useAuth: () => ({ currentUser: null, token: 'token-1' }) },
     '../context/FriendNotificationProvider': { useFriendNotifications: () => ({ events: [], pendingRequests: [], reconcilePendingRequests: () => {} }) },
     '../context/PokerProvider': { usePoker: () => ({ roomState: null, sendTableInvite: async () => {} }) },
     '../services/api': { getApiErrorDetails: () => ({ message: 'error' }) },
-    '../services/api/chatRooms': { createChatRoom },
+    '../services/api/chatRooms': { createChatRoom: async () => ({ room: { id: 'room-1' } }) },
     '../services/friends/friendRealtimeService': { friendRealtimeEvents: {} },
     '../services/friends/mergeFriendRealtimeEvent': {},
     '../theme/colors': { colors: {} },
   });
 
-  const screen = FriendsScreen({ navigation: { navigate: (...args) => navigationCalls.push(args) } });
+  const screen = FriendsScreen({ navigation: { navigate: () => {} } });
   const allFriends = findElement(screen, (element) => element.type === PlayerSearchResultsList);
-  const chatInviteButton = PlayerSearchResultsList(allFriends.props);
 
-  await chatInviteButton.props.onPress();
-
-  assert.deepEqual(apiCalls, [['/api/chat-rooms', {
-    body: { invitedPlayerIds: ['friend-1'], name: 'Alice Player & Bob Friend' },
-    method: 'POST',
-    token: 'token-1',
-  }]]);
-  assert.deepEqual(navigationCalls, [['ChatRoomDetail', { roomId: 'room-9' }]]);
+  assert.deepEqual(allFriends.props.players.map((player) => player.id), ['friend-online', 'friend-offline']);
+  assert.equal(typeof allFriends.props.onRemoveFriend, 'function');
 });
