@@ -91,9 +91,9 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     borderRadius: 20,
     borderWidth: 1,
-    gap: 2,
+    gap: 0,
     paddingHorizontal: 6,
-    paddingVertical: 3,
+    paddingVertical: 2,
   },
   composerActions: {
     alignItems: 'center',
@@ -102,6 +102,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 8,
     justifyContent: 'flex-end',
+    paddingTop: 2,
+    width: '100%',
   },
   composerInput: {
     color: colors.text,
@@ -112,6 +114,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 0,
     textAlignVertical: 'center',
+    width: '100%',
   },
   pressed: {
     opacity: 0.78,

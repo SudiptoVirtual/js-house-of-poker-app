@@ -59,9 +59,11 @@ test('chat composer uses a full-width input row above right-aligned actions', ()
   assert.equal(composer.props.style.alignItems, 'stretch');
   assert.equal(input.type, 'TextInput');
   assert.equal(input.props.style.flex, undefined);
+  assert.equal(input.props.style.width, '100%');
   assert.equal(actions.type, 'View');
   assert.equal(actions.props.style.flexDirection, 'row');
   assert.equal(actions.props.style.justifyContent, 'flex-end');
+  assert.equal(actions.props.style.width, '100%');
   assert.equal(actions.props.children.length, 4);
 });
 
@@ -72,12 +74,13 @@ test('two-row chat composer stays within the previous height envelope', () => {
     + (composer.props.style.paddingVertical * 2)
     + composer.props.style.gap
     + actions.props.style.borderTopWidth
+    + actions.props.style.paddingTop
     + ACTION_HEIGHT;
   const restingHeight = chromeHeight + input.props.style.minHeight;
   const maxHeight = chromeHeight + input.props.style.maxHeight;
 
   assert.ok(restingHeight <= PREVIOUS_RESTING_HEIGHT * 1.03);
   assert.ok(maxHeight <= PREVIOUS_MAX_HEIGHT * 1.03);
-  assert.equal(restingHeight, 67);
-  assert.equal(maxHeight, 131);
+  assert.equal(restingHeight, 65);
+  assert.equal(maxHeight, 129);
 });
