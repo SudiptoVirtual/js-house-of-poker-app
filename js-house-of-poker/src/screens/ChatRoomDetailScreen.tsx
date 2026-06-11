@@ -247,12 +247,13 @@ function mergeMessages(currentMessages: ChatRoomMessage[], incomingMessages: Cha
 }
 
 export function ChatRoomDetailScreen({ navigation, route }: Props) {
-  const { setActiveRoomId } = useChatNotifications();
+  const { markRoomRead, setActiveRoomId } = useChatNotifications();
 
   useFocusEffect(useCallback(() => {
     setActiveRoomId(route.params.roomId);
+    void markRoomRead(route.params.roomId);
     return () => setActiveRoomId(null);
-  }, [route.params.roomId, setActiveRoomId]));
+  }, [markRoomRead, route.params.roomId, setActiveRoomId]));
   const { transportKind } = usePoker();
   const socketRef = useRef<Socket | null>(null);
   const authRef = useRef<{ token: string | null; user: { id?: string; name?: string; email?: string } } | null>(null);

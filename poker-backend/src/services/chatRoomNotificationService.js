@@ -344,7 +344,7 @@ async function markRoomNotificationsRead({ chatRoomId, userId, readAt = new Date
   }
 
   const result = await Notification.updateMany(
-    { chatRoomId: normalizedRoomId, readAt: null, userId: normalizedUserId },
+    { chatRoomId: normalizedRoomId, readAt: null, type: "chat_message", userId: normalizedUserId },
     { $set: { readAt } }
   );
 
@@ -379,6 +379,7 @@ async function getUnreadCountsByRoom(userId, roomIds = []) {
       $match: {
         chatRoomId: { $in: normalizedRoomIds.map((roomId) => new mongoose.Types.ObjectId(roomId)) },
         readAt: null,
+        type: "chat_message",
         userId: new mongoose.Types.ObjectId(normalizedUserId),
       },
     },

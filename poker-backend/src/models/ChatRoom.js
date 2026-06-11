@@ -320,6 +320,7 @@ chatRoomSchema.statics.findRoomList = async function findRoomList({
       $match: {
         chatRoomId: { $in: roomIds },
         readAt: null,
+        type: "chat_message",
         userId: notificationUserId,
       },
     },
@@ -332,7 +333,7 @@ chatRoomSchema.statics.findRoomList = async function findRoomList({
   return rooms.map((room) => ({
     ...room.toRoomListItem(
       userId,
-      unreadCountByRoomId.get(String(room._id)) ?? room.getUnreadCountForUser(userId)
+      unreadCountByRoomId.get(String(room._id)) ?? 0
     ),
   }));
 };

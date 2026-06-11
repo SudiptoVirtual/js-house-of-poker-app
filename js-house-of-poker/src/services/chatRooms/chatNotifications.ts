@@ -102,3 +102,13 @@ export function getNextChatUnreadCount(
 ) {
   return isViewingRoom ? 0 : Math.max(payloadCount ?? 0, currentCount + 1);
 }
+
+export function getUnreadByRoom(rooms: Array<{ id: string; unreadCount?: number }>) {
+  return Object.fromEntries(
+    rooms.map((room) => [room.id, Math.max(0, room.unreadCount ?? 0)]),
+  );
+}
+
+export function getTotalUnreadMessageCount(unreadByRoom: Record<string, number>) {
+  return Object.values(unreadByRoom).reduce((total, count) => total + Math.max(0, count), 0);
+}
