@@ -11,6 +11,7 @@ import {
 import {
   buildFriendRequestBanner,
   mergeIncomingFriendRequest,
+  pendingIncomingFriendRequestIds,
   removeIncomingFriendRequest,
 } from '../services/friends/mergeFriendRealtimeEvent';
 import type { FriendsPlayer } from '../types/friends';
@@ -42,14 +43,16 @@ export function FriendNotificationProvider({ children }: PropsWithChildren) {
   const [banner, setBanner] = useState<FriendRequestBanner | null>(null);
   const [events, setEvents] = useState<FriendRealtimeEvent[]>([]);
   const [pendingRequests, setPendingRequests] = useState<FriendsPlayer[]>([]);
-  const receivedRequestIdsRef = useRef<Set<string>>(new Set());
+  const pendingIncomingRequestIdsRef = useRef<Set<string>>(new Set());
   const tokenRef = useRef(token);
   tokenRef.current = token;
 
   const clearBanner = useCallback(() => setBanner(null), []);
   const reconcilePendingRequests = useCallback((requests: FriendsPlayer[]) => {
     const requestsById = new Map(requests.map((request) => [request.requestId ?? request.id, request]));
-    setPendingRequests([...requestsById.values()]);
+    const reconciledRequests = [...requestsById.values()];
+    pendingIncomingRequestIdsRef.current = pendingIncomingFriendRequestIds(reconciledRequests);
+    setPendingRequests(reconciledRequests);
   }, []);
   const refreshPendingRequests = useCallback(async (activeToken: string) => {
     const requests = await fetchIncomingFriendRequests(activeToken);
@@ -62,17 +65,24 @@ export function FriendNotificationProvider({ children }: PropsWithChildren) {
     const requestId = payload.requestId ?? payload.request?.id ?? null;
 
     if (eventName === friendRealtimeEvents.requestReceived && requestId) {
-      if (receivedRequestIdsRef.current.has(requestId)) {
+      if (pendingIncomingRequestIdsRef.current.has(requestId)) {
         return;
       }
 
-      receivedRequestIdsRef.current.add(requestId);
+      pendingIncomingRequestIdsRef.current.add(requestId);
       setBanner(buildFriendRequestBanner(payload));
       setPendingRequests((currentRequests) => mergeIncomingFriendRequest(currentRequests, payload));
-    } else if (eventName === friendRealtimeEvents.requestAccepted || eventName === friendRealtimeEvents.requestDeclined) {
-      const playerId = payload.userId ?? payload.otherUser?.id ?? payload.otherUser?.userId ?? payload.otherUserId ?? '';
+    } else if (
+      (eventName === friendRealtimeEvents.requestAccepted || eventName === friendRealtimeEvents.requestDeclined)
+      && requestId
+      && pendingIncomingRequestIdsRef.current.has(requestId)
+    ) {
+      const pendingIncomingRequestIds = pendingIncomingRequestIdsRef.current;
+      const reconciledRequestIds = new Set(pendingIncomingRequestIds);
+      reconciledRequestIds.delete(requestId);
+      pendingIncomingRequestIdsRef.current = reconciledRequestIds;
       setPendingRequests((currentRequests) =>
-        removeIncomingFriendRequest(currentRequests, requestId || undefined, playerId),
+        removeIncomingFriendRequest(currentRequests, requestId, ''),
       );
     }
 
@@ -81,7 +91,7 @@ export function FriendNotificationProvider({ children }: PropsWithChildren) {
 
   useEffect(() => {
     if (!token) {
-      receivedRequestIdsRef.current.clear();
+      pendingIncomingRequestIdsRef.current.clear();
       setBanner(null);
       setEvents([]);
       setPendingRequests([]);

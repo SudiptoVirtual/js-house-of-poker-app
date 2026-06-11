@@ -61,6 +61,10 @@ export function mergeIncomingFriendRequests(
   ];
 }
 
+export function pendingIncomingFriendRequestIds(players: FriendsPlayer[]): Set<string> {
+  return new Set(players.flatMap((player) => player.requestId ? [player.requestId] : []));
+}
+
 export function removeIncomingFriendRequest(
   players: FriendsPlayer[],
   requestId: string | undefined,
