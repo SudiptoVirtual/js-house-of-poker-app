@@ -95,15 +95,38 @@ test('chat banner Open action clears the current banner and navigates to its Cha
   assert.deepEqual(navigationCalls, [['ChatRoomDetail', { roomId: 'room-1' }]]);
 });
 
+test('room unread counts aggregate into a message-only global total', () => {
+  const unreadByRoom = helpers.getUnreadByRoom([{ id: 'room-1', unreadCount: 3 }, { id: 'room-2', unreadCount: 7 }, { id: 'room-3', unreadCount: 0 }]);
+  assert.deepEqual(unreadByRoom, { 'room-1': 3, 'room-2': 7, 'room-3': 0 });
+  assert.equal(helpers.getTotalUnreadMessageCount(unreadByRoom), 10);
+});
+
+test('chat navigation badge uses the Feed badge style and caps message counts at 9+', () => {
+  const { MainPlatformNavigation } = loadTypeScriptModule('../src/components/navigation/MainPlatformNavigation.tsx', {
+    '@expo/vector-icons': { MaterialCommunityIcons: () => null },
+    '@react-navigation/native': { useNavigation: () => ({ navigate: () => {} }), useRoute: () => ({ name: 'Home' }) },
+    'react-native': { Pressable: 'Pressable', StyleSheet: { create: (styles) => styles }, Text: 'Text', View: 'View' },
+    '../../constants/routes': { routes: { ChatRoomDetail: 'ChatRoomDetail', ChatRooms: 'ChatRooms', Feed: 'Feed', Friends: 'Friends', Home: 'Home', Profile: 'Profile' } },
+    '../../context/ChatNotificationProvider': { useChatNotifications: () => ({ totalUnreadMessageCount: 12 }) },
+    '../../context/FeedNotificationProvider': { useFeedNotifications: () => ({ unreadCount: 0 }) },
+    '../../theme/colors': { colors: {} },
+  });
+  assert.match(JSON.stringify(MainPlatformNavigation()), /9\+/);
+});
+
 test('global provider authenticates one session socket and subscribes to both chat notification events', async () => {
   const subscriptions = [];
   const authCalls = [];
   let connectCalls = 0;
   let destroyCalls = 0;
   let cleanup;
+  let connectionHandler;
+  let fetchCalls = 0;
   const socketManager = {
     connect: async () => { connectCalls += 1; },
     destroy: () => { destroyCalls += 1; },
+    getConnectionState: () => ({ status: 'idle' }),
+    onConnection: (handler) => { connectionHandler = handler; return () => {}; },
     on: (eventName) => { subscriptions.push(eventName); return () => {}; },
     setAuth: (auth) => authCalls.push(auth),
   };
@@ -121,6 +144,7 @@ test('global provider authenticates one session socket and subscribes to both ch
     './AuthProvider': { useAuth: () => ({ token: 'session-token' }) },
     '../services/chatRooms/chatNotifications': helpers,
     '../services/chatRooms/events': { chatRoomSocketEvents: { messageNotification: 'chat:messageNotification', roomInvited: 'chat:roomInvited' } },
+    '../services/api/chatRooms': { fetchChatRooms: async () => { fetchCalls += 1; return [{ id: 'room-1', unreadCount: 4 }]; }, markChatRoomNotificationsRead: async () => ({ ok: true }) },
     '../services/socket/socketManager': { createSocketManager: () => socketManager },
   });
 
@@ -130,6 +154,26 @@ test('global provider authenticates one session socket and subscribes to both ch
   assert.deepEqual(authCalls, [{ token: 'session-token' }]);
   assert.deepEqual(subscriptions, ['chat:messageNotification', 'chat:roomInvited']);
   assert.equal(connectCalls, 1);
+  assert.equal(fetchCalls, 1);
+  connectionHandler({ status: 'connected' });
+  await Promise.resolve();
+  assert.equal(fetchCalls, 2);
+  connectionHandler({ status: 'connected' });
+  await Promise.resolve();
+  assert.equal(fetchCalls, 2);
   cleanup();
   assert.equal(destroyCalls, 1);
+});
+
+test('client mark-read API calls the protected room notification endpoint', async () => {
+  const calls = [];
+  const { markChatRoomNotificationsRead } = loadTypeScriptModule('../src/services/api/chatRooms.ts', {
+    '../../config/env': { env: { apiBaseUrl: 'https://api.example.test' } },
+    './client': {
+      ApiError: class ApiError extends Error {},
+      apiRequest: async (...args) => { calls.push(args); return { ok: true, unreadCount: 0 }; },
+    },
+  });
+  assert.deepEqual(await markChatRoomNotificationsRead('room / one', 'session-token'), { ok: true, unreadCount: 0 });
+  assert.deepEqual(calls, [['/api/chat-rooms/room%20%2F%20one/notifications/read', { method: 'POST', token: 'session-token' }]]);
 });

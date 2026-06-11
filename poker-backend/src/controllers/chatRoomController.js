@@ -8,6 +8,7 @@ const { getChatRoomPresenceService } = require("../services/chatRoomPresenceServ
 const { sendChatRoomGiftClip: sendChatRoomGiftClipService } = require("../services/chatRoomGiftClipService");
 const {
   createChatRoomInviteNotifications,
+  markRoomNotificationsRead,
   serializeNotification,
 } = require("../services/chatRoomNotificationService");
 const { getIO } = require("../sockets/socketRegistry");
@@ -758,6 +759,34 @@ const inviteChatRoomFriends = async (req, res) => {
   }
 };
 
+async function markChatRoomNotificationsRead(req, res) {
+  try {
+    const room = await findSocialChatRoom(req.params.roomId);
+
+    if (!room) {
+      return res.status(404).json({ message: "Chat room not found" });
+    }
+
+    if (!userCanAccessChatRoom(room, req.user._id)) {
+      return res.status(403).json({ message: "You are not allowed to access this chat room" });
+    }
+
+    const readState = await markRoomNotificationsRead({
+      chatRoomId: room._id,
+      userId: req.user._id,
+    });
+
+    return res.status(200).json({
+      ...readState,
+      ok: true,
+      roomId: String(room._id),
+      unreadCount: 0,
+    });
+  } catch (error) {
+    return sendServerError(res, error, "Unable to mark chat room notifications read");
+  }
+}
+
 async function sendChatRoomGiftClip(req, res) {
   try {
     const result = await sendChatRoomGiftClipService({
@@ -781,5 +810,6 @@ module.exports = {
   getChatRoomById,
   getChatRooms,
   inviteChatRoomFriends,
+  markChatRoomNotificationsRead,
   sendChatRoomGiftClip,
 };

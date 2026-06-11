@@ -4,6 +4,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { routes } from '../../constants/routes';
+import { useChatNotifications } from '../../context/ChatNotificationProvider';
 import { useFeedNotifications } from '../../context/FeedNotificationProvider';
 import { colors } from '../../theme/colors';
 import type { RootStackParamList } from '../../types/navigation';
@@ -53,6 +54,7 @@ const navigationItems: NavigationItem[] = [
 export function MainPlatformNavigation() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const route = useRoute();
+  const { totalUnreadMessageCount } = useChatNotifications();
   const { unreadCount } = useFeedNotifications();
 
   return (
@@ -88,6 +90,13 @@ export function MainPlatformNavigation() {
               {item.route === routes.Feed && unreadCount > 0 ? (
                 <View style={styles.badge}>
                   <Text style={styles.badgeText}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
+                </View>
+              ) : null}
+              {item.route === routes.ChatRooms && totalUnreadMessageCount > 0 ? (
+                <View style={styles.badge}>
+                  <Text style={styles.badgeText}>
+                    {totalUnreadMessageCount > 9 ? '9+' : totalUnreadMessageCount}
+                  </Text>
                 </View>
               ) : null}
             </View>

@@ -328,6 +328,17 @@ export async function fetchChatRooms(token?: string | null) {
   }
 }
 
+export async function markChatRoomNotificationsRead(roomId: string, token: string) {
+  try {
+    return await apiRequest<{ ok?: boolean; roomId?: string; unreadCount?: number }>(
+      `/api/chat-rooms/${encodeURIComponent(roomId)}/notifications/read`,
+      { method: 'POST', token },
+    );
+  } catch (error) {
+    throw normalizeChatRoomApiError(error);
+  }
+}
+
 export async function fetchChatRoom(roomId: string, token?: string | null) {
   try {
     const response = await apiRequest<ChatRoomResponse>(`/api/chat-rooms/${encodeURIComponent(roomId)}`, { token });

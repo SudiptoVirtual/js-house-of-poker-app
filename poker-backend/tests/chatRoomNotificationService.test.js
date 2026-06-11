@@ -135,3 +135,23 @@ test('createChatRoomGiftClipNotifications skips sender self-notifications', asyn
   assert.deepEqual(records, []);
   assert.equal(insertManyCalled, false);
 });
+
+test('markRoomNotificationsRead marks only unread chat messages and resets room state', async (t) => {
+  const { markRoomNotificationsRead } = require('../src/services/chatRoomNotificationService');
+  const originalUpdateMany = Notification.updateMany;
+  const originalUpdateOne = ChatRoom.updateOne;
+  const notificationUpdates = [];
+  const roomUpdates = [];
+  Notification.updateMany = async (filter, update) => { notificationUpdates.push({ filter, update }); return { matchedCount: 2, modifiedCount: 2 }; };
+  ChatRoom.updateOne = async (filter, update) => { roomUpdates.push({ filter, update }); return { acknowledged: true }; };
+  t.after(() => { Notification.updateMany = originalUpdateMany; ChatRoom.updateOne = originalUpdateOne; });
+
+  const result = await markRoomNotificationsRead({ chatRoomId: ROOM_ID, userId: RECIPIENT_ID });
+
+  assert.equal(result.modifiedCount, 2);
+  assert.equal(notificationUpdates[0].filter.type, 'chat_message');
+  assert.equal(notificationUpdates[0].filter.readAt, null);
+  assert.equal(String(notificationUpdates[0].filter.chatRoomId), ROOM_ID);
+  assert.equal(String(notificationUpdates[0].filter.userId), RECIPIENT_ID);
+  assert.equal(roomUpdates[0].update.$set['participantStates.$.unreadCount'], 0);
+});
