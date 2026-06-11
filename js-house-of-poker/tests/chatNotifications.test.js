@@ -109,6 +109,7 @@ test('chat navigation badge uses the Feed badge style and caps message counts at
     '../../constants/routes': { routes: { ChatRoomDetail: 'ChatRoomDetail', ChatRooms: 'ChatRooms', Feed: 'Feed', Friends: 'Friends', Home: 'Home', Profile: 'Profile' } },
     '../../context/ChatNotificationProvider': { useChatNotifications: () => ({ totalUnreadMessageCount: 12 }) },
     '../../context/FeedNotificationProvider': { useFeedNotifications: () => ({ unreadCount: 0 }) },
+    '../../context/FriendNotificationProvider': { useFriendNotifications: () => ({ pendingRequestCount: 0 }) },
     '../../theme/colors': { colors: {} },
   });
   assert.match(JSON.stringify(MainPlatformNavigation()), /9\+/);

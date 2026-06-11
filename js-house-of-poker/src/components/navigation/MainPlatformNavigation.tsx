@@ -6,6 +6,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { routes } from '../../constants/routes';
 import { useChatNotifications } from '../../context/ChatNotificationProvider';
 import { useFeedNotifications } from '../../context/FeedNotificationProvider';
+import { useFriendNotifications } from '../../context/FriendNotificationProvider';
 import { colors } from '../../theme/colors';
 import type { RootStackParamList } from '../../types/navigation';
 
@@ -56,6 +57,7 @@ export function MainPlatformNavigation() {
   const route = useRoute();
   const { totalUnreadMessageCount } = useChatNotifications();
   const { unreadCount } = useFeedNotifications();
+  const { pendingRequestCount } = useFriendNotifications();
 
   return (
     <View accessibilityRole="tablist" style={styles.container}>
@@ -96,6 +98,13 @@ export function MainPlatformNavigation() {
                 <View style={styles.badge}>
                   <Text style={styles.badgeText}>
                     {totalUnreadMessageCount > 9 ? '9+' : totalUnreadMessageCount}
+                  </Text>
+                </View>
+              ) : null}
+              {item.route === routes.Friends && pendingRequestCount > 0 ? (
+                <View style={styles.badge}>
+                  <Text style={styles.badgeText}>
+                    {pendingRequestCount > 9 ? '9+' : pendingRequestCount}
                   </Text>
                 </View>
               ) : null}

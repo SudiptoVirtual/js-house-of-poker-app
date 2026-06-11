@@ -53,7 +53,7 @@ test('pressing Chat Invite creates a private room with the friend and navigates 
     relationshipStatus: 'friend', username: 'bob',
   };
   const react = require('react');
-  const stateInitializers = [[friend], [], [], '', null, false];
+  const stateInitializers = [[friend], [], '', null, false];
   let stateIndex = 0;
   const { FriendsScreen } = compileTypeScript('../src/screens/FriendsScreen.tsx', {
     react: {
@@ -73,7 +73,7 @@ test('pressing Chat Invite creates a private room with the friend and navigates 
     '../components/SectionCard': { SectionCard: 'SectionCard' },
     '../constants/routes': { routes: { ChatRoomDetail: 'ChatRoomDetail' } },
     '../context/AuthProvider': { useAuth: () => ({ currentUser: { name: 'Alice Player' }, token: 'token-1' }) },
-    '../context/FriendNotificationProvider': { useFriendNotifications: () => ({ events: [] }) },
+    '../context/FriendNotificationProvider': { useFriendNotifications: () => ({ events: [], pendingRequests: [], reconcilePendingRequests: () => {} }) },
     '../context/PokerProvider': { usePoker: () => ({ roomState: null, sendTableInvite: async () => {} }) },
     '../services/api': { getApiErrorDetails: () => ({ message: 'error' }) },
     '../services/api/chatRooms': { createChatRoom },

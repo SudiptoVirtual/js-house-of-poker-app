@@ -26,7 +26,6 @@ import { friendRealtimeEvents } from '../services/friends/friendRealtimeService'
 import {
   mergeFriendPresenceUpdate,
   mergeIncomingFriendRequest,
-  mergeIncomingFriendRequests,
   removeIncomingFriendRequest,
 } from '../services/friends/mergeFriendRealtimeEvent';
 import { colors } from '../theme/colors';
@@ -50,10 +49,13 @@ function updatePlayerRelationship(
 
 export function FriendsScreen({ navigation }: Props) {
   const { currentUser, token } = useAuth();
-  const { events: friendRealtimeEventsReceived } = useFriendNotifications();
+  const {
+    events: friendRealtimeEventsReceived,
+    pendingRequests: incomingRequests,
+    reconcilePendingRequests,
+  } = useFriendNotifications();
   const { roomState, sendTableInvite } = usePoker();
   const [players, setPlayers] = useState<FriendsPlayer[]>([]);
-  const [incomingRequests, setIncomingRequests] = useState<FriendsPlayer[]>([]);
   const [searchResults, setSearchResults] = useState<FriendsPlayer[]>([]);
   const [query, setQuery] = useState('');
   const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
@@ -68,10 +70,10 @@ export function FriendsScreen({ navigation }: Props) {
     [players],
   );
 
-  const loadFriends = useCallback(async (reconcileIncomingRequests = false) => {
+  const loadFriends = useCallback(async () => {
     if (!token) {
       setPlayers([]);
-      setIncomingRequests([]);
+      reconcilePendingRequests([]);
       setFeedbackMessage('Sign in to load your friends.');
       return;
     }
@@ -82,17 +84,13 @@ export function FriendsScreen({ navigation }: Props) {
         fetchIncomingFriendRequests(token),
       ]);
       setPlayers(friends);
-      setIncomingRequests((currentRequests) =>
-        reconcileIncomingRequests
-          ? pendingRequests
-          : mergeIncomingFriendRequests(currentRequests, pendingRequests),
-      );
+      reconcilePendingRequests(pendingRequests);
       setFeedbackMessage(null);
     } catch (error) {
       const { message } = getApiErrorDetails(error, 'Unable to load friends.');
       setFeedbackMessage(message);
     }
-  }, [token]);
+  }, [reconcilePendingRequests, token]);
 
   useEffect(() => {
     void loadFriends();
@@ -122,7 +120,6 @@ export function FriendsScreen({ navigation }: Props) {
       processedRealtimeEventsRef.current.add(eventKey);
 
       if (eventName === friendRealtimeEvents.requestReceived) {
-        setIncomingRequests((currentRequests) => mergeIncomingFriendRequest(currentRequests, payload));
         setSearchResults((currentResults) => mergeIncomingFriendRequest(currentResults, payload));
         return;
       }
@@ -132,14 +129,8 @@ export function FriendsScreen({ navigation }: Props) {
       }
 
       if (eventName === friendRealtimeEvents.requestAccepted || payload.status === 'friends') {
-        setIncomingRequests((currentRequests) =>
-          removeIncomingFriendRequest(currentRequests, requestId || undefined, playerId),
-        );
         updatePlayerRelationship(playerId, 'friend', setPlayers, setSearchResults);
       } else if (eventName === friendRealtimeEvents.requestDeclined || payload.status === 'none') {
-        setIncomingRequests((currentRequests) =>
-          removeIncomingFriendRequest(currentRequests, requestId || undefined, playerId),
-        );
         updatePlayerRelationship(playerId, 'not_friends', setPlayers, setSearchResults);
       }
     });
@@ -186,7 +177,7 @@ export function FriendsScreen({ navigation }: Props) {
     setIsRefreshingFriends(true);
 
     try {
-      await loadFriends(true);
+      await loadFriends();
 
       if (isSearchActive && token) {
         const results = await searchPlayers(trimmedQuery, token);
@@ -231,8 +222,8 @@ export function FriendsScreen({ navigation }: Props) {
     try {
       if (response === 'accept') {
         await acceptFriendRequest({ requestId: player.requestId, userId: player.id }, token);
-        setIncomingRequests((currentRequests) =>
-          removeIncomingFriendRequest(currentRequests, player.requestId, player.id),
+        reconcilePendingRequests(
+          removeIncomingFriendRequest(incomingRequests, player.requestId, player.id),
         );
         updatePlayerRelationship(player.id, 'friend', setPlayers, setSearchResults);
         await loadFriends();
@@ -241,10 +232,11 @@ export function FriendsScreen({ navigation }: Props) {
       }
 
       await rejectFriendRequest({ requestId: player.requestId, userId: player.id }, token);
-      setIncomingRequests((currentRequests) =>
-          removeIncomingFriendRequest(currentRequests, player.requestId, player.id),
-        );
+      reconcilePendingRequests(
+        removeIncomingFriendRequest(incomingRequests, player.requestId, player.id),
+      );
       updatePlayerRelationship(player.id, 'not_friends', setPlayers, setSearchResults);
+      await loadFriends();
       setFeedbackMessage(`Friend request rejected for ${player.displayName}.`);
     } catch (error) {
       const { message } = getApiErrorDetails(error, `Unable to ${response} ${player.displayName}'s friend request.`);
