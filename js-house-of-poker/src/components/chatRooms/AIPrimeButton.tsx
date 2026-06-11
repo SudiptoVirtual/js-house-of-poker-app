@@ -14,6 +14,7 @@ export function AIPrimeButton({ loading = false, onPress }: AIPrimeButtonProps) 
       accessibilityLabel="Open AI Prime chat actions"
       accessibilityRole="button"
       disabled={loading}
+      hitSlop={4}
       onPress={onPress}
       style={({ pressed }) => [styles.button, pressed ? styles.pressed : null]}
     >
@@ -21,7 +22,7 @@ export function AIPrimeButton({ loading = false, onPress }: AIPrimeButtonProps) 
         {loading ? (
           <ActivityIndicator color={colors.background} size="small" />
         ) : (
-          <MaterialCommunityIcons color={colors.background} name="creation" size={17} />
+          <MaterialCommunityIcons color={colors.background} name="creation" size={15} />
         )}
       </View>
       <Text style={styles.label}>AI</Text>
@@ -34,24 +35,24 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: 'rgba(255,198,108,0.16)',
     borderColor: colors.gold,
-    borderRadius: 16,
+    borderRadius: 14,
     borderWidth: 1,
-    gap: 2,
-    height: 44,
+    gap: 1,
+    height: 36,
     justifyContent: 'center',
-    width: 44,
+    width: 36,
   },
   iconHalo: {
     alignItems: 'center',
     backgroundColor: colors.gold,
     borderRadius: 999,
-    height: 22,
+    height: 18,
     justifyContent: 'center',
-    width: 22,
+    width: 18,
   },
   label: {
     color: colors.gold,
-    fontSize: 9,
+    fontSize: 8,
     fontWeight: '900',
     letterSpacing: 0.4,
   },

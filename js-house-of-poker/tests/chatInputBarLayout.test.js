@@ -1,0 +1,83 @@
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const Module = require('node:module');
+const path = require('node:path');
+const ts = require('typescript');
+
+const PREVIOUS_RESTING_HEIGHT = 66;
+const PREVIOUS_MAX_HEIGHT = 130;
+const ACTION_HEIGHT = 36;
+
+function compileComponent(relativePath, mocks) {
+  const filename = path.resolve(__dirname, relativePath);
+  const output = ts.transpileModule(fs.readFileSync(filename, 'utf8'), {
+    compilerOptions: { jsx: ts.JsxEmit.ReactJSX, module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
+    fileName: filename,
+  }).outputText;
+  const compiledModule = new Module(filename, module);
+  const originalLoad = compiledModule.require.bind(compiledModule);
+  compiledModule.filename = filename;
+  compiledModule.paths = Module._nodeModulePaths(path.dirname(filename));
+  compiledModule.require = (request) => Object.hasOwn(mocks, request) ? mocks[request] : originalLoad(request);
+  compiledModule._compile(output, filename);
+  return compiledModule.exports;
+}
+
+function AIPrimeButton() {}
+
+const reactNativeMock = {
+  ActivityIndicator: 'ActivityIndicator',
+  Pressable: 'Pressable',
+  StyleSheet: { create: (styles) => styles },
+  TextInput: 'TextInput',
+  View: 'View',
+};
+
+function renderChatInputBar() {
+  const { ChatInputBar } = compileComponent('../src/components/chatRooms/ChatInputBar.tsx', {
+    'react-native': reactNativeMock,
+    '@expo/vector-icons': { MaterialCommunityIcons: () => null },
+    './AIPrimeButton': { AIPrimeButton },
+    '../../theme/colors': { colors: {} },
+  });
+
+  return ChatInputBar({
+    draft: '',
+    onChangeDraft: () => {},
+    onOpenAIPrime: () => {},
+    onOpenGiftClips: () => {},
+    onSend: () => {},
+  });
+}
+
+test('chat composer uses a full-width input row above right-aligned actions', () => {
+  const composer = renderChatInputBar();
+  const [input, actions] = composer.props.children;
+
+  assert.equal(composer.type, 'View');
+  assert.equal(composer.props.style.alignItems, 'stretch');
+  assert.equal(input.type, 'TextInput');
+  assert.equal(input.props.style.flex, undefined);
+  assert.equal(actions.type, 'View');
+  assert.equal(actions.props.style.flexDirection, 'row');
+  assert.equal(actions.props.style.justifyContent, 'flex-end');
+  assert.equal(actions.props.children.length, 4);
+});
+
+test('two-row chat composer stays within the previous height envelope', () => {
+  const composer = renderChatInputBar();
+  const [input, actions] = composer.props.children;
+  const chromeHeight = (composer.props.style.borderWidth * 2)
+    + (composer.props.style.paddingVertical * 2)
+    + composer.props.style.gap
+    + actions.props.style.borderTopWidth
+    + ACTION_HEIGHT;
+  const restingHeight = chromeHeight + input.props.style.minHeight;
+  const maxHeight = chromeHeight + input.props.style.maxHeight;
+
+  assert.ok(restingHeight <= PREVIOUS_RESTING_HEIGHT * 1.03);
+  assert.ok(maxHeight <= PREVIOUS_MAX_HEIGHT * 1.03);
+  assert.equal(restingHeight, 67);
+  assert.equal(maxHeight, 131);
+});

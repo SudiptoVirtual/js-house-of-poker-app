@@ -39,66 +39,79 @@ export function ChatInputBar({
         style={styles.composerInput}
         value={draft}
       />
-      <Pressable
-        accessibilityLabel="Add emoji"
-        accessibilityRole="button"
-        onPress={() => undefined}
-        style={({ pressed }) => [styles.iconButton, pressed ? styles.pressed : null]}
-      >
-        <MaterialCommunityIcons color={colors.gold} name="emoticon-happy-outline" size={20} />
-      </Pressable>
-      {onOpenGiftClips ? (
+      <View style={styles.composerActions}>
         <Pressable
-          accessibilityLabel="Send Gift Clips"
+          accessibilityLabel="Add emoji"
           accessibilityRole="button"
-          onPress={onOpenGiftClips}
-          style={({ pressed }) => [styles.iconButton, styles.giftButton, pressed ? styles.pressed : null]}
+          hitSlop={4}
+          onPress={() => undefined}
+          style={({ pressed }) => [styles.iconButton, pressed ? styles.pressed : null]}
         >
-          <MaterialCommunityIcons color={colors.gold} name="gift-outline" size={20} />
+          <MaterialCommunityIcons color={colors.gold} name="emoticon-happy-outline" size={18} />
         </Pressable>
-      ) : null}
-      <AIPrimeButton loading={openingAIPrime} onPress={onOpenAIPrime} />
-      <Pressable
-        accessibilityLabel="Send chat message"
-        accessibilityRole="button"
-        disabled={!canSend}
-        onPress={onSend}
-        style={({ pressed }) => [
-          styles.sendButton,
-          !canSend ? styles.sendButtonDisabled : null,
-          pressed ? styles.pressed : null,
-        ]}
-      >
-        {sending ? (
-          <ActivityIndicator color={colors.background} size="small" />
-        ) : (
-          <MaterialCommunityIcons color={colors.background} name="send" size={18} />
-        )}
-      </Pressable>
+        {onOpenGiftClips ? (
+          <Pressable
+            accessibilityLabel="Send Gift Clips"
+            accessibilityRole="button"
+            hitSlop={4}
+            onPress={onOpenGiftClips}
+            style={({ pressed }) => [styles.iconButton, styles.giftButton, pressed ? styles.pressed : null]}
+          >
+            <MaterialCommunityIcons color={colors.gold} name="gift-outline" size={18} />
+          </Pressable>
+        ) : null}
+        <AIPrimeButton loading={openingAIPrime} onPress={onOpenAIPrime} />
+        <Pressable
+          accessibilityLabel="Send chat message"
+          accessibilityRole="button"
+          disabled={!canSend}
+          hitSlop={4}
+          onPress={onSend}
+          style={({ pressed }) => [
+            styles.sendButton,
+            !canSend ? styles.sendButtonDisabled : null,
+            pressed ? styles.pressed : null,
+          ]}
+        >
+          {sending ? (
+            <ActivityIndicator color={colors.background} size="small" />
+          ) : (
+            <MaterialCommunityIcons color={colors.background} name="send" size={17} />
+          )}
+        </Pressable>
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   composer: {
-    alignItems: 'flex-end',
+    alignItems: 'stretch',
     backgroundColor: colors.surfaceMuted,
     borderColor: colors.border,
     borderRadius: 20,
     borderWidth: 1,
+    gap: 2,
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+  },
+  composerActions: {
+    alignItems: 'center',
+    borderTopColor: colors.border,
+    borderTopWidth: 1,
     flexDirection: 'row',
-    gap: 10,
-    padding: 10,
+    gap: 8,
+    justifyContent: 'flex-end',
   },
   composerInput: {
     color: colors.text,
-    flex: 1,
     fontSize: 15,
-    lineHeight: 21,
-    maxHeight: 108,
-    minHeight: 44,
+    lineHeight: 20,
+    maxHeight: 84,
+    minHeight: 20,
     paddingHorizontal: 8,
-    paddingVertical: 8,
+    paddingVertical: 0,
+    textAlignVertical: 'center',
   },
   pressed: {
     opacity: 0.78,
@@ -111,19 +124,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: colors.surface,
     borderColor: colors.border,
-    borderRadius: 16,
+    borderRadius: 14,
     borderWidth: 1,
-    height: 44,
+    height: 36,
     justifyContent: 'center',
-    width: 44,
+    width: 36,
   },
   sendButton: {
     alignItems: 'center',
     backgroundColor: colors.secondary,
-    borderRadius: 16,
-    height: 44,
+    borderRadius: 14,
+    height: 36,
     justifyContent: 'center',
-    width: 44,
+    width: 36,
   },
   sendButtonDisabled: {
     opacity: 0.45,

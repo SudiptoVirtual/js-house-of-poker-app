@@ -15,7 +15,7 @@ export function InviteToTableButton({ disabled = false, fullWidth = true, hasAct
       disabled={disabled}
       fullWidth={fullWidth}
       icon={hasActiveTable ? 'cards-playing-outline' : 'table-plus'}
-      label={hasActiveTable ? 'Table Invite' : 'Table Invite Placeholder'}
+      label={hasActiveTable ? 'Table Invite' : 'Table Invite'}
       loading={loading}
       onPress={onPress}
       tone={hasActiveTable ? 'success' : 'neutral'}
