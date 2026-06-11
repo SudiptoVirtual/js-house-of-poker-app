@@ -252,10 +252,30 @@ chatRoomSchema.methods.getUnreadCountForUser = function getUnreadCountForUser(us
   return participantState ? participantState.unreadCount : 0;
 };
 
+chatRoomSchema.methods.getMembershipCapabilities = function getMembershipCapabilities(userId) {
+  const normalizedUserId = String(userId || "").trim();
+  const isCreator = Boolean(
+    normalizedUserId && this.createdByUserId && String(this.createdByUserId) === normalizedUserId
+  );
+  const isParticipant = Boolean(
+    normalizedUserId &&
+      this.participantStates.some((state) => String(state.userId) === normalizedUserId)
+  );
+  const isMember = isCreator || isParticipant;
+
+  return {
+    // Public rooms are discoverable destinations, not memberships users can leave or hide.
+    canLeave: this.isPublic === false && isMember && !isCreator,
+    isCreator,
+    isMember,
+  };
+};
+
 chatRoomSchema.methods.toRoomListItem = function toRoomListItem(userId, unreadCountOverride = null) {
   const unreadCount = unreadCountOverride ?? this.getUnreadCountForUser(userId);
 
   return {
+    ...this.getMembershipCapabilities(userId),
     id: this._id,
     name: this.name,
     slug: this.slug,

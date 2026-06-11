@@ -456,11 +456,30 @@ function getPresenceSnapshot(table) {
   };
 }
 
-function serializeRoomDetail(table, recentMessageLimit) {
+function getGameTableMembershipCapabilities(table, userId) {
+  const normalizedUserId = String(userId || "").trim();
+  const isCreator = Boolean(
+    normalizedUserId && table.hostUserId && String(table.hostUserId) === normalizedUserId
+  );
+  const isMember = Boolean(
+    isCreator ||
+      (normalizedUserId && (table.players || []).some((player) => String(player.userId) === normalizedUserId))
+  );
+
+  return {
+    // Game-table-backed public chat rooms do not persist a leave/hide membership state.
+    canLeave: false,
+    isCreator,
+    isMember,
+  };
+}
+
+function serializeRoomDetail(table, recentMessageLimit, userId = null) {
   const roomId = getRoomId(table);
   const presenceSnapshot = getPresenceSnapshot(table);
 
   return {
+    ...getGameTableMembershipCapabilities(table, userId),
     activePlayers: presenceSnapshot.players,
     metadata: {
       bigBlind: table.bigBlind,
@@ -578,7 +597,7 @@ const getChatRoomById = async (req, res) => {
     }
 
     return res.status(200).json({
-      room: serializeRoomDetail(room, recentMessageLimit),
+      room: serializeRoomDetail(room, recentMessageLimit, req.user?._id || null),
     });
   } catch (error) {
     return res.status(500).json({

@@ -71,6 +71,9 @@ export interface ChatRoomInviteState {
 
 export interface ChatRoom {
   id: string;
+  canLeave: boolean;
+  isCreator: boolean;
+  isMember: boolean;
   title: string;
   description: string;
   topic: string;
