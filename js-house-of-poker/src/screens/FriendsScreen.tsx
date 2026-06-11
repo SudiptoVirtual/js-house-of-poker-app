@@ -19,9 +19,9 @@ import {
   getApiErrorDetails,
   rejectFriendRequest,
   searchPlayers,
-  sendChatInvite,
   sendFriendRequest,
 } from '../services/api';
+import { createChatRoom } from '../services/api/chatRooms';
 import { friendRealtimeEvents } from '../services/friends/friendRealtimeService';
 import {
   mergeFriendPresenceUpdate,
@@ -49,7 +49,7 @@ function updatePlayerRelationship(
 }
 
 export function FriendsScreen({ navigation }: Props) {
-  const { token } = useAuth();
+  const { currentUser, token } = useAuth();
   const { events: friendRealtimeEventsReceived } = useFriendNotifications();
   const { roomState, sendTableInvite } = usePoker();
   const [players, setPlayers] = useState<FriendsPlayer[]>([]);
@@ -259,14 +259,16 @@ export function FriendsScreen({ navigation }: Props) {
     }
 
     try {
-      await sendChatInvite(
+      const currentUserDisplayName = currentUser?.name?.trim() || 'Player';
+      const createdRoom = await createChatRoom(
         {
-          message: `Join me in chat, ${player.displayName}.`,
-          userId: player.id,
+          invitedPlayerIds: [player.id],
+          name: `${currentUserDisplayName} & ${player.displayName}`,
         },
         token,
       );
       setFeedbackMessage(`Chat invite sent to ${player.displayName}.`);
+      navigation.navigate(routes.ChatRoomDetail, { roomId: createdRoom.room.id });
     } catch (error) {
       const { message } = getApiErrorDetails(error, `Unable to send a chat invite to ${player.displayName}.`);
       setFeedbackMessage(message);

@@ -45,6 +45,5 @@ export {
   fetchOnlineFriends,
   rejectFriendRequest,
   searchPlayers,
-  sendChatInvite,
   sendFriendRequest,
 } from './api/friends';
