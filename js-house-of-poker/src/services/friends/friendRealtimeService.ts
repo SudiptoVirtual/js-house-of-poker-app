@@ -48,11 +48,18 @@ export type FriendRealtimePayload = {
 type SubscribeFriendRealtimeOptions = {
   onEvent: (payload: FriendRealtimePayload, eventName: FriendRealtimeEventName) => void;
   onError?: (message: string) => void;
+  onReconnect?: () => void;
   socketUrl?: string;
   token: string;
 };
 
-export function subscribeFriendRealtime({ onError, onEvent, socketUrl, token }: SubscribeFriendRealtimeOptions) {
+export function subscribeFriendRealtime({
+  onError,
+  onEvent,
+  onReconnect,
+  socketUrl,
+  token,
+}: SubscribeFriendRealtimeOptions) {
   const socketManager = createSocketManager({
     kind: 'socket',
     label: 'Friend Socket.IO backend',
@@ -63,6 +70,18 @@ export function subscribeFriendRealtime({ onError, onEvent, socketUrl, token }: 
   const unsubscribers = Object.values(friendRealtimeEvents).map((eventName) =>
     socketManager.on<FriendRealtimePayload>(eventName, (payload) => onEvent(payload, eventName)),
   );
+  let hasConnected = false;
+  const unsubscribeConnection = socketManager.onConnection((state) => {
+    if (state.status !== 'connected') {
+      return;
+    }
+
+    if (hasConnected) {
+      onReconnect?.();
+    }
+
+    hasConnected = true;
+  });
 
   // The token in the Socket.IO handshake authenticates and rejoins the user room on every reconnect.
   void socketManager.connect().catch((error) => {
@@ -71,6 +90,7 @@ export function subscribeFriendRealtime({ onError, onEvent, socketUrl, token }: 
 
   return () => {
     unsubscribers.forEach((unsubscribe) => unsubscribe());
+    unsubscribeConnection();
     socketManager.destroy();
   };
 }
