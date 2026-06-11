@@ -313,19 +313,21 @@ export function FriendsScreen({ navigation }: Props) {
         />
       </SectionCard>
 
-      <SectionCard title="Pending friend requests">
-        <PlayerSearchResultsList
-          emptyMessage="You have no pending friend requests."
-          hasActiveTable={Boolean(activeTableCode)}
-          isSearchActive
-          onInviteToChat={handleInviteToChat}
-          onInviteToTable={handleInviteToTable}
-          onRespondToRequest={handleRespondToRequest}
-          onSendFriendRequest={handleSendFriendRequest}
-          onViewProfile={handleViewProfile}
-          players={incomingRequests}
-        />
-      </SectionCard>
+      {incomingRequests.length > 0 && (
+        <SectionCard title="Pending friend requests">
+          <PlayerSearchResultsList
+            emptyMessage="You have no pending friend requests."
+            hasActiveTable={Boolean(activeTableCode)}
+            isSearchActive
+            onInviteToChat={handleInviteToChat}
+            onInviteToTable={handleInviteToTable}
+            onRespondToRequest={handleRespondToRequest}
+            onSendFriendRequest={handleSendFriendRequest}
+            onViewProfile={handleViewProfile}
+            players={incomingRequests}
+          />
+        </SectionCard>
+      )}
 
       {isSearchActive ? (
         <SectionCard title="Search results">
