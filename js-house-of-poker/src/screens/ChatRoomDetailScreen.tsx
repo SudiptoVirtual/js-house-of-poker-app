@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { io, type Socket } from 'socket.io-client';
 
@@ -20,6 +21,7 @@ import { Screen } from '../components/Screen';
 import { SectionCard } from '../components/SectionCard';
 import { GiftClipsModal, type GiftClipsRecipientOption } from '../components/feed/GiftClipsModal';
 import { env } from '../config/env';
+import { useChatNotifications } from '../context/ChatNotificationProvider';
 import { usePoker } from '../context/PokerProvider';
 import { routes } from '../constants/routes';
 import { fetchActiveChatRoomFriends, fetchChatRoom, inviteChatRoomFriends } from '../services/api/chatRooms';
@@ -245,6 +247,12 @@ function mergeMessages(currentMessages: ChatRoomMessage[], incomingMessages: Cha
 }
 
 export function ChatRoomDetailScreen({ navigation, route }: Props) {
+  const { setActiveRoomId } = useChatNotifications();
+
+  useFocusEffect(useCallback(() => {
+    setActiveRoomId(route.params.roomId);
+    return () => setActiveRoomId(null);
+  }, [route.params.roomId, setActiveRoomId]));
   const { transportKind } = usePoker();
   const socketRef = useRef<Socket | null>(null);
   const authRef = useRef<{ token: string | null; user: { id?: string; name?: string; email?: string } } | null>(null);

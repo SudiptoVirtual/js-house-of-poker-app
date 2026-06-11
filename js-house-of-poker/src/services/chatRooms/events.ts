@@ -10,6 +10,7 @@ export const chatRoomSocketEvents = {
   leaveRoom: 'chat:leaveRoom',
   leftRoom: 'chat:leftRoom',
   messageNotification: 'chat:messageNotification',
+  roomInvited: 'chat:roomInvited',
   newMessage: 'chat:newMessage',
   notificationsRead: 'chat:notificationsRead',
   presence: 'chat:presence',

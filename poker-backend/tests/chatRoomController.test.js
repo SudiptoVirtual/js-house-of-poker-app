@@ -94,4 +94,5 @@ test('creating a private chat room adds an eligible online friend and sends thei
   assert.equal(notificationCalls[0].room._id, roomId);
   assert.equal(notificationCalls[0].sender, sender);
   assert.ok(socketEvents.some(({ event, payload }) => event === 'chat:roomInvited' && payload.roomId === String(roomId)));
+  assert.ok(socketEvents.some(({ event, payload }) => event === 'chat:messageNotification' && payload.roomId === String(roomId)));
 });
