@@ -13,6 +13,7 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { colors } from "../../theme/colors";
 import { FeedActionBar } from "./FeedActionBar";
 import { FeedPlayerHeader } from "./FeedPlayerHeader";
+import { FeedMediaGallery } from "./FeedMediaGallery";
 import type {
   FeedComment,
   FeedCommentSubmitResult,
@@ -39,6 +40,7 @@ type FeedCommentDeleteResult = {
 
 type FeedPostCardProps = {
   actionsDisabled?: boolean;
+  isActive?: boolean;
   actionsDisabledMessage?: string;
   currentUserId?: string;
   onComment: (
@@ -57,6 +59,7 @@ type FeedPostCardProps = {
   onInviteToTable: (post: FeedPost) => void;
   onOpenProfile: (playerId: string) => void;
   onPromote: (post: FeedPost) => void;
+  onRequestVideoActive?: (postId: string) => void;
   onShare: (post: FeedPost) => void;
   onSupportChange: (
     postId: string,
@@ -77,6 +80,7 @@ export function FeedPostCard({
   actionsDisabled = false,
   actionsDisabledMessage = "Sign in and refresh the feed before using post actions.",
   currentUserId,
+  isActive = false,
   onComment,
   onCommentInputFocus,
   onDeleteComment,
@@ -85,6 +89,7 @@ export function FeedPostCard({
   onInviteToTable,
   onOpenProfile,
   onPromote,
+  onRequestVideoActive,
   onShare,
   onSupportChange,
   onUpdateComment,
@@ -317,6 +322,12 @@ export function FeedPostCard({
       />
 
       <Text style={styles.content}>{post.content}</Text>
+
+      <FeedMediaGallery
+        isActive={isActive}
+        media={post.media}
+        onRequestVideoActive={() => onRequestVideoActive?.(post.id)}
+      />
 
       {post.tableContext ? (
         <View style={styles.tableContext}>

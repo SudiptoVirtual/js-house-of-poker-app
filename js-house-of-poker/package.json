@@ -14,7 +14,8 @@
     "test:357:all": "npm run test:357 && npm run test:357:qa-fixtures",
     "test:feed": "node --test tests/feedRealtimeMerge.test.js",
     "test:friends-layout": "node --test tests/friendQuickActionsLayout.test.js",
-    "test:chatroom-layout": "node --test tests/chatInputBarLayout.test.js"
+    "test:chatroom-layout": "node --test tests/chatInputBarLayout.test.js",
+    "test:feed-media": "node --test tests/feedMedia.test.js"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.1.1",
@@ -41,7 +42,8 @@
     "react-native-screens": "~4.16.0",
     "socket.io": "^4.8.3",
     "socket.io-client": "^4.8.3",
-    "expo-image-picker": "~17.0.10"
+    "expo-image-picker": "~17.0.10",
+    "expo-video": "~3.0.16"
   },
   "devDependencies": {
     "@types/react": "~19.1.0",

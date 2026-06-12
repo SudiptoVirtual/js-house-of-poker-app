@@ -74,17 +74,33 @@ export type FeedChatRoomContext = {
   visibility?: string;
 };
 
-export type FeedMedia = {
+export type FeedMediaMetadata = {
+  size?: number;
+  [key: string]: unknown;
+};
+
+type FeedMediaBase = {
   altText: string;
-  durationMs: number | null;
   height: number | null;
-  metadata: { size?: number; [key: string]: unknown };
+  metadata: FeedMediaMetadata;
   mimeType: string;
-  thumbnailUrl: string;
-  type: 'image' | 'video';
   url: string;
   width: number | null;
 };
+
+export type FeedImageMedia = FeedMediaBase & {
+  durationMs: null;
+  thumbnailUrl?: string;
+  type: 'image';
+};
+
+export type FeedVideoMedia = FeedMediaBase & {
+  durationMs: number | null;
+  thumbnailUrl: string;
+  type: 'video';
+};
+
+export type FeedMedia = FeedImageMedia | FeedVideoMedia;
 
 export type FeedPost = {
   actorProfileLink?: FeedNavigationRoute;
