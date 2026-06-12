@@ -3,7 +3,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 import { colors } from '../../theme/colors';
 import { CommentButton } from './CommentButton';
-import { InviteToTableButton } from './InviteToTableButton';
+import { JoinTableButton } from './InviteToTableButton';
 import { SupportButton } from './SupportButton';
 
 type FeedActionBarProps = {
@@ -15,7 +15,7 @@ type FeedActionBarProps = {
   supportersCount: number;
   onComment: () => void;
   onGiftClips: () => void;
-  onInviteToTable: () => void;
+  onJoinTable: () => void;
   onPromote: () => void;
   onShare: () => void;
   onSupport: () => void;
@@ -30,7 +30,7 @@ export function FeedActionBar({
   isTableRelated = false,
   onComment,
   onGiftClips,
-  onInviteToTable,
+  onJoinTable,
   onPromote,
   onShare,
   onSupport,
@@ -72,7 +72,7 @@ export function FeedActionBar({
           <Text style={styles.secondaryLabel}>Promote</Text>
         </Pressable>
       </View>
-      {isTableRelated ? <InviteToTableButton disabled={actionsDisabled} loading={inviteLoading} onPress={onInviteToTable} /> : null}
+      {isTableRelated ? <JoinTableButton disabled={actionsDisabled} loading={inviteLoading} onPress={onJoinTable} /> : null}
     </View>
   );
 }

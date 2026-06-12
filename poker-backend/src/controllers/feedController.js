@@ -431,6 +431,13 @@ async function hydrateCurrentUserReaction(posts, currentUserId, session = null) 
   return posts;
 }
 
+async function populatePostTable(post) {
+  if (post?.populate) {
+    await post.populate("tableId", "tableCode tableName gameType gameSettings.game maxPlayers players seats");
+  }
+  return post;
+}
+
 function serializePost(post, currentUserId, currentUser = null) {
   return post.toClient({
     currentUserId,
@@ -698,6 +705,7 @@ async function findVisiblePost(postId, currentUserId = null, session = null) {
   }
 
   const post = await FeedPost.findOne(query).session(session);
+  await populatePostTable(post);
   if (post && currentUserId) {
     await hydrateCurrentUserReaction([post], currentUserId, session);
   }
@@ -749,12 +757,14 @@ async function createPost(req, res) {
       body: content,
       gameContext,
       media,
+      postKind: req.body?.postKind === "table-invite" ? "table-invite" : "standard",
       tableCode: normalizeText(req.body?.tableCode || tableContext?.tableCode, 32).toUpperCase(),
       tableContext,
       tableId,
       visibility,
     });
 
+    await populatePostTable(post);
     const serializedPost = serializePost(post, req.user._id);
 
     getFeedRealtimeService()?.broadcastPostCreated({
@@ -809,6 +819,7 @@ async function listPosts(req, res) {
       .sort({ isPromoted: -1, "promotion.startsAt": -1, createdAt: -1, _id: -1 })
       .limit(limit + 1);
     const page = posts.slice(0, limit);
+    await Promise.all(page.map(populatePostTable));
     await hydrateCurrentUserReaction(page, currentUserId);
     const currentUser = await getCurrentUserWithFriends(currentUserId);
 

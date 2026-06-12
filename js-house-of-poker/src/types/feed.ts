@@ -102,6 +102,8 @@ export type FeedVideoMedia = FeedMediaBase & {
 
 export type FeedMedia = FeedImageMedia | FeedVideoMedia;
 
+export type FeedPostKind = 'standard' | 'table-invite';
+
 export type FeedPost = {
   actorProfileLink?: FeedNavigationRoute;
   chatRoomContext?: FeedChatRoomContext;
@@ -116,6 +118,7 @@ export type FeedPost = {
   isTableRelated: boolean;
   media: FeedMedia[];
   player: FeedPlayer;
+  postKind: FeedPostKind;
   promotion?: FeedPostPromotion;
   promotedCount?: number;
   reactionCounts?: Record<string, number>;
@@ -136,6 +139,7 @@ export type FeedComment = {
   moderationStatus: string;
   parentCommentId: string | null;
   player: FeedPlayer;
+  postKind: FeedPostKind;
   postId: string;
 };
 

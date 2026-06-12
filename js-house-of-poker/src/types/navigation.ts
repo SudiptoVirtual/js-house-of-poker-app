@@ -27,6 +27,7 @@ export type RootStackParamList = {
     | {
         gameId?: string;
         invitePreset?: GameInvitePreset;
+        tableCode?: string;
       }
     | undefined;
 };

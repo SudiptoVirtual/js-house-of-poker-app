@@ -21,8 +21,9 @@ const ImagePicker = require('expo-image-picker') as {
 };
 type FeedPostBoxProps = {
   currentPlayer?: FeedPostBoxProfile;
+  canInviteToTable?: boolean;
   isAuthenticated?: boolean;
-  onCreatePost: (input: Pick<CreateFeedPostInput, 'content' | 'media'>) => Promise<FeedPost>;
+  onCreatePost: (input: Pick<CreateFeedPostInput, 'content' | 'media' | 'postKind'>) => Promise<FeedPost>;
   onOpenProfile?: (player: FeedPostBoxProfile) => void;
   onUploadAttachment: (attachment: UploadFeedMediaInput) => Promise<FeedMedia>;
 };
@@ -34,11 +35,12 @@ function toAttachment(asset: PickerAsset): LocalAttachment {
   return { id: asset.assetId || `${asset.uri}-${Date.now()}`, mimeType: asset.mimeType || (type === 'video' ? 'video/mp4' : 'image/jpeg'), name: asset.fileName || `feed-${Date.now()}.${type === 'video' ? 'mp4' : 'jpg'}`, type, uri: asset.uri };
 }
 
-export function FeedPostBox({ currentPlayer, isAuthenticated = false, onCreatePost, onOpenProfile, onUploadAttachment }: FeedPostBoxProps) {
+export function FeedPostBox({ canInviteToTable = false, currentPlayer, isAuthenticated = false, onCreatePost, onOpenProfile, onUploadAttachment }: FeedPostBoxProps) {
   const [attachments, setAttachments] = useState<LocalAttachment[]>([]);
   const [content, setContent] = useState('');
   const [isAttachmentSheetOpen, setIsAttachmentSheetOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isTableInvite, setIsTableInvite] = useState(false);
   const player = currentPlayer ?? placeholderPlayer;
   const canSubmit = Boolean(currentPlayer && isAuthenticated) && (content.trim().length > 0 || attachments.length > 0) && !isSubmitting;
   const statusMessage = useMemo(() => isSubmitting ? 'Uploading attachments and publishing post...' : !currentPlayer || !isAuthenticated ? 'Sign in to publish posts to the player feed.' : `Posting as ${player.name}`, [currentPlayer, isAuthenticated, isSubmitting, player.name]);
@@ -59,8 +61,8 @@ export function FeedPostBox({ currentPlayer, isAuthenticated = false, onCreatePo
     if (!trimmedContent && attachments.length === 0) return;
     setIsSubmitting(true);
     try {
-      await uploadAttachmentsAndCreatePost(attachments, trimmedContent, onUploadAttachment, onCreatePost);
-      setContent(''); setAttachments([]);
+      await uploadAttachmentsAndCreatePost(attachments, trimmedContent, onUploadAttachment, (input) => onCreatePost({ ...input, postKind: isTableInvite ? 'table-invite' : 'standard' }));
+      setContent(''); setAttachments([]); setIsTableInvite(false);
     } catch (error) {
       Alert.alert('Post not published', error instanceof Error ? error.message : 'Unable to upload attachments and publish your post.');
     } finally { setIsSubmitting(false); }
@@ -78,11 +80,12 @@ export function FeedPostBox({ currentPlayer, isAuthenticated = false, onCreatePo
         {attachments.length ? <ScrollView horizontal contentContainerStyle={styles.previewRow} showsHorizontalScrollIndicator={false}>{attachments.map((attachment) => <View key={attachment.id} style={styles.preview}>{attachment.type === 'image' ? <Image source={{ uri: attachment.uri }} style={styles.previewImage} /> : <View style={styles.videoPreview}><MaterialCommunityIcons color={colors.secondary} name="video-outline" size={28} /><Text style={styles.videoLabel}>Video</Text></View>}<Pressable accessibilityLabel={`Remove ${attachment.name}`} onPress={() => setAttachments((current) => removeFeedAttachment(current, attachment.id))} style={styles.removeButton}><MaterialCommunityIcons color={colors.text} name="close" size={15} /></Pressable></View>)}</ScrollView> : null}
       </View>
     </View>
+    {canInviteToTable ? <Pressable accessibilityRole="button" onPress={() => setIsTableInvite((current) => !current)} style={[styles.inviteOption, isTableInvite ? styles.inviteOptionSelected : null]}><MaterialCommunityIcons color={colors.gold} name="poker-chip" size={18} /><Text style={styles.inviteOptionText}>{isTableInvite ? 'Table invitation attached' : 'Invite to Table'}</Text></Pressable> : null}
     <View style={styles.footerRow}><Text style={styles.helperText}>{statusMessage}</Text><ActionButton compact disabled={!canSubmit} icon="send-outline" label={isSubmitting ? 'Posting' : 'Post'} loading={isSubmitting} onPress={handleSubmit} /></View>
     <Modal animationType="slide" transparent visible={isAttachmentSheetOpen} onRequestClose={() => setIsAttachmentSheetOpen(false)}><Pressable style={styles.sheetBackdrop} onPress={() => setIsAttachmentSheetOpen(false)}><Pressable style={styles.sheet}><View style={styles.sheetHandle} /><Text style={styles.sheetTitle}>Attach media</Text><Pressable accessibilityRole="button" onPress={() => void addAssets('gallery')} style={styles.sheetAction}><MaterialCommunityIcons color={colors.secondary} name="image-multiple-outline" size={22} /><Text style={styles.sheetActionText}>Choose from gallery</Text></Pressable><Pressable accessibilityRole="button" onPress={() => void addAssets('camera')} style={styles.sheetAction}><MaterialCommunityIcons color={colors.secondary} name="camera-outline" size={22} /><Text style={styles.sheetActionText}>Take a snap</Text></Pressable></Pressable></Pressable></Modal>
   </View>;
 }
 
 const styles = StyleSheet.create({
-  attachmentButton: { alignItems: 'center', bottom: 8, height: 36, justifyContent: 'center', position: 'absolute', right: 8, width: 36 }, avatarButton: { borderRadius: 22 }, card: { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: 24, borderWidth: 1, gap: 13, padding: 14 }, footerRow: { alignItems: 'center', flexDirection: 'row', gap: 12, justifyContent: 'space-between' }, helperText: { color: colors.mutedText, flex: 1, fontSize: 12, lineHeight: 17 }, input: { color: colors.text, fontSize: 15, minHeight: 52, paddingHorizontal: 14, paddingRight: 48, paddingVertical: 12, textAlignVertical: 'top' }, inputStack: { flex: 1, gap: 7 }, playerLabel: { color: colors.secondary, fontSize: 12, fontWeight: '800' }, preview: { borderColor: colors.border, borderRadius: 12, borderWidth: 1, height: 82, overflow: 'hidden', width: 82 }, previewImage: { height: '100%', width: '100%' }, previewRow: { gap: 8 }, removeButton: { alignItems: 'center', backgroundColor: colors.surface, borderRadius: 12, height: 24, justifyContent: 'center', position: 'absolute', right: 4, top: 4, width: 24 }, row: { alignItems: 'flex-start', flexDirection: 'row', gap: 10 }, sheet: { backgroundColor: colors.surface, borderTopLeftRadius: 24, borderTopRightRadius: 24, gap: 8, padding: 20, paddingBottom: 34 }, sheetAction: { alignItems: 'center', borderColor: colors.border, borderRadius: 16, borderWidth: 1, flexDirection: 'row', gap: 12, padding: 16 }, sheetActionText: { color: colors.text, fontSize: 16, fontWeight: '700' }, sheetBackdrop: { backgroundColor: 'rgba(0,0,0,0.55)', flex: 1, justifyContent: 'flex-end' }, sheetHandle: { alignSelf: 'center', backgroundColor: colors.border, borderRadius: 3, height: 5, marginBottom: 5, width: 42 }, sheetTitle: { color: colors.text, fontSize: 18, fontWeight: '800', marginBottom: 6 }, textboxArea: { backgroundColor: colors.surfaceMuted, borderColor: colors.border, borderRadius: 18, borderWidth: 1, overflow: 'hidden', position: 'relative' }, videoLabel: { color: colors.mutedText, fontSize: 11 }, videoPreview: { alignItems: 'center', flex: 1, justifyContent: 'center' },
+  attachmentButton: { alignItems: 'center', bottom: 8, height: 36, justifyContent: 'center', position: 'absolute', right: 8, width: 36 }, avatarButton: { borderRadius: 22 }, card: { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: 24, borderWidth: 1, gap: 13, padding: 14 }, footerRow: { alignItems: 'center', flexDirection: 'row', gap: 12, justifyContent: 'space-between' }, helperText: { color: colors.mutedText, flex: 1, fontSize: 12, lineHeight: 17 }, inviteOption: { alignItems: 'center', alignSelf: 'flex-start', borderColor: colors.border, borderRadius: 14, borderWidth: 1, flexDirection: 'row', gap: 7, paddingHorizontal: 12, paddingVertical: 9 }, inviteOptionSelected: { backgroundColor: 'rgba(255,201,94,0.10)', borderColor: colors.gold }, inviteOptionText: { color: colors.gold, fontSize: 13, fontWeight: '800' }, input: { color: colors.text, fontSize: 15, minHeight: 52, paddingHorizontal: 14, paddingRight: 48, paddingVertical: 12, textAlignVertical: 'top' }, inputStack: { flex: 1, gap: 7 }, playerLabel: { color: colors.secondary, fontSize: 12, fontWeight: '800' }, preview: { borderColor: colors.border, borderRadius: 12, borderWidth: 1, height: 82, overflow: 'hidden', width: 82 }, previewImage: { height: '100%', width: '100%' }, previewRow: { gap: 8 }, removeButton: { alignItems: 'center', backgroundColor: colors.surface, borderRadius: 12, height: 24, justifyContent: 'center', position: 'absolute', right: 4, top: 4, width: 24 }, row: { alignItems: 'flex-start', flexDirection: 'row', gap: 10 }, sheet: { backgroundColor: colors.surface, borderTopLeftRadius: 24, borderTopRightRadius: 24, gap: 8, padding: 20, paddingBottom: 34 }, sheetAction: { alignItems: 'center', borderColor: colors.border, borderRadius: 16, borderWidth: 1, flexDirection: 'row', gap: 12, padding: 16 }, sheetActionText: { color: colors.text, fontSize: 16, fontWeight: '700' }, sheetBackdrop: { backgroundColor: 'rgba(0,0,0,0.55)', flex: 1, justifyContent: 'flex-end' }, sheetHandle: { alignSelf: 'center', backgroundColor: colors.border, borderRadius: 3, height: 5, marginBottom: 5, width: 42 }, sheetTitle: { color: colors.text, fontSize: 18, fontWeight: '800', marginBottom: 6 }, textboxArea: { backgroundColor: colors.surfaceMuted, borderColor: colors.border, borderRadius: 18, borderWidth: 1, overflow: 'hidden', position: 'relative' }, videoLabel: { color: colors.mutedText, fontSize: 11 }, videoPreview: { alignItems: 'center', flex: 1, justifyContent: 'center' },
 });

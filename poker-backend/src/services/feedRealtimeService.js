@@ -398,6 +398,7 @@ class FeedRealtimeService {
       body: content,
       gameContext,
       media: normalizeMedia(payload.media),
+      postKind: payload.postKind === "table-invite" ? "table-invite" : "standard",
       tableCode: normalizeText(payload.tableCode || tableContext?.tableCode, 32).toUpperCase(),
       tableContext,
       tableId,
