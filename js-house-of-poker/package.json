@@ -13,6 +13,7 @@
     "test:357:qa-fixtures": "node server/tests/threeFiveSeven.qaFixtures.test.js",
     "test:357:all": "npm run test:357 && npm run test:357:qa-fixtures",
     "test:feed": "node --test tests/feedRealtimeMerge.test.js",
+    "test:feed-composer": "node --test tests/feedPostBoxLayout.test.js",
     "test:friends-layout": "node --test tests/friendQuickActionsLayout.test.js",
     "test:chatroom-layout": "node --test tests/chatInputBarLayout.test.js",
     "test:feed-media": "node --test tests/feedMedia.test.js"
