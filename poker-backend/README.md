@@ -47,7 +47,8 @@ Create a `.env` file for local development and configure the same variables in y
 
 - `NODE_ENV` - Set to `production` in production. When this is not `production`, the backend also allows local development origins such as `http://localhost:3000`, `http://localhost:5173`, `http://localhost:8081`, `http://localhost:19000`, `http://localhost:19006`, and their `127.0.0.1` equivalents.
 - `PORT` - HTTP port for the Express and Socket.IO server. Defaults to `5000`.
-- `FIREBASE_SERVICE_ACCOUNT_JSON` or `FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL`, and `FIREBASE_PRIVATE_KEY` - Firebase Admin credentials, if Firebase-authenticated flows are enabled.
+- `FIREBASE_SERVICE_ACCOUNT_JSON` or `FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL`, and `FIREBASE_PRIVATE_KEY` - Firebase Admin credentials, required for Firebase-authenticated flows and feed-media uploads.
+- `FIREBASE_STORAGE_BUCKET` - Exact Firebase Storage bucket name without `gs://`, required for feed-media uploads. This application uses `j-s-house-of-poker-2f734.firebasestorage.app`.
 - `USER_LOGIN_MAX_ATTEMPTS` and `USER_LOGIN_LOCK_MINUTES` - Login throttling settings for player accounts.
 - `POKER_SMALL_BLIND`, `POKER_BIG_BLIND`, and `POKER_DEFAULT_BUY_IN` - Poker table defaults.
 
@@ -56,6 +57,28 @@ Example production CORS configuration:
 ```bash
 NODE_ENV=production
 ALLOWED_ORIGINS=https://www.jshouseofpoker.com,https://admin.jshouseofpoker.com
+```
+
+### Firebase Storage deployment
+
+Enable Storage for Firebase project `j-s-house-of-poker-2f734` in Firebase Console. Under **Storage**, copy the bucket name exactly; the configured application bucket is:
+
+```bash
+FIREBASE_STORAGE_BUCKET=j-s-house-of-poker-2f734.firebasestorage.app
+```
+
+Do not prefix the value with `gs://`. Configure this only in the `poker-backend` runtime alongside either `FIREBASE_SERVICE_ACCOUNT_JSON` or all three split Firebase Admin credential variables. Firebase Admin credentials are secrets and must never be placed in an `EXPO_PUBLIC_*` variable. The frontend's `EXPO_PUBLIC_FIREBASE_*` values are Firebase client configuration, not Admin credentials.
+
+Grant the Admin service account used by those credentials permission to create objects in this bucket. `roles/storage.objectAdmin` on the bucket supports both uploads and cleanup. After configuring the backend environment, verify the credentials, bucket name, and object permissions with a temporary write/delete check:
+
+```bash
+npm run verify:firebase-storage
+```
+
+The command creates and removes one object under `deployment-checks/` and prints only the bucket name; it does not print credentials. Restart or redeploy the backend only after this check passes. For PM2, reload the process with its updated environment:
+
+```bash
+pm2 restart poker-backend --update-env
 ```
 
 The production server mounts these public API route groups from `src/index.js`:
