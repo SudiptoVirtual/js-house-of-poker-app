@@ -12,6 +12,7 @@ const {
   emitFeedTableInviteRecipientEvents,
 } = require("../services/feedTableInviteService");
 const { getFeedRealtimeService } = require("../services/feedRealtimeService");
+const { uploadFeedMedia, validateUploadedMedia } = require("../services/feedMediaService");
 const {
   createFeedCommentNotification,
   createFeedGiftClipNotification,
@@ -408,27 +409,6 @@ function normalizeGameContext(value) {
   };
 }
 
-function normalizeMedia(value) {
-  if (!Array.isArray(value)) {
-    return [];
-  }
-
-  return value
-    .slice(0, 10)
-    .map((item) => ({
-      altText: normalizeText(item?.altText, 500),
-      durationMs: Number.isFinite(item?.durationMs) ? Math.max(0, item.durationMs) : null,
-      height: Number.isFinite(item?.height) ? Math.max(0, item.height) : null,
-      metadata: item?.metadata && typeof item.metadata === "object" ? item.metadata : {},
-      mimeType: normalizeText(item?.mimeType, 120),
-      thumbnailUrl: normalizeText(item?.thumbnailUrl, 1000),
-      type: normalizeText(item?.type, 20),
-      url: normalizeText(item?.url, 1000),
-      width: Number.isFinite(item?.width) ? Math.max(0, item.width) : null,
-    }))
-    .filter((item) => item.type && item.url);
-}
-
 async function hydrateCurrentUserReaction(posts, currentUserId, session = null) {
   if (!currentUserId || posts.length === 0) {
     return posts;
@@ -735,12 +715,27 @@ function sendServerError(res, error, fallbackMessage = "Feed request failed") {
   return res.status(500).json({ message: fallbackMessage });
 }
 
+async function uploadMedia(req, res) {
+  try {
+    const media = await uploadFeedMedia({
+      buffer: req.body,
+      mimeType: req.headers["content-type"],
+      originalName: req.headers["x-file-name"],
+      userId: req.user._id,
+    });
+    return res.status(201).json({ media });
+  } catch (error) {
+    return sendServerError(res, error, "Unable to upload attachment.");
+  }
+}
+
 async function createPost(req, res) {
   try {
     const content = normalizeText(req.body?.content || req.body?.body, 5000);
+    const media = validateUploadedMedia(req.body?.media || []);
 
-    if (!content) {
-      return res.status(400).json({ message: "Post content is required" });
+    if (!content && media.length === 0) {
+      return res.status(400).json({ message: "Post content or at least one media attachment is required" });
     }
 
     const visibility = POST_VISIBILITIES.includes(req.body?.visibility) ? req.body.visibility : "public";
@@ -753,7 +748,7 @@ async function createPost(req, res) {
       authorUserId: req.user._id,
       body: content,
       gameContext,
-      media: normalizeMedia(req.body?.media),
+      media,
       tableCode: normalizeText(req.body?.tableCode || tableContext?.tableCode, 32).toUpperCase(),
       tableContext,
       tableId,
@@ -1673,4 +1668,5 @@ module.exports = {
   toggleReaction,
   updateComment,
   updatePost,
+  uploadMedia,
 };

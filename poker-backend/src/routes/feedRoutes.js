@@ -25,6 +25,7 @@ const {
   setSupport,
   updateComment,
   updatePost,
+  uploadMedia,
 } = require("../controllers/feedController");
 const { optionalUser, protectUser } = require("../middleware/auth");
 const { verifyPromotionWebhookPayload } = require("../services/feedPromotionService");
@@ -50,6 +51,7 @@ function verifyPromotionWebhook(req, res, next) {
 router.get("/", optionalUser, listPosts);
 router.post("/promotions/webhook", verifyPromotionWebhook, promotionPaymentWebhook);
 router.post("/promotions/:promotionId/complete", protectUser, completePromotion);
+router.post("/media", protectUser, express.raw({ limit: "25mb", type: () => true }), uploadMedia);
 router.post("/", protectUser, createPost);
 router.get("/discovery", optionalUser, getDiscoveryPayload);
 router.get("/:postId", optionalUser, getPost);

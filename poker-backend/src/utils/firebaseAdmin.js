@@ -62,5 +62,6 @@ const getFirebaseAdminAuth = () => {
 
 module.exports = {
   FirebaseAdminConfigurationError,
+  getFirebaseAdminApp,
   getFirebaseAdminAuth,
 };

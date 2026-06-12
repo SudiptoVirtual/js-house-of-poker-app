@@ -74,6 +74,18 @@ export type FeedChatRoomContext = {
   visibility?: string;
 };
 
+export type FeedMedia = {
+  altText: string;
+  durationMs: number | null;
+  height: number | null;
+  metadata: { size?: number; [key: string]: unknown };
+  mimeType: string;
+  thumbnailUrl: string;
+  type: 'image' | 'video';
+  url: string;
+  width: number | null;
+};
+
 export type FeedPost = {
   actorProfileLink?: FeedNavigationRoute;
   chatRoomContext?: FeedChatRoomContext;
@@ -86,6 +98,7 @@ export type FeedPost = {
   friendStatus?: FeedFriendStatus;
   isPromoted: boolean;
   isTableRelated: boolean;
+  media: FeedMedia[];
   player: FeedPlayer;
   promotion?: FeedPostPromotion;
   promotedCount?: number;

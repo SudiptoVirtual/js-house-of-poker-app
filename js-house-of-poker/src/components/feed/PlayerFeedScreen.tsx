@@ -40,6 +40,8 @@ import {
   sendFeedTableInvite,
   toggleFeedSupport,
   updateFeedComment,
+  uploadFeedMedia,
+  type CreateFeedPostInput,
   type CreateFeedShareInput,
 } from '../../services/api';
 import { fetchChatRooms } from '../../services/api/chatRooms';
@@ -377,7 +379,7 @@ export function PlayerFeedScreen({ navigation, route }: PlayerFeedScreenProps) {
     return [...options.values()];
   }, [activeTableCode, activeTableId, sharePost]);
 
-  async function handleCreatePost(content: string) {
+  async function handleCreatePost(input: Pick<CreateFeedPostInput, 'content' | 'media'>) {
     if (!token || !currentUser) {
       Alert.alert(
         'Sign in required',
@@ -389,7 +391,7 @@ export function PlayerFeedScreen({ navigation, route }: PlayerFeedScreenProps) {
     try {
       const response = await createFeedPost(
         {
-          content,
+          ...input,
           ...(activeTableCode ? { tableCode: activeTableCode } : {}),
         },
         token,
@@ -1141,6 +1143,10 @@ export function PlayerFeedScreen({ navigation, route }: PlayerFeedScreenProps) {
                 currentPlayer={currentPlayer}
                 isAuthenticated={Boolean(token && currentUser)}
                 onCreatePost={handleCreatePost}
+                onUploadAttachment={(attachment) => {
+                  if (!token) throw new Error('Sign in to upload attachments.');
+                  return uploadFeedMedia(attachment, token);
+                }}
                 onOpenProfile={(player: FeedPostBoxProfile) =>
                   handleOpenProfile(player.id)
                 }
