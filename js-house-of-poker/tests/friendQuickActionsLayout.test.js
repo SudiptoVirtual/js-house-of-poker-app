@@ -55,11 +55,12 @@ const reactNativeMock = {
   View: 'View',
 };
 
-function loadFriendQuickActions() {
+function loadFriendQuickActions(confirmRemoveFriend = () => {}) {
   return compileComponent('../src/components/friends/FriendQuickActions.tsx', {
     react: { ...require('react'), useState: () => [null, () => {}] },
     'react-native': reactNativeMock,
     '../ActionButton': { ActionButton },
+    '../confirmDestructiveAction': { confirmRemoveFriend },
     './InviteToChatButton': { InviteToChatButton },
     './InviteToTableButton': { InviteToTableButton },
     './SendFriendRequestButton': { SendFriendRequestButton: () => null },
@@ -94,6 +95,26 @@ test('an offline friend renders Remove friend without online-only invite actions
 
   assert.equal(removeActions.length, 1);
   assert.equal(findElements(tree, (element) => [InviteToChatButton, InviteToTableButton].includes(element.type)).length, 0);
+});
+
+test('Remove friend waits for destructive confirmation before invoking the removal handler', () => {
+  const confirmationCalls = [];
+  const removalCalls = [];
+  const QuickActions = loadFriendQuickActions((friendName, onConfirm) => confirmationCalls.push({ friendName, onConfirm }));
+  const friend = { ...requestPlayer, relationshipStatus: 'friend' };
+  const tree = QuickActions({
+    hasActiveTable: false, onInviteToChat: () => {}, onInviteToTable: () => {},
+    onRemoveFriend: (player) => removalCalls.push(player.id), onSendFriendRequest: () => {},
+    onViewProfile: () => {}, player: friend,
+  });
+  const removeAction = findElements(tree, (element) => element.type === ActionButton && element.props.label === 'Remove friend')[0];
+
+  removeAction.props.onPress();
+  assert.equal(confirmationCalls[0].friendName, 'Sam Sender');
+  assert.deepEqual(removalCalls, []);
+
+  confirmationCalls[0].onConfirm();
+  assert.deepEqual(removalCalls, ['sender-1']);
 });
 
 test('a friend returned through player search exposes the forwarded Remove friend action', () => {

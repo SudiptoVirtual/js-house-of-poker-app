@@ -5,6 +5,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { io, type Socket } from 'socket.io-client';
 
 import { ActionButton } from '../components/ActionButton';
+import { confirmLeaveChatRoom } from '../components/confirmDestructiveAction';
 import {
   AIPrimeActionPanel,
   type AIPrimeActionId,
@@ -1156,11 +1157,13 @@ export function ChatRoomDetailScreen({ navigation, route }: Props) {
       return;
     }
 
-    socketRef.current?.emit(
-      chatRoomSocketEvents.leaveRoom,
-      { roomId: room.id, token: authRef.current?.token } satisfies LeaveChatRoomRequest,
-    );
-    navigation.goBack();
+    confirmLeaveChatRoom(room.title, () => {
+      socketRef.current?.emit(
+        chatRoomSocketEvents.leaveRoom,
+        { roomId: room.id, token: authRef.current?.token } satisfies LeaveChatRoomRequest,
+      );
+      navigation.goBack();
+    });
   }
 
   return (

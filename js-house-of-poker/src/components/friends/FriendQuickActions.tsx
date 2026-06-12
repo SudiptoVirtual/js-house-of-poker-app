@@ -3,6 +3,7 @@ import { StyleSheet, View } from 'react-native';
 
 import type { FriendsPlayer } from '../../types/friends';
 import { ActionButton } from '../ActionButton';
+import { confirmRemoveFriend } from '../confirmDestructiveAction';
 import { InviteToChatButton } from './InviteToChatButton';
 import { InviteToTableButton } from './InviteToTableButton';
 import { SendFriendRequestButton } from './SendFriendRequestButton';
@@ -88,7 +89,9 @@ export function FriendQuickActions({
           icon="account-minus-outline"
           label="Remove friend"
           loading={pendingAction === 'remove-friend'}
-          onPress={() => { void runAction('remove-friend', () => onRemoveFriend(player)); }}
+          onPress={() => confirmRemoveFriend(player.displayName, () => {
+            void runAction('remove-friend', () => onRemoveFriend(player));
+          })}
           tone="danger"
           variant="secondary"
         />
