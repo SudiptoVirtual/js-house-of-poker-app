@@ -39,7 +39,7 @@ type PokerActions = {
   disconnect: () => void;
   fold: () => void;
   joinRoom: (input: JoinPokerRoomInput) => void;
-  joinTable: (input: JoinPokerRoomInput) => void;
+  joinTable: (input: JoinPokerRoomInput) => Promise<void>;
   leaveRoom: () => void;
   leaveTable: () => void;
   raise: (amount: number) => void;
@@ -192,7 +192,7 @@ export function PokerProvider({ children }: PropsWithChildren) {
         );
       },
       joinTable(input) {
-        run(transportRef.current!.joinTable(input));
+        return runCommand(transportRef.current!.joinTable(input), 'Unable to join this table.');
       },
       leaveRoom() {
         run(transportRef.current!.leaveTable());

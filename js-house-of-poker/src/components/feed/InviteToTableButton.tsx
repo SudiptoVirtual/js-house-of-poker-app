@@ -3,21 +3,21 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 import { colors } from '../../theme/colors';
 
-type InviteToTableButtonProps = {
+type JoinTableButtonProps = {
   disabled?: boolean;
   loading?: boolean;
   onPress: () => void;
 };
 
-export function InviteToTableButton({ disabled = false, loading = false, onPress }: InviteToTableButtonProps) {
+export function JoinTableButton({ disabled = false, loading = false, onPress }: JoinTableButtonProps) {
   return (
     <Pressable accessibilityRole="button" disabled={disabled || loading} onPress={onPress} style={({ pressed }) => [styles.button, disabled ? styles.disabled : null, pressed ? styles.pressed : null]}>
       {loading ? (
         <ActivityIndicator color={colors.gold} size="small" />
       ) : (
-        <MaterialCommunityIcons color={colors.gold} name="account-plus-outline" size={17} />
+        <MaterialCommunityIcons color={colors.gold} name="login-variant" size={17} />
       )}
-      <Text style={styles.label}>Invite to Table</Text>
+      <Text style={styles.label}>Join Table</Text>
     </Pressable>
   );
 }

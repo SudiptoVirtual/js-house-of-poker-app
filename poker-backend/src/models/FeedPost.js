@@ -1,6 +1,7 @@
 const mongoose = require("mongoose");
 const {
   POST_STATUSES,
+  POST_KINDS,
   POST_VISIBILITIES,
   countersSchema,
   gameContextSchema,
@@ -61,6 +62,12 @@ const feedPostSchema = new mongoose.Schema(
     moderation: {
       type: moderationSchema,
       default: () => ({}),
+    },
+    postKind: {
+      type: String,
+      enum: POST_KINDS,
+      default: "standard",
+      index: true,
     },
     promotion: {
       type: promotionStateSchema,
@@ -149,6 +156,7 @@ feedPostSchema.methods.toClient = function toClient(options = {}) {
     ...(counters.giftClipsTotal ? { giftClipsTotal: counters.giftClipsTotal } : {}),
     id: String(this._id),
     isPromoted: Boolean(this.isPromoted),
+    postKind: this.postKind || "standard",
     media: (this.media || []).map((item) => ({
       altText: item.altText || "",
       durationMs: item.durationMs ?? null,

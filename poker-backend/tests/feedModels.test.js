@@ -7,7 +7,7 @@ const FeedPost = require("../src/models/FeedPost");
 const FeedPromotion = require("../src/models/FeedPromotion");
 const FeedReaction = require("../src/models/FeedReaction");
 const FeedShare = require("../src/models/FeedShare");
-const { SHARE_DESTINATIONS, normalizeShareDestination } = require("../src/models/feedShared");
+const { SHARE_DESTINATIONS, normalizeShareDestination, serializeTableContext } = require("../src/models/feedShared");
 
 function objectId(hex) {
   return new mongoose.Types.ObjectId(hex.padStart(24, "0"));
@@ -155,6 +155,7 @@ const tests = [
           status: "Online",
           statusTier: "mid_roller",
         },
+        postKind: "standard",
         promotedCount: 8,
         reactionCounts: {
           support: 250,
@@ -176,6 +177,53 @@ const tests = [
         },
         timestamp: "2026-06-03T12:00:00.000Z",
       });
+    },
+  ],
+  [
+    "FeedPost preserves document-level table invitation identifiers and resolves populated metadata",
+    () => {
+      const tableId = objectId("9");
+      const post = createFeedPost({
+        _id: objectId("8"),
+        postKind: "table-invite",
+        tableCode: "JOIN42",
+        tableContext: {},
+        tableId: { _id: tableId, gameType: "357", maxPlayers: 6, players: [{ id: "one" }, { id: "two" }], tableCode: "JOIN42", tableName: "Friday Night" },
+      });
+      const client = post.toClient();
+
+      assert.equal(client.postKind, "table-invite");
+      assert.equal(client.tableContext.tableCode, "JOIN42");
+      assert.equal(client.tableContext.tableId, String(tableId));
+      assert.equal(client.tableContext.tableName, "");
+      assert.equal(client.tableContext.gameLabel, "");
+      assert.deepEqual(serializeTableContext({
+        tableCode: "JOIN42",
+        tableContext: {},
+        tableId: { _id: tableId, gameType: "357", maxPlayers: 6, players: [{ id: "one" }, { id: "two" }], tableName: "Friday Night" },
+      }), {
+        activeTableNavigation: { deepLink: "houseofpoker://tables/JOIN42", params: { tableCode: "JOIN42", tableId: String(tableId) }, route: "Game", screen: "GameScreen" },
+        gameLabel: "3-5-7",
+        seatsOpen: 4,
+        tableCode: "JOIN42",
+        tableId: String(tableId),
+        tableName: "Friday Night",
+      });
+    },
+  ],
+  [
+    "table codes survive create, list, and get feed serialization",
+    () => {
+      const persistedPost = createFeedPost({ _id: objectId("a"), postKind: "table-invite", tableCode: "SURVIVE7", tableContext: {}, tableId: objectId("b") });
+      const createResponse = persistedPost.toClient();
+      const listResponse = [persistedPost].map((post) => post.toClient())[0];
+      const getResponse = persistedPost.toClient();
+
+      for (const response of [createResponse, listResponse, getResponse]) {
+        assert.equal(response.postKind, "table-invite");
+        assert.equal(response.tableContext.tableCode, "SURVIVE7");
+        assert.equal(response.tableContext.tableId, String(objectId("b")));
+      }
     },
   ],
   [

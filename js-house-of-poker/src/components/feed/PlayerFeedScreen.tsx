@@ -38,7 +38,6 @@ import {
   fetchFeedPosts,
   getApiErrorDetails,
   sendFeedGiftClip,
-  sendFeedTableInvite,
   toggleFeedSupport,
   updateFeedComment,
   uploadFeedMedia,
@@ -52,6 +51,7 @@ import { colors } from '../../theme/colors';
 import type { RootStackParamList } from '../../types/navigation';
 import { FeedPostBox, type FeedPostBoxProfile } from './FeedPostBox';
 import { FeedPostCard } from './FeedPostCard';
+import { getJoinTableErrorMessage, joinFeedTableInvite } from './tableInviteActions';
 import { GiftClipsModal } from './GiftClipsModal';
 import { PromoteForCreatorPanel } from './PromoteForCreatorPanel';
 import { ShareMenu, type ShareSelection } from './ShareMenu';
@@ -131,7 +131,7 @@ export function PlayerFeedScreen({ navigation, route }: PlayerFeedScreenProps) {
   const { currentUser, token } = useAuth();
   const isKeyboardVisible = useKeyboardVisible();
   const { markFeedNotificationsRead, notifications } = useFeedNotifications();
-  const { roomState } = usePoker();
+  const { joinTable, roomState } = usePoker();
   const feedListRef = useRef<FlatList<FeedPost>>(null);
   const feedScrollOffsetRef = useRef(0);
   const isMountedRef = useRef(true);
@@ -410,7 +410,7 @@ export function PlayerFeedScreen({ navigation, route }: PlayerFeedScreenProps) {
     return [...options.values()];
   }, [activeTableCode, activeTableId, sharePost]);
 
-  async function handleCreatePost(input: Pick<CreateFeedPostInput, 'content' | 'media'>) {
+  async function handleCreatePost(input: Pick<CreateFeedPostInput, 'content' | 'media' | 'postKind'>) {
     if (!token || !currentUser) {
       Alert.alert(
         'Sign in required',
@@ -423,7 +423,18 @@ export function PlayerFeedScreen({ navigation, route }: PlayerFeedScreenProps) {
       const response = await createFeedPost(
         {
           ...input,
-          ...(activeTableCode ? { tableCode: activeTableCode } : {}),
+          ...(input.postKind === 'table-invite' && activeTableCode
+            ? {
+                tableCode: activeTableCode,
+                tableId: activeTableId ?? undefined,
+                tableContext: {
+                  gameLabel: roomState?.gameSettings.game === '357' ? '3-5-7' : "Texas Hold'em",
+                  seatsOpen: Math.max(0, (roomState?.maxSeats ?? 0) - (roomState?.players.length ?? 0)),
+                  tableCode: activeTableCode,
+                  tableName: roomState?.tableName ?? activeTableCode,
+                },
+              }
+            : {}),
         },
         token,
       );
@@ -1056,60 +1067,16 @@ export function PlayerFeedScreen({ navigation, route }: PlayerFeedScreenProps) {
     }
   }
 
-  async function handleInviteToTable(post: FeedPost) {
-    const tableCode = post.tableContext?.tableCode;
-    const session = await getAuthSession();
-
-    if (!isBackendFeedPostId(post.id)) {
-      Alert.alert(
-        'Action unavailable',
-        'Refresh the feed before sending table invites from feed.',
-      );
-      return;
-    }
-
-    if (!session?.token) {
-      Alert.alert(
-        'Sign in required',
-        'Sign in before sending table invites from feed.',
-      );
-      return;
-    }
-
-    if (!tableCode) {
-      Alert.alert(
-        'Table unavailable',
-        'This feed post does not include a joinable table context yet.',
-      );
-      return;
-    }
-
+  async function handleJoinTable(post: FeedPost) {
     try {
-      const response = await sendFeedTableInvite(
-        post.id,
-        {
-          message: `Inviting from feed post ${post.id}`,
-          recipientUserId: post.player.id,
-          tableCode,
-        },
-        session.token,
-      );
-
-      setPosts((currentPosts) =>
-        currentPosts.map((currentPost) =>
-          currentPost.id === post.id ? response.post : currentPost,
-        ),
-      );
-      Alert.alert(
-        'Table invite sent',
-        `${post.player.name} can join ${response.table.tableName || response.table.tableCode || 'the table'} from their feed notification.`,
-      );
+      await joinFeedTableInvite({
+        joinTable,
+        navigateToGame: (tableCode) => navigation.navigate(routes.Game, { tableCode }),
+        playerName: currentUser?.name,
+        post,
+      });
     } catch (error) {
-      const details = getApiErrorDetails(
-        error,
-        'Unable to send this feed table invite right now.',
-      );
-      Alert.alert('Invite not sent', details.message);
+      Alert.alert('Unable to join table', getJoinTableErrorMessage(error));
     }
   }
 
@@ -1172,6 +1139,7 @@ export function PlayerFeedScreen({ navigation, route }: PlayerFeedScreenProps) {
                 ) : null}
               </View>
               <FeedPostBox
+                canInviteToTable={Boolean(activeTableCode && activeTableId)}
                 currentPlayer={currentPlayer}
                 isAuthenticated={Boolean(token && currentUser)}
                 onCreatePost={handleCreatePost}
@@ -1207,7 +1175,7 @@ export function PlayerFeedScreen({ navigation, route }: PlayerFeedScreenProps) {
               onDeleteComment={handleDeleteComment}
               onFetchComments={handleFetchComments}
               onGiftClips={setGiftPost}
-              onInviteToTable={handleInviteToTable}
+              onJoinTable={handleJoinTable}
               onOpenProfile={handleOpenProfile}
               onPromote={setPromotePost}
               onRequestVideoActive={setActiveVideoPostId}

@@ -194,6 +194,7 @@ export type CreateFeedPostInput = {
   content: string;
   gameContext?: Record<string, unknown> | null;
   media?: FeedMedia[];
+  postKind?: 'standard' | 'table-invite';
   tableCode?: string;
   tableContext?: Record<string, unknown> | null;
   tableId?: string;

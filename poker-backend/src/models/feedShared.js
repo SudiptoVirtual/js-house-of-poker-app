@@ -4,6 +4,7 @@ const PLAYER_STATUSES = ["Online", "In Lobby", "In Chat Room", "Playing 357", "A
 const POST_VISIBILITIES = ["public", "friends", "private", "unlisted"];
 const MODERATION_STATUSES = ["accepted", "blocked", "pending-review"];
 const POST_STATUSES = ["draft", "published", "archived", "deleted"];
+const POST_KINDS = ["standard", "table-invite"];
 const PROMOTION_STATES = ["none", "pending", "active", "paused", "expired", "rejected"];
 const MEDIA_TYPES = ["image", "video", "clip", "link"];
 const REACTION_TYPES = ["support"];
@@ -395,21 +396,32 @@ function buildChatRoomRoute(roomId) {
 
 function serializeTableContext(document) {
   const source = document.tableContext || {};
-  const tableName = source.tableName || "";
-  const gameLabel = source.gameLabel || "";
+  const populatedTable = document.tableId && typeof document.tableId === "object" && document.tableId._id
+    ? document.tableId
+    : null;
+  const tableId = populatedTable?._id || document.tableId;
+  const tableCode = source.tableCode || document.tableCode || populatedTable?.tableCode || "";
+  const tableName = source.tableName || populatedTable?.tableName || "";
+  const gameType = populatedTable?.gameType || populatedTable?.gameSettings?.game || "";
+  const gameLabel = source.gameLabel || (gameType === "357" ? "3-5-7" : gameType === "holdem" ? "Texas Hold'em" : gameType);
+  const occupiedSeats = Array.isArray(populatedTable?.players)
+    ? populatedTable.players.length
+    : Array.isArray(populatedTable?.seats)
+      ? populatedTable.seats.filter((seat) => seat?.playerId || seat?.player).length
+      : null;
+  const seatsOpen = source.seatsOpen == null && Number.isFinite(populatedTable?.maxPlayers) && occupiedSeats != null
+    ? Math.max(0, populatedTable.maxPlayers - occupiedSeats)
+    : source.seatsOpen;
 
-  if (!tableName && !gameLabel && !source.tableCode && source.seatsOpen == null) {
+  if (!tableName && !gameLabel && !tableCode && !tableId && seatsOpen == null) {
     return undefined;
   }
 
-  const tableCode = source.tableCode || document.tableCode || "";
-  const tableId = document.tableId ? String(document.tableId) : "";
-
   return {
-    activeTableNavigation: buildTableRoute({ tableCode, tableId }),
+    activeTableNavigation: buildTableRoute({ tableCode, tableId: tableId ? String(tableId) : "" }),
     gameLabel,
-    ...(source.seatsOpen == null ? {} : { seatsOpen: source.seatsOpen }),
-    ...(tableId ? { tableId } : {}),
+    ...(seatsOpen == null ? {} : { seatsOpen }),
+    ...(tableId ? { tableId: String(tableId) } : {}),
     ...(tableCode ? { tableCode } : {}),
     tableName,
   };
@@ -453,6 +465,7 @@ module.exports = {
   MODERATION_STATUSES,
   PLAYER_STATUSES,
   POST_STATUSES,
+  POST_KINDS,
   POST_VISIBILITIES,
   PROMOTION_STATES,
   REACTION_TYPES,

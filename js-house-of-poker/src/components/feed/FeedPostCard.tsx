@@ -56,7 +56,7 @@ type FeedPostCardProps = {
     post: FeedPost,
   ) => Promise<FeedCommentsPanelResult | void> | FeedCommentsPanelResult | void;
   onGiftClips: (post: FeedPost) => void;
-  onInviteToTable: (post: FeedPost) => void;
+  onJoinTable: (post: FeedPost) => void;
   onOpenProfile: (playerId: string) => void;
   onPromote: (post: FeedPost) => void;
   onRequestVideoActive?: (postId: string) => void;
@@ -86,7 +86,7 @@ export function FeedPostCard({
   onDeleteComment,
   onFetchComments,
   onGiftClips,
-  onInviteToTable,
+  onJoinTable,
   onOpenProfile,
   onPromote,
   onRequestVideoActive,
@@ -306,7 +306,7 @@ export function FeedPostCard({
     setIsInvitingToTable(true);
 
     try {
-      await onInviteToTable(post);
+      await onJoinTable(post);
     } finally {
       setIsInvitingToTable(false);
     }
@@ -397,11 +397,11 @@ export function FeedPostCard({
         commentLoading={commentPanelLoadState === "loading"}
         inviteLoading={isInvitingToTable}
         isSupported={Boolean(post.supportedByCurrentPlayer)}
-        isTableRelated={Boolean(post.isTableRelated || post.tableContext)}
+        isTableRelated={post.postKind === "table-invite"}
         supportersCount={post.supportersCount}
         onComment={handleToggleCommentPanel}
         onGiftClips={() => guardAction(() => onGiftClips(post))}
-        onInviteToTable={() => guardAction(() => { void handleInviteToTable(); })}
+        onJoinTable={() => guardAction(() => { void handleInviteToTable(); })}
         onPromote={() => guardAction(() => onPromote(post))}
         onShare={() => guardAction(() => onShare(post))}
         onSupport={() => guardAction(() => { void handleSupport(); })}
