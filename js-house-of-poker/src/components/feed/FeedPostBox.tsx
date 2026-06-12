@@ -1,169 +1,88 @@
 import { useMemo, useState } from 'react';
-import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { Alert, Image, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { ActionButton } from '../ActionButton';
 import { colors } from '../../theme/colors';
 import { FeedAvatar } from './FeedAvatar';
-import type { FeedPlayer, FeedPost } from '../../types/feed';
+import type { FeedMedia, FeedPlayer, FeedPost } from '../../types/feed';
+import type { CreateFeedPostInput, UploadFeedMediaInput } from '../../services/api/feed';
+import { appendFeedAttachments, removeFeedAttachment, uploadAttachmentsAndCreatePost, type PendingFeedAttachment } from './attachmentWorkflow';
 
 export type FeedPostBoxProfile = Pick<FeedPlayer, 'avatarUrl' | 'handle' | 'id' | 'name'>;
-
+type LocalAttachment = PendingFeedAttachment;
+type PickerAsset = { assetId?: string | null; fileName?: string | null; mimeType?: string; type?: string; uri: string };
+type PickerResult = { canceled: boolean; assets?: PickerAsset[] | null };
+const ImagePicker = require('expo-image-picker') as {
+  launchCameraAsync(options?: Record<string, unknown>): Promise<PickerResult>;
+  launchImageLibraryAsync(options?: Record<string, unknown>): Promise<PickerResult>;
+  requestCameraPermissionsAsync(): Promise<{ granted: boolean }>;
+  requestMediaLibraryPermissionsAsync(): Promise<{ granted: boolean }>;
+};
 type FeedPostBoxProps = {
   currentPlayer?: FeedPostBoxProfile;
   isAuthenticated?: boolean;
-  onCreatePost: (content: string) => Promise<FeedPost>;
+  onCreatePost: (input: Pick<CreateFeedPostInput, 'content' | 'media'>) => Promise<FeedPost>;
   onOpenProfile?: (player: FeedPostBoxProfile) => void;
+  onUploadAttachment: (attachment: UploadFeedMediaInput) => Promise<FeedMedia>;
 };
-
-const placeholderPlayer: FeedPostBoxProfile = {
-  handle: '@houseplayer',
-  id: 'local-placeholder-player',
-  name: 'House Player',
-};
-
-function getPlayerInitials(name: string) {
-  return name
-    .split(' ')
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase())
-    .join('') || 'HP';
+const placeholderPlayer: FeedPostBoxProfile = { handle: '@houseplayer', id: 'local-placeholder-player', name: 'House Player' };
+const MAX_ATTACHMENTS = 4;
+function getPlayerInitials(name: string) { return name.split(' ').filter(Boolean).slice(0, 2).map((part) => part[0]?.toUpperCase()).join('') || 'HP'; }
+function toAttachment(asset: PickerAsset): LocalAttachment {
+  const type = asset.type === 'video' ? 'video' : 'image';
+  return { id: asset.assetId || `${asset.uri}-${Date.now()}`, mimeType: asset.mimeType || (type === 'video' ? 'video/mp4' : 'image/jpeg'), name: asset.fileName || `feed-${Date.now()}.${type === 'video' ? 'mp4' : 'jpg'}`, type, uri: asset.uri };
 }
 
-export function FeedPostBox({ currentPlayer, isAuthenticated = false, onCreatePost, onOpenProfile }: FeedPostBoxProps) {
+export function FeedPostBox({ currentPlayer, isAuthenticated = false, onCreatePost, onOpenProfile, onUploadAttachment }: FeedPostBoxProps) {
+  const [attachments, setAttachments] = useState<LocalAttachment[]>([]);
   const [content, setContent] = useState('');
+  const [isAttachmentSheetOpen, setIsAttachmentSheetOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const player = currentPlayer ?? placeholderPlayer;
-  const canSubmit = Boolean(currentPlayer && isAuthenticated) && content.trim().length > 0 && !isSubmitting;
+  const canSubmit = Boolean(currentPlayer && isAuthenticated) && (content.trim().length > 0 || attachments.length > 0) && !isSubmitting;
+  const statusMessage = useMemo(() => isSubmitting ? 'Uploading attachments and publishing post...' : !currentPlayer || !isAuthenticated ? 'Sign in to publish posts to the player feed.' : `Posting as ${player.name}`, [currentPlayer, isAuthenticated, isSubmitting, player.name]);
 
-  const statusMessage = useMemo(() => {
-    if (isSubmitting) {
-      return 'Publishing post...';
-    }
-
-    if (!currentPlayer || !isAuthenticated) {
-      return 'Sign in to publish posts to the player feed.';
-    }
-
-    return `Posting as ${player.name}`;
-  }, [currentPlayer, isAuthenticated, isSubmitting, player.name]);
-
-  function handleOpenProfile() {
-    onOpenProfile?.(player);
+  async function addAssets(source: 'gallery' | 'camera') {
+    setIsAttachmentSheetOpen(false);
+    const permission = source === 'gallery' ? await ImagePicker.requestMediaLibraryPermissionsAsync() : await ImagePicker.requestCameraPermissionsAsync();
+    if (!permission.granted) { Alert.alert('Permission required', `Allow access to your ${source === 'gallery' ? 'photo library' : 'camera'} to attach media.`); return; }
+    const result = source === 'gallery'
+      ? await ImagePicker.launchImageLibraryAsync({ allowsMultipleSelection: true, mediaTypes: ['images', 'videos'], quality: 0.9, selectionLimit: MAX_ATTACHMENTS - attachments.length })
+      : await ImagePicker.launchCameraAsync({ mediaTypes: ['images', 'videos'], quality: 0.9 });
+    if (!result.canceled && result.assets) setAttachments((current) => appendFeedAttachments(current, result.assets?.map(toAttachment) ?? [], MAX_ATTACHMENTS));
   }
 
   async function handleSubmit() {
     const trimmedContent = content.trim();
-
-    if (!currentPlayer || !isAuthenticated) {
-      Alert.alert('Sign in required', 'Sign in to publish posts to the player feed.');
-      return;
-    }
-
-    if (!trimmedContent) {
-      return;
-    }
-
-    // TODO(notification:feedActivity): Notify interested players after feed post creation succeeds.
+    if (!currentPlayer || !isAuthenticated) { Alert.alert('Sign in required', 'Sign in to publish posts to the player feed.'); return; }
+    if (!trimmedContent && attachments.length === 0) return;
     setIsSubmitting(true);
-
     try {
-      await onCreatePost(trimmedContent);
-      setContent('');
-    } catch {
-      // The parent owns user-facing create-post errors. Keep the draft intact.
-    } finally {
-      setIsSubmitting(false);
-    }
+      await uploadAttachmentsAndCreatePost(attachments, trimmedContent, onUploadAttachment, onCreatePost);
+      setContent(''); setAttachments([]);
+    } catch (error) {
+      Alert.alert('Post not published', error instanceof Error ? error.message : 'Unable to upload attachments and publish your post.');
+    } finally { setIsSubmitting(false); }
   }
 
-  return (
-    <View style={styles.card}>
-      <View style={styles.row}>
-        <Pressable
-          accessibilityLabel={`Open ${player.name}'s profile`}
-          accessibilityRole="button"
-          onPress={handleOpenProfile}
-          style={styles.avatarButton}
-        >
-          <FeedAvatar initials={getPlayerInitials(player.name)} uri={player.avatarUrl} />
-        </Pressable>
-        <View style={styles.inputStack}>
-          <Text style={styles.playerLabel}>{player.handle}</Text>
-          <TextInput
-            multiline
-            onChangeText={setContent}
-            placeholder="What’s happening at the tables?"
-            placeholderTextColor={colors.mutedText}
-            editable={Boolean(currentPlayer && isAuthenticated) && !isSubmitting}
-            style={styles.input}
-            value={content}
-          />
+  return <View style={styles.card}>
+    <View style={styles.row}>
+      <Pressable accessibilityLabel={`Open ${player.name}'s profile`} accessibilityRole="button" onPress={() => onOpenProfile?.(player)} style={styles.avatarButton}><FeedAvatar initials={getPlayerInitials(player.name)} uri={player.avatarUrl} /></Pressable>
+      <View style={styles.inputStack}>
+        <Text style={styles.playerLabel}>{player.handle}</Text>
+        <View style={styles.textboxArea}>
+          <TextInput multiline onChangeText={setContent} placeholder="What’s happening at the tables?" placeholderTextColor={colors.mutedText} editable={Boolean(currentPlayer && isAuthenticated) && !isSubmitting} style={styles.input} value={content} />
+          <Pressable accessibilityLabel="Attach media" accessibilityRole="button" disabled={!currentPlayer || !isAuthenticated || isSubmitting || attachments.length >= MAX_ATTACHMENTS} onPress={() => setIsAttachmentSheetOpen(true)} style={styles.attachmentButton}><MaterialCommunityIcons color={colors.secondary} name="paperclip" size={20} /></Pressable>
         </View>
-      </View>
-      <View style={styles.footerRow}>
-        <Text style={styles.helperText}>{statusMessage}</Text>
-        <ActionButton
-          compact
-          disabled={!canSubmit}
-          icon="send-outline"
-          label={isSubmitting ? 'Posting' : 'Post'}
-          loading={isSubmitting}
-          onPress={handleSubmit}
-        />
+        {attachments.length ? <ScrollView horizontal contentContainerStyle={styles.previewRow} showsHorizontalScrollIndicator={false}>{attachments.map((attachment) => <View key={attachment.id} style={styles.preview}>{attachment.type === 'image' ? <Image source={{ uri: attachment.uri }} style={styles.previewImage} /> : <View style={styles.videoPreview}><MaterialCommunityIcons color={colors.secondary} name="video-outline" size={28} /><Text style={styles.videoLabel}>Video</Text></View>}<Pressable accessibilityLabel={`Remove ${attachment.name}`} onPress={() => setAttachments((current) => removeFeedAttachment(current, attachment.id))} style={styles.removeButton}><MaterialCommunityIcons color={colors.text} name="close" size={15} /></Pressable></View>)}</ScrollView> : null}
       </View>
     </View>
-  );
+    <View style={styles.footerRow}><Text style={styles.helperText}>{statusMessage}</Text><ActionButton compact disabled={!canSubmit} icon="send-outline" label={isSubmitting ? 'Posting' : 'Post'} loading={isSubmitting} onPress={handleSubmit} /></View>
+    <Modal animationType="slide" transparent visible={isAttachmentSheetOpen} onRequestClose={() => setIsAttachmentSheetOpen(false)}><Pressable style={styles.sheetBackdrop} onPress={() => setIsAttachmentSheetOpen(false)}><Pressable style={styles.sheet}><View style={styles.sheetHandle} /><Text style={styles.sheetTitle}>Attach media</Text><Pressable accessibilityRole="button" onPress={() => void addAssets('gallery')} style={styles.sheetAction}><MaterialCommunityIcons color={colors.secondary} name="image-multiple-outline" size={22} /><Text style={styles.sheetActionText}>Choose from gallery</Text></Pressable><Pressable accessibilityRole="button" onPress={() => void addAssets('camera')} style={styles.sheetAction}><MaterialCommunityIcons color={colors.secondary} name="camera-outline" size={22} /><Text style={styles.sheetActionText}>Take a snap</Text></Pressable></Pressable></Pressable></Modal>
+  </View>;
 }
 
 const styles = StyleSheet.create({
-  avatarButton: {
-    borderRadius: 22,
-  },
-  card: {
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderRadius: 24,
-    borderWidth: 1,
-    gap: 13,
-    padding: 14,
-  },
-  footerRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: 12,
-    justifyContent: 'space-between',
-  },
-  helperText: {
-    color: colors.mutedText,
-    flex: 1,
-    fontSize: 12,
-    lineHeight: 17,
-  },
-  input: {
-    backgroundColor: colors.surfaceMuted,
-    borderColor: colors.border,
-    borderRadius: 18,
-    borderWidth: 1,
-    color: colors.text,
-    fontSize: 15,
-    minHeight: 52,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    textAlignVertical: 'top',
-  },
-  inputStack: {
-    flex: 1,
-    gap: 7,
-  },
-  playerLabel: {
-    color: colors.secondary,
-    fontSize: 12,
-    fontWeight: '800',
-  },
-  row: {
-    alignItems: 'flex-start',
-    flexDirection: 'row',
-    gap: 10,
-  },
+  attachmentButton: { alignItems: 'center', bottom: 8, height: 36, justifyContent: 'center', position: 'absolute', right: 8, width: 36 }, avatarButton: { borderRadius: 22 }, card: { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: 24, borderWidth: 1, gap: 13, padding: 14 }, footerRow: { alignItems: 'center', flexDirection: 'row', gap: 12, justifyContent: 'space-between' }, helperText: { color: colors.mutedText, flex: 1, fontSize: 12, lineHeight: 17 }, input: { color: colors.text, fontSize: 15, minHeight: 52, paddingHorizontal: 14, paddingRight: 48, paddingVertical: 12, textAlignVertical: 'top' }, inputStack: { flex: 1, gap: 7 }, playerLabel: { color: colors.secondary, fontSize: 12, fontWeight: '800' }, preview: { borderColor: colors.border, borderRadius: 12, borderWidth: 1, height: 82, overflow: 'hidden', width: 82 }, previewImage: { height: '100%', width: '100%' }, previewRow: { gap: 8 }, removeButton: { alignItems: 'center', backgroundColor: colors.surface, borderRadius: 12, height: 24, justifyContent: 'center', position: 'absolute', right: 4, top: 4, width: 24 }, row: { alignItems: 'flex-start', flexDirection: 'row', gap: 10 }, sheet: { backgroundColor: colors.surface, borderTopLeftRadius: 24, borderTopRightRadius: 24, gap: 8, padding: 20, paddingBottom: 34 }, sheetAction: { alignItems: 'center', borderColor: colors.border, borderRadius: 16, borderWidth: 1, flexDirection: 'row', gap: 12, padding: 16 }, sheetActionText: { color: colors.text, fontSize: 16, fontWeight: '700' }, sheetBackdrop: { backgroundColor: 'rgba(0,0,0,0.55)', flex: 1, justifyContent: 'flex-end' }, sheetHandle: { alignSelf: 'center', backgroundColor: colors.border, borderRadius: 3, height: 5, marginBottom: 5, width: 42 }, sheetTitle: { color: colors.text, fontSize: 18, fontWeight: '800', marginBottom: 6 }, textboxArea: { backgroundColor: colors.surfaceMuted, borderColor: colors.border, borderRadius: 18, borderWidth: 1, overflow: 'hidden', position: 'relative' }, videoLabel: { color: colors.mutedText, fontSize: 11 }, videoPreview: { alignItems: 'center', flex: 1, justifyContent: 'center' },
 });

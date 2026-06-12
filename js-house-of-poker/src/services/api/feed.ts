@@ -1,5 +1,5 @@
 import { env } from '../../config/env';
-import type { BackendShareDestinationId, FeedComment, FeedPost, FeedReactionSummary } from '../../types/feed';
+import type { BackendShareDestinationId, FeedComment, FeedMedia, FeedPost, FeedReactionSummary } from '../../types/feed';
 import { ApiError, apiRequest } from './client';
 
 
@@ -193,7 +193,7 @@ export type FeedReactionSummariesResponse = {
 export type CreateFeedPostInput = {
   content: string;
   gameContext?: Record<string, unknown> | null;
-  media?: unknown[];
+  media?: FeedMedia[];
   tableCode?: string;
   tableContext?: Record<string, unknown> | null;
   tableId?: string;
@@ -247,6 +247,27 @@ async function feedApiRequest<T>(path: string, options: FeedApiRequestOptions = 
 
 export async function fetchFeedPosts(token?: string | null) {
   return feedApiRequest<FeedPostsResponse>('/api/feed', { token });
+}
+
+export type UploadFeedMediaInput = {
+  mimeType: string;
+  name: string;
+  uri: string;
+};
+
+export async function uploadFeedMedia(input: UploadFeedMediaInput, token: string): Promise<FeedMedia> {
+  const localResponse = await fetch(input.uri);
+  const body = await localResponse.blob();
+  const baseUrl = env.apiBaseUrl;
+  if (!baseUrl) throw new Error('The API host is not configured.');
+  const response = await fetch(`${baseUrl}/api/feed/media`, {
+    body,
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': input.mimeType, 'X-File-Name': input.name },
+    method: 'POST',
+  });
+  const payload = await response.json();
+  if (!response.ok) throw new ApiError(payload?.message || 'Unable to upload attachment.', response.status, payload);
+  return payload.media as FeedMedia;
 }
 
 export async function createFeedPost(input: CreateFeedPostInput, token: string): Promise<CreateFeedPostResponse> {

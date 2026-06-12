@@ -34,6 +34,15 @@
         "projectId": "37f7ec25-81f1-4315-abe2-70bddd6952f0"
       }
     },
-    "owner": "sudiptovirtual"
+    "owner": "sudiptovirtual",
+    "plugins": [
+      [
+        "expo-image-picker",
+        {
+          "cameraPermission": "Allow J's House of Poker to take photos and videos for feed posts.",
+          "photosPermission": "Allow J's House of Poker to choose photos and videos for feed posts."
+        }
+      ]
+    ]
   }
 }

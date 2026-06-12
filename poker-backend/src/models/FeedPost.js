@@ -31,7 +31,7 @@ const feedPostSchema = new mongoose.Schema(
     },
     body: {
       type: String,
-      required: true,
+      default: "",
       trim: true,
       maxlength: 5000,
     },
@@ -149,6 +149,17 @@ feedPostSchema.methods.toClient = function toClient(options = {}) {
     ...(counters.giftClipsTotal ? { giftClipsTotal: counters.giftClipsTotal } : {}),
     id: String(this._id),
     isPromoted: Boolean(this.isPromoted),
+    media: (this.media || []).map((item) => ({
+      altText: item.altText || "",
+      durationMs: item.durationMs ?? null,
+      height: item.height ?? null,
+      metadata: item.metadata || {},
+      mimeType: item.mimeType || "",
+      thumbnailUrl: item.thumbnailUrl || "",
+      type: item.type,
+      url: item.url,
+      width: item.width ?? null,
+    })),
     actorProfileLink: serializePlayerSnapshot(this).actorProfileLink,
     friendStatus: options.friendStatus || {
       action: "view-friends",

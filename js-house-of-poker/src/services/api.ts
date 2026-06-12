@@ -13,6 +13,7 @@ export {
   sendFeedGiftClip,
   sendFeedTableInvite,
   toggleFeedSupport,
+  uploadFeedMedia,
   updateFeedComment,
 } from './api/feed';
 export type {

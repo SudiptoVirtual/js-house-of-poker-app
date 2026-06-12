@@ -49,14 +49,14 @@ function hasIndex(model, expectedFields) {
 
 const tests = [
   [
-    "FeedPost validates required content and author fields",
+    "FeedPost validates required author fields while allowing media-only content",
     () => {
       const post = new FeedPost({});
       const error = post.validateSync();
 
       assert.equal(error.errors.authorUserId.kind, "required");
       assert.equal(error.errors.authorSnapshot.kind, "required");
-      assert.equal(error.errors.body.kind, "required");
+      assert.equal(post.body, "");
     },
   ],
   [
@@ -134,6 +134,7 @@ const tests = [
         id: String(objectId("2")),
         isPromoted: true,
         isTableRelated: true,
+        media: [],
         player: {
           actorProfileLink: {
             deepLink: "houseofpoker://profile/000000000000000000000001",
