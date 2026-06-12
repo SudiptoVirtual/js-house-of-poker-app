@@ -5,6 +5,7 @@ const POST_VISIBILITIES = ["public", "friends", "private", "unlisted"];
 const MODERATION_STATUSES = ["accepted", "blocked", "pending-review"];
 const POST_STATUSES = ["draft", "published", "archived", "deleted"];
 const POST_KINDS = ["standard", "table-invite", "share-win"];
+const POST_TYPES = ["text", "media", "table_invite", "win_share"];
 const PROMOTION_STATES = ["none", "pending", "active", "paused", "expired", "rejected"];
 const MEDIA_TYPES = ["image", "video", "clip", "link"];
 const REACTION_TYPES = ["support"];
@@ -486,6 +487,7 @@ module.exports = {
   PLAYER_STATUSES,
   POST_STATUSES,
   POST_KINDS,
+  POST_TYPES,
   POST_VISIBILITIES,
   PROMOTION_STATES,
   REACTION_TYPES,

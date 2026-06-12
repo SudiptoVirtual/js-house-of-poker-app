@@ -6,9 +6,10 @@ import { ActionButton } from '../ActionButton';
 import { colors } from '../../theme/colors';
 import { FeedAvatar } from './FeedAvatar';
 import type { FeedMedia, FeedPlayer, FeedPost } from '../../types/feed';
-import type { CreateFeedPostInput, UploadFeedMediaInput } from '../../services/api/feed';
+import type { UploadFeedMediaInput } from '../../services/api/feed';
 import { appendFeedAttachments, removeFeedAttachment, uploadAttachmentsAndCreatePost, type PendingFeedAttachment } from './attachmentWorkflow';
 
+export type ComposeFeedPostInput = { content: string; media: FeedMedia[]; postType: 'text' | 'media' | 'table_invite' };
 export type FeedPostBoxProfile = Pick<FeedPlayer, 'avatarUrl' | 'handle' | 'id' | 'name'>;
 type LocalAttachment = PendingFeedAttachment;
 type PickerAsset = { assetId?: string | null; fileName?: string | null; mimeType?: string; type?: string; uri: string };
@@ -23,7 +24,7 @@ type FeedPostBoxProps = {
   currentPlayer?: FeedPostBoxProfile;
   canInviteToTable?: boolean;
   isAuthenticated?: boolean;
-  onCreatePost: (input: Pick<CreateFeedPostInput, 'content' | 'media' | 'postKind'>) => Promise<FeedPost>;
+  onCreatePost: (input: ComposeFeedPostInput) => Promise<FeedPost>;
   onOpenProfile?: (player: FeedPostBoxProfile) => void;
   onUploadAttachment: (attachment: UploadFeedMediaInput) => Promise<FeedMedia>;
 };
@@ -61,7 +62,7 @@ export function FeedPostBox({ canInviteToTable = false, currentPlayer, isAuthent
     if (!trimmedContent && attachments.length === 0) return;
     setIsSubmitting(true);
     try {
-      await uploadAttachmentsAndCreatePost(attachments, trimmedContent, onUploadAttachment, (input) => onCreatePost({ ...input, postKind: isTableInvite ? 'table-invite' : 'standard' }));
+      await uploadAttachmentsAndCreatePost(attachments, trimmedContent, onUploadAttachment, (input) => onCreatePost(isTableInvite ? { ...input, postType: 'table_invite' } : input.media.length > 0 ? { ...input, postType: 'media' } : { content: input.content, postType: 'text' }));
       setContent(''); setAttachments([]); setIsTableInvite(false);
     } catch (error) {
       Alert.alert('Post not published', error instanceof Error ? error.message : 'Unable to upload attachments and publish your post.');

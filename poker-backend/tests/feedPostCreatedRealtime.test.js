@@ -64,6 +64,7 @@ test('POST /api/feed broadcasts the serialized created post to other authenticat
     author: { id: authorId, name: 'Author Player' },
     body: 'Realtime from REST',
     id: postId,
+    postType: 'text',
     supportedByCurrentPlayer: false,
   };
 
@@ -144,6 +145,7 @@ test('POST /api/feed broadcasts the serialized created post to other authenticat
   assert.deepEqual(eventPayload, {
     ok: true,
     post: serializedPost,
+    postType: 'text',
     userId: authorId,
   });
   assert.strictEqual(responseBody.post.id, eventPayload.post.id);

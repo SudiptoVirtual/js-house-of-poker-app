@@ -27,6 +27,7 @@ const HandHistory = require("../models/HandHistory");
 const User = require("../models/User");
 const {
   PLAYER_STATUSES,
+  POST_TYPES,
   POST_VISIBILITIES,
   REACTION_TYPES,
   SHARE_DESTINATIONS,
@@ -413,7 +414,65 @@ function normalizeGameContext(value) {
   };
 }
 
-async function validateShareWin({ gameContext, tableCode, tableId, userId }) {
+function createFeedValidationError(message, statusCode = 400, code = "INVALID_POST_TYPE_PAYLOAD") {
+  const error = new Error(message);
+  error.statusCode = statusCode;
+  error.code = code;
+  return error;
+}
+
+function resolvePostType({ media = [], postKind, postType }) {
+  if (postType !== undefined && !POST_TYPES.includes(postType)) {
+    throw createFeedValidationError("Unsupported feed post type.", 400, "INVALID_POST_TYPE");
+  }
+
+  if (postType) return postType;
+  if (postKind === "table-invite") return "table_invite";
+  if (postKind === "share-win") return "win_share";
+  return media.length > 0 ? "media" : "text";
+}
+
+function postKindForType(postType) {
+  if (postType === "table_invite") return "table-invite";
+  if (postType === "win_share") return "share-win";
+  return "standard";
+}
+
+async function validateJoinableTable({ tableCode, tableId, userId }) {
+  const filters = [];
+  if (tableId) filters.push({ _id: tableId });
+  if (tableCode) filters.push({ tableCode });
+  const table = filters.length ? await GameTable.findOne({ $or: filters }) : null;
+
+  if (!table) {
+    throw createFeedValidationError("Table invites require a valid table reference.", 400, "INVALID_TABLE_INVITE");
+  }
+  if (!["waiting", "active"].includes(table.status) || (table.players || []).length >= Number(table.maxPlayers || 0)) {
+    throw createFeedValidationError("The referenced table is not joinable.", 400, "TABLE_NOT_JOINABLE");
+  }
+  if (!canViewTableContext(table, userId)) {
+    throw createFeedValidationError("You are not authorized to invite players to this table.", 403, "TABLE_INVITE_FORBIDDEN");
+  }
+
+  return table;
+}
+
+async function validatePostTypePayload({ content, gameContext, media, postId = null, postType, tableCode, tableId, userId }) {
+  if (postType === "text" && !content) {
+    throw createFeedValidationError("Text posts require content.");
+  }
+  if (postType === "media" && media.length === 0) {
+    throw createFeedValidationError("Media posts require at least one media attachment.");
+  }
+  if (postType === "table_invite") {
+    await validateJoinableTable({ tableCode, tableId, userId });
+  }
+  if (postType === "win_share") {
+    await validateShareWin({ gameContext, postId, tableCode, tableId, userId });
+  }
+}
+
+async function validateShareWin({ gameContext, postId = null, tableCode, tableId, userId }) {
   if (!gameContext?.handId || !gameContext.handNumber || !gameContext.gameType || !gameContext.resultLabel) {
     const error = new Error("Share Win requires a valid hand identifier, hand number, game type, and result label.");
     error.statusCode = 400;
@@ -438,6 +497,10 @@ async function validateShareWin({ gameContext, tableCode, tableId, userId }) {
     ? await HandHistory.findOne({ $or: handFilters, status: "completed" }).select("gameType handNumber players tableCode tableId")
     : null;
 
+  if (!hand) {
+    throw createFeedValidationError("Win shares require a verified completed hand.", 400, "INVALID_GAME_RESULT");
+  }
+
   if (hand) {
     if (String(hand.gameType || "").toLowerCase() !== gameContext.gameType.toLowerCase()) {
       const error = new Error("Share Win game type does not match the referenced completed hand.");
@@ -458,6 +521,7 @@ async function validateShareWin({ gameContext, tableCode, tableId, userId }) {
   }
 
   const duplicate = await FeedPost.findOne({
+    ...(postId ? { _id: { $ne: postId } } : {}),
     authorUserId: userId,
     "gameContext.handId": gameContext.handId,
     postKind: "share-win",
@@ -802,21 +866,15 @@ async function createPost(req, res) {
   try {
     const content = normalizeText(req.body?.content || req.body?.body, 5000);
     const media = validateUploadedMedia(req.body?.media || []);
-
-    if (!content && media.length === 0) {
-      return res.status(400).json({ message: "Post content or at least one media attachment is required" });
-    }
-
     const visibility = POST_VISIBILITIES.includes(req.body?.visibility) ? req.body.visibility : "public";
     const tableContext = normalizeTableContext(req.body?.tableContext);
     const gameContext = normalizeGameContext(req.body?.gameContext);
     const tableId = isValidObjectId(req.body?.tableId) ? req.body.tableId : null;
-    const postKind = ["table-invite", "share-win"].includes(req.body?.postKind) ? req.body.postKind : "standard";
     const tableCode = normalizeText(req.body?.tableCode || tableContext?.tableCode, 32).toUpperCase();
+    const postType = resolvePostType({ media, postKind: req.body?.postKind, postType: req.body?.postType });
+    const postKind = postKindForType(postType);
 
-    if (postKind === "share-win") {
-      await validateShareWin({ gameContext, tableCode, tableId, userId: req.user._id });
-    }
+    await validatePostTypePayload({ content, gameContext, media, postType, tableCode, tableId, userId: req.user._id });
 
     const post = await FeedPost.create({
       authorSnapshot: buildPlayerSnapshot(req.user),
@@ -825,6 +883,7 @@ async function createPost(req, res) {
       gameContext,
       media,
       postKind,
+      postType,
       tableCode,
       tableContext,
       tableId,
@@ -837,12 +896,13 @@ async function createPost(req, res) {
     getFeedRealtimeService()?.broadcastPostCreated({
       ok: true,
       post: serializedPost,
+      postType: serializedPost.postType,
       userId: String(req.user._id),
     });
 
     return res.status(201).json({ post: serializedPost });
   } catch (error) {
-    if (error?.code === 11000 && req.body?.postKind === "share-win") {
+    if (error?.code === 11000 && ["win_share", "share-win"].includes(req.body?.postType || req.body?.postKind)) {
       return res.status(409).json({ code: "DUPLICATE_WIN_SHARE", message: "You already shared this win." });
     }
     return sendServerError(res, error, "Unable to create feed post");
@@ -932,45 +992,47 @@ async function updatePost(req, res) {
     if (!postId) return null;
 
     const post = await FeedPost.findOne({ _id: postId, status: { $ne: "deleted" } });
-    if (!post) {
-      return res.status(404).json({ message: "Feed post not found" });
-    }
-
+    if (!post) return res.status(404).json({ message: "Feed post not found" });
     if (String(post.authorUserId) !== String(req.user._id)) {
       return res.status(403).json({ message: "You can only edit your own feed posts" });
     }
 
-    if (req.body?.content !== undefined || req.body?.body !== undefined) {
-      const content = normalizeText(req.body.content || req.body.body, 5000);
-      if (!content) {
-        return res.status(400).json({ message: "Post content is required" });
-      }
-      post.body = content;
+    const currentPostType = resolvePostType({ media: post.media || [], postKind: post.postKind, postType: post.postType });
+    if (req.body?.postType !== undefined && req.body.postType !== currentPostType) {
+      return res.status(400).json({ code: "POST_TYPE_IMMUTABLE", message: "Post type cannot be changed after publication." });
     }
 
+    if (req.body?.content !== undefined || req.body?.body !== undefined) post.body = normalizeText(req.body.content || req.body.body, 5000);
     if (req.body?.visibility !== undefined) {
-      if (!POST_VISIBILITIES.includes(req.body.visibility)) {
-        return res.status(400).json({ message: "Invalid post visibility" });
-      }
+      if (!POST_VISIBILITIES.includes(req.body.visibility)) return res.status(400).json({ message: "Invalid post visibility" });
       post.visibility = req.body.visibility;
     }
+    if (req.body?.tableContext !== undefined) post.tableContext = normalizeTableContext(req.body.tableContext);
+    if (req.body?.gameContext !== undefined) post.gameContext = normalizeGameContext(req.body.gameContext);
+    if (req.body?.media !== undefined) post.media = validateUploadedMedia(req.body.media);
 
-    if (req.body?.tableContext !== undefined) {
-      post.tableContext = normalizeTableContext(req.body.tableContext);
-    }
-
-    if (req.body?.gameContext !== undefined) {
-      post.gameContext = normalizeGameContext(req.body.gameContext);
-    }
-
-    if (req.body?.media !== undefined) {
-      post.media = normalizeMedia(req.body.media);
-    }
+    post.postType = currentPostType;
+    post.postKind = postKindForType(currentPostType);
+    await validatePostTypePayload({
+      content: normalizeText(post.body, 5000),
+      gameContext: normalizeGameContext(post.gameContext),
+      media: post.media || [],
+      postId: post._id,
+      postType: currentPostType,
+      tableCode: normalizeText(post.tableCode || post.tableContext?.tableCode, 32).toUpperCase(),
+      tableId: post.tableId,
+      userId: req.user._id,
+    });
 
     await post.save();
     await hydrateCurrentUserReaction([post], req.user._id);
-
-    return res.json({ post: serializePost(post, req.user._id) });
+    const serializedPost = serializePost(post, req.user._id);
+    getFeedRealtimeService()?.broadcastPostUpdated(postId, {
+      ok: true,
+      post: serializedPost,
+      postType: serializedPost.postType,
+    });
+    return res.json({ post: serializedPost });
   } catch (error) {
     return sendServerError(res, error, "Unable to update feed post");
   }

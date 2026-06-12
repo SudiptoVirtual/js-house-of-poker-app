@@ -49,7 +49,7 @@ import { getAuthSession } from '../../services/storage/sessionStorage';
 import { env } from '../../config/env';
 import { colors } from '../../theme/colors';
 import type { RootStackParamList } from '../../types/navigation';
-import { FeedPostBox, type FeedPostBoxProfile } from './FeedPostBox';
+import { FeedPostBox, type ComposeFeedPostInput, type FeedPostBoxProfile } from './FeedPostBox';
 import { FeedPostCard } from './FeedPostCard';
 import { getJoinTableErrorMessage, joinFeedTableInvite } from './tableInviteActions';
 import { GiftClipsModal } from './GiftClipsModal';
@@ -410,7 +410,7 @@ export function PlayerFeedScreen({ navigation, route }: PlayerFeedScreenProps) {
     return [...options.values()];
   }, [activeTableCode, activeTableId, sharePost]);
 
-  async function handleCreatePost(input: Pick<CreateFeedPostInput, 'content' | 'media' | 'postKind'>) {
+  async function handleCreatePost(input: ComposeFeedPostInput) {
     if (!token || !currentUser) {
       Alert.alert(
         'Sign in required',
@@ -420,24 +420,25 @@ export function PlayerFeedScreen({ navigation, route }: PlayerFeedScreenProps) {
     }
 
     try {
-      const response = await createFeedPost(
-        {
-          ...input,
-          ...(input.postKind === 'table-invite' && activeTableCode
-            ? {
-                tableCode: activeTableCode,
-                tableId: activeTableId ?? undefined,
-                tableContext: {
-                  gameLabel: roomState?.gameSettings.game === '357' ? '3-5-7' : "Texas Hold'em",
-                  seatsOpen: Math.max(0, (roomState?.maxSeats ?? 0) - (roomState?.players.length ?? 0)),
-                  tableCode: activeTableCode,
-                  tableName: roomState?.tableName ?? activeTableCode,
-                },
-              }
-            : {}),
-        },
-        token,
-      );
+      if (input.postType === 'table_invite' && !activeTableCode && !activeTableId) {
+        throw new Error('Select a joinable table before publishing a table invite.');
+      }
+      const request: CreateFeedPostInput = input.postType === 'table_invite'
+        ? {
+            ...input,
+            postType: 'table_invite',
+            ...(activeTableCode ? { tableCode: activeTableCode } : { tableId: activeTableId as string }),
+            ...(activeTableId ? { tableId: activeTableId } : {}),
+            tableContext: {
+              gameLabel: roomState?.gameSettings.game === '357' ? '3-5-7' : "Texas Hold'em",
+              seatsOpen: Math.max(0, (roomState?.maxSeats ?? 0) - (roomState?.players.length ?? 0)),
+              ...(activeTableCode ? { tableCode: activeTableCode } : {}),
+              ...(activeTableId ? { tableId: activeTableId } : {}),
+              tableName: roomState?.tableName ?? activeTableCode ?? 'Poker table',
+            },
+          }
+        : input;
+      const response = await createFeedPost(request, token);
 
       setPosts((currentPosts) =>
         mergeRealtimePostList(currentPosts, response.post, {

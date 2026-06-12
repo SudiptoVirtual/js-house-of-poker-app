@@ -1,5 +1,5 @@
 import type { FeedMedia } from '../../types/feed';
-import type { CreateFeedPostInput, UploadFeedMediaInput } from '../../services/api/feed';
+import type { UploadFeedMediaInput } from '../../services/api/feed';
 
 export type PendingFeedAttachment = UploadFeedMediaInput & { id: string; type: 'image' | 'video' };
 export function appendFeedAttachments(current: PendingFeedAttachment[], selected: PendingFeedAttachment[], limit = 4) { return [...current, ...selected].slice(0, limit); }
@@ -7,7 +7,7 @@ export function removeFeedAttachment(current: PendingFeedAttachment[], id: strin
 export async function uploadAttachmentsAndCreatePost(
   attachments: PendingFeedAttachment[], content: string,
   upload: (attachment: UploadFeedMediaInput) => Promise<FeedMedia>,
-  create: (input: Pick<CreateFeedPostInput, 'content' | 'media'>) => Promise<unknown>,
+  create: (input: { content: string; media: FeedMedia[] }) => Promise<unknown>,
 ) {
   const media = await Promise.all(attachments.map(upload));
   return create({ content: content.trim(), media });

@@ -162,6 +162,7 @@ const tests = [
           statusTier: "mid_roller",
         },
         postKind: "standard",
+        postType: "text",
         promotedCount: 8,
         reactionCounts: {
           support: 250,

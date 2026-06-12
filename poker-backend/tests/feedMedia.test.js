@@ -14,6 +14,7 @@ test('FeedPost serializes media for clients', () => {
   const post = new FeedPost({ _id: new mongoose.Types.ObjectId(), authorSnapshot: { handle: '@a', name: 'A' }, authorUserId: new mongoose.Types.ObjectId(), body: '', media: [validMedia()] });
   assert.equal(post.toClient().media[0].url, validMedia().url);
   assert.equal(post.toClient().media[0].type, 'image');
+  assert.equal(post.toClient().postType, 'text');
 });
 test('createPost accepts media-only posts and rejects empty or invalid attachments', async (t) => {
   const FeedPostModel = require('../src/models/FeedPost');
