@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
+  AppState,
   Clipboard,
   FlatList,
   Keyboard,
@@ -64,6 +65,7 @@ import {
 } from '../../types/feed';
 import type { ChatRoom } from '../../types/chatRooms';
 import { mergeRealtimePostList } from './mergeRealtimePostList';
+import { selectActiveVideoPostId } from './feedVideoSelection';
 
 type FeedLoadState =
   | 'idle'
@@ -144,6 +146,11 @@ export function PlayerFeedScreen({ navigation, route }: PlayerFeedScreenProps) {
     useState<PromotionPaymentState>('idle');
   const [sharePost, setSharePost] = useState<FeedPost | null>(null);
   const [chatRooms, setChatRooms] = useState<ChatRoom[]>([]);
+  const [activeVideoPostId, setActiveVideoPostId] = useState<string | null>(null);
+  const [isFeedFocused, setIsFeedFocused] = useState(false);
+  const [isAppActive, setIsAppActive] = useState(
+    AppState.currentState === 'active',
+  );
 
   const focusedNotificationId = route.params?.notificationId ?? null;
   const focusedPostId = route.params?.postId ?? null;
@@ -320,8 +327,32 @@ export function PlayerFeedScreen({ navigation, route }: PlayerFeedScreenProps) {
   useFocusEffect(
     useCallback(() => {
       markFeedNotificationsRead();
+      setIsFeedFocused(true);
+      return () => setIsFeedFocused(false);
     }, [markFeedNotificationsRead]),
   );
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (nextState) =>
+      setIsAppActive(nextState === 'active'),
+    );
+    return () => subscription.remove();
+  }, []);
+
+  const handleViewableItemsChanged = useRef(
+    ({ viewableItems }: { viewableItems: Array<{ isViewable: boolean; item: FeedPost }> }) => {
+      setActiveVideoPostId(
+        selectActiveVideoPostId(
+          viewableItems.map(({ isViewable, item }) => ({
+            hasVideo: item.media.some((media) => media.type === 'video'),
+            isViewable,
+            postId: item.id,
+          })),
+        ),
+      );
+    },
+  ).current;
+  const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 10 }).current;
 
   const focusedNotification = useMemo(
     () => notifications.find((notification) => notification.id === focusedNotificationId) ?? null,
@@ -1097,6 +1128,7 @@ export function PlayerFeedScreen({ navigation, route }: PlayerFeedScreenProps) {
           onScroll={(event) => {
             feedScrollOffsetRef.current = event.nativeEvent.contentOffset.y;
           }}
+          onViewableItemsChanged={handleViewableItemsChanged}
           ref={feedListRef}
           ListEmptyComponent={
             <View style={styles.emptyState}>
@@ -1169,6 +1201,7 @@ export function PlayerFeedScreen({ navigation, route }: PlayerFeedScreenProps) {
               actionsDisabled={Boolean(getPostActionDisabledMessage(item))}
               actionsDisabledMessage={getPostActionDisabledMessage(item)}
               currentUserId={currentUser?.id}
+              isActive={isFeedFocused && isAppActive && activeVideoPostId === item.id}
               onComment={handleComment}
               onCommentInputFocus={handleCommentInputFocus}
               onDeleteComment={handleDeleteComment}
@@ -1177,6 +1210,7 @@ export function PlayerFeedScreen({ navigation, route }: PlayerFeedScreenProps) {
               onInviteToTable={handleInviteToTable}
               onOpenProfile={handleOpenProfile}
               onPromote={setPromotePost}
+              onRequestVideoActive={setActiveVideoPostId}
               onShare={setSharePost}
               onSupportChange={handleSupportChange}
               onUpdateComment={handleUpdateComment}
@@ -1185,6 +1219,7 @@ export function PlayerFeedScreen({ navigation, route }: PlayerFeedScreenProps) {
           )}
             scrollEventThrottle={16}
             showsVerticalScrollIndicator={false}
+            viewabilityConfig={viewabilityConfig}
           />
         </SafeAreaView>
       </KeyboardSafeView>
