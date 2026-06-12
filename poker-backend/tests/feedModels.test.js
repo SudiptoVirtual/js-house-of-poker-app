@@ -75,6 +75,9 @@ const tests = [
         },
         createdAt,
         gameContext: {
+          gameType: "holdem",
+          handId: "NIGHT7:42",
+          handNumber: 42,
           headline: "River review queue",
           resultLabel: "Open discussion",
           stakesLabel: "Free-play",
@@ -113,6 +116,9 @@ const tests = [
         commentCount: 18,
         content: "Settling in for a mellow free-play night.",
         gameContext: {
+          gameType: "holdem",
+          handId: "NIGHT7:42",
+          handNumber: 42,
           headline: "River review queue",
           resultLabel: "Open discussion",
           stakesLabel: "Free-play",

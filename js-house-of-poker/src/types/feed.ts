@@ -45,6 +45,9 @@ export type FeedTableContext = {
 };
 
 export type FeedGameContext = {
+  gameType?: string;
+  handId?: string;
+  handNumber?: number;
   headline: string;
   resultLabel?: string;
   stakesLabel?: string;
@@ -102,7 +105,7 @@ export type FeedVideoMedia = FeedMediaBase & {
 
 export type FeedMedia = FeedImageMedia | FeedVideoMedia;
 
-export type FeedPostKind = 'standard' | 'table-invite';
+export type FeedPostKind = 'standard' | 'table-invite' | 'share-win';
 
 export type FeedPost = {
   actorProfileLink?: FeedNavigationRoute;

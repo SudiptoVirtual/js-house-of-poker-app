@@ -354,15 +354,16 @@ export function FeedPostCard({
       ) : null}
 
       {post.gameContext ? (
-        <View style={styles.gameContext}>
-          <View style={styles.gameIconShell}>
+        <View style={[styles.gameContext, post.postKind === "share-win" ? styles.shareWinContext : null]}>
+          <View style={[styles.gameIconShell, post.postKind === "share-win" ? styles.shareWinIconShell : null]}>
             <MaterialCommunityIcons
-              color={colors.secondary}
-              name="cards-playing-outline"
+              color={post.postKind === "share-win" ? colors.gold : colors.secondary}
+              name={post.postKind === "share-win" ? "trophy-outline" : "cards-playing-outline"}
               size={22}
             />
           </View>
           <View style={styles.tableCopy}>
+            {post.postKind === "share-win" ? <Text style={styles.shareWinLabel}>Share Win · Hand #{post.gameContext.handNumber}</Text> : null}
             <Text style={styles.tableName}>{post.gameContext.headline}</Text>
             <Text style={styles.tableMeta}>
               {[
@@ -714,6 +715,12 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     width: 42,
   },
+  shareWinContext: {
+    backgroundColor: "rgba(255,201,94,0.10)",
+    borderColor: "rgba(255,201,94,0.42)",
+  },
+  shareWinIconShell: { backgroundColor: "rgba(255,201,94,0.16)" },
+  shareWinLabel: { color: colors.gold, fontSize: 11, fontWeight: "900", letterSpacing: 0.8, textTransform: "uppercase" },
   giftStats: {
     alignItems: "center",
     alignSelf: "flex-start",

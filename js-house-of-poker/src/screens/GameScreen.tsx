@@ -4,6 +4,7 @@ import {
   Pressable,
   StyleSheet,
   Text,
+  TextInput,
   View,
   useWindowDimensions,
 } from 'react-native';
@@ -36,7 +37,7 @@ import {
 import { ThreeFiveSevenActionPanel } from '../components/gameplay/ThreeFiveSevenActionPanel';
 import { ThreeFiveSevenRuleBadge } from '../components/gameplay/ThreeFiveSevenRuleBadge';
 import { usePoker, usePokerFriendEventSubscription } from '../context/PokerProvider';
-import { sendFeedGiftClip } from '../services/api';
+import { createFeedPost, sendFeedGiftClip } from '../services/api';
 import { fetchActiveChatRoomFriends, fetchChatRooms, inviteChatRoomFriends } from '../services/api/chatRooms';
 import { clearAuthSession, getAuthSession } from '../services/storage/sessionStorage';
 import { useGameplayAnimations } from '../hooks/useGameplayAnimations';
@@ -44,6 +45,7 @@ import { BOT_TRAINING_TABLE_IDS } from '../constants/botTrainingTables';
 import { routes } from '../constants/routes';
 import { colors } from '../theme/colors';
 import type { RootStackParamList } from '../types/navigation';
+import { buildShareWinPostInput, isAuthenticatedWinner, type CompletedWinShare } from '../utils/shareWin';
 import type {
   Poker357Decision,
   Poker357Resolution,
@@ -537,6 +539,11 @@ export function GameScreen({ navigation }: Props) {
   const [dealtCards, setDealtCards] = useState<Record<string, number>>({});
   const [visibleCommunityCount, setVisibleCommunityCount] = useState(0);
   const [winnerIds, setWinnerIds] = useState<string[]>([]);
+  const [authenticatedUserId, setAuthenticatedUserId] = useState<string | null>(null);
+  const [completedWin, setCompletedWin] = useState<CompletedWinShare | null>(null);
+  const [shareWinCaption, setShareWinCaption] = useState('');
+  const [shareWinState, setShareWinState] = useState<'idle' | 'publishing' | 'success' | 'auth-required' | 'error'>('idle');
+  const [shareWinMessage, setShareWinMessage] = useState('');
   const [cardFlights, setCardFlights] = useState<CardFlightSpec[]>([]);
   const [chipFlights, setChipFlights] = useState<ChipFlightSpec[]>([]);
   const [seatBursts, setSeatBursts] = useState<SeatBurstSpec[]>([]);
@@ -564,6 +571,12 @@ export function GameScreen({ navigation }: Props) {
   const timeoutsRef = useRef<Set<ReturnType<typeof setTimeout>>>(new Set());
 
   useEffect(() => {
+    void getAuthSession().then((session) => {
+      if (mountedRef.current) setAuthenticatedUserId(session?.user.id ?? null);
+    });
+  }, []);
+
+  useEffect(() => {
     const intervalId = setInterval(() => {
       setClockNow(Date.now());
     }, 30000);
@@ -586,6 +599,9 @@ export function GameScreen({ navigation }: Props) {
       setSelectedPlayerCard(null);
       setThreeFiveSevenRevealPreview(null);
       latest357ResolutionKeyRef.current = null;
+      setCompletedWin(null);
+      setShareWinState('idle');
+      setShareWinMessage('');
     }
   }, [roomState?.roomId]);
 
@@ -1125,14 +1141,11 @@ export function GameScreen({ navigation }: Props) {
 
     if (latest357ResolutionKeyRef.current == null) {
       latest357ResolutionKeyRef.current = resolutionKey;
+    } else if (latest357ResolutionKeyRef.current === resolutionKey) {
       return;
+    } else {
+      latest357ResolutionKeyRef.current = resolutionKey;
     }
-
-    if (latest357ResolutionKeyRef.current === resolutionKey) {
-      return;
-    }
-
-    latest357ResolutionKeyRef.current = resolutionKey;
     setThreeFiveSevenRevealPreview({
       id: resolutionKey,
       legDeltaByPlayerId: { ...resolution.legDeltaByPlayerId },
@@ -1149,6 +1162,9 @@ export function GameScreen({ navigation }: Props) {
       summaryText: buildThreeFiveSevenSummary(resolution, tableState),
       winnerIds: [...resolution.winnerIds],
     });
+    setCompletedWin({ gameType: tableState.gameSettings.game, handId: `${tableState.tableId ?? tableState.roomId}:${resolution.handNumber}`, handNumber: resolution.handNumber, potValue: resolution.potAwarded || resolution.potBeforeResolution, resultLabel: buildThreeFiveSevenSummary(resolution, tableState), tableCode: tableState.roomId, tableId: tableState.tableId, tableName: tableState.tableName, winnerIds: [...resolution.winnerIds] });
+    setShareWinCaption(buildThreeFiveSevenSummary(resolution, tableState));
+    setShareWinState('idle'); setShareWinMessage('');
 
     const timeoutId = setTimeout(() => {
       timeoutsRef.current.delete(timeoutId);
@@ -1411,6 +1427,11 @@ export function GameScreen({ navigation }: Props) {
           .map((player) => player.id);
 
         setWinnerIds(winners);
+        if (winners.length > 0 && tableState.roomId) {
+          setCompletedWin({ gameType: tableState.gameSettings.game, handId: `${tableState.tableId ?? tableState.roomId}:${tableState.handNumber}`, handNumber: tableState.handNumber, potValue: previous.pot || tableState.pot, resultLabel: tableState.lastWinnerSummary ?? 'Won the hand', tableCode: tableState.roomId, tableId: tableState.tableId, tableName: tableState.tableName, winnerIds: winners });
+          setShareWinCaption(tableState.lastWinnerSummary ?? 'Sharing a win from the table.');
+          setShareWinState('idle'); setShareWinMessage('');
+        }
         if (winners.length > 0) {
           setShowdownBanner({
             id: Date.now(),
@@ -1961,6 +1982,20 @@ export function GameScreen({ navigation }: Props) {
     )
   ) : null;
 
+  const currentPlayer = currentTableState.players.find((player) => player.id === currentTableState.selfId) ?? null;
+  const canShareCompletedWin = isAuthenticatedWinner(completedWin, currentPlayer, authenticatedUserId);
+
+  async function handleShareWin() {
+    if (!completedWin || shareWinState === 'publishing') return;
+    const session = await getAuthSession();
+    if (!session) { setShareWinState('auth-required'); setShareWinMessage('Sign in to share this win.'); return; }
+    setAuthenticatedUserId(session.user.id); setShareWinState('publishing'); setShareWinMessage('Publishing your win…');
+    try {
+      await createFeedPost(buildShareWinPostInput(completedWin, shareWinCaption), session.token);
+      setShareWinState('success'); setShareWinMessage('Win shared to your feed.');
+    } catch (error) { setShareWinState('error'); setShareWinMessage(error instanceof Error ? error.message : 'Unable to share this win right now.'); }
+  }
+
   const footerNode = (
     <GameplayFooter
       latencyLabel={latencyLabel}
@@ -2078,6 +2113,39 @@ export function GameScreen({ navigation }: Props) {
           </View>
           <View style={styles.focusedTableStage}>{renderTableNode(true)}</View>
         </Animated.View>
+      ) : null}
+
+      {canShareCompletedWin && completedWin ? (
+        <View style={styles.shareWinPanel}>
+          <View style={styles.shareWinHeader}>
+            <View>
+              <Text style={styles.shareWinKicker}>Completed hand</Text>
+              <Text style={styles.shareWinTitle}>Share Win</Text>
+            </View>
+            <Pressable
+              accessibilityLabel="Share Win"
+              accessibilityRole="button"
+              disabled={shareWinState === 'publishing' || shareWinState === 'success'}
+              onPress={() => void handleShareWin()}
+              style={({ pressed }) => [styles.shareWinButton, pressed ? styles.shareWinButtonPressed : null]}
+            >
+              <Text style={styles.shareWinButtonText}>
+                {shareWinState === 'publishing' ? 'Publishing…' : shareWinState === 'success' ? 'Shared' : 'Share Win'}
+              </Text>
+            </Pressable>
+          </View>
+          <TextInput
+            accessibilityLabel="Share Win caption"
+            editable={shareWinState !== 'publishing' && shareWinState !== 'success'}
+            maxLength={5000}
+            onChangeText={setShareWinCaption}
+            placeholder="Add a caption"
+            placeholderTextColor={colors.mutedText}
+            style={styles.shareWinInput}
+            value={shareWinCaption}
+          />
+          {shareWinMessage ? <Text style={styles.shareWinMessage}>{shareWinMessage}</Text> : null}
+        </View>
       ) : null}
 
       {showdownBanner ? (
@@ -2447,6 +2515,15 @@ const styles = StyleSheet.create({
     right: -40,
     width: 280,
   },
+  shareWinPanel: { alignSelf: 'center', backgroundColor: 'rgba(25,18,42,0.96)', borderColor: 'rgba(243,204,121,0.58)', borderRadius: 16, borderWidth: 1, bottom: 92, gap: 8, maxWidth: 420, padding: 12, position: 'absolute', width: '88%', zIndex: 145 },
+  shareWinHeader: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between' },
+  shareWinKicker: { color: colors.gold, fontSize: 10, fontWeight: '900', letterSpacing: 1.2, textTransform: 'uppercase' },
+  shareWinTitle: { color: colors.text, fontSize: 16, fontWeight: '900' },
+  shareWinButton: { backgroundColor: colors.gold, borderRadius: 999, paddingHorizontal: 14, paddingVertical: 8 },
+  shareWinButtonPressed: { opacity: 0.8 },
+  shareWinButtonText: { color: '#21140A', fontSize: 12, fontWeight: '900' },
+  shareWinInput: { backgroundColor: 'rgba(255,255,255,0.07)', borderRadius: 10, color: colors.text, fontSize: 13, paddingHorizontal: 10, paddingVertical: 8 },
+  shareWinMessage: { color: colors.mutedText, fontSize: 11, fontWeight: '700' },
   showdownBanner: {
     alignItems: 'center',
     alignSelf: 'center',
