@@ -132,6 +132,10 @@ feedPostSchema.pre("validate", function syncTableCode(next) {
 
 feedPostSchema.index({ createdAt: -1, _id: -1 });
 feedPostSchema.index({ authorUserId: 1, createdAt: -1 });
+feedPostSchema.index(
+  { authorUserId: 1, "gameContext.handId": 1 },
+  { unique: true, partialFilterExpression: { postKind: "share-win", "gameContext.handId": { $type: "string" } } },
+);
 feedPostSchema.index({ isPromoted: 1, createdAt: -1 });
 feedPostSchema.index({ isPromoted: -1, "promotion.startsAt": -1, createdAt: -1, _id: -1 });
 feedPostSchema.index({ chatRoomId: 1, createdAt: -1 });

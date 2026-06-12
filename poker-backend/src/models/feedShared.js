@@ -4,7 +4,7 @@ const PLAYER_STATUSES = ["Online", "In Lobby", "In Chat Room", "Playing 357", "A
 const POST_VISIBILITIES = ["public", "friends", "private", "unlisted"];
 const MODERATION_STATUSES = ["accepted", "blocked", "pending-review"];
 const POST_STATUSES = ["draft", "published", "archived", "deleted"];
-const POST_KINDS = ["standard", "table-invite"];
+const POST_KINDS = ["standard", "table-invite", "share-win"];
 const PROMOTION_STATES = ["none", "pending", "active", "paused", "expired", "rejected"];
 const MEDIA_TYPES = ["image", "video", "clip", "link"];
 const REACTION_TYPES = ["support"];
@@ -155,6 +155,23 @@ const tableContextSchema = new mongoose.Schema(
 
 const gameContextSchema = new mongoose.Schema(
   {
+    gameType: {
+      type: String,
+      default: "",
+      trim: true,
+      maxlength: 80,
+    },
+    handId: {
+      type: String,
+      default: "",
+      trim: true,
+      maxlength: 180,
+    },
+    handNumber: {
+      type: Number,
+      default: null,
+      min: 1,
+    },
     headline: {
       type: String,
       required: true,
@@ -433,6 +450,9 @@ function serializeGameContext(document) {
   }
 
   return {
+    ...(document.gameContext.gameType ? { gameType: document.gameContext.gameType } : {}),
+    ...(document.gameContext.handId ? { handId: document.gameContext.handId } : {}),
+    ...(document.gameContext.handNumber ? { handNumber: document.gameContext.handNumber } : {}),
     headline: document.gameContext.headline,
     ...(document.gameContext.resultLabel ? { resultLabel: document.gameContext.resultLabel } : {}),
     ...(document.gameContext.stakesLabel ? { stakesLabel: document.gameContext.stakesLabel } : {}),

@@ -23,6 +23,7 @@ const {
 } = require("../services/feedNotificationService");
 const ChatRoom = require("../models/ChatRoom");
 const GameTable = require("../models/GameTable");
+const HandHistory = require("../models/HandHistory");
 const User = require("../models/User");
 const {
   PLAYER_STATUSES,
@@ -402,11 +403,71 @@ function normalizeGameContext(value) {
   }
 
   return {
+    gameType: normalizeText(value.gameType, 80),
+    handId: normalizeText(value.handId, 180).toUpperCase(),
+    handNumber: Number.isInteger(value.handNumber) && value.handNumber > 0 ? value.handNumber : null,
     headline,
     resultLabel: normalizeText(value.resultLabel, 120),
     stakesLabel: normalizeText(value.stakesLabel, 120),
     tableName: normalizeText(value.tableName, 120),
   };
+}
+
+async function validateShareWin({ gameContext, tableCode, tableId, userId }) {
+  if (!gameContext?.handId || !gameContext.handNumber || !gameContext.gameType || !gameContext.resultLabel) {
+    const error = new Error("Share Win requires a valid hand identifier, hand number, game type, and result label.");
+    error.statusCode = 400;
+    error.code = "INVALID_GAME_RESULT";
+    throw error;
+  }
+
+  const expectedHandIds = [tableId, tableCode]
+    .filter(Boolean)
+    .map((identifier) => `${String(identifier).toUpperCase()}:${gameContext.handNumber}`);
+  if (!expectedHandIds.includes(gameContext.handId.toUpperCase())) {
+    const error = new Error("Share Win hand identifier does not match the referenced table and hand number.");
+    error.statusCode = 400;
+    error.code = "INVALID_GAME_RESULT";
+    throw error;
+  }
+
+  const handFilters = [];
+  if (tableId) handFilters.push({ tableId, handNumber: gameContext.handNumber });
+  if (tableCode) handFilters.push({ tableCode, handNumber: gameContext.handNumber });
+  const hand = handFilters.length
+    ? await HandHistory.findOne({ $or: handFilters, status: "completed" }).select("gameType handNumber players tableCode tableId")
+    : null;
+
+  if (hand) {
+    if (String(hand.gameType || "").toLowerCase() !== gameContext.gameType.toLowerCase()) {
+      const error = new Error("Share Win game type does not match the referenced completed hand.");
+      error.statusCode = 400;
+      error.code = "INVALID_GAME_RESULT";
+      throw error;
+    }
+
+    const winner = (hand.players || []).find((player) =>
+      String(player.userId) === String(userId) && (Number(player.chipsWon) > 0 || Number(player.chipsDelta) > 0)
+    );
+    if (!winner) {
+      const error = new Error("Only a winner in the referenced completed hand can share this result.");
+      error.statusCode = 403;
+      error.code = "NOT_HAND_WINNER";
+      throw error;
+    }
+  }
+
+  const duplicate = await FeedPost.findOne({
+    authorUserId: userId,
+    "gameContext.handId": gameContext.handId,
+    postKind: "share-win",
+  }).select("_id");
+  if (duplicate) {
+    const error = new Error("You already shared this win.");
+    error.statusCode = 409;
+    error.code = "DUPLICATE_WIN_SHARE";
+    throw error;
+  }
 }
 
 async function hydrateCurrentUserReaction(posts, currentUserId, session = null) {
@@ -750,6 +811,12 @@ async function createPost(req, res) {
     const tableContext = normalizeTableContext(req.body?.tableContext);
     const gameContext = normalizeGameContext(req.body?.gameContext);
     const tableId = isValidObjectId(req.body?.tableId) ? req.body.tableId : null;
+    const postKind = ["table-invite", "share-win"].includes(req.body?.postKind) ? req.body.postKind : "standard";
+    const tableCode = normalizeText(req.body?.tableCode || tableContext?.tableCode, 32).toUpperCase();
+
+    if (postKind === "share-win") {
+      await validateShareWin({ gameContext, tableCode, tableId, userId: req.user._id });
+    }
 
     const post = await FeedPost.create({
       authorSnapshot: buildPlayerSnapshot(req.user),
@@ -757,8 +824,8 @@ async function createPost(req, res) {
       body: content,
       gameContext,
       media,
-      postKind: req.body?.postKind === "table-invite" ? "table-invite" : "standard",
-      tableCode: normalizeText(req.body?.tableCode || tableContext?.tableCode, 32).toUpperCase(),
+      postKind,
+      tableCode,
       tableContext,
       tableId,
       visibility,
@@ -775,6 +842,9 @@ async function createPost(req, res) {
 
     return res.status(201).json({ post: serializedPost });
   } catch (error) {
+    if (error?.code === 11000 && req.body?.postKind === "share-win") {
+      return res.status(409).json({ code: "DUPLICATE_WIN_SHARE", message: "You already shared this win." });
+    }
     return sendServerError(res, error, "Unable to create feed post");
   }
 }
