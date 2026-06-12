@@ -1,5 +1,5 @@
 import { env } from '../../config/env';
-import type { BackendShareDestinationId, FeedComment, FeedMedia, FeedPost, FeedReactionSummary } from '../../types/feed';
+import type { BackendShareDestinationId, FeedComment, FeedGameContext, FeedMedia, FeedPost, FeedReactionSummary, FeedTableContext } from '../../types/feed';
 import { ApiError, apiRequest } from './client';
 
 
@@ -190,19 +190,21 @@ export type FeedReactionSummariesResponse = {
   supportersCount: number;
 };
 
-export type CreateFeedPostInput = {
-  content: string;
-  gameContext?: Record<string, unknown> | null;
-  media?: FeedMedia[];
-  postKind?: 'standard' | 'table-invite' | 'share-win';
-  tableCode?: string;
-  tableContext?: Record<string, unknown> | null;
-  tableId?: string;
+type FeedPostTableReference = { tableCode: string; tableId?: string } | { tableCode?: string; tableId: string };
+
+type CreateFeedPostCommon = {
   visibility?: 'public' | 'friends' | 'private' | 'unlisted';
 };
 
-export type CreateFeedPostResponse = {
-  post: FeedPost;
+export type CreateFeedPostInput = CreateFeedPostCommon & (
+  | { postType: 'text'; content: string; media?: never }
+  | { postType: 'media'; content?: string; media: FeedMedia[] }
+  | ({ postType: 'table_invite'; content?: string; media?: FeedMedia[]; tableContext?: FeedTableContext } & FeedPostTableReference)
+  | ({ postType: 'win_share'; content?: string; gameContext: FeedGameContext; media?: FeedMedia[]; tableContext?: FeedTableContext } & FeedPostTableReference)
+);
+
+export type CreateFeedPostResponse<TPost extends FeedPost = FeedPost> = {
+  post: TPost;
 };
 
 export type FeedPostsResponse = {

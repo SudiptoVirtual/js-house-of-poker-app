@@ -10,7 +10,7 @@ function response() { return { statusCode: 200, payload: null, status(code) { th
 function selectable(value) { return { select: async () => value }; }
 
 const userId = '507f1f77bcf86cd799439011';
-const baseBody = { content: 'Great hand', postKind: 'share-win', tableCode: 'TABLE1', gameContext: { gameType: 'holdem', handId: 'TABLE1:12', handNumber: 12, headline: 'Shared a table win', resultLabel: 'Won 2,500 chips' }, tableContext: { gameLabel: 'holdem', tableCode: 'TABLE1', tableName: 'Friday' } };
+const baseBody = { content: 'Great hand', postType: 'win_share', tableCode: 'TABLE1', gameContext: { gameType: 'holdem', handId: 'TABLE1:12', handNumber: 12, headline: 'Shared a table win', resultLabel: 'Won 2,500 chips' }, tableContext: { gameLabel: 'holdem', tableCode: 'TABLE1', tableName: 'Friday' } };
 
 test('Share Win creation rejects non-winners, prevents duplicates, and accepts verified winners', async (t) => {
   let handPlayers = [{ userId, chipsWon: 2500, chipsDelta: 1900 }];
@@ -19,7 +19,7 @@ test('Share Win creation rejects non-winners, prevents duplicates, and accepts v
   mock(handHistoryPath, { findOne: () => selectable({ gameType: 'holdem', players: handPlayers }) });
   mock(feedPostPath, {
     findOne: () => selectable(duplicate),
-    create: async (input) => { createdInput = input; return { ...input, _id: 'post-1', toClient: () => ({ id: 'post-1', gameContext: input.gameContext, postKind: input.postKind, tableContext: input.tableContext }) }; },
+    create: async (input) => { createdInput = input; return { ...input, _id: 'post-1', toClient: () => ({ id: 'post-1', gameContext: input.gameContext, postKind: input.postKind, postType: input.postType, tableContext: input.tableContext }) }; },
   });
   delete require.cache[controllerPath];
   t.after(() => { delete require.cache[feedPostPath]; delete require.cache[handHistoryPath]; delete require.cache[controllerPath]; });
@@ -34,5 +34,5 @@ test('Share Win creation rejects non-winners, prevents duplicates, and accepts v
   assert.equal(res.statusCode, 409); assert.equal(res.payload.code, 'DUPLICATE_WIN_SHARE');
 
   duplicate = null; res = response(); await createPost({ body: baseBody, user: { _id: userId, name: 'Alex' } }, res);
-  assert.equal(res.statusCode, 201); assert.equal(createdInput.postKind, 'share-win'); assert.equal(createdInput.gameContext.handId, 'TABLE1:12'); assert.equal(res.payload.post.tableContext.tableCode, 'TABLE1');
+  assert.equal(res.statusCode, 201); assert.equal(createdInput.postKind, 'share-win'); assert.equal(createdInput.postType, 'win_share'); assert.equal(createdInput.gameContext.handId, 'TABLE1:12'); assert.equal(res.payload.post.tableContext.tableCode, 'TABLE1');
 });

@@ -106,8 +106,9 @@ export type FeedVideoMedia = FeedMediaBase & {
 export type FeedMedia = FeedImageMedia | FeedVideoMedia;
 
 export type FeedPostKind = 'standard' | 'table-invite' | 'share-win';
+export type FeedPostType = 'text' | 'media' | 'table_invite' | 'win_share';
 
-export type FeedPost = {
+type FeedPostBase = {
   actorProfileLink?: FeedNavigationRoute;
   chatRoomContext?: FeedChatRoomContext;
   commentCount: number;
@@ -122,6 +123,7 @@ export type FeedPost = {
   media: FeedMedia[];
   player: FeedPlayer;
   postKind: FeedPostKind;
+  postType: FeedPostType;
   promotion?: FeedPostPromotion;
   promotedCount?: number;
   reactionCounts?: Record<string, number>;
@@ -131,6 +133,13 @@ export type FeedPost = {
   tableContext?: FeedTableContext;
   timestamp: string;
 };
+
+export type FeedPost = FeedPostBase & (
+  | { postType: 'text'; content: string }
+  | { postType: 'media'; media: FeedMedia[] }
+  | { postType: 'table_invite'; tableContext: FeedTableContext }
+  | { postType: 'win_share'; gameContext: FeedGameContext }
+);
 
 export type FeedComment = {
   authorUserId: string;

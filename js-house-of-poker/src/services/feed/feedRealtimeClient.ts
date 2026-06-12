@@ -1,6 +1,6 @@
 import { env } from '../../config/env';
 import { createSocketManager } from '../socket/socketManager';
-import type { FeedPost } from '../../types/feed';
+import type { FeedPost, FeedPostType } from '../../types/feed';
 
 export const feedRealtimeClientEvents = {
   join: 'feed:join',
@@ -28,6 +28,7 @@ type FeedRealtimePostPayload = {
   ok?: boolean;
   post?: FeedPost;
   postId?: string | null;
+  postType?: FeedPostType;
   userId?: string | null;
 };
 

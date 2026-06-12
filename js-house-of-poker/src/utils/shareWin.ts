@@ -37,7 +37,7 @@ export function buildShareWinPostInput(completedWin: CompletedWinShare, caption:
       stakesLabel: completedWin.potValue > 0 ? `${completedWin.potValue.toLocaleString('en-US')} chip pot` : '',
       tableName: completedWin.tableName,
     },
-    postKind: 'share-win',
+    postType: 'win_share',
     tableCode: completedWin.tableCode,
     tableContext: {
       gameLabel: completedWin.gameType === '357' ? '3-5-7' : completedWin.gameType,
