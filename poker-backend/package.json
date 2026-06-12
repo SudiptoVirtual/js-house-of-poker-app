@@ -7,7 +7,8 @@
     "start": "node src/index.js",
     "seed:admin": "node src/scripts/seedAdmin.js",
     "test": "node --test tests",
-    "cleanup:obsolete-chat-data": "node src/scripts/cleanupObsoleteChatData.js"
+    "cleanup:obsolete-chat-data": "node src/scripts/cleanupObsoleteChatData.js",
+    "verify:firebase-storage": "node src/scripts/verifyFirebaseStorage.js"
   },
   "keywords": [],
   "author": "",
