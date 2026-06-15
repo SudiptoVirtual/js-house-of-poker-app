@@ -54,6 +54,7 @@ function renderFeedPostBox() {
     './FeedAvatar': { FeedAvatar },
     './attachmentWorkflow': {
       appendFeedAttachments: () => [],
+      MAX_FEED_ATTACHMENTS: 5,
       removeFeedAttachment: () => [],
       uploadAttachmentsAndCreatePost: async () => {},
     },
@@ -69,6 +70,13 @@ test('feed composer displays its heading and updated prompt', () => {
 
   assert.equal(heading.props.children, 'Create Post');
   assert.equal(textbox.props.placeholder, "What's happening at your table today?");
+});
+
+test('feed composer uses the five-attachment workflow limit', () => {
+  const source = fs.readFileSync(path.resolve(__dirname, '../src/components/feed/FeedPostBox.tsx'), 'utf8');
+  assert.match(source, /selectionLimit: MAX_FEED_ATTACHMENTS - attachments\.length/);
+  assert.match(source, /attachments\.length >= MAX_FEED_ATTACHMENTS/);
+  assert.doesNotMatch(source, /MAX_ATTACHMENTS\s*=\s*4/);
 });
 
 test('feed composer keeps explicit accessible labels for composer controls', () => {
