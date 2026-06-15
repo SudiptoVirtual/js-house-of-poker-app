@@ -55,8 +55,26 @@ test('image attachments render with preserved aspect ratio, loading state, and a
   const imageShell = findElements(tree, (element) => element.type === 'Pressable' && element.props.accessibilityRole === 'imagebutton')[0];
   assert.equal(imageShell.props.style[1].aspectRatio, 4 / 3);
   assert.equal(findElements(tree, (element) => element.type === 'ActivityIndicator').length, 1);
-  assert.equal(findElements(tree, (element) => element.type === 'Modal')[0].props.visible, false);
+  assert.equal(findElements(gallery, (element) => element.type === 'Modal')[0].props.visible, false);
   assert.match(imageShell.props.accessibilityHint, /full-screen preview/);
+});
+
+
+test('two-, four-, and five-image posts use compact cover-image collages', () => {
+  const source = fs.readFileSync(path.resolve(__dirname, '../src/components/feed/FeedMediaGallery.tsx'), 'utf8');
+  assert.match(source, /images\.length === 2 \|\| images\.length === 4/);
+  assert.match(source, /images\.slice\(1\)/);
+  assert.match(source, /height: 240/);
+  assert.match(source, /resizeMode=\{collage \? 'cover' : 'contain'\}/);
+});
+
+test('gallery-level preview selects every thumbnail and provides full-screen navigation', () => {
+  const source = fs.readFileSync(path.resolve(__dirname, '../src/components/feed/FeedMediaGallery.tsx'), 'utf8');
+  assert.match(source, /setPreviewIndex\(index\)/);
+  assert.match(source, /images\[previewIndex\]\.url/);
+  assert.match(source, /resizeMode="contain"/);
+  assert.match(source, /accessibilityLabel="Previous image"/);
+  assert.match(source, /accessibilityLabel="Next image"/);
 });
 
 test('active-video selection chooses one visible video nearest the upper-middle target', () => {
