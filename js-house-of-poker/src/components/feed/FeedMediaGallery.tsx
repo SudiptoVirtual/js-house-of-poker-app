@@ -18,46 +18,37 @@ function mediaAspectRatio(media: FeedImageMedia) {
   return media.width && media.height && media.width > 0 && media.height > 0 ? media.width / media.height : 4 / 3;
 }
 
-function FeedImage({ media }: { media: FeedImageMedia }) {
+function FeedImage({ collage = false, media, onPress }: { collage?: boolean; media: FeedImageMedia; onPress: () => void }) {
   const [imageState, setImageState] = useState<ImageState>('loading');
-  const [isPreviewVisible, setIsPreviewVisible] = useState(false);
 
   return (
-    <>
-      <Pressable accessibilityHint="Opens a full-screen preview" accessibilityLabel={`Preview ${media.altText}`} accessibilityRole="imagebutton" onPress={() => setIsPreviewVisible(true)} style={[styles.imageShell, { aspectRatio: mediaAspectRatio(media) }]}>
-        {imageState !== 'error' ? (
-          <Image accessibilityLabel={media.altText} onError={() => setImageState('error')} onLoad={() => setImageState('ready')} resizeMode="contain" source={{ uri: media.url }} style={StyleSheet.absoluteFillObject} />
-        ) : null}
-        {imageState === 'loading' ? <ActivityIndicator color={colors.secondary} size="large" /> : null}
-        {imageState === 'error' ? (
-          <View style={styles.stateStack}>
-            <MaterialCommunityIcons color={colors.mutedText} name="image-off-outline" size={30} />
-            <Text style={styles.stateText}>Image unavailable</Text>
-          </View>
-        ) : null}
-      </Pressable>
-      <Modal animationType="fade" onRequestClose={() => setIsPreviewVisible(false)} transparent visible={isPreviewVisible}>
-        <View accessibilityViewIsModal style={styles.preview}>
-          <Image accessibilityLabel={`Full-screen preview: ${media.altText}`} resizeMode="contain" source={{ uri: media.url }} style={StyleSheet.absoluteFillObject} />
-          <Pressable accessibilityLabel="Close full-screen image preview" accessibilityRole="button" onPress={() => setIsPreviewVisible(false)} style={styles.closeButton}>
-            <MaterialCommunityIcons color={colors.white} name="close" size={26} />
-          </Pressable>
-        </View>
-      </Modal>
-    </>
+    <Pressable accessibilityHint="Opens a full-screen preview" accessibilityLabel={`Preview ${media.altText}`} accessibilityRole="imagebutton" onPress={onPress} style={collage ? styles.collageTile : [styles.imageShell, { aspectRatio: mediaAspectRatio(media) }]}>
+      {imageState !== 'error' ? <Image accessibilityLabel={media.altText} onError={() => setImageState('error')} onLoad={() => setImageState('ready')} resizeMode={collage ? 'cover' : 'contain'} source={{ uri: media.url }} style={StyleSheet.absoluteFillObject} /> : null}
+      {imageState === 'loading' ? <ActivityIndicator color={colors.secondary} size={collage ? 'small' : 'large'} /> : null}
+      {imageState === 'error' ? <View style={styles.stateStack}><MaterialCommunityIcons color={colors.mutedText} name="image-off-outline" size={30} /><Text style={styles.stateText}>Image unavailable</Text></View> : null}
+    </Pressable>
   );
 }
 
 export function FeedMediaGallery({ isActive = false, media, onRequestVideoActive }: FeedMediaGalleryProps) {
+  const [previewIndex, setPreviewIndex] = useState<number | null>(null);
   if (media.length === 0) return null;
-
-  return (
-    <View accessibilityLabel={`${media.length} media attachment${media.length === 1 ? '' : 's'}`} style={styles.gallery}>
-      {media.map((attachment, index) => attachment.type === 'video'
-        ? <FeedVideo isActive={isActive} key={`${attachment.url}-${index}`} media={attachment} onRequestActive={onRequestVideoActive} />
-        : <FeedImage key={`${attachment.url}-${index}`} media={attachment} />)}
-    </View>
-  );
+  const images = media.filter((item): item is FeedImageMedia => item.type === 'image');
+  const videos = media.filter((item) => item.type === 'video');
+  const move = (delta: number) => setPreviewIndex((index) => index === null ? null : (index + delta + images.length) % images.length);
+  const tile = (image: FeedImageMedia, index: number) => <FeedImage collage key={`${image.url}-${index}`} media={image} onPress={() => setPreviewIndex(index)} />;
+  const collage = images.length === 2 || images.length === 4
+    ? <View style={[styles.collage, images.length === 4 && styles.wrap]}>{images.map(tile)}</View>
+    : <View style={styles.collage}><View style={styles.lead}>{tile(images[0], 0)}</View><View style={styles.column}>{images.slice(1).map((image, index) => tile(image, index + 1))}</View></View>;
+  return <View accessibilityLabel={`${media.length} media attachment${media.length === 1 ? '' : 's'}`} style={styles.gallery}>
+    {images.length === 1 ? <FeedImage media={images[0]} onPress={() => setPreviewIndex(0)} /> : images.length > 1 ? collage : null}
+    {videos.map((item, index) => <FeedVideo isActive={isActive} key={`${item.url}-${index}`} media={item} onRequestActive={onRequestVideoActive} />)}
+    <Modal animationType="fade" onRequestClose={() => setPreviewIndex(null)} transparent visible={previewIndex !== null}><View accessibilityViewIsModal style={styles.preview}>
+      {previewIndex !== null ? <Image accessibilityLabel={`Full-screen preview: ${images[previewIndex].altText}`} resizeMode="contain" source={{ uri: images[previewIndex].url }} style={StyleSheet.absoluteFillObject} /> : null}
+      <Pressable accessibilityLabel="Close full-screen image preview" accessibilityRole="button" onPress={() => setPreviewIndex(null)} style={styles.closeButton}><MaterialCommunityIcons color={colors.white} name="close" size={26} /></Pressable>
+      {images.length > 1 ? <><Pressable accessibilityLabel="Previous image" accessibilityRole="button" onPress={() => move(-1)} style={[styles.nav, styles.previous]}><MaterialCommunityIcons color={colors.white} name="chevron-left" size={36} /></Pressable><Pressable accessibilityLabel="Next image" accessibilityRole="button" onPress={() => move(1)} style={[styles.nav, styles.next]}><MaterialCommunityIcons color={colors.white} name="chevron-right" size={36} /></Pressable></> : null}
+    </View></Modal>
+  </View>;
 }
 
 const styles = StyleSheet.create({
@@ -72,7 +63,14 @@ const styles = StyleSheet.create({
     top: 54,
     width: 46,
   },
+  collage: { flexDirection: 'row', flexWrap: 'nowrap', gap: 4, height: 240 },
+  collageTile: { alignItems: 'center', backgroundColor: colors.background, flex: 1, justifyContent: 'center', minWidth: '48%', overflow: 'hidden' },
+  column: { flex: 1, gap: 4 },
   gallery: { gap: 10 },
+  lead: { flex: 1.35 },
+  nav: { alignItems: 'center', backgroundColor: 'rgba(21,16,53,0.72)', borderRadius: 999, height: 52, justifyContent: 'center', marginTop: -26, position: 'absolute', top: '50%', width: 52 },
+  next: { right: 14 }, previous: { left: 14 },
+  wrap: { flexWrap: 'wrap' },
   imageShell: {
     alignItems: 'center',
     backgroundColor: colors.background,
