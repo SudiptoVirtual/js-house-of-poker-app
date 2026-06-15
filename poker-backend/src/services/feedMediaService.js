@@ -5,6 +5,7 @@ const { getFirebaseAdminApp } = require("../utils/firebaseAdmin");
 
 const MAX_ATTACHMENT_COUNT = 5;
 const MAX_MEDIA_BYTES = 25 * 1024 * 1024;
+const MAX_MEDIA_SIZE_LABEL = "25 MB";
 const SUPPORTED_MIME_TYPES = new Map([
   ["image/jpeg", "image"],
   ["image/png", "image"],
@@ -39,7 +40,7 @@ function validateUploadedMedia(media) {
     const size = Number(item?.size ?? item?.metadata?.size);
     if (!type || item?.type !== type) throw new FeedMediaValidationError("Attachment media type is not supported.", "UNSUPPORTED_MEDIA_TYPE");
     if (!url.startsWith("https://")) throw new FeedMediaValidationError("Attachment must use a durable HTTPS URL.", "INVALID_MEDIA_URL");
-    if (!Number.isFinite(size) || size <= 0 || size > MAX_MEDIA_BYTES) throw new FeedMediaValidationError(`Attachments must be no larger than ${MAX_MEDIA_BYTES} bytes.`, "INVALID_MEDIA_SIZE");
+    if (!Number.isFinite(size) || size <= 0 || size > MAX_MEDIA_BYTES) throw new FeedMediaValidationError(`Attachments must be no larger than ${MAX_MEDIA_SIZE_LABEL}.`, "INVALID_MEDIA_SIZE");
     return {
       altText: String(item?.altText || "").trim().slice(0, 500),
       durationMs: Number.isFinite(item?.durationMs) ? Math.max(0, item.durationMs) : null,
@@ -57,7 +58,7 @@ function validateUploadedMedia(media) {
 async function uploadFeedMedia({ buffer, mimeType, originalName, userId }) {
   const type = mediaTypeForMime(mimeType);
   if (!type) throw new FeedMediaValidationError("Attachment media type is not supported.", "UNSUPPORTED_MEDIA_TYPE", 415);
-  if (!Buffer.isBuffer(buffer) || buffer.length === 0 || buffer.length > MAX_MEDIA_BYTES) throw new FeedMediaValidationError(`Attachments must be no larger than ${MAX_MEDIA_BYTES} bytes.`, "INVALID_MEDIA_SIZE", 413);
+  if (!Buffer.isBuffer(buffer) || buffer.length === 0 || buffer.length > MAX_MEDIA_BYTES) throw new FeedMediaValidationError(`Attachments must be no larger than ${MAX_MEDIA_SIZE_LABEL}.`, "INVALID_MEDIA_SIZE", 413);
   const bucketName = process.env.FIREBASE_STORAGE_BUCKET?.trim();
   if (!bucketName) throw new FeedMediaValidationError("Media storage is not configured.", "MEDIA_STORAGE_NOT_CONFIGURED", 503);
   const safeExtension = String(originalName || "asset").split(".").pop().replace(/[^a-z0-9]/gi, "").slice(0, 8) || (type === "image" ? "jpg" : "mp4");
@@ -74,4 +75,4 @@ async function uploadFeedMedia({ buffer, mimeType, originalName, userId }) {
   };
 }
 
-module.exports = { FeedMediaValidationError, MAX_ATTACHMENT_COUNT, MAX_MEDIA_BYTES, SUPPORTED_MIME_TYPES, mediaTypeForMime, uploadFeedMedia, validateUploadedMedia };
+module.exports = { FeedMediaValidationError, MAX_ATTACHMENT_COUNT, MAX_MEDIA_BYTES, MAX_MEDIA_SIZE_LABEL, SUPPORTED_MIME_TYPES, mediaTypeForMime, uploadFeedMedia, validateUploadedMedia };

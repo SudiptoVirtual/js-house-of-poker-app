@@ -7,12 +7,12 @@ import { colors } from '../../theme/colors';
 import { FeedAvatar } from './FeedAvatar';
 import type { FeedMedia, FeedPlayer, FeedPost } from '../../types/feed';
 import type { UploadFeedMediaInput } from '../../services/api/feed';
-import { appendFeedAttachments, MAX_FEED_ATTACHMENTS, removeFeedAttachment, uploadAttachmentsAndCreatePost, type PendingFeedAttachment } from './attachmentWorkflow';
+import { appendFeedAttachments, isFeedAttachmentOversized, MAX_FEED_ATTACHMENTS, MAX_FEED_ATTACHMENT_SIZE_LABEL, removeFeedAttachment, uploadAttachmentsAndCreatePost, type PendingFeedAttachment } from './attachmentWorkflow';
 
 export type ComposeFeedPostInput = { content: string; media: FeedMedia[]; postType: 'text' | 'media' | 'table_invite' };
 export type FeedPostBoxProfile = Pick<FeedPlayer, 'avatarUrl' | 'handle' | 'id' | 'name'>;
 type LocalAttachment = PendingFeedAttachment;
-type PickerAsset = { assetId?: string | null; fileName?: string | null; mimeType?: string; type?: string; uri: string };
+type PickerAsset = { assetId?: string | null; fileName?: string | null; fileSize?: number; mimeType?: string; type?: string; uri: string };
 type PickerResult = { canceled: boolean; assets?: PickerAsset[] | null };
 const ImagePicker = require('expo-image-picker') as {
   launchCameraAsync(options?: Record<string, unknown>): Promise<PickerResult>;
@@ -32,7 +32,7 @@ const placeholderPlayer: FeedPostBoxProfile = { handle: '@houseplayer', id: 'loc
 function getPlayerInitials(name: string) { return name.split(' ').filter(Boolean).slice(0, 2).map((part) => part[0]?.toUpperCase()).join('') || 'HP'; }
 function toAttachment(asset: PickerAsset): LocalAttachment {
   const type = asset.type === 'video' ? 'video' : 'image';
-  return { id: asset.assetId || `${asset.uri}-${Date.now()}`, mimeType: asset.mimeType || (type === 'video' ? 'video/mp4' : 'image/jpeg'), name: asset.fileName || `feed-${Date.now()}.${type === 'video' ? 'mp4' : 'jpg'}`, type, uri: asset.uri };
+  return { fileSize: asset.fileSize, id: asset.assetId || `${asset.uri}-${Date.now()}`, mimeType: asset.mimeType || (type === 'video' ? 'video/mp4' : 'image/jpeg'), name: asset.fileName || `feed-${Date.now()}.${type === 'video' ? 'mp4' : 'jpg'}`, type, uri: asset.uri };
 }
 
 export function FeedPostBox({ canInviteToTable = false, currentPlayer, isAuthenticated = false, onCreatePost, onOpenProfile, onUploadAttachment }: FeedPostBoxProps) {
@@ -52,7 +52,12 @@ export function FeedPostBox({ canInviteToTable = false, currentPlayer, isAuthent
     const result = source === 'gallery'
       ? await ImagePicker.launchImageLibraryAsync({ allowsMultipleSelection: true, mediaTypes: ['images', 'videos'], quality: 0.9, selectionLimit: MAX_FEED_ATTACHMENTS - attachments.length })
       : await ImagePicker.launchCameraAsync({ mediaTypes: ['images', 'videos'], quality: 0.9 });
-    if (!result.canceled && result.assets) setAttachments((current) => appendFeedAttachments(current, result.assets?.map(toAttachment) ?? []));
+    if (!result.canceled && result.assets) {
+      const selected = result.assets.map(toAttachment);
+      const accepted = selected.filter((attachment) => !isFeedAttachmentOversized(attachment));
+      if (accepted.length !== selected.length) Alert.alert('Attachment too large', `Attachments must be no larger than ${MAX_FEED_ATTACHMENT_SIZE_LABEL}.`);
+      setAttachments((current) => appendFeedAttachments(current, accepted));
+    }
   }
 
   async function handleSubmit() {
