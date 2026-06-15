@@ -263,6 +263,7 @@ export async function fetchFeedPosts(token?: string | null) {
 }
 
 export type UploadFeedMediaInput = {
+  fileSize?: number;
   mimeType: string;
   name: string;
   uri: string;
@@ -302,7 +303,9 @@ export async function uploadFeedMedia(input: UploadFeedMediaInput, token: string
     const message =
       typeof payload === 'object' && payload !== null && 'message' in payload && typeof payload.message === 'string'
         ? payload.message
-        : `Unable to upload attachment (HTTP ${response.status}).`;
+        : response.status === 413
+          ? 'This video exceeds the 25 MB upload-size limit.'
+          : `Unable to upload attachment (HTTP ${response.status}).`;
     throw new ApiError(message, response.status, payload);
   }
   return payload.media as FeedMedia;
