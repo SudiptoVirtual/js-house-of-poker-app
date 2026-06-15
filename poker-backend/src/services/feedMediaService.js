@@ -4,8 +4,8 @@ const { getStorage } = require("firebase-admin/storage");
 const { getFirebaseAdminApp } = require("../utils/firebaseAdmin");
 
 const MAX_ATTACHMENT_COUNT = 5;
-const MAX_MEDIA_BYTES = 25 * 1024 * 1024;
-const MAX_MEDIA_SIZE_LABEL = "25 MB";
+const MAX_MEDIA_BYTES = 50 * 1024 * 1024;
+const MAX_MEDIA_SIZE_LABEL = "50 MB";
 const SUPPORTED_MIME_TYPES = new Map([
   ["image/jpeg", "image"],
   ["image/png", "image"],

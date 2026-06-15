@@ -304,7 +304,7 @@ export async function uploadFeedMedia(input: UploadFeedMediaInput, token: string
       typeof payload === 'object' && payload !== null && 'message' in payload && typeof payload.message === 'string'
         ? payload.message
         : response.status === 413
-          ? 'This video exceeds the 25 MB upload-size limit.'
+          ? 'This video exceeds the 50 MB upload-size limit.'
           : `Unable to upload attachment (HTTP ${response.status}).`;
     throw new ApiError(message, response.status, payload);
   }

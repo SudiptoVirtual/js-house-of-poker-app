@@ -129,21 +129,24 @@ test('media upload turns HTML and non-JSON responses into status-aware upload er
 
   await assert.rejects(
     uploadFeedMedia({ mimeType: 'video/mp4', name: 'clip.mp4', uri: 'file:///clip.mp4' }, 'token'),
-    /This video exceeds the 25 MB upload-size limit\./,
+    /This video exceeds the 50 MB upload-size limit\./,
   );
 });
 
-test('attachment workflow rejects picker assets above the readable size limit before upload', async () => {
+test('attachment workflow accepts the exact size limit and rejects one byte above it before upload', async () => {
   const workflow = compileComponent('../src/components/feed/attachmentWorkflow.ts');
+  assert.equal(workflow.isFeedAttachmentOversized({ fileSize: workflow.MAX_FEED_ATTACHMENT_BYTES }), false);
+  assert.equal(workflow.isFeedAttachmentOversized({ fileSize: workflow.MAX_FEED_ATTACHMENT_BYTES + 1 }), true);
+  assert.equal(workflow.MAX_FEED_ATTACHMENT_SIZE_LABEL, '50 MB');
   let uploads = 0;
   await assert.rejects(
     workflow.uploadAttachmentsAndCreatePost(
-      [{ fileSize: 25 * 1024 * 1024 + 1, id: 'large', mimeType: 'video/mp4', name: 'large.mp4', type: 'video', uri: 'file:///large.mp4' }],
+      [{ fileSize: 50 * 1024 * 1024 + 1, id: 'large', mimeType: 'video/mp4', name: 'large.mp4', type: 'video', uri: 'file:///large.mp4' }],
       '',
       async () => { uploads += 1; },
       async () => null,
     ),
-    /Attachments must be no larger than 25 MB\./,
+    /Attachments must be no larger than 50 MB\./,
   );
   assert.equal(uploads, 0);
 });
