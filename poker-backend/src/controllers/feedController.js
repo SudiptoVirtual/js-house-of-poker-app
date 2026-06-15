@@ -12,7 +12,7 @@ const {
   emitFeedTableInviteRecipientEvents,
 } = require("../services/feedTableInviteService");
 const { getFeedRealtimeService } = require("../services/feedRealtimeService");
-const { uploadFeedMedia, validateUploadedMedia } = require("../services/feedMediaService");
+const { mediaErrorPayload, uploadFeedMedia, validateUploadedMedia } = require("../services/feedMediaService");
 const {
   createFeedCommentNotification,
   createFeedGiftClipNotification,
@@ -842,7 +842,7 @@ function sendServerError(res, error, fallbackMessage = "Feed request failed") {
   console.error(fallbackMessage, error);
 
   if (error?.statusCode) {
-    return res.status(error.statusCode).json({ code: error.code, message: error.message });
+    return res.status(error.statusCode).json(mediaErrorPayload(error));
   }
 
   return res.status(500).json({ code: "FEED_REQUEST_FAILED", message: fallbackMessage });

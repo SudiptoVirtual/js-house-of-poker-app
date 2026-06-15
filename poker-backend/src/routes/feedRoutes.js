@@ -29,7 +29,7 @@ const {
 } = require("../controllers/feedController");
 const { optionalUser, protectUser } = require("../middleware/auth");
 const { verifyPromotionWebhookPayload } = require("../services/feedPromotionService");
-const { MAX_MEDIA_BYTES } = require("../services/feedMediaService");
+const { MAX_MEDIA_BYTES, mediaErrorPayload, mediaSizeError } = require("../services/feedMediaService");
 
 const router = express.Router();
 
@@ -82,10 +82,8 @@ router.post("/:postId/table-invites", protectUser, createTableInvite);
 
 router.use((error, req, res, next) => {
   if (error?.type === "entity.too.large") {
-    return res.status(413).json({
-      code: "INVALID_MEDIA_SIZE",
-      message: `Attachments must be no larger than ${MAX_MEDIA_BYTES} bytes.`,
-    });
+    const actualBytes = [error.length, error.received, Number(req.headers["content-length"])].find(Number.isFinite);
+    return res.status(413).json(mediaErrorPayload(mediaSizeError(actualBytes)));
   }
   return next(error);
 });
