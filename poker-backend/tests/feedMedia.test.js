@@ -2,7 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const mongoose = require('mongoose');
 const FeedPost = require('../src/models/FeedPost');
-const { MAX_ATTACHMENT_COUNT, MAX_MEDIA_BYTES, MAX_MEDIA_SIZE_LABEL, mediaTypeForMime, uploadFeedMedia, validateUploadedMedia } = require('../src/services/feedMediaService');
+const { MAX_ATTACHMENT_COUNT, MAX_MEDIA_BYTES, MAX_MEDIA_SIZE_LABEL, mediaErrorPayload, mediaSizeError, mediaTypeForMime, uploadFeedMedia, validateUploadedMedia } = require('../src/services/feedMediaService');
 const validMedia = (overrides = {}) => ({ metadata: { size: 1024 }, mimeType: 'image/jpeg', type: 'image', url: 'https://cdn.example.com/feed/a.jpg', ...overrides });
 
 test('validates durable uploaded media metadata through the exact size limit', () => {
@@ -20,9 +20,21 @@ test('supports application video MIME types and rejects oversized video buffers 
   for (const mimeType of ['video/mp4', 'video/quicktime', 'video/webm']) assert.equal(mediaTypeForMime(mimeType), 'video');
   await assert.rejects(
     uploadFeedMedia({ buffer: Buffer.alloc(MAX_MEDIA_BYTES + 1), mimeType: 'video/mp4', originalName: 'clip.mp4', userId: 'player' }),
-    (error) => error.statusCode === 413 && error.code === 'INVALID_MEDIA_SIZE' && error.message === 'Attachments must be no larger than 50 MB.',
+    (error) => error.statusCode === 413 && assert.deepEqual(mediaErrorPayload(error), {
+      actualBytes: MAX_MEDIA_BYTES + 1, code: 'INVALID_MEDIA_SIZE', limitLabel: '50 MB',
+      maxBytes: MAX_MEDIA_BYTES, message: 'Attachments must be no larger than 50 MB.',
+    }) === undefined,
   );
   assert.equal(MAX_MEDIA_SIZE_LABEL, '50 MB');
+});
+test('Express raw-body limit failures use the same structured media-size payload', () => {
+  assert.deepEqual(mediaErrorPayload(mediaSizeError(MAX_MEDIA_BYTES + 25)), {
+    actualBytes: MAX_MEDIA_BYTES + 25,
+    code: 'INVALID_MEDIA_SIZE',
+    limitLabel: MAX_MEDIA_SIZE_LABEL,
+    maxBytes: MAX_MEDIA_BYTES,
+    message: `Attachments must be no larger than ${MAX_MEDIA_SIZE_LABEL}.`,
+  });
 });
 test('upload errors return stable JSON codes and readable messages', async () => {
   const previousBucket = process.env.FIREBASE_STORAGE_BUCKET;

@@ -1,10 +1,9 @@
 import type { FeedMedia } from '../../types/feed';
-import type { UploadFeedMediaInput } from '../../services/api/feed';
+import { MAX_FEED_ATTACHMENT_BYTES, MAX_FEED_ATTACHMENT_SIZE_LABEL, type UploadFeedMediaInput } from '../../services/api/feed';
 
 export type PendingFeedAttachment = UploadFeedMediaInput & { id: string; type: 'image' | 'video' };
 export const MAX_FEED_ATTACHMENTS = 5;
-export const MAX_FEED_ATTACHMENT_BYTES = 50 * 1024 * 1024;
-export const MAX_FEED_ATTACHMENT_SIZE_LABEL = '50 MB';
+export { MAX_FEED_ATTACHMENT_BYTES, MAX_FEED_ATTACHMENT_SIZE_LABEL };
 export function isFeedAttachmentOversized(attachment: Pick<PendingFeedAttachment, 'fileSize'>) {
   return typeof attachment.fileSize === 'number' && attachment.fileSize > MAX_FEED_ATTACHMENT_BYTES;
 }

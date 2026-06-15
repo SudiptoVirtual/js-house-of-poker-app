@@ -268,6 +268,8 @@ export type UploadFeedMediaInput = {
   name: string;
   uri: string;
 };
+export const MAX_FEED_ATTACHMENT_BYTES = 50 * 1024 * 1024;
+export const MAX_FEED_ATTACHMENT_SIZE_LABEL = '50 MB';
 
 const SUPPORTED_VIDEO_MIME_TYPES = new Set(['video/mp4', 'video/quicktime', 'video/webm']);
 
@@ -300,15 +302,28 @@ export async function uploadFeedMedia(input: UploadFeedMediaInput, token: string
   });
   const payload = parseApiPayload(await response.text());
   if (!response.ok || typeof payload !== 'object' || payload === null || !('media' in payload)) {
-    const message =
+    const errorPayload = typeof payload === 'object' && payload !== null ? payload as Record<string, unknown> : null;
+    const limitLabel = typeof errorPayload?.limitLabel === 'string' ? errorPayload.limitLabel : MAX_FEED_ATTACHMENT_SIZE_LABEL;
+    const actualBytes = typeof errorPayload?.actualBytes === 'number' ? errorPayload.actualBytes : input.fileSize;
+    const sizeDescription = typeof actualBytes === 'number'
+      ? ` The selected file is ${formatFileSize(actualBytes)}.`
+      : '';
+    const baseMessage =
       typeof payload === 'object' && payload !== null && 'message' in payload && typeof payload.message === 'string'
         ? payload.message
         : response.status === 413
-          ? 'This video exceeds the 50 MB upload-size limit.'
+          ? `This attachment exceeds the ${limitLabel} upload-size limit.`
           : `Unable to upload attachment (HTTP ${response.status}).`;
+    const message = response.status === 413 ? `${baseMessage}${sizeDescription}` : baseMessage;
     throw new ApiError(message, response.status, payload);
   }
   return payload.media as FeedMedia;
+}
+
+function formatFileSize(bytes: number) {
+  if (bytes < 1024 * 1024) return `${Math.ceil(bytes / 1024)} KB`;
+  const megabytes = bytes / (1024 * 1024);
+  return `${Number.isInteger(megabytes) ? megabytes : Math.ceil(megabytes * 10) / 10} MB`;
 }
 
 export async function createFeedPost(input: CreateFeedPostInput, token: string): Promise<CreateFeedPostResponse> {

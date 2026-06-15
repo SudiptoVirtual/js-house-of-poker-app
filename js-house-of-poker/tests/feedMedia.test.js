@@ -128,16 +128,34 @@ test('media upload turns HTML and non-JSON responses into status-aware upload er
   });
 
   await assert.rejects(
-    uploadFeedMedia({ mimeType: 'video/mp4', name: 'clip.mp4', uri: 'file:///clip.mp4' }, 'token'),
-    /This video exceeds the 50 MB upload-size limit\./,
+    uploadFeedMedia({ fileSize: 50 * 1024 * 1024 + 1, mimeType: 'video/mp4', name: 'clip.mp4', uri: 'file:///clip.mp4' }, 'token'),
+    /This attachment exceeds the 50 MB upload-size limit\. The selected file is 50\.1 MB\./,
   );
 });
 
+test('media upload uses backend size details and tolerates picker assets without fileSize', async (t) => {
+  const originalFetch = global.fetch;
+  const responses = [
+    { blob: async () => ({ bytes: true }) },
+    { ok: false, status: 413, text: async () => JSON.stringify({ actualBytes: 63 * 1024 * 1024, code: 'INVALID_MEDIA_SIZE', limitLabel: '60 MB', maxBytes: 60 * 1024 * 1024, message: 'Attachment too large.' }) },
+  ];
+  global.fetch = async () => responses.shift();
+  t.after(() => { global.fetch = originalFetch; });
+  const { uploadFeedMedia } = compileComponent('../src/services/api/feed.ts', {
+    '../../config/env': { env: { apiBaseUrl: 'https://api.example.com' } },
+    './client': clientMock,
+  });
+  await assert.rejects(uploadFeedMedia({ mimeType: 'image/jpeg', name: 'photo.jpg', uri: 'file:///photo.jpg' }, 'token'), /Attachment too large\./);
+});
+
 test('attachment workflow accepts the exact size limit and rejects one byte above it before upload', async () => {
-  const workflow = compileComponent('../src/components/feed/attachmentWorkflow.ts');
+  const workflow = compileComponent('../src/components/feed/attachmentWorkflow.ts', {
+    '../../services/api/feed': { MAX_FEED_ATTACHMENT_BYTES: 50 * 1024 * 1024, MAX_FEED_ATTACHMENT_SIZE_LABEL: '50 MB' },
+  });
   assert.equal(workflow.isFeedAttachmentOversized({ fileSize: workflow.MAX_FEED_ATTACHMENT_BYTES }), false);
   assert.equal(workflow.isFeedAttachmentOversized({ fileSize: workflow.MAX_FEED_ATTACHMENT_BYTES + 1 }), true);
   assert.equal(workflow.MAX_FEED_ATTACHMENT_SIZE_LABEL, '50 MB');
+  assert.equal(workflow.isFeedAttachmentOversized({}), false);
   let uploads = 0;
   await assert.rejects(
     workflow.uploadAttachmentsAndCreatePost(
