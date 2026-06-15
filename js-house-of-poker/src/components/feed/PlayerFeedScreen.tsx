@@ -34,12 +34,14 @@ import {
   createFeedPromotion,
   createFeedShare,
   deleteFeedComment,
+  deleteFeedPost,
   fetchFeedComments,
   fetchFeedPosts,
   getApiErrorDetails,
   sendFeedGiftClip,
   toggleFeedSupport,
   updateFeedComment,
+  updateFeedPost,
   uploadFeedMedia,
   type CreateFeedPostInput,
   type CreateFeedShareInput,
@@ -731,6 +733,32 @@ export function PlayerFeedScreen({ navigation, route }: PlayerFeedScreenProps) {
     }
   }
 
+  async function handleUpdatePost(post: FeedPost, content: string) {
+    const session = await getAuthSession();
+    if (!session?.token) throw new Error('Sign in to edit your post.');
+    try {
+      const response = await updateFeedPost(post.id, { content, media: post.media }, session.token);
+      setPosts((currentPosts) =>
+        currentPosts.map((currentPost) => currentPost.id === post.id ? response.post : currentPost),
+      );
+    } catch (error) {
+      Alert.alert('Post not updated', getApiErrorDetails(error, 'Unable to update your post right now.').message);
+      throw error;
+    }
+  }
+
+  async function handleDeletePost(post: FeedPost) {
+    const session = await getAuthSession();
+    if (!session?.token) throw new Error('Sign in to delete your post.');
+    try {
+      await deleteFeedPost(post.id, session.token);
+      setPosts((currentPosts) => currentPosts.filter((currentPost) => currentPost.id !== post.id));
+    } catch (error) {
+      Alert.alert('Post not deleted', getApiErrorDetails(error, 'Unable to delete your post right now.').message);
+      throw error;
+    }
+  }
+
   async function saveFeedShare(
     targetPost: FeedPost,
     destination: BackendShareDestinationId,
@@ -1174,6 +1202,7 @@ export function PlayerFeedScreen({ navigation, route }: PlayerFeedScreenProps) {
               onComment={handleComment}
               onCommentInputFocus={handleCommentInputFocus}
               onDeleteComment={handleDeleteComment}
+              onDeletePost={handleDeletePost}
               onFetchComments={handleFetchComments}
               onGiftClips={setGiftPost}
               onJoinTable={handleJoinTable}
@@ -1183,6 +1212,7 @@ export function PlayerFeedScreen({ navigation, route }: PlayerFeedScreenProps) {
               onShare={setSharePost}
               onSupportChange={handleSupportChange}
               onUpdateComment={handleUpdateComment}
+              onUpdatePost={handleUpdatePost}
               post={item}
             />
           )}

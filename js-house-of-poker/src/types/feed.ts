@@ -110,6 +110,7 @@ export type FeedPostType = 'text' | 'media' | 'table_invite' | 'win_share';
 
 type FeedPostBase = {
   actorProfileLink?: FeedNavigationRoute;
+  authorUserId?: string;
   chatRoomContext?: FeedChatRoomContext;
   commentCount: number;
   content: string;

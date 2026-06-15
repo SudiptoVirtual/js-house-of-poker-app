@@ -6,6 +6,7 @@ export {
   createFeedPost,
   createFeedPromotion,
   createFeedShare,
+  deleteFeedPost,
   deleteFeedComment,
   fetchFeedComments,
   fetchFeedPosts,
@@ -15,11 +16,13 @@ export {
   toggleFeedSupport,
   uploadFeedMedia,
   updateFeedComment,
+  updateFeedPost,
 } from './api/feed';
 export type {
   CreateFeedPostInput,
   CreateFeedPostResponse,
   DeleteFeedCommentResponse,
+  DeleteFeedPostResponse,
   CreateFeedPromotionInput,
   CreateFeedShareInput,
   FeedCommentResponse,
@@ -37,6 +40,7 @@ export type {
   FeedTableInviteResponse,
   SendFeedGiftClipInput,
   SendFeedTableInviteInput,
+  UpdateFeedPostInput,
 } from './api/feed';
 
 export {

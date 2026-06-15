@@ -207,6 +207,16 @@ export type CreateFeedPostResponse<TPost extends FeedPost = FeedPost> = {
   post: TPost;
 };
 
+export type UpdateFeedPostInput = {
+  content: string;
+  media?: FeedMedia[];
+};
+
+export type DeleteFeedPostResponse = {
+  deleted: boolean;
+  postId: string;
+};
+
 export type FeedPostsResponse = {
   pagination: {
     hasMore: boolean;
@@ -277,6 +287,21 @@ export async function createFeedPost(input: CreateFeedPostInput, token: string):
   return feedApiRequest<CreateFeedPostResponse>('/api/feed', {
     body: input,
     method: 'POST',
+    token,
+  });
+}
+
+export async function updateFeedPost(postId: string, input: UpdateFeedPostInput, token: string) {
+  return feedApiRequest<CreateFeedPostResponse>(`/api/feed/${encodeURIComponent(postId)}`, {
+    body: input,
+    method: 'PATCH',
+    token,
+  });
+}
+
+export async function deleteFeedPost(postId: string, token: string) {
+  return feedApiRequest<DeleteFeedPostResponse>(`/api/feed/${encodeURIComponent(postId)}`, {
+    method: 'DELETE',
     token,
   });
 }

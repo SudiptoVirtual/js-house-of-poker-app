@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Modal,
   Pressable,
   StyleSheet,
   Text,
@@ -52,6 +53,7 @@ type FeedPostCardProps = {
     post: FeedPost,
     comment: FeedComment,
   ) => Promise<FeedCommentDeleteResult | void> | FeedCommentDeleteResult | void;
+  onDeletePost: (post: FeedPost) => Promise<void> | void;
   onFetchComments: (
     post: FeedPost,
   ) => Promise<FeedCommentsPanelResult | void> | FeedCommentsPanelResult | void;
@@ -73,6 +75,7 @@ type FeedPostCardProps = {
     | Promise<FeedCommentMutationResult | void>
     | FeedCommentMutationResult
     | void;
+  onUpdatePost: (post: FeedPost, content: string) => Promise<void> | void;
   post: FeedPost;
 };
 
@@ -84,6 +87,7 @@ export function FeedPostCard({
   onComment,
   onCommentInputFocus,
   onDeleteComment,
+  onDeletePost,
   onFetchComments,
   onGiftClips,
   onJoinTable,
@@ -93,6 +97,7 @@ export function FeedPostCard({
   onShare,
   onSupportChange,
   onUpdateComment,
+  onUpdatePost,
   post,
 }: FeedPostCardProps) {
   const [commentDraft, setCommentDraft] = useState("");
@@ -111,6 +116,15 @@ export function FeedPostCard({
   );
   const [deletingCommentId, setDeletingCommentId] = useState<string | null>(
     null,
+  );
+  const [postMenuVisible, setPostMenuVisible] = useState(false);
+  const [postEditorVisible, setPostEditorVisible] = useState(false);
+  const [postDraft, setPostDraft] = useState(post.content);
+  const [isUpdatingPost, setIsUpdatingPost] = useState(false);
+  const [isDeletingPost, setIsDeletingPost] = useState(false);
+  const isPostOwner = Boolean(
+    currentUserId &&
+      (post.authorUserId === currentUserId || post.player.id === currentUserId),
   );
 
   const statsLine = useMemo(() => {
@@ -312,8 +326,56 @@ export function FeedPostCard({
     }
   }
 
+  function beginEditingPost() {
+    setPostDraft(post.content);
+    setPostMenuVisible(false);
+    setPostEditorVisible(true);
+  }
+
+  async function handleUpdatePost() {
+    const content = postDraft.trim();
+    if (isUpdatingPost || (!content && post.media.length === 0)) return;
+    setIsUpdatingPost(true);
+    try {
+      await onUpdatePost(post, content);
+      setPostEditorVisible(false);
+    } finally {
+      setIsUpdatingPost(false);
+    }
+  }
+
+  function confirmDeletePost() {
+    setPostMenuVisible(false);
+    Alert.alert("Delete post?", "This action cannot be undone.", [
+      { style: "cancel", text: "Cancel" },
+      {
+        onPress: async () => {
+          setIsDeletingPost(true);
+          try {
+            await onDeletePost(post);
+          } finally {
+            setIsDeletingPost(false);
+          }
+        },
+        style: "destructive",
+        text: "Delete",
+      },
+    ]);
+  }
+
   return (
     <View style={styles.card}>
+      {isPostOwner ? (
+        <Pressable
+          accessibilityLabel="More post actions"
+          accessibilityRole="button"
+          disabled={isDeletingPost}
+          onPress={() => setPostMenuVisible(true)}
+          style={styles.moreButton}
+        >
+          <MaterialCommunityIcons color={colors.primary} name="dots-vertical" size={22} />
+        </Pressable>
+      ) : null}
       <FeedPlayerHeader
         isPromoted={post.isPromoted}
         onOpenProfile={onOpenProfile}
@@ -593,6 +655,45 @@ export function FeedPostCard({
           </View>
         </View>
       ) : null}
+      <Modal animationType="fade" onRequestClose={() => setPostMenuVisible(false)} transparent visible={postMenuVisible}>
+        <Pressable accessibilityRole="button" onPress={() => setPostMenuVisible(false)} style={styles.modalBackdrop}>
+          <View style={styles.postMenu}>
+            <Pressable accessibilityRole="button" onPress={beginEditingPost} style={styles.postMenuAction}>
+              <MaterialCommunityIcons color={colors.primary} name="pencil-outline" size={18} />
+              <Text style={styles.postMenuText}>Edit</Text>
+            </Pressable>
+            <Pressable accessibilityRole="button" onPress={confirmDeletePost} style={styles.postMenuAction}>
+              <MaterialCommunityIcons color={colors.danger} name="trash-can-outline" size={18} />
+              <Text style={styles.deleteMenuText}>Delete</Text>
+            </Pressable>
+          </View>
+        </Pressable>
+      </Modal>
+      <Modal animationType="fade" onRequestClose={() => setPostEditorVisible(false)} transparent visible={postEditorVisible}>
+        <View style={styles.modalBackdrop}>
+          <View style={styles.postEditor}>
+            <Text style={styles.postEditorTitle}>Edit post</Text>
+            <TextInput
+              accessibilityLabel="Post content"
+              editable={!isUpdatingPost}
+              multiline
+              onChangeText={setPostDraft}
+              placeholder="Add text or keep attached media"
+              placeholderTextColor={colors.mutedText}
+              style={styles.postEditInput}
+              value={postDraft}
+            />
+            <View style={styles.postEditorActions}>
+              <Pressable accessibilityRole="button" disabled={isUpdatingPost} onPress={() => setPostEditorVisible(false)} style={styles.secondaryButton}>
+                <Text style={styles.postMenuText}>Cancel</Text>
+              </Pressable>
+              <Pressable accessibilityRole="button" disabled={isUpdatingPost || (!postDraft.trim() && post.media.length === 0)} onPress={() => { void handleUpdatePost(); }} style={styles.primaryButton}>
+                <Text style={styles.postMenuText}>{isUpdatingPost ? "Saving…" : "Save"}</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -606,6 +707,18 @@ const styles = StyleSheet.create({
     gap: 12,
     padding: 14,
   },
+  deleteMenuText: { color: colors.danger, fontSize: 14, fontWeight: "900" },
+  modalBackdrop: { alignItems: "center", backgroundColor: "rgba(0,0,0,0.68)", flex: 1, justifyContent: "center", padding: 24 },
+  moreButton: { alignItems: "center", backgroundColor: colors.surfaceMuted, borderColor: colors.border, borderRadius: 999, borderWidth: 1, height: 38, justifyContent: "center", position: "absolute", right: 12, top: 12, width: 38, zIndex: 2 },
+  postEditInput: { backgroundColor: colors.surfaceMuted, borderColor: colors.border, borderRadius: 14, borderWidth: 1, color: colors.text, minHeight: 110, padding: 12, textAlignVertical: "top" },
+  postEditor: { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: 20, borderWidth: 1, gap: 14, padding: 18, width: "100%" },
+  postEditorActions: { flexDirection: "row", gap: 10, justifyContent: "flex-end" },
+  postEditorTitle: { color: colors.text, fontSize: 18, fontWeight: "900" },
+  postMenu: { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: 16, borderWidth: 1, overflow: "hidden", width: 180 },
+  postMenuAction: { alignItems: "center", flexDirection: "row", gap: 10, padding: 14 },
+  postMenuText: { color: colors.text, fontSize: 14, fontWeight: "900" },
+  primaryButton: { backgroundColor: colors.primary, borderRadius: 12, paddingHorizontal: 18, paddingVertical: 10 },
+  secondaryButton: { backgroundColor: colors.surfaceMuted, borderRadius: 12, paddingHorizontal: 18, paddingVertical: 10 },
   commentInput: {
     color: colors.text,
     flex: 1,
