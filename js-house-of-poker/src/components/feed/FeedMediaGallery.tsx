@@ -66,7 +66,12 @@ const styles = StyleSheet.create({
   collage: { flexDirection: 'row', flexWrap: 'nowrap', gap: 4, height: 240 },
   collageTile: { alignItems: 'center', backgroundColor: colors.background, flex: 1, justifyContent: 'center', minWidth: '48%', overflow: 'hidden' },
   column: { flex: 1, gap: 4 },
-  gallery: { gap: 10 },
+  gallery: {
+    backgroundColor: colors.background,
+    borderRadius: 18,
+    gap: 10,
+    padding: 15,
+  },
   lead: { flex: 1.35 },
   nav: { alignItems: 'center', backgroundColor: 'rgba(21,16,53,0.72)', borderRadius: 999, height: 52, justifyContent: 'center', marginTop: -26, position: 'absolute', top: '50%', width: 52 },
   next: { right: 14 }, previous: { left: 14 },
