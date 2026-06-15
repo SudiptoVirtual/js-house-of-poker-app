@@ -1,6 +1,6 @@
 import { env } from '../../config/env';
 import type { BackendShareDestinationId, FeedComment, FeedGameContext, FeedMedia, FeedPost, FeedReactionSummary, FeedTableContext } from '../../types/feed';
-import { ApiError, apiRequest } from './client';
+import { ApiError, apiRequest, parseApiPayload } from './client';
 
 
 export type FeedShare = {
@@ -268,18 +268,43 @@ export type UploadFeedMediaInput = {
   uri: string;
 };
 
+const SUPPORTED_VIDEO_MIME_TYPES = new Set(['video/mp4', 'video/quicktime', 'video/webm']);
+
+function normalizeUpload(input: UploadFeedMediaInput) {
+  const requestedMimeType = input.mimeType.toLowerCase().split(';')[0].trim();
+  const extension = input.name.split('.').pop()?.toLowerCase();
+  const mimeType =
+    requestedMimeType === 'video/mov' || (requestedMimeType === 'application/octet-stream' && extension === 'mov')
+      ? 'video/quicktime'
+      : requestedMimeType;
+
+  if (mimeType.startsWith('video/') && !SUPPORTED_VIDEO_MIME_TYPES.has(mimeType)) {
+    throw new Error('This video format is not supported. Please upload an MP4, MOV, or WebM video.');
+  }
+
+  const fallbackExtension = mimeType === 'video/quicktime' ? 'mov' : mimeType === 'video/webm' ? 'webm' : mimeType.startsWith('video/') ? 'mp4' : 'jpg';
+  return { mimeType, name: input.name.trim() || `feed-upload.${fallbackExtension}`, uri: input.uri };
+}
+
 export async function uploadFeedMedia(input: UploadFeedMediaInput, token: string): Promise<FeedMedia> {
-  const localResponse = await fetch(input.uri);
+  const upload = normalizeUpload(input);
+  const localResponse = await fetch(upload.uri);
   const body = await localResponse.blob();
   const baseUrl = env.apiBaseUrl;
   if (!baseUrl) throw new Error('The API host is not configured.');
   const response = await fetch(`${baseUrl}/api/feed/media`, {
     body,
-    headers: { Authorization: `Bearer ${token}`, 'Content-Type': input.mimeType, 'X-File-Name': input.name },
+    headers: { Accept: 'application/json', Authorization: `Bearer ${token}`, 'Content-Type': upload.mimeType, 'X-File-Name': upload.name },
     method: 'POST',
   });
-  const payload = await response.json();
-  if (!response.ok) throw new ApiError(payload?.message || 'Unable to upload attachment.', response.status, payload);
+  const payload = parseApiPayload(await response.text());
+  if (!response.ok || typeof payload !== 'object' || payload === null || !('media' in payload)) {
+    const message =
+      typeof payload === 'object' && payload !== null && 'message' in payload && typeof payload.message === 'string'
+        ? payload.message
+        : `Unable to upload attachment (HTTP ${response.status}).`;
+    throw new ApiError(message, response.status, payload);
+  }
   return payload.media as FeedMedia;
 }
 

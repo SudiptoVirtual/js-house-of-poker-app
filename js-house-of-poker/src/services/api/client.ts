@@ -38,7 +38,7 @@ function buildUrl(path: string) {
   return `${baseUrl}${normalizedPath}`;
 }
 
-function parsePayload(text: string) {
+export function parseApiPayload(text: string) {
   if (!text) {
     return null;
   }
@@ -89,7 +89,7 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
   }
 
   const rawText = await response.text();
-  const payload = parsePayload(rawText);
+  const payload = parseApiPayload(rawText);
 
   if (!response.ok) {
     const message =
