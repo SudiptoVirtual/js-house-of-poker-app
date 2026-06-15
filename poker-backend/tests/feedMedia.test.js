@@ -8,7 +8,9 @@ const validMedia = (overrides = {}) => ({ metadata: { size: 1024 }, mimeType: 'i
 test('validates durable uploaded media metadata', () => assert.deepEqual(validateUploadedMedia([validMedia()])[0].metadata, { size: 1024 }));
 test('rejects invalid MIME, oversized, non-HTTPS, mismatched type, and excessive attachments', () => {
   for (const media of [validMedia({ mimeType: 'application/pdf' }), validMedia({ metadata: { size: 30 * 1024 * 1024 } }), validMedia({ url: 'file:///local.jpg' }), validMedia({ type: 'video' })]) assert.throws(() => validateUploadedMedia([media]));
-  assert.throws(() => validateUploadedMedia(Array.from({ length: MAX_ATTACHMENT_COUNT + 1 }, validMedia)));
+  assert.equal(MAX_ATTACHMENT_COUNT, 5);
+  assert.equal(validateUploadedMedia(Array.from({ length: 5 }, validMedia)).length, 5);
+  assert.throws(() => validateUploadedMedia(Array.from({ length: 6 }, validMedia)), (error) => error.code === 'TOO_MANY_ATTACHMENTS');
 });
 test('supports application video MIME types and rejects oversized video buffers consistently', async () => {
   for (const mimeType of ['video/mp4', 'video/quicktime', 'video/webm']) assert.equal(mediaTypeForMime(mimeType), 'video');

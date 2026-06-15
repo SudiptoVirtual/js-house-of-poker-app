@@ -2,7 +2,8 @@ import type { FeedMedia } from '../../types/feed';
 import type { UploadFeedMediaInput } from '../../services/api/feed';
 
 export type PendingFeedAttachment = UploadFeedMediaInput & { id: string; type: 'image' | 'video' };
-export function appendFeedAttachments(current: PendingFeedAttachment[], selected: PendingFeedAttachment[], limit = 4) { return [...current, ...selected].slice(0, limit); }
+export const MAX_FEED_ATTACHMENTS = 5;
+export function appendFeedAttachments(current: PendingFeedAttachment[], selected: PendingFeedAttachment[], limit = MAX_FEED_ATTACHMENTS) { return [...current, ...selected].slice(0, limit); }
 export function removeFeedAttachment(current: PendingFeedAttachment[], id: string) { return current.filter((item) => item.id !== id); }
 export async function uploadAttachmentsAndCreatePost(
   attachments: PendingFeedAttachment[], content: string,

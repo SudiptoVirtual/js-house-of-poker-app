@@ -7,13 +7,14 @@ const ts = require('typescript');
 const filename = path.resolve(__dirname, '../src/components/feed/attachmentWorkflow.ts');
 const output = ts.transpileModule(fs.readFileSync(filename, 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
 const compiled = new Module(filename, module); compiled.filename = filename; compiled.paths = Module._nodeModulePaths(path.dirname(filename)); compiled._compile(output, filename);
-const { appendFeedAttachments, removeFeedAttachment, uploadAttachmentsAndCreatePost } = compiled.exports;
+const { appendFeedAttachments, MAX_FEED_ATTACHMENTS, removeFeedAttachment, uploadAttachmentsAndCreatePost } = compiled.exports;
 const attachment = (id) => ({ id, mimeType: 'image/jpeg', name: `${id}.jpg`, type: 'image', uri: `file://${id}.jpg` });
 
 test('selected attachments are appended up to the attachment limit and removable', () => {
-  const selected = appendFeedAttachments([attachment('1')], [attachment('2'), attachment('3')], 2);
-  assert.deepEqual(selected.map(({ id }) => id), ['1', '2']);
-  assert.deepEqual(removeFeedAttachment(selected, '1').map(({ id }) => id), ['2']);
+  const selected = appendFeedAttachments([], ['1', '2', '3', '4', '5', '6'].map(attachment));
+  assert.equal(MAX_FEED_ATTACHMENTS, 5);
+  assert.deepEqual(selected.map(({ id }) => id), ['1', '2', '3', '4', '5']);
+  assert.deepEqual(removeFeedAttachment(selected, '1').map(({ id }) => id), ['2', '3', '4', '5']);
 });
 test('upload failure prevents post submission', async () => {
   let submitted = false;

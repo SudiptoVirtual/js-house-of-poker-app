@@ -7,7 +7,7 @@ import { colors } from '../../theme/colors';
 import { FeedAvatar } from './FeedAvatar';
 import type { FeedMedia, FeedPlayer, FeedPost } from '../../types/feed';
 import type { UploadFeedMediaInput } from '../../services/api/feed';
-import { appendFeedAttachments, removeFeedAttachment, uploadAttachmentsAndCreatePost, type PendingFeedAttachment } from './attachmentWorkflow';
+import { appendFeedAttachments, MAX_FEED_ATTACHMENTS, removeFeedAttachment, uploadAttachmentsAndCreatePost, type PendingFeedAttachment } from './attachmentWorkflow';
 
 export type ComposeFeedPostInput = { content: string; media: FeedMedia[]; postType: 'text' | 'media' | 'table_invite' };
 export type FeedPostBoxProfile = Pick<FeedPlayer, 'avatarUrl' | 'handle' | 'id' | 'name'>;
@@ -29,7 +29,6 @@ type FeedPostBoxProps = {
   onUploadAttachment: (attachment: UploadFeedMediaInput) => Promise<FeedMedia>;
 };
 const placeholderPlayer: FeedPostBoxProfile = { handle: '@houseplayer', id: 'local-placeholder-player', name: 'House Player' };
-const MAX_ATTACHMENTS = 4;
 function getPlayerInitials(name: string) { return name.split(' ').filter(Boolean).slice(0, 2).map((part) => part[0]?.toUpperCase()).join('') || 'HP'; }
 function toAttachment(asset: PickerAsset): LocalAttachment {
   const type = asset.type === 'video' ? 'video' : 'image';
@@ -51,9 +50,9 @@ export function FeedPostBox({ canInviteToTable = false, currentPlayer, isAuthent
     const permission = source === 'gallery' ? await ImagePicker.requestMediaLibraryPermissionsAsync() : await ImagePicker.requestCameraPermissionsAsync();
     if (!permission.granted) { Alert.alert('Permission required', `Allow access to your ${source === 'gallery' ? 'photo library' : 'camera'} to attach media.`); return; }
     const result = source === 'gallery'
-      ? await ImagePicker.launchImageLibraryAsync({ allowsMultipleSelection: true, mediaTypes: ['images', 'videos'], quality: 0.9, selectionLimit: MAX_ATTACHMENTS - attachments.length })
+      ? await ImagePicker.launchImageLibraryAsync({ allowsMultipleSelection: true, mediaTypes: ['images', 'videos'], quality: 0.9, selectionLimit: MAX_FEED_ATTACHMENTS - attachments.length })
       : await ImagePicker.launchCameraAsync({ mediaTypes: ['images', 'videos'], quality: 0.9 });
-    if (!result.canceled && result.assets) setAttachments((current) => appendFeedAttachments(current, result.assets?.map(toAttachment) ?? [], MAX_ATTACHMENTS));
+    if (!result.canceled && result.assets) setAttachments((current) => appendFeedAttachments(current, result.assets?.map(toAttachment) ?? []));
   }
 
   async function handleSubmit() {
@@ -77,7 +76,7 @@ export function FeedPostBox({ canInviteToTable = false, currentPlayer, isAuthent
         <Text style={styles.playerLabel}>{player.handle}</Text>
         <View style={styles.textboxArea}>
           <TextInput accessibilityLabel="Post content" multiline onChangeText={setContent} placeholder="What's happening at your table today?" placeholderTextColor={colors.mutedText} editable={Boolean(currentPlayer && isAuthenticated) && !isSubmitting} style={styles.input} value={content} />
-          <Pressable accessibilityLabel="Attach media" accessibilityRole="button" disabled={!currentPlayer || !isAuthenticated || isSubmitting || attachments.length >= MAX_ATTACHMENTS} onPress={() => setIsAttachmentSheetOpen(true)} style={styles.attachmentButton}><MaterialCommunityIcons color={colors.secondary} name="paperclip" size={20} /></Pressable>
+          <Pressable accessibilityLabel="Attach media" accessibilityRole="button" disabled={!currentPlayer || !isAuthenticated || isSubmitting || attachments.length >= MAX_FEED_ATTACHMENTS} onPress={() => setIsAttachmentSheetOpen(true)} style={styles.attachmentButton}><MaterialCommunityIcons color={colors.secondary} name="paperclip" size={20} /></Pressable>
         </View>
         {attachments.length ? <ScrollView horizontal contentContainerStyle={styles.previewRow} showsHorizontalScrollIndicator={false}>{attachments.map((attachment) => <View key={attachment.id} style={styles.preview}>{attachment.type === 'image' ? <Image source={{ uri: attachment.uri }} style={styles.previewImage} /> : <View style={styles.videoPreview}><MaterialCommunityIcons color={colors.secondary} name="video-outline" size={28} /><Text style={styles.videoLabel}>Video</Text></View>}<Pressable accessibilityLabel={`Remove ${attachment.name}`} onPress={() => setAttachments((current) => removeFeedAttachment(current, attachment.id))} style={styles.removeButton}><MaterialCommunityIcons color={colors.text} name="close" size={15} /></Pressable></View>)}</ScrollView> : null}
       </View>
