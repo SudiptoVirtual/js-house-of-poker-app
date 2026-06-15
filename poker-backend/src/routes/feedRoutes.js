@@ -29,6 +29,7 @@ const {
 } = require("../controllers/feedController");
 const { optionalUser, protectUser } = require("../middleware/auth");
 const { verifyPromotionWebhookPayload } = require("../services/feedPromotionService");
+const { MAX_MEDIA_BYTES } = require("../services/feedMediaService");
 
 const router = express.Router();
 
@@ -51,7 +52,7 @@ function verifyPromotionWebhook(req, res, next) {
 router.get("/", optionalUser, listPosts);
 router.post("/promotions/webhook", verifyPromotionWebhook, promotionPaymentWebhook);
 router.post("/promotions/:promotionId/complete", protectUser, completePromotion);
-router.post("/media", protectUser, express.raw({ limit: "25mb", type: () => true }), uploadMedia);
+router.post("/media", protectUser, express.raw({ limit: MAX_MEDIA_BYTES, type: () => true }), uploadMedia);
 router.post("/", protectUser, createPost);
 router.get("/discovery", optionalUser, getDiscoveryPayload);
 router.get("/:postId", optionalUser, getPost);
@@ -78,5 +79,15 @@ router.post("/:postId/gift-clips", protectUser, sendGiftClip);
 router.post("/:postId/promotions", protectUser, purchasePromotion);
 router.post("/:postId/promotions/checkout", protectUser, purchasePromotion);
 router.post("/:postId/table-invites", protectUser, createTableInvite);
+
+router.use((error, req, res, next) => {
+  if (error?.type === "entity.too.large") {
+    return res.status(413).json({
+      code: "INVALID_MEDIA_SIZE",
+      message: `Attachments must be no larger than ${MAX_MEDIA_BYTES} bytes.`,
+    });
+  }
+  return next(error);
+});
 
 module.exports = router;

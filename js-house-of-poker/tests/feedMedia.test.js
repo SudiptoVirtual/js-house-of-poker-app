@@ -34,6 +34,8 @@ const reactNativeMock = {
 };
 const iconsMock = { MaterialCommunityIcons: () => null };
 const colorsMock = { colors: { background: '#000', border: '#111', mutedText: '#aaa', secondary: '#0ff', white: '#fff' } };
+class ApiError extends Error { constructor(message, status, payload) { super(message); this.status = status; this.payload = payload; } }
+const clientMock = { ApiError, apiRequest: async () => null, parseApiPayload: (text) => { try { return JSON.parse(text); } catch { return text; } } };
 
 const image = { altText: 'Final table', durationMs: null, height: 600, metadata: {}, mimeType: 'image/jpeg', type: 'image', url: 'image.jpg', width: 800 };
 const video = { altText: 'Winning hand', durationMs: 65000, height: 1080, metadata: {}, mimeType: 'video/mp4', thumbnailUrl: 'thumb.jpg', type: 'video', url: 'video.mp4', width: 1920 };
@@ -92,4 +94,43 @@ test('feed focus and app-background state gate the single active video passed to
   assert.match(screen, /return \(\) => setIsFeedFocused\(false\)/);
   assert.match(screen, /AppState\.addEventListener\('change'/);
   assert.match(screen, /isActive=\{isFeedFocused && isAppActive && activeVideoPostId === item\.id\}/);
+});
+
+test('media upload turns HTML and non-JSON responses into status-aware upload errors', async (t) => {
+  const originalFetch = global.fetch;
+  const responses = [
+    { blob: async () => ({ bytes: true }) },
+    { ok: false, status: 413, text: async () => '<html>Request too large</html>' },
+  ];
+  global.fetch = async () => responses.shift();
+  t.after(() => { global.fetch = originalFetch; });
+  const { uploadFeedMedia } = compileComponent('../src/services/api/feed.ts', {
+    '../../config/env': { env: { apiBaseUrl: 'https://api.example.com' } },
+    './client': clientMock,
+  });
+
+  await assert.rejects(
+    uploadFeedMedia({ mimeType: 'video/mp4', name: 'clip.mp4', uri: 'file:///clip.mp4' }, 'token'),
+    /Unable to upload attachment \(HTTP 413\)/,
+  );
+});
+
+test('media upload normalizes React Native MOV video metadata', async (t) => {
+  const originalFetch = global.fetch;
+  const requests = [];
+  global.fetch = async (url, options) => {
+    requests.push({ url, options });
+    if (!options) return { blob: async () => ({ bytes: true }) };
+    return { ok: true, status: 201, text: async () => JSON.stringify({ media: video }) };
+  };
+  t.after(() => { global.fetch = originalFetch; });
+  const { uploadFeedMedia } = compileComponent('../src/services/api/feed.ts', {
+    '../../config/env': { env: { apiBaseUrl: 'https://api.example.com' } },
+    './client': clientMock,
+  });
+
+  await uploadFeedMedia({ mimeType: 'video/mov', name: 'camera.mov', uri: 'file:///camera.mov' }, 'token');
+  assert.equal(requests[0].url, 'file:///camera.mov');
+  assert.equal(requests[1].options.headers['Content-Type'], 'video/quicktime');
+  assert.equal(requests[1].options.headers['X-File-Name'], 'camera.mov');
 });

@@ -845,7 +845,7 @@ function sendServerError(res, error, fallbackMessage = "Feed request failed") {
     return res.status(error.statusCode).json({ code: error.code, message: error.message });
   }
 
-  return res.status(500).json({ message: fallbackMessage });
+  return res.status(500).json({ code: "FEED_REQUEST_FAILED", message: fallbackMessage });
 }
 
 async function uploadMedia(req, res) {
