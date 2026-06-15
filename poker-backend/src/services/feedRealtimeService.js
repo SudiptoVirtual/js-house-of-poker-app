@@ -296,6 +296,10 @@ class FeedRealtimeService {
     return this.emitToFeedAndPost(postId, "feed:post:updated", payload);
   }
 
+  broadcastPostDeleted(postId, payload) {
+    return this.emitToFeedAndPost(postId, "feed:post:deleted", payload);
+  }
+
   broadcastCommentCreated(postId, payload) {
     return this.emitToFeedAndPost(postId, "feed:comment:created", payload);
   }

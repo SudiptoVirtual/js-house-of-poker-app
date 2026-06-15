@@ -997,6 +997,15 @@ async function updatePost(req, res) {
       return res.status(403).json({ message: "You can only edit your own feed posts" });
     }
 
+    const editableFields = new Set(["body", "content", "media", "postType", "visibility"]);
+    const unsupportedFields = Object.keys(req.body || {}).filter((field) => !editableFields.has(field));
+    if (unsupportedFields.length) {
+      return res.status(400).json({
+        code: "UNSUPPORTED_EDIT_FIELDS",
+        message: `These post fields cannot be edited: ${unsupportedFields.join(", ")}`,
+      });
+    }
+
     const currentPostType = resolvePostType({ media: post.media || [], postKind: post.postKind, postType: post.postType });
     if (req.body?.postType !== undefined && req.body.postType !== currentPostType) {
       return res.status(400).json({ code: "POST_TYPE_IMMUTABLE", message: "Post type cannot be changed after publication." });
@@ -1007,8 +1016,6 @@ async function updatePost(req, res) {
       if (!POST_VISIBILITIES.includes(req.body.visibility)) return res.status(400).json({ message: "Invalid post visibility" });
       post.visibility = req.body.visibility;
     }
-    if (req.body?.tableContext !== undefined) post.tableContext = normalizeTableContext(req.body.tableContext);
-    if (req.body?.gameContext !== undefined) post.gameContext = normalizeGameContext(req.body.gameContext);
     if (req.body?.media !== undefined) post.media = validateUploadedMedia(req.body.media);
 
     post.postType = currentPostType;
@@ -1055,7 +1062,9 @@ async function deletePost(req, res) {
     post.status = "deleted";
     await post.save();
 
-    return res.json({ deleted: true, postId: String(post._id) });
+    const payload = { deleted: true, postId: String(post._id), userId: String(req.user._id) };
+    getFeedRealtimeService()?.broadcastPostDeleted(postId, payload);
+    return res.json(payload);
   } catch (error) {
     return sendServerError(res, error, "Unable to delete feed post");
   }
