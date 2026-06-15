@@ -1,7 +1,8 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Dimensions,
   Modal,
   Pressable,
   StyleSheet,
@@ -22,6 +23,11 @@ import type {
 } from "../../types/feed";
 
 type CommentPanelLoadState = "idle" | "loading" | "ready" | "empty" | "error";
+type PostMenuAnchor = { height: number; width: number; x: number; y: number };
+
+const POST_MENU_WIDTH = 180;
+const POST_MENU_HEIGHT = 98;
+const POST_MENU_VIEWPORT_MARGIN = 8;
 
 type FeedCommentsPanelResult = {
   comments: FeedComment[];
@@ -117,7 +123,10 @@ export function FeedPostCard({
   const [deletingCommentId, setDeletingCommentId] = useState<string | null>(
     null,
   );
-  const [postMenuVisible, setPostMenuVisible] = useState(false);
+  const [postMenuAnchor, setPostMenuAnchor] = useState<PostMenuAnchor | null>(
+    null,
+  );
+  const moreButtonRef = useRef<View>(null);
   const [postEditorVisible, setPostEditorVisible] = useState(false);
   const [postDraft, setPostDraft] = useState(post.content);
   const [isUpdatingPost, setIsUpdatingPost] = useState(false);
@@ -328,7 +337,7 @@ export function FeedPostCard({
 
   function beginEditingPost() {
     setPostDraft(post.content);
-    setPostMenuVisible(false);
+    setPostMenuAnchor(null);
     setPostEditorVisible(true);
   }
 
@@ -345,7 +354,7 @@ export function FeedPostCard({
   }
 
   function confirmDeletePost() {
-    setPostMenuVisible(false);
+    setPostMenuAnchor(null);
     Alert.alert("Delete post?", "This action cannot be undone.", [
       { style: "cancel", text: "Cancel" },
       {
@@ -370,7 +379,12 @@ export function FeedPostCard({
           accessibilityLabel="More post actions"
           accessibilityRole="button"
           disabled={isDeletingPost}
-          onPress={() => setPostMenuVisible(true)}
+          onPress={() =>
+            moreButtonRef.current?.measureInWindow((x, y, width, height) => {
+              setPostMenuAnchor({ height, width, x, y });
+            })
+          }
+          ref={moreButtonRef}
           style={styles.moreButton}
         >
           <MaterialCommunityIcons color={colors.primary} name="dots-vertical" size={22} />
@@ -655,9 +669,35 @@ export function FeedPostCard({
           </View>
         </View>
       ) : null}
-      <Modal animationType="fade" onRequestClose={() => setPostMenuVisible(false)} transparent visible={postMenuVisible}>
-        <Pressable accessibilityRole="button" onPress={() => setPostMenuVisible(false)} style={styles.modalBackdrop}>
-          <View style={styles.postMenu}>
+      <Modal animationType="fade" onRequestClose={() => setPostMenuAnchor(null)} transparent visible={postMenuAnchor !== null}>
+        <View style={styles.postMenuOverlay}>
+          <Pressable accessibilityLabel="Close post actions" accessibilityRole="button" onPress={() => setPostMenuAnchor(null)} style={StyleSheet.absoluteFill} />
+          {postMenuAnchor ? (
+          <View
+            style={[
+              styles.postMenu,
+              {
+                left: Math.max(
+                  POST_MENU_VIEWPORT_MARGIN,
+                  Math.min(
+                    postMenuAnchor.x + postMenuAnchor.width - POST_MENU_WIDTH,
+                    Dimensions.get("window").width -
+                      POST_MENU_WIDTH -
+                      POST_MENU_VIEWPORT_MARGIN,
+                  ),
+                ),
+                top: Math.max(
+                  POST_MENU_VIEWPORT_MARGIN,
+                  Math.min(
+                    postMenuAnchor.y + postMenuAnchor.height,
+                    Dimensions.get("window").height -
+                      POST_MENU_HEIGHT -
+                      POST_MENU_VIEWPORT_MARGIN,
+                  ),
+                ),
+              },
+            ]}
+          >
             <Pressable accessibilityRole="button" onPress={beginEditingPost} style={styles.postMenuAction}>
               <MaterialCommunityIcons color={colors.primary} name="pencil-outline" size={18} />
               <Text style={styles.postMenuText}>Edit</Text>
@@ -667,7 +707,8 @@ export function FeedPostCard({
               <Text style={styles.deleteMenuText}>Delete</Text>
             </Pressable>
           </View>
-        </Pressable>
+          ) : null}
+        </View>
       </Modal>
       <Modal animationType="fade" onRequestClose={() => setPostEditorVisible(false)} transparent visible={postEditorVisible}>
         <View style={styles.modalBackdrop}>
@@ -715,6 +756,7 @@ const styles = StyleSheet.create({
   postEditorActions: { flexDirection: "row", gap: 10, justifyContent: "flex-end" },
   postEditorTitle: { color: colors.text, fontSize: 18, fontWeight: "900" },
   postMenu: { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: 16, borderWidth: 1, overflow: "hidden", width: 180 },
+  postMenuOverlay: { flex: 1 },
   postMenuAction: { alignItems: "center", flexDirection: "row", gap: 10, padding: 14 },
   postMenuText: { color: colors.text, fontSize: 14, fontWeight: "900" },
   primaryButton: { backgroundColor: colors.primary, borderRadius: 12, paddingHorizontal: 18, paddingVertical: 10 },
