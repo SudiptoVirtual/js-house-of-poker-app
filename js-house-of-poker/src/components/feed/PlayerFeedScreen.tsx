@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Alert,
   AppState,
   Clipboard,
   FlatList,
@@ -251,7 +250,7 @@ export function PlayerFeedScreen({ navigation, route }: PlayerFeedScreenProps) {
       }
 
       if (isRefresh) {
-        Alert.alert('Feed not refreshed', details.message);
+        setFeedToast({ tone: 'error', message: details.message });
       } else {
         setPosts([]);
         setFeedLoadState(
@@ -493,17 +492,17 @@ export function PlayerFeedScreen({ navigation, route }: PlayerFeedScreenProps) {
     );
 
     if (!isBackendFeedPostId(postId)) {
-      Alert.alert(
-        'Action unavailable',
-        'Refresh the feed before supporting this post.',
-      );
+      setFeedToast({
+        tone: 'error',
+        message: 'Refresh the feed before supporting this post.',
+      });
       return;
     }
 
     const session = await getAuthSession();
 
     if (!session?.token) {
-      Alert.alert('Sign in required', 'Sign in to save your support.');
+      setFeedToast({ tone: 'error', message: 'Sign in to save your support.' });
       return;
     }
 
@@ -563,7 +562,7 @@ export function PlayerFeedScreen({ navigation, route }: PlayerFeedScreenProps) {
         error,
         'Unable to save your support right now.',
       );
-      Alert.alert('Support not saved', details.message);
+      setFeedToast({ tone: 'error', message: details.message });
     }
   }
 
@@ -622,15 +621,15 @@ export function PlayerFeedScreen({ navigation, route }: PlayerFeedScreenProps) {
     const session = await getAuthSession();
 
     if (!isBackendFeedPostId(post.id)) {
-      Alert.alert(
-        'Action unavailable',
-        'Refresh the feed before commenting on this post.',
-      );
+      setFeedToast({
+        tone: 'error',
+        message: 'Refresh the feed before commenting on this post.',
+      });
       return undefined;
     }
 
     if (!session?.token) {
-      Alert.alert('Sign in required', 'Sign in to save your comment.');
+      setFeedToast({ tone: 'error', message: 'Sign in to save your comment.' });
       return undefined;
     }
 
@@ -649,7 +648,7 @@ export function PlayerFeedScreen({ navigation, route }: PlayerFeedScreenProps) {
         error,
         'Unable to save your comment right now.',
       );
-      Alert.alert('Comment not saved', details.message);
+      setFeedToast({ tone: 'error', message: details.message });
       throw error;
     }
   }
@@ -662,15 +661,15 @@ export function PlayerFeedScreen({ navigation, route }: PlayerFeedScreenProps) {
     const session = await getAuthSession();
 
     if (!isBackendFeedPostId(post.id)) {
-      Alert.alert(
-        'Action unavailable',
-        'Refresh the feed before editing this comment.',
-      );
+      setFeedToast({
+        tone: 'error',
+        message: 'Refresh the feed before editing this comment.',
+      });
       return undefined;
     }
 
     if (!session?.token) {
-      Alert.alert('Sign in required', 'Sign in to edit your comment.');
+      setFeedToast({ tone: 'error', message: 'Sign in to edit your comment.' });
       return undefined;
     }
 
@@ -694,7 +693,7 @@ export function PlayerFeedScreen({ navigation, route }: PlayerFeedScreenProps) {
         error,
         'Unable to update your comment right now.',
       );
-      Alert.alert('Comment not updated', details.message);
+      setFeedToast({ tone: 'error', message: details.message });
       throw error;
     }
   }
@@ -703,15 +702,15 @@ export function PlayerFeedScreen({ navigation, route }: PlayerFeedScreenProps) {
     const session = await getAuthSession();
 
     if (!isBackendFeedPostId(post.id)) {
-      Alert.alert(
-        'Action unavailable',
-        'Refresh the feed before deleting this comment.',
-      );
+      setFeedToast({
+        tone: 'error',
+        message: 'Refresh the feed before deleting this comment.',
+      });
       return undefined;
     }
 
     if (!session?.token) {
-      Alert.alert('Sign in required', 'Sign in to delete your comment.');
+      setFeedToast({ tone: 'error', message: 'Sign in to delete your comment.' });
       return undefined;
     }
 
@@ -738,33 +737,49 @@ export function PlayerFeedScreen({ navigation, route }: PlayerFeedScreenProps) {
         error,
         'Unable to delete your comment right now.',
       );
-      Alert.alert('Comment not deleted', details.message);
+      setFeedToast({ tone: 'error', message: details.message });
       throw error;
     }
   }
 
   async function handleUpdatePost(post: FeedPost, content: string) {
     const session = await getAuthSession();
-    if (!session?.token) throw new Error('Sign in to edit your post.');
+    if (!session?.token) {
+      const error = new Error('Sign in to edit your post.');
+      setFeedToast({ tone: 'error', message: error.message });
+      throw error;
+    }
     try {
       const response = await updateFeedPost(post.id, { content, media: post.media }, session.token);
       setPosts((currentPosts) =>
         currentPosts.map((currentPost) => currentPost.id === post.id ? response.post : currentPost),
       );
+      setFeedToast({ tone: 'success', message: 'Post updated.' });
     } catch (error) {
-      Alert.alert('Post not updated', getApiErrorDetails(error, 'Unable to update your post right now.').message);
+      setFeedToast({
+        tone: 'error',
+        message: getApiErrorDetails(error, 'Unable to update your post right now.').message,
+      });
       throw error;
     }
   }
 
   async function handleDeletePost(post: FeedPost) {
     const session = await getAuthSession();
-    if (!session?.token) throw new Error('Sign in to delete your post.');
+    if (!session?.token) {
+      const error = new Error('Sign in to delete your post.');
+      setFeedToast({ tone: 'error', message: error.message });
+      throw error;
+    }
     try {
       await deleteFeedPost(post.id, session.token);
       setPosts((currentPosts) => currentPosts.filter((currentPost) => currentPost.id !== post.id));
+      setFeedToast({ tone: 'success', message: 'Post deleted.' });
     } catch (error) {
-      Alert.alert('Post not deleted', getApiErrorDetails(error, 'Unable to delete your post right now.').message);
+      setFeedToast({
+        tone: 'error',
+        message: getApiErrorDetails(error, 'Unable to delete your post right now.').message,
+      });
       throw error;
     }
   }
@@ -807,7 +822,7 @@ export function PlayerFeedScreen({ navigation, route }: PlayerFeedScreenProps) {
       },
       sessionToken,
     );
-    Alert.alert('Link copied', `Copied ${postUrl}`);
+    setFeedToast({ tone: 'success', message: `Copied ${postUrl}` });
   }
 
   async function handlePlatformShare(
@@ -850,12 +865,12 @@ export function PlayerFeedScreen({ navigation, route }: PlayerFeedScreenProps) {
       },
       sessionToken,
     );
-    Alert.alert(
-      'Share saved',
-      destination === 'facebook'
+    setFeedToast({
+      tone: 'success',
+      message: destination === 'facebook'
         ? 'Facebook share recorded.'
         : 'External share recorded.',
-    );
+    });
   }
 
   async function handleShare(selection: ShareSelection) {
@@ -867,16 +882,16 @@ export function PlayerFeedScreen({ navigation, route }: PlayerFeedScreenProps) {
     const session = await getAuthSession();
 
     if (!isBackendFeedPostId(targetPost.id)) {
-      Alert.alert(
-        'Action unavailable',
-        'Refresh the feed before sharing this post.',
-      );
+      setFeedToast({
+        tone: 'error',
+        message: 'Refresh the feed before sharing this post.',
+      });
       setSharePost(null);
       return;
     }
 
     if (!session?.token) {
-      Alert.alert('Sign in required', 'Sign in to save your share.');
+      setFeedToast({ tone: 'error', message: 'Sign in to save your share.' });
       return;
     }
 
@@ -894,10 +909,10 @@ export function PlayerFeedScreen({ navigation, route }: PlayerFeedScreenProps) {
         );
       } else if (selection.destinationId === 'chat-room') {
         if (!selection.roomId) {
-          Alert.alert(
-            'Choose a chat room',
-            'Select a chat room before sharing this post.',
-          );
+          setFeedToast({
+            tone: 'error',
+            message: 'Select a chat room before sharing this post.',
+          });
           return;
         }
 
@@ -915,15 +930,15 @@ export function PlayerFeedScreen({ navigation, route }: PlayerFeedScreenProps) {
           },
           session.token,
         );
-        Alert.alert('Share saved', 'Shared to chat room.');
+        setFeedToast({ tone: 'success', message: 'Shared to chat room.' });
       } else if (selection.destinationId === 'table') {
         const tableId = selection.tableId ?? activeTableId;
 
         if (!tableId) {
-          Alert.alert(
-            'Choose a table',
-            'Join a table or select a post table before sharing this post.',
-          );
+          setFeedToast({
+            tone: 'error',
+            message: 'Join a table or select a post table before sharing this post.',
+          });
           return;
         }
 
@@ -941,7 +956,7 @@ export function PlayerFeedScreen({ navigation, route }: PlayerFeedScreenProps) {
           },
           session.token,
         );
-        Alert.alert('Share saved', `Shared to table ${tableId}.`);
+        setFeedToast({ tone: 'success', message: `Shared to table ${tableId}.` });
       } else {
         await saveFeedShare(
           targetPost,
@@ -957,10 +972,10 @@ export function PlayerFeedScreen({ navigation, route }: PlayerFeedScreenProps) {
           },
           session.token,
         );
-        Alert.alert(
-          'Share saved',
-          `Shared to ${selection.destinationId.replace(/-/g, ' ')}.`,
-        );
+        setFeedToast({
+          tone: 'success',
+          message: `Shared to ${selection.destinationId.replace(/-/g, ' ')}.`,
+        });
       }
 
       setSharePost(null);
@@ -969,7 +984,7 @@ export function PlayerFeedScreen({ navigation, route }: PlayerFeedScreenProps) {
         error,
         'Unable to save your share right now.',
       );
-      Alert.alert('Share not saved', details.message);
+      setFeedToast({ tone: 'error', message: details.message });
     }
   }
 
@@ -982,15 +997,15 @@ export function PlayerFeedScreen({ navigation, route }: PlayerFeedScreenProps) {
     const session = await getAuthSession();
 
     if (!isBackendFeedPostId(targetPost.id)) {
-      Alert.alert(
-        'Action unavailable',
-        'Refresh the feed before sending Gift Clips.',
-      );
+      setFeedToast({
+        tone: 'error',
+        message: 'Refresh the feed before sending Gift Clips.',
+      });
       return;
     }
 
     if (!session?.token) {
-      Alert.alert('Sign in required', 'Sign in before sending Gift Clips.');
+      setFeedToast({ tone: 'error', message: 'Sign in before sending Gift Clips.' });
       return;
     }
 
@@ -1008,17 +1023,17 @@ export function PlayerFeedScreen({ navigation, route }: PlayerFeedScreenProps) {
           post.id === targetPost.id ? response.post : post,
         ),
       );
-      Alert.alert(
-        'Gift Clips sent',
-        `${amount.toLocaleString()} clips sent to ${targetPost.player.name}.`,
-      );
+      setFeedToast({
+        tone: 'success',
+        message: `${amount.toLocaleString()} clips sent to ${targetPost.player.name}.`,
+      });
       setGiftPost(null);
     } catch (error) {
       const details = getApiErrorDetails(
         error,
         'Unable to send Gift Clips right now.',
       );
-      Alert.alert('Gift Clips not sent', details.message);
+      setFeedToast({ tone: 'error', message: details.message });
     } finally {
       setIsSendingGift(false);
     }
@@ -1033,15 +1048,15 @@ export function PlayerFeedScreen({ navigation, route }: PlayerFeedScreenProps) {
     const session = await getAuthSession();
 
     if (!isBackendFeedPostId(targetPost.id)) {
-      Alert.alert(
-        'Action unavailable',
-        'Refresh the feed before sponsoring a promotion.',
-      );
+      setFeedToast({
+        tone: 'error',
+        message: 'Refresh the feed before sponsoring a promotion.',
+      });
       return;
     }
 
     if (!session?.token) {
-      Alert.alert('Sign in required', 'Sign in before sponsoring a promotion.');
+      setFeedToast({ tone: 'error', message: 'Sign in before sponsoring a promotion.' });
       return;
     }
 
@@ -1071,10 +1086,10 @@ export function PlayerFeedScreen({ navigation, route }: PlayerFeedScreenProps) {
       if (response.checkoutUrl) {
         await Linking.openURL(response.checkoutUrl);
         setPromotionPaymentState('pending-payment');
-        Alert.alert(
-          'Payment pending',
-          'Complete Stripe checkout in the browser window. This post will be sponsored after payment is confirmed.',
-        );
+        setFeedToast({
+          tone: 'success',
+          message: 'Complete Stripe checkout in the browser window. This post will be sponsored after payment is confirmed.',
+        });
         return;
       }
 
@@ -1083,17 +1098,17 @@ export function PlayerFeedScreen({ navigation, route }: PlayerFeedScreenProps) {
         response.promotion.state === 'pending'
       ) {
         setPromotionPaymentState('pending-payment');
-        Alert.alert(
-          'Payment pending',
-          'Your promotion was created and will become sponsored after payment is confirmed.',
-        );
+        setFeedToast({
+          tone: 'success',
+          message: 'Your promotion was created and will become sponsored after payment is confirmed.',
+        });
         return;
       }
 
-      Alert.alert(
-        'Promotion sponsored',
-        `${targetPost.player.name}'s post is now sponsored in the feed.`,
-      );
+      setFeedToast({
+        tone: 'success',
+        message: `${targetPost.player.name}'s post is now sponsored in the feed.`,
+      });
       setPromotionPaymentState('idle');
       setPromotePost(null);
     } catch (error) {
@@ -1102,7 +1117,7 @@ export function PlayerFeedScreen({ navigation, route }: PlayerFeedScreenProps) {
         error,
         'Unable to sponsor this promotion right now.',
       );
-      Alert.alert('Promotion not saved', details.message);
+      setFeedToast({ tone: 'error', message: details.message });
     }
   }
 
@@ -1115,7 +1130,7 @@ export function PlayerFeedScreen({ navigation, route }: PlayerFeedScreenProps) {
         post,
       });
     } catch (error) {
-      Alert.alert('Unable to join table', getJoinTableErrorMessage(error));
+      setFeedToast({ tone: 'error', message: getJoinTableErrorMessage(error) });
     }
   }
 
