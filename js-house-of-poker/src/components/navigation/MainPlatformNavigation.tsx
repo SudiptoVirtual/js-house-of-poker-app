@@ -4,13 +4,12 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { routes } from '../../constants/routes';
+import { isPlatformRouteActive, type PlatformRouteName } from './platformNavigation';
 import { useChatNotifications } from '../../context/ChatNotificationProvider';
 import { useFeedNotifications } from '../../context/FeedNotificationProvider';
 import { useFriendNotifications } from '../../context/FriendNotificationProvider';
 import { colors } from '../../theme/colors';
 import type { RootStackParamList } from '../../types/navigation';
-
-type PlatformRouteName = 'Home' | 'ChatRooms' | 'Feed' | 'Friends' | 'Profile';
 
 type NavigationItem = {
   activeIcon: keyof typeof MaterialCommunityIcons.glyphMap;
@@ -62,9 +61,7 @@ export function MainPlatformNavigation() {
   return (
     <View accessibilityRole="tablist" style={styles.container}>
       {navigationItems.map((item) => {
-        const isActive =
-          route.name === item.route ||
-          (route.name === routes.ChatRoomDetail && item.route === routes.ChatRooms);
+        const isActive = isPlatformRouteActive(route.name, item.route);
 
         return (
           <Pressable
