@@ -89,12 +89,31 @@ function renderFriendActions() {
   });
 }
 
-test('an offline friend renders Remove friend without online-only invite actions', () => {
+test('an offline friend renders Chat and Remove friend without online-only table invites', () => {
   const tree = renderFriendActions();
   const removeActions = findElements(tree, (element) => element.type === ActionButton && element.props.label === 'Remove friend');
+  const chatActions = findElements(tree, (element) => element.type === InviteToChatButton);
 
   assert.equal(removeActions.length, 1);
-  assert.equal(findElements(tree, (element) => [InviteToChatButton, InviteToTableButton].includes(element.type)).length, 0);
+  assert.equal(chatActions.length, 1);
+  assert.equal(chatActions[0].props.label, 'Chat');
+  assert.equal(chatActions[0].props.fullWidth, undefined);
+  assert.equal(findElements(tree, (element) => element.type === InviteToTableButton).length, 0);
+});
+
+test('an online friend labels the chat action as Chat next to table invite', () => {
+  const QuickActions = loadFriendQuickActions();
+  const friend = { ...requestPlayer, isOnline: true, relationshipStatus: 'friend' };
+  const tree = QuickActions({
+    hasActiveTable: false, onInviteToChat: () => {}, onInviteToTable: () => {}, onRemoveFriend: () => {},
+    onSendFriendRequest: () => {}, onViewProfile: () => {}, player: friend,
+  });
+  const chatActions = findElements(tree, (element) => element.type === InviteToChatButton);
+
+  assert.equal(chatActions.length, 1);
+  assert.equal(chatActions[0].props.label, 'Chat');
+  assert.equal(chatActions[0].props.fullWidth, false);
+  assert.equal(findElements(tree, (element) => element.type === InviteToTableButton).length, 1);
 });
 
 test('Remove friend waits for destructive confirmation before invoking the removal handler', () => {
