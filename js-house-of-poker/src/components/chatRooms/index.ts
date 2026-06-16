@@ -3,6 +3,7 @@ export { AIPrimeButton } from './AIPrimeButton';
 export { ChatInputBar } from './ChatInputBar';
 export { ChatMessageItem } from './ChatMessageItem';
 export { ChatRoomHeader } from './ChatRoomHeader';
+export { ChatInboxListItem } from './ChatInboxListItem';
 export { ChatRoomListItem } from './ChatRoomListItem';
 export { CreateTablePanel } from './CreateTablePanel';
 export { GameSelector, defaultGameOptions, type GameSelectorOption } from './GameSelector';

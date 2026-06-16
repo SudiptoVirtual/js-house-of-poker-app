@@ -3,7 +3,7 @@ import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import { ActionButton } from '../components/ActionButton';
-import { ChatRoomListItem } from '../components/chatRooms';
+import { ChatInboxListItem } from '../components/chatRooms';
 import { ComplianceNotice } from '../components/ComplianceNotice';
 import { Screen } from '../components/Screen';
 import { SectionCard } from '../components/SectionCard';
@@ -242,7 +242,7 @@ export function ChatRoomsScreen({ navigation }: Props) {
         ) : null}
         <View style={styles.roomStack}>
           {rooms.map((room) => (
-            <ChatRoomListItem
+            <ChatInboxListItem
               key={room.id}
               onEnter={() => navigation.navigate(routes.ChatRoomDetail, { roomId: room.id })}
               room={room}
