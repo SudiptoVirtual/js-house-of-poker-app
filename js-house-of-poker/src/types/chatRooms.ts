@@ -69,8 +69,20 @@ export interface ChatRoomInviteState {
   suggestedHandles: string[];
 }
 
+export type ChatRoomType = 'direct' | 'group' | 'public';
+
+export interface ChatRoomDirectRecipient {
+  id: string;
+  userId?: string;
+  displayName: string;
+  handle?: string;
+  avatarUrl?: string | null;
+  avatarInitials?: string;
+}
+
 export interface ChatRoom {
   id: string;
+  chatType: ChatRoomType;
   canLeave: boolean;
   isCreator: boolean;
   isMember: boolean;
@@ -80,6 +92,13 @@ export interface ChatRoom {
   unreadCount: number;
   activePlayerCount: number;
   lastMessagePreview: string;
+  avatarUrl?: string | null;
+  avatarInitials?: string;
+  lastMessageAt?: string | null;
+  lastMessageAuthorName?: string;
+  participantCount?: number;
+  directRecipientUserId?: string;
+  directRecipient?: ChatRoomDirectRecipient | null;
   players: ChatRoomPlayer[];
   messages: ChatRoomMessage[];
   tableConfig: ChatRoomTableConfig;

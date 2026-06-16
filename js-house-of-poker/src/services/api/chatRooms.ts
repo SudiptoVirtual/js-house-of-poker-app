@@ -1,5 +1,12 @@
 import { env } from '../../config/env';
-import type { ChatRoom, ChatRoomFriend, ChatRoomMessage, ChatRoomPlayer } from '../../types/chatRooms';
+import type {
+  ChatRoom,
+  ChatRoomDirectRecipient,
+  ChatRoomFriend,
+  ChatRoomMessage,
+  ChatRoomPlayer,
+  ChatRoomType,
+} from '../../types/chatRooms';
 import { ApiError, apiRequest } from './client';
 
 type BackendId =
@@ -10,6 +17,11 @@ type BackendId =
   | undefined;
 
 type BackendChatRoomMetadata = {
+  avatarInitials?: string | null;
+  avatarUrl?: string | null;
+  chatType?: string | null;
+  directRecipient?: BackendChatRoomDirectRecipient | null;
+  directRecipientUserId?: BackendId;
   gameSettings?: {
     game?: string;
   };
@@ -21,20 +33,42 @@ type BackendChatRoomMetadata = {
   tableName?: string;
 };
 
+type BackendChatRoomDirectRecipient = {
+  _id?: BackendId;
+  avatarInitials?: string | null;
+  avatarUrl?: string | null;
+  displayName?: string | null;
+  handle?: string | null;
+  id?: BackendId;
+  name?: string | null;
+  userId?: BackendId;
+  username?: string | null;
+};
+
 type BackendChatRoomListItem = {
   activePlayerCount?: number;
+  avatarInitials?: string | null;
+  avatarUrl?: string | null;
   canLeave?: boolean;
+  chatType?: string | null;
   description?: string;
+  directRecipient?: BackendChatRoomDirectRecipient | null;
+  directRecipientUserId?: BackendId;
   gameType?: string;
   id?: BackendId;
+  imageUrl?: string | null;
   isCreator?: boolean;
   isMember?: boolean;
   lastMessageAt?: string | null;
+  lastMessageAuthorName?: string | null;
   lastMessagePreview?: string | null;
   maxPlayers?: number;
   metadata?: BackendChatRoomMetadata;
   name?: string;
+  participantCount?: number;
   recentMessagePreview?: {
+    authorName?: string | null;
+    createdAt?: string | null;
     text?: string;
   } | null;
   roomId?: BackendId;
@@ -42,6 +76,7 @@ type BackendChatRoomListItem = {
   tableCode?: string | null;
   tableName?: string;
   topic?: string;
+  type?: string | null;
   unreadCount?: number;
 };
 
@@ -151,6 +186,74 @@ function normalizeCreatedAt(value: BackendChatRoomMessage['createdAt']) {
   return Number.isNaN(date.getTime()) ? new Date().toISOString() : date.toISOString();
 }
 
+function normalizeOptionalText(...values: Array<string | null | undefined>) {
+  for (const value of values) {
+    const text = value?.trim();
+
+    if (text) {
+      return text;
+    }
+  }
+
+  return undefined;
+}
+
+function normalizeOptionalDate(value: Date | number | string | null | undefined) {
+  if (value == null) {
+    return undefined;
+  }
+
+  const date = value instanceof Date ? value : new Date(value);
+
+  return Number.isNaN(date.getTime()) ? undefined : date.toISOString();
+}
+
+function getInitials(value: string) {
+  return (
+    value
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((word) => word[0]?.toUpperCase())
+      .join('') || 'HP'
+  );
+}
+
+function normalizeChatType(room: BackendChatRoomListItem, participantCount: number): ChatRoomType {
+  const candidate = normalizeOptionalText(room.chatType, room.type, room.metadata?.chatType)?.toLowerCase();
+
+  if (candidate === 'direct' || candidate === 'group' || candidate === 'public') {
+    return candidate;
+  }
+
+  if (room.directRecipient || room.directRecipientUserId || room.metadata?.directRecipient || room.metadata?.directRecipientUserId) {
+    return 'direct';
+  }
+
+  return participantCount > 2 ? 'group' : 'public';
+}
+
+function toDirectRecipient(
+  recipient: BackendChatRoomDirectRecipient | null | undefined,
+): ChatRoomDirectRecipient | null {
+  if (!recipient) {
+    return null;
+  }
+
+  const id = normalizeIdentifier(recipient.id ?? recipient.userId ?? recipient._id);
+  const displayName = normalizeOptionalText(recipient.displayName, recipient.name, recipient.username, recipient.handle) ?? 'Player';
+  const handle = normalizeOptionalText(recipient.handle, recipient.username);
+
+  return {
+    avatarInitials: normalizeOptionalText(recipient.avatarInitials) ?? getInitials(displayName),
+    avatarUrl: normalizeOptionalText(recipient.avatarUrl) ?? null,
+    displayName,
+    handle,
+    id: id || `direct-recipient-${createHash(`${displayName}:${handle ?? ''}`)}`,
+    userId: normalizeIdentifier(recipient.userId) || id || undefined,
+  };
+}
+
 function getBackendRoomName(room: BackendChatRoomListItem) {
   return room.name ?? room.tableName ?? room.metadata?.name ?? room.metadata?.tableName ?? 'Chat room';
 }
@@ -170,14 +273,14 @@ function getBackendGameLabel(room: BackendChatRoomListItem) {
   return gameText.includes('3-5-7') || gameText.includes('357') ? '3-5-7 Showdown' : "Texas Hold'em";
 }
 
-function getDefaultTableConfig(room: BackendChatRoomListItem) {
+function getDefaultTableConfig(room: BackendChatRoomListItem, chatType: ChatRoomType) {
   const gameLabel = getBackendGameLabel(room);
   const isThreeFiveSeven = gameLabel.includes('3-5-7');
   const maxSeats = room.maxPlayers ?? room.metadata?.maxPlayers ?? (isThreeFiveSeven ? 3 : 6);
 
   return {
     gameLabel,
-    isPrivate: false,
+    isPrivate: chatType === 'direct',
     maxSeats,
     seatsOpen: Math.max(0, maxSeats - (room.activePlayerCount ?? 0)),
     stakesLabel: 'Room-configured play chips',
@@ -282,16 +385,43 @@ export function toChatRoom(room: BackendChatRoomDetail, index = 0, seenRoomIds =
   const messages = (room.messages ?? room.recentMessages ?? []).map((message, messageIndex) =>
     toChatRoomMessage(message, id, messageIndex, seenMessageIds),
   );
+  const participantCount = room.participantCount ?? room.activePlayerCount ?? players.length;
+  const chatType = normalizeChatType(room, participantCount);
+  const directRecipient = toDirectRecipient(room.directRecipient ?? room.metadata?.directRecipient);
+  const directRecipientUserId =
+    normalizeIdentifier(room.directRecipientUserId ?? room.metadata?.directRecipientUserId) ||
+    directRecipient?.userId ||
+    directRecipient?.id ||
+    undefined;
+  const latestMessage = messages.at(-1);
+  const lastMessageAt =
+    normalizeOptionalDate(room.lastMessageAt ?? room.recentMessagePreview?.createdAt) ?? latestMessage?.createdAt ?? null;
+  const lastMessageAuthorName =
+    normalizeOptionalText(room.lastMessageAuthorName, room.recentMessagePreview?.authorName) ??
+    latestMessage?.authorName;
   const lastMessagePreview =
     room.lastMessagePreview ||
     room.recentMessagePreview?.text ||
-    messages.at(-1)?.body ||
+    latestMessage?.body ||
     'No messages yet. Start the room conversation.';
+  const avatarUrl = normalizeOptionalText(
+    room.avatarUrl,
+    room.imageUrl,
+    room.metadata?.avatarUrl,
+    directRecipient?.avatarUrl,
+  );
 
   return {
     activePlayerCount: room.activePlayerCount ?? players.length,
+    avatarInitials:
+      normalizeOptionalText(room.avatarInitials, room.metadata?.avatarInitials, directRecipient?.avatarInitials) ??
+      getInitials(title),
+    avatarUrl: avatarUrl ?? null,
     canLeave: room.canLeave === true,
+    chatType,
     description: room.description ?? 'Live social chat room.',
+    directRecipient,
+    directRecipientUserId,
     id,
     inviteState: {
       pendingInvites: [],
@@ -301,10 +431,13 @@ export function toChatRoom(room: BackendChatRoomDetail, index = 0, seenRoomIds =
     },
     isCreator: room.isCreator === true,
     isMember: room.isMember === true,
+    lastMessageAt,
+    lastMessageAuthorName,
     lastMessagePreview,
     messages,
+    participantCount,
     players,
-    tableConfig: getDefaultTableConfig(room),
+    tableConfig: getDefaultTableConfig(room, chatType),
     title,
     topic: room.topic ?? 'Live room chat',
     unreadCount: room.unreadCount ?? 0,
