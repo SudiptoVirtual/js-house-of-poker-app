@@ -400,10 +400,7 @@ export function toChatRoom(room: BackendChatRoomDetail, index = 0, seenRoomIds =
     normalizeOptionalText(room.lastMessageAuthorName, room.recentMessagePreview?.authorName) ??
     latestMessage?.authorName;
   const lastMessagePreview =
-    room.lastMessagePreview ||
-    room.recentMessagePreview?.text ||
-    latestMessage?.body ||
-    'No messages yet. Start the room conversation.';
+    normalizeOptionalText(room.lastMessagePreview, room.recentMessagePreview?.text, latestMessage?.body) ?? '';
   const avatarUrl = normalizeOptionalText(
     room.avatarUrl,
     room.imageUrl,
@@ -419,7 +416,7 @@ export function toChatRoom(room: BackendChatRoomDetail, index = 0, seenRoomIds =
     avatarUrl: avatarUrl ?? null,
     canLeave: room.canLeave === true,
     chatType,
-    description: room.description ?? 'Live social chat room.',
+    description: room.description ?? '',
     directRecipient,
     directRecipientUserId,
     id,
@@ -439,7 +436,7 @@ export function toChatRoom(room: BackendChatRoomDetail, index = 0, seenRoomIds =
     players,
     tableConfig: getDefaultTableConfig(room, chatType),
     title,
-    topic: room.topic ?? 'Live room chat',
+    topic: room.topic ?? '',
     unreadCount: room.unreadCount ?? 0,
   };
 }

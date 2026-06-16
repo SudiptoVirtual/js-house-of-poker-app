@@ -241,13 +241,19 @@ export function ChatRoomsScreen({ navigation }: Props) {
           </Text>
         ) : null}
         <View style={styles.roomStack}>
-          {rooms.map((room) => (
-            <ChatInboxListItem
-              key={room.id}
-              onEnter={() => navigation.navigate(routes.ChatRoomDetail, { roomId: room.id })}
-              room={room}
-            />
-          ))}
+          {rooms.map((room) => {
+            const inboxRoom = room.lastMessagePreview || room.messages.length > 0
+              ? room
+              : { ...room, lastMessagePreview: 'No messages yet.' };
+
+            return (
+              <ChatInboxListItem
+                key={room.id}
+                onEnter={() => navigation.navigate(routes.ChatRoomDetail, { roomId: room.id })}
+                room={inboxRoom}
+              />
+            );
+          })}
         </View>
       </SectionCard>
 

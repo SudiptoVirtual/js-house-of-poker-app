@@ -49,7 +49,7 @@ export function ChatInboxListItem({ onEnter, room }: ChatInboxListItemProps) {
   const avatarSource = room.avatarUrl ?? room.imageUrl;
   const isGroupChat = room.players.length > 2 || !room.tableConfig.isPrivate;
   const unreadCount = Math.min(room.unreadCount, 99);
-  const messagePreview = room.lastMessagePreview || 'Tap in to start the next hand conversation.';
+  const messagePreview = room.lastMessagePreview;
 
   return (
     <Pressable
