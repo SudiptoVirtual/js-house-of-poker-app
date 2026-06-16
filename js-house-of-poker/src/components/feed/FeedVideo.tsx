@@ -26,6 +26,7 @@ export function FeedVideo({ isActive, media, onRequestActive }: FeedVideoProps) 
     nextPlayer.muted = true;
   });
   const isPlaying = isActive && !isManuallyPaused;
+  const thumbnailUrl = typeof media.thumbnailUrl === 'string' ? media.thumbnailUrl.trim() : '';
 
   useEffect(() => {
     player.muted = isMuted;
@@ -54,7 +55,13 @@ export function FeedVideo({ isActive, media, onRequestActive }: FeedVideoProps) 
 
   return (
     <View style={[styles.shell, { aspectRatio: mediaAspectRatio(media) }]}>
-      <Image accessibilityLabel={`${media.altText} video thumbnail`} resizeMode="cover" source={{ uri: media.thumbnailUrl }} style={StyleSheet.absoluteFillObject} />
+      {thumbnailUrl ? (
+        <Image accessibilityLabel={`${media.altText} video thumbnail`} resizeMode="cover" source={{ uri: thumbnailUrl }} style={StyleSheet.absoluteFillObject} />
+      ) : (
+        <View accessibilityLabel={`${media.altText} video placeholder`} accessibilityRole="image" style={[StyleSheet.absoluteFillObject, styles.placeholder]}>
+          <MaterialCommunityIcons color={colors.secondary} name="video-outline" size={42} />
+        </View>
+      )}
       {isActive ? <VideoView accessibilityLabel={media.altText} accessibilityRole="image" contentFit="contain" nativeControls={false} player={player} style={StyleSheet.absoluteFillObject} /> : null}
       <View style={styles.controls}>
         <Pressable accessibilityLabel={isPlaying ? 'Pause video' : 'Play video'} accessibilityRole="button" onPress={togglePlayback} style={styles.controlButton}>
@@ -97,6 +104,11 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     paddingHorizontal: 9,
     paddingVertical: 6,
+  },
+  placeholder: {
+    alignItems: 'center',
+    backgroundColor: colors.background,
+    justifyContent: 'center',
   },
   shell: {
     backgroundColor: colors.background,
