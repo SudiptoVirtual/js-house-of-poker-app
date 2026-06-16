@@ -32,6 +32,7 @@ export function FriendQuickActions({
   showFriendRequestAction = false,
 }: FriendQuickActionsProps) {
   const canInviteOnlinePlayer = player.isOnline;
+  const canStartDirectChat = player.relationshipStatus === 'friend' || canInviteOnlinePlayer;
   const [pendingAction, setPendingAction] = useState<string | null>(null);
 
   async function runAction(actionId: string, action: () => void | Promise<void>) {
@@ -58,22 +59,32 @@ export function FriendQuickActions({
         onPress={() => onViewProfile(player)}
         variant="secondary"
       />
-      {canInviteOnlinePlayer ? (
-        <View style={styles.actionRow}>
+      {canStartDirectChat ? (
+        canInviteOnlinePlayer ? (
+          <View style={styles.actionRow}>
+            <InviteToChatButton
+              disabled={Boolean(pendingAction)}
+              fullWidth={false}
+              label={player.relationshipStatus === 'friend' ? 'Chat' : undefined}
+              loading={pendingAction === 'invite-chat'}
+              onPress={() => { void runAction('invite-chat', () => onInviteToChat(player)); }}
+            />
+            <InviteToTableButton
+              disabled={Boolean(pendingAction)}
+              fullWidth={false}
+              hasActiveTable={hasActiveTable}
+              loading={pendingAction === 'invite-table'}
+              onPress={() => { void runAction('invite-table', () => onInviteToTable(player)); }}
+            />
+          </View>
+        ) : (
           <InviteToChatButton
             disabled={Boolean(pendingAction)}
-            fullWidth={false}
+            label="Chat"
             loading={pendingAction === 'invite-chat'}
             onPress={() => { void runAction('invite-chat', () => onInviteToChat(player)); }}
           />
-          <InviteToTableButton
-            disabled={Boolean(pendingAction)}
-            fullWidth={false}
-            hasActiveTable={hasActiveTable}
-            loading={pendingAction === 'invite-table'}
-            onPress={() => { void runAction('invite-table', () => onInviteToTable(player)); }}
-          />
-        </View>
+        )
       ) : null}
       {showFriendRequestAction && player.relationshipStatus === 'not_friends' ? (
         <SendFriendRequestButton

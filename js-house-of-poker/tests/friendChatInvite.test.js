@@ -31,6 +31,20 @@ function findElement(node, predicate) {
   return null;
 }
 
+test('InviteToChatButton defaults to Chat Invite but accepts a direct Chat label', () => {
+  function ActionButton() {}
+  const { InviteToChatButton } = compileTypeScript('../src/components/friends/InviteToChatButton.tsx', {
+    '../ActionButton': { ActionButton },
+  });
+
+  const defaultButton = InviteToChatButton({ onPress: () => {} });
+  const chatButton = InviteToChatButton({ label: 'Chat', onPress: () => {} });
+
+  assert.equal(defaultButton.type, ActionButton);
+  assert.equal(defaultButton.props.label, 'Chat Invite');
+  assert.equal(chatButton.props.label, 'Chat');
+});
+
 test('pressing Chat Invite creates a private room with the friend and navigates to it', async () => {
   const apiCalls = [];
   const navigationCalls = [];
