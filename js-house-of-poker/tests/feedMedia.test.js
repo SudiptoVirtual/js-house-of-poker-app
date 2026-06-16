@@ -21,6 +21,10 @@ function compileComponent(relativePath, mocks = {}) {
 }
 
 function findElements(node, predicate, matches = []) {
+  if (Array.isArray(node)) {
+    for (const child of node) findElements(child, predicate, matches);
+    return matches;
+  }
   if (!node || typeof node !== 'object') return matches;
   if (predicate(node)) matches.push(node);
   const children = Array.isArray(node.props?.children) ? node.props.children : [node.props?.children];
@@ -59,6 +63,26 @@ test('image attachments render with preserved aspect ratio, loading state, and a
   assert.match(imageShell.props.accessibilityHint, /full-screen preview/);
 });
 
+test('video-only galleries render video attachments without reading a missing first image', () => {
+  const feedVideoCalls = [];
+  const { FeedMediaGallery } = compileComponent('../src/components/feed/FeedMediaGallery.tsx', {
+    react: { ...require('react'), useState: (initial) => [initial, () => {}] },
+    'react-native': reactNativeMock,
+    '@expo/vector-icons': iconsMock,
+    '../../theme/colors': colorsMock,
+    './FeedVideo': { FeedVideo: (props) => { feedVideoCalls.push(props); return { type: 'FeedVideoMock', props }; } },
+  });
+
+  const gallery = FeedMediaGallery({ media: [video], isActive: true });
+
+  const feedVideoElement = findElements(gallery, (element) => element.type?.name === 'FeedVideo')[0];
+
+  assert.equal(feedVideoElement.props.media, video);
+  assert.equal(feedVideoElement.props.isActive, true);
+  assert.equal(findElements(gallery, (element) => element.type?.name === 'FeedImage').length, 0);
+  feedVideoElement.type(feedVideoElement.props);
+  assert.equal(feedVideoCalls.length, 1);
+});
 
 test('two-, four-, and five-image posts use compact cover-image collages', () => {
   const source = fs.readFileSync(path.resolve(__dirname, '../src/components/feed/FeedMediaGallery.tsx'), 'utf8');
