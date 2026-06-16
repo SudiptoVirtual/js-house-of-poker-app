@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { Alert, Image, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Image, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { ActionButton } from '../ActionButton';
 import { colors } from '../../theme/colors';
@@ -20,12 +20,15 @@ const ImagePicker = require('expo-image-picker') as {
   requestCameraPermissionsAsync(): Promise<{ granted: boolean }>;
   requestMediaLibraryPermissionsAsync(): Promise<{ granted: boolean }>;
 };
+type FeedToast = { tone: 'success' | 'error'; message: string };
+type ToastAwareError = Error & { feedToastShown?: boolean };
 type FeedPostBoxProps = {
   currentPlayer?: FeedPostBoxProfile;
   canInviteToTable?: boolean;
   isAuthenticated?: boolean;
   onCreatePost: (input: ComposeFeedPostInput) => Promise<FeedPost>;
   onOpenProfile?: (player: FeedPostBoxProfile) => void;
+  onToast: (toast: FeedToast) => void;
   onUploadAttachment: (attachment: UploadFeedMediaInput) => Promise<FeedMedia>;
 };
 const placeholderPlayer: FeedPostBoxProfile = { handle: '@houseplayer', id: 'local-placeholder-player', name: 'House Player' };
@@ -35,7 +38,7 @@ function toAttachment(asset: PickerAsset): LocalAttachment {
   return { fileSize: asset.fileSize, id: asset.assetId || `${asset.uri}-${Date.now()}`, mimeType: asset.mimeType || (type === 'video' ? 'video/mp4' : 'image/jpeg'), name: asset.fileName || `feed-${Date.now()}.${type === 'video' ? 'mp4' : 'jpg'}`, type, uri: asset.uri };
 }
 
-export function FeedPostBox({ canInviteToTable = false, currentPlayer, isAuthenticated = false, onCreatePost, onOpenProfile, onUploadAttachment }: FeedPostBoxProps) {
+export function FeedPostBox({ canInviteToTable = false, currentPlayer, isAuthenticated = false, onCreatePost, onOpenProfile, onToast, onUploadAttachment }: FeedPostBoxProps) {
   const [attachments, setAttachments] = useState<LocalAttachment[]>([]);
   const [content, setContent] = useState('');
   const [isAttachmentSheetOpen, setIsAttachmentSheetOpen] = useState(false);
@@ -48,28 +51,31 @@ export function FeedPostBox({ canInviteToTable = false, currentPlayer, isAuthent
   async function addAssets(source: 'gallery' | 'camera') {
     setIsAttachmentSheetOpen(false);
     const permission = source === 'gallery' ? await ImagePicker.requestMediaLibraryPermissionsAsync() : await ImagePicker.requestCameraPermissionsAsync();
-    if (!permission.granted) { Alert.alert('Permission required', `Allow access to your ${source === 'gallery' ? 'photo library' : 'camera'} to attach media.`); return; }
+    if (!permission.granted) { onToast({ tone: 'error', message: `Allow access to your ${source === 'gallery' ? 'photo library' : 'camera'} to attach media.` }); return; }
     const result = source === 'gallery'
       ? await ImagePicker.launchImageLibraryAsync({ allowsMultipleSelection: true, mediaTypes: ['images', 'videos'], quality: 0.9, selectionLimit: MAX_FEED_ATTACHMENTS - attachments.length })
       : await ImagePicker.launchCameraAsync({ mediaTypes: ['images', 'videos'], quality: 0.9 });
     if (!result.canceled && result.assets) {
       const selected = result.assets.map(toAttachment);
       const accepted = selected.filter((attachment) => !isFeedAttachmentOversized(attachment));
-      if (accepted.length !== selected.length) Alert.alert('Attachment too large', `Attachments must be no larger than ${MAX_FEED_ATTACHMENT_SIZE_LABEL}.`);
+      if (accepted.length !== selected.length) onToast({ tone: 'error', message: `Attachments must be no larger than ${MAX_FEED_ATTACHMENT_SIZE_LABEL}.` });
       setAttachments((current) => appendFeedAttachments(current, accepted));
     }
   }
 
   async function handleSubmit() {
     const trimmedContent = content.trim();
-    if (!currentPlayer || !isAuthenticated) { Alert.alert('Sign in required', 'Sign in to publish posts to the player feed.'); return; }
+    if (!currentPlayer || !isAuthenticated) { onToast({ tone: 'error', message: 'Sign in to publish posts to the player feed.' }); return; }
     if (!trimmedContent && attachments.length === 0) return;
     setIsSubmitting(true);
     try {
-      await uploadAttachmentsAndCreatePost(attachments, trimmedContent, onUploadAttachment, (input) => onCreatePost(isTableInvite ? { ...input, postType: 'table_invite' } : input.media.length > 0 ? { ...input, postType: 'media' } : { content: input.content, postType: 'text' }));
+      await uploadAttachmentsAndCreatePost(attachments, trimmedContent, onUploadAttachment, (input) => onCreatePost(isTableInvite ? { ...input, postType: 'table_invite' } : input.media.length > 0 ? { ...input, postType: 'media' } : { content: input.content, media: [], postType: 'text' }));
       setContent(''); setAttachments([]); setIsTableInvite(false);
+      onToast({ tone: 'success', message: 'Post published to the feed.' });
     } catch (error) {
-      Alert.alert('Post not published', error instanceof Error ? error.message : 'Unable to upload attachments and publish your post.');
+      if (!(error instanceof Error && (error as ToastAwareError).feedToastShown)) {
+        onToast({ tone: 'error', message: error instanceof Error ? error.message : 'Unable to upload attachments and publish your post.' });
+      }
     } finally { setIsSubmitting(false); }
   }
 

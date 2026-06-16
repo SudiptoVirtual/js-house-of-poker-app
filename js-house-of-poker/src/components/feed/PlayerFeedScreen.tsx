@@ -7,6 +7,7 @@ import {
   Keyboard,
   Linking,
   Platform,
+  Pressable,
   RefreshControl,
   Share,
   StyleSheet,
@@ -18,7 +19,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useFocusEffect } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { KeyboardSafeView } from '../KeyboardSafeView';
 import { MainPlatformNavigation } from '../navigation/MainPlatformNavigation';
@@ -78,6 +79,8 @@ type FeedLoadState =
   | 'session-expired';
 
 type PromotionPaymentState = 'idle' | 'creating' | 'pending-payment';
+type FeedToast = { tone: 'success' | 'error'; message: string } | null;
+type ToastAwareError = Error & { feedToastShown?: boolean };
 
 type PlayerFeedScreenProps = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'Feed'>;
@@ -131,6 +134,7 @@ type ShareTargetOption = {
 
 export function PlayerFeedScreen({ navigation, route }: PlayerFeedScreenProps) {
   const { currentUser, token } = useAuth();
+  const insets = useSafeAreaInsets();
   const isKeyboardVisible = useKeyboardVisible();
   const { markFeedNotificationsRead, notifications } = useFeedNotifications();
   const { joinTable, roomState } = usePoker();
@@ -153,6 +157,7 @@ export function PlayerFeedScreen({ navigation, route }: PlayerFeedScreenProps) {
   const [isAppActive, setIsAppActive] = useState(
     AppState.currentState === 'active',
   );
+  const [feedToast, setFeedToast] = useState<FeedToast>(null);
 
   const focusedNotificationId = route.params?.notificationId ?? null;
   const focusedPostId = route.params?.postId ?? null;
@@ -414,11 +419,10 @@ export function PlayerFeedScreen({ navigation, route }: PlayerFeedScreenProps) {
 
   async function handleCreatePost(input: ComposeFeedPostInput) {
     if (!token || !currentUser) {
-      Alert.alert(
-        'Sign in required',
-        'Sign in to publish posts to the player feed.',
-      );
-      throw new Error('Sign in required to publish feed posts.');
+      const error = new Error('Sign in to publish posts to the player feed.') as ToastAwareError;
+      error.feedToastShown = true;
+      setFeedToast({ tone: 'error', message: error.message });
+      throw error;
     }
 
     try {
@@ -427,7 +431,8 @@ export function PlayerFeedScreen({ navigation, route }: PlayerFeedScreenProps) {
       }
       const request: CreateFeedPostInput = input.postType === 'table_invite'
         ? {
-            ...input,
+            content: input.content,
+            media: input.media,
             postType: 'table_invite',
             ...(activeTableCode ? { tableCode: activeTableCode } : { tableId: activeTableId as string }),
             ...(activeTableId ? { tableId: activeTableId } : {}),
@@ -439,7 +444,9 @@ export function PlayerFeedScreen({ navigation, route }: PlayerFeedScreenProps) {
               tableName: roomState?.tableName ?? activeTableCode ?? 'Poker table',
             },
           }
-        : input;
+        : input.postType === 'media'
+          ? { content: input.content, media: input.media, postType: 'media' }
+          : { content: input.content, postType: 'text' };
       const response = await createFeedPost(request, token);
 
       setPosts((currentPosts) =>
@@ -456,7 +463,10 @@ export function PlayerFeedScreen({ navigation, route }: PlayerFeedScreenProps) {
         error,
         'Unable to publish your post right now.',
       );
-      Alert.alert('Post not published', details.message);
+      if (error instanceof Error) {
+        (error as ToastAwareError).feedToastShown = true;
+      }
+      setFeedToast({ tone: 'error', message: details.message });
       throw error;
     }
   }
@@ -1172,6 +1182,7 @@ export function PlayerFeedScreen({ navigation, route }: PlayerFeedScreenProps) {
                 currentPlayer={currentPlayer}
                 isAuthenticated={Boolean(token && currentUser)}
                 onCreatePost={handleCreatePost}
+                onToast={setFeedToast}
                 onUploadAttachment={(attachment) => {
                   if (!token) throw new Error('Sign in to upload attachments.');
                   return uploadFeedMedia(attachment, token);
@@ -1228,6 +1239,35 @@ export function PlayerFeedScreen({ navigation, route }: PlayerFeedScreenProps) {
           style={styles.bottomNavigationSafeArea}
         >
           <MainPlatformNavigation />
+        </SafeAreaView>
+      ) : null}
+      {feedToast ? (
+        <SafeAreaView
+          edges={['bottom', 'left', 'right']}
+          pointerEvents="box-none"
+          style={[
+            styles.toastSafeArea,
+            { bottom: isKeyboardVisible ? 16 : insets.bottom + 84 },
+          ]}
+        >
+          <View
+            accessibilityRole="alert"
+            style={[
+              styles.toast,
+              feedToast.tone === 'success' ? styles.toastSuccess : styles.toastError,
+            ]}
+          >
+            <Text style={styles.toastText}>{feedToast.message}</Text>
+            <Pressable
+              accessibilityLabel="Dismiss feed notification"
+              accessibilityRole="button"
+              hitSlop={8}
+              onPress={() => setFeedToast(null)}
+              style={styles.toastDismiss}
+            >
+              <Text style={styles.toastDismissText}>×</Text>
+            </Pressable>
+          </View>
         </SafeAreaView>
       ) : null}
       <ShareMenu
@@ -1343,6 +1383,54 @@ const styles = StyleSheet.create({
     color: colors.mutedText,
     fontSize: 15,
     lineHeight: 22,
+  },
+  toast: {
+    alignItems: 'center',
+    borderRadius: 18,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 12,
+    marginHorizontal: 18,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    shadowColor: '#000',
+    shadowOffset: { height: 6, width: 0 },
+    shadowOpacity: 0.28,
+    shadowRadius: 12,
+  },
+  toastDismiss: {
+    alignItems: 'center',
+    borderRadius: 16,
+    height: 32,
+    justifyContent: 'center',
+    width: 32,
+  },
+  toastDismissText: {
+    color: colors.text,
+    fontSize: 24,
+    fontWeight: '900',
+    lineHeight: 26,
+  },
+  toastError: {
+    backgroundColor: 'rgba(170, 36, 36, 0.96)',
+    borderColor: '#ff8a8a',
+  },
+  toastSafeArea: {
+    left: 0,
+    position: 'absolute',
+    right: 0,
+    zIndex: 30,
+  },
+  toastSuccess: {
+    backgroundColor: 'rgba(20, 128, 74, 0.96)',
+    borderColor: '#74d99f',
+  },
+  toastText: {
+    color: colors.text,
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '800',
+    lineHeight: 20,
   },
   title: {
     color: colors.text,
