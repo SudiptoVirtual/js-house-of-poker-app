@@ -164,6 +164,19 @@ const chatRoomSchema = new mongoose.Schema(
       default: true,
       index: true,
     },
+    chatType: {
+      type: String,
+      enum: ["direct", "group", "public"],
+      default() {
+        return this.isPublic === false ? "group" : "public";
+      },
+      index: true,
+    },
+    directParticipantKey: {
+      type: String,
+      default: undefined,
+      trim: true,
+    },
     visibility: {
       type: String,
       enum: ["public", "private"],
@@ -238,6 +251,10 @@ const chatRoomSchema = new mongoose.Schema(
 chatRoomSchema.index({ isPublic: 1, sortOrder: 1, lastMessageAt: -1, updatedAt: -1 });
 chatRoomSchema.index({ isPublic: 1, isDisabled: 1, lastMessageAt: -1, updatedAt: -1 });
 chatRoomSchema.index({ "participantStates.userId": 1 });
+chatRoomSchema.index(
+  { directParticipantKey: 1 },
+  { unique: true, sparse: true }
+);
 
 chatRoomSchema.methods.getUnreadCountForUser = function getUnreadCountForUser(userId) {
   if (!userId) {
@@ -281,6 +298,8 @@ chatRoomSchema.methods.toRoomListItem = function toRoomListItem(userId, unreadCo
     slug: this.slug,
     description: this.description,
     topic: this.topic,
+    chatType: this.chatType || (this.isPublic ? "public" : "group"),
+    directParticipantKey: this.directParticipantKey,
     isPublic: this.isPublic,
     visibility: this.visibility || (this.isPublic ? "public" : "private"),
     sortOrder: this.sortOrder,

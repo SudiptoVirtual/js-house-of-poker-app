@@ -96,3 +96,93 @@ test('creating a private chat room adds an eligible online friend and sends thei
   assert.ok(socketEvents.some(({ event, payload }) => event === 'chat:roomInvited' && payload.roomId === String(roomId)));
   assert.ok(socketEvents.some(({ event, payload }) => event === 'chat:messageNotification' && payload.roomId === String(roomId)));
 });
+
+test('creating a direct chat reuses the deterministic participant pair room and serializes the other player name', async (t) => {
+  const senderId = new mongoose.Types.ObjectId('507f1f77bcf86cd799439061');
+  const recipientId = new mongoose.Types.ObjectId('507f1f77bcf86cd799439062');
+  const roomId = new mongoose.Types.ObjectId('507f1f77bcf86cd799439063');
+  const sender = { _id: senderId, name: 'Alice Player' };
+  const recipient = { _id: recipientId, isOnline: false, name: 'Bob Friend' };
+  const createdRooms = [];
+
+  installMockModule(notificationServicePath, {
+    createChatRoomInviteNotifications: async () => [],
+    serializeNotification: (notification) => notification,
+  });
+  installMockModule(presenceServicePath, {
+    getChatRoomPresenceService: () => ({ getPresenceSnapshot: () => ({ activePlayerCount: 0, players: [] }) }),
+  });
+  delete require.cache[controllerPath];
+
+  const ChatRoom = require('../src/models/ChatRoom');
+  const ChatRoomMessage = require('../src/models/ChatRoomMessage');
+  const User = require('../src/models/User');
+  const originals = {
+    chatRoomCreate: ChatRoom.create,
+    chatRoomExists: ChatRoom.exists,
+    chatRoomFindOne: ChatRoom.findOne,
+    messageFind: ChatRoomMessage.find,
+    userFindById: User.findById,
+    userFindOne: User.findOne,
+  };
+  t.after(() => {
+    Object.assign(ChatRoom, {
+      create: originals.chatRoomCreate,
+      exists: originals.chatRoomExists,
+      findOne: originals.chatRoomFindOne,
+    });
+    ChatRoomMessage.find = originals.messageFind;
+    Object.assign(User, { findById: originals.userFindById, findOne: originals.userFindOne });
+    delete require.cache[controllerPath];
+    delete require.cache[notificationServicePath];
+    delete require.cache[presenceServicePath];
+  });
+
+  User.findById = (id) => ({
+    select: async (fields) => {
+      if (String(id) === String(senderId) && fields.includes('friends')) {
+        return { friends: [recipientId] };
+      }
+      if (String(id) === String(recipientId)) {
+        return recipient;
+      }
+      return null;
+    },
+  });
+  User.findOne = () => ({ select: async () => recipient });
+  ChatRoom.exists = async () => null;
+  ChatRoom.findOne = async () => null;
+  ChatRoom.create = async (input) => {
+    createdRooms.push(input);
+    return {
+      ...input,
+      _id: roomId,
+      toRoomListItem: () => ({
+        chatType: input.chatType,
+        directParticipantKey: input.directParticipantKey,
+        id: String(roomId),
+        name: input.name,
+        participantStates: input.participantStates,
+      }),
+    };
+  };
+  ChatRoomMessage.find = () => ({ sort: () => ({ limit: async () => [] }) });
+
+  const { createOrGetDirectChatRoom } = require('../src/controllers/chatRoomController');
+  const response = createResponseRecorder();
+  await createOrGetDirectChatRoom({
+    body: { recipientUserId: String(recipientId) },
+    user: sender,
+  }, response);
+
+  const expectedKey = [String(senderId), String(recipientId)].sort().join(':');
+  assert.equal(response.statusCode, 201);
+  assert.equal(response.body.directParticipantKey, expectedKey);
+  assert.equal(response.body.room.chatType, 'direct');
+  assert.equal(response.body.room.name, 'Bob Friend');
+  assert.equal(createdRooms.length, 1);
+  assert.equal(createdRooms[0].chatType, 'direct');
+  assert.equal(createdRooms[0].directParticipantKey, expectedKey);
+  assert.equal(createdRooms[0].isPublic, false);
+  assert.deepEqual(createdRooms[0].participantStates.map(({ userId }) => String(userId)), [String(senderId), String(recipientId)]);
+});
