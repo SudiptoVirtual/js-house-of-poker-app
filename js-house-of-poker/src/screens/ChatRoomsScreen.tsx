@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import { ActionButton } from '../components/ActionButton';
@@ -28,7 +28,10 @@ export function ChatRoomsScreen({ navigation }: Props) {
   const [activeFriends, setActiveFriends] = useState<ChatRoomFriend[]>([]);
   const [authToken, setAuthToken] = useState<string | null>(null);
   const [newRoomName, setNewRoomName] = useState('');
+  const [tableEntryCode, setTableEntryCode] = useState('');
   const [selectedFriendIds, setSelectedFriendIds] = useState<string[]>([]);
+  const [isCreateRoomDialogVisible, setIsCreateRoomDialogVisible] = useState(false);
+  const [isTableDialogVisible, setIsTableDialogVisible] = useState(false);
   const [isLoadingRooms, setIsLoadingRooms] = useState(true);
   const [isRefreshingRooms, setIsRefreshingRooms] = useState(false);
   const [isCreatingRoom, setIsCreatingRoom] = useState(false);
@@ -118,6 +121,7 @@ export function ChatRoomsScreen({ navigation }: Props) {
       setRooms((currentRooms) => [createdRoom.room, ...currentRooms.filter((room) => room.id !== createdRoom.room.id)]);
       setNewRoomName('');
       setSelectedFriendIds([]);
+      setIsCreateRoomDialogVisible(false);
       navigation.navigate(routes.ChatRoomDetail, { roomId: createdRoom.room.id });
     } catch (error) {
       if (isInvalidUserTokenError(error)) {
@@ -142,83 +146,34 @@ export function ChatRoomsScreen({ navigation }: Props) {
       title="Platform chat rooms"
       subtitle="Join production social rooms backed by the API and realtime socket messaging."
     >
-      <SectionCard title="Social chat hub">
-        <Text style={styles.helperText}>
-          Chat Rooms are first-class platform spaces for planning games, meeting players, and sharing
-          invites before a hand begins. They do not replace or reuse live table chat.
-        </Text>
-        <ActionButton
-          fullWidth
-          icon={activeTableCode ? 'cards-playing-outline' : 'door-open'}
-          label={activeTableCode ? `Open active table ${activeTableCode}` : 'Create or join a table'}
-          onPress={() => navigation.navigate(activeTableCode ? routes.Game : routes.Home)}
-          tone="primary"
-          variant={activeTableCode ? 'primary' : 'secondary'}
-        />
-      </SectionCard>
+      <View style={styles.topActionRow}>
+        <View style={styles.topActionButton}>
+          <ActionButton
+            fullWidth
+            icon="plus-circle-outline"
+            label="Create room"
+            onPress={() => {
+              if (!authToken) {
+                navigation.navigate(routes.Login);
+                return;
+              }
 
-      <SectionCard title="Create New Room">
-        {!authToken ? (
-          <View style={styles.statusStack}>
-            <Text style={styles.helperText}>Sign in to create a private chat room.</Text>
-            <ActionButton
-              compact
-              icon="login"
-              label="Sign in"
-              onPress={() => navigation.navigate(routes.Login)}
-              variant="secondary"
-            />
-          </View>
-        ) : (
-          <View style={styles.createRoomStack}>
-            <TextInput
-              onChangeText={setNewRoomName}
-              placeholder="Room name"
-              placeholderTextColor={colors.mutedText}
-              style={styles.input}
-              value={newRoomName}
-            />
-            {activeFriends.length > 0 ? (
-              <View style={styles.friendChipWrap}>
-                {activeFriends.map((friend) => {
-                  const selected = selectedFriendIds.includes(friend.id);
-
-                  return (
-                    <Pressable
-                      accessibilityLabel={`${selected ? 'Remove' : 'Invite'} ${friend.displayName}`}
-                      accessibilityRole="button"
-                      key={friend.id}
-                      onPress={() => handleToggleFriend(friend.id)}
-                      style={({ pressed }) => [
-                        styles.friendChip,
-                        selected ? styles.friendChipSelected : null,
-                        pressed ? styles.pressed : null,
-                      ]}
-                    >
-                      <Text style={[styles.friendChipText, selected ? styles.friendChipTextSelected : null]}>
-                        {friend.displayName}
-                      </Text>
-                      <Text style={styles.friendChipHandle}>{friend.handle}</Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
-            ) : (
-              <Text style={styles.mutedText}>No active friends are available to invite right now.</Text>
-            )}
-            {createRoomError ? <Text style={styles.errorText}>{createRoomError}</Text> : null}
-            <ActionButton
-              fullWidth
-              disabled={!newRoomName.trim() || isCreatingRoom}
-              icon="plus-circle-outline"
-              label={isCreatingRoom ? 'Creating room...' : 'Create Room'}
-              loading={isCreatingRoom}
-              onPress={() => { void handleCreateRoom(); }}
-              tone="success"
-            />
-          </View>
-        )}
-      </SectionCard>
+              setIsCreateRoomDialogVisible(true);
+            }}
+            tone="success"
+          />
+        </View>
+        <View style={styles.topActionButton}>
+          <ActionButton
+            fullWidth
+            icon={activeTableCode ? 'cards-playing-outline' : 'door-open'}
+            label="Create or join table"
+            onPress={() => setIsTableDialogVisible(true)}
+            tone="primary"
+            variant={activeTableCode ? 'primary' : 'secondary'}
+          />
+        </View>
+      </View>
 
       <SectionCard title="Rooms">
         {roomsError ? (
@@ -257,6 +212,118 @@ export function ChatRoomsScreen({ navigation }: Props) {
         </View>
       </SectionCard>
 
+
+      <Modal
+        animationType="fade"
+        onRequestClose={() => setIsCreateRoomDialogVisible(false)}
+        transparent
+        visible={isCreateRoomDialogVisible}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={styles.dialogCard}>
+            <Text style={styles.dialogTitle}>Create room</Text>
+            <TextInput
+              onChangeText={setNewRoomName}
+              placeholder="Room name"
+              placeholderTextColor={colors.mutedText}
+              style={styles.input}
+              value={newRoomName}
+            />
+            {activeFriends.length > 0 ? (
+              <View style={styles.friendChipWrap}>
+                {activeFriends.map((friend) => {
+                  const selected = selectedFriendIds.includes(friend.id);
+
+                  return (
+                    <Pressable
+                      accessibilityLabel={`${selected ? 'Remove' : 'Invite'} ${friend.displayName}`}
+                      accessibilityRole="button"
+                      key={friend.id}
+                      onPress={() => handleToggleFriend(friend.id)}
+                      style={({ pressed }) => [
+                        styles.friendChip,
+                        selected ? styles.friendChipSelected : null,
+                        pressed ? styles.pressed : null,
+                      ]}
+                    >
+                      <Text style={[styles.friendChipText, selected ? styles.friendChipTextSelected : null]}>
+                        {friend.displayName}
+                      </Text>
+                      <Text style={styles.friendChipHandle}>{friend.handle}</Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            ) : (
+              <Text style={styles.mutedText}>No active friends are available to invite right now.</Text>
+            )}
+            {createRoomError ? <Text style={styles.errorText}>{createRoomError}</Text> : null}
+            <View style={styles.dialogActionRow}>
+              <ActionButton
+                disabled={!newRoomName.trim() || isCreatingRoom}
+                icon="plus-circle-outline"
+                label={isCreatingRoom ? 'Creating room...' : 'Create'}
+                loading={isCreatingRoom}
+                onPress={() => { void handleCreateRoom(); }}
+                tone="success"
+              />
+              <ActionButton
+                label="Cancel"
+                onPress={() => setIsCreateRoomDialogVisible(false)}
+                variant="secondary"
+              />
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        animationType="fade"
+        onRequestClose={() => setIsTableDialogVisible(false)}
+        transparent
+        visible={isTableDialogVisible}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={styles.dialogCard}>
+            <Text style={styles.dialogTitle}>Create or join table</Text>
+            <Text style={styles.mutedText}>Enter a table code to join, or create a new table from the lobby.</Text>
+            <TextInput
+              autoCapitalize="characters"
+              autoCorrect={false}
+              onChangeText={(value) => setTableEntryCode(value.toUpperCase())}
+              placeholder="Table code"
+              placeholderTextColor={colors.mutedText}
+              style={styles.input}
+              value={tableEntryCode}
+            />
+            <View style={styles.dialogActionRow}>
+              <ActionButton
+                label="Create"
+                onPress={() => {
+                  setIsTableDialogVisible(false);
+                  navigation.navigate(routes.Home);
+                }}
+              />
+              <ActionButton
+                disabled={!tableEntryCode.trim()}
+                label="Join"
+                onPress={() => {
+                  const tableCode = tableEntryCode.trim().toUpperCase();
+                  setIsTableDialogVisible(false);
+                  navigation.navigate(routes.Game, { tableCode });
+                }}
+                variant="secondary"
+              />
+              <ActionButton
+                label="Cancel"
+                onPress={() => setIsTableDialogVisible(false)}
+                variant="secondary"
+              />
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       {/* <ComplianceNotice /> */}
     </Screen>
   );
@@ -265,6 +332,26 @@ export function ChatRoomsScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   createRoomStack: {
     gap: 12,
+  },
+  dialogActionRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    justifyContent: 'flex-end',
+  },
+  dialogCard: {
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderRadius: 24,
+    borderWidth: 1,
+    gap: 14,
+    padding: 18,
+    width: '100%',
+  },
+  dialogTitle: {
+    color: colors.text,
+    fontSize: 20,
+    fontWeight: '900',
   },
   errorText: {
     color: colors.danger,
@@ -319,6 +406,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 10,
   },
+  modalBackdrop: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(3,7,18,0.72)',
+    flex: 1,
+    justifyContent: 'center',
+    padding: 20,
+  },
   mutedText: {
     color: colors.mutedText,
     fontSize: 13,
@@ -331,6 +425,15 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   statusStack: {
+    gap: 10,
+  },
+  topActionButton: {
+    flex: 1,
+    minWidth: 150,
+  },
+  topActionRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 10,
   },
 });
