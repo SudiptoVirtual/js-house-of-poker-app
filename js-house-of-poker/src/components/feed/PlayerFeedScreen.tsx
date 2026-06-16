@@ -1236,6 +1236,7 @@ export function PlayerFeedScreen({ navigation, route }: PlayerFeedScreenProps) {
               onPromote={setPromotePost}
               onRequestVideoActive={setActiveVideoPostId}
               onShare={setSharePost}
+              onShowToast={setFeedToast}
               onSupportChange={handleSupportChange}
               onUpdateComment={handleUpdateComment}
               onUpdatePost={handleUpdatePost}

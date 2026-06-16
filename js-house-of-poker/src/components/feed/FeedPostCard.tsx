@@ -24,6 +24,7 @@ import type {
 
 type CommentPanelLoadState = "idle" | "loading" | "ready" | "empty" | "error";
 type PostMenuAnchor = { height: number; width: number; x: number; y: number };
+type FeedPostToast = { tone: "success" | "error"; message: string };
 
 const POST_MENU_WIDTH = 180;
 const POST_MENU_HEIGHT = 98;
@@ -69,6 +70,7 @@ type FeedPostCardProps = {
   onPromote: (post: FeedPost) => void;
   onRequestVideoActive?: (postId: string) => void;
   onShare: (post: FeedPost) => void;
+  onShowToast?: (toast: FeedPostToast) => void;
   onSupportChange: (
     postId: string,
     isSupported: boolean,
@@ -101,6 +103,7 @@ export function FeedPostCard({
   onPromote,
   onRequestVideoActive,
   onShare,
+  onShowToast,
   onSupportChange,
   onUpdateComment,
   onUpdatePost,
@@ -162,7 +165,7 @@ export function FeedPostCard({
 
   function guardAction(action: () => void) {
     if (actionsDisabled) {
-      Alert.alert("Action unavailable", actionsDisabledMessage);
+      onShowToast?.({ tone: "error", message: actionsDisabledMessage });
       return;
     }
 
@@ -280,7 +283,7 @@ export function FeedPostCard({
     const trimmedComment = commentDraft.trim();
 
     if (actionsDisabled) {
-      Alert.alert("Action unavailable", actionsDisabledMessage);
+      onShowToast?.({ tone: "error", message: actionsDisabledMessage });
       return;
     }
 
