@@ -1204,7 +1204,7 @@ export function ChatRoomDetailScreen({ navigation, route }: Props) {
         <View style={styles.messageStack}>
           {room.messages.length === 0 ? <Text style={styles.helperText}>No messages yet. Start the conversation.</Text> : null}
           {room.messages.map((message) => (
-            <ChatMessageItem currentUserId={currentUserId} key={message.id} message={message} players={room.players} />
+            <ChatMessageItem chatType={room.chatType} currentUserId={currentUserId} key={message.id} message={message} players={room.players} />
           ))}
         </View>
         <ChatInputBar

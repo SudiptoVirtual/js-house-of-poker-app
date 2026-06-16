@@ -2,10 +2,11 @@ import { StyleSheet, Text, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 import { colors } from '../../theme/colors';
-import type { ChatRoomMessage, ChatRoomPlayer } from '../../types/chatRooms';
+import type { ChatRoom, ChatRoomMessage, ChatRoomPlayer } from '../../types/chatRooms';
 import { formatChatTimestamp } from './chatRoomUtils';
 
 type ChatMessageItemProps = {
+  chatType?: ChatRoom['chatType'];
   currentUserId?: string;
   message: ChatRoomMessage;
   players?: ChatRoomPlayer[];
@@ -36,44 +37,62 @@ function getRecipientName(message: ChatRoomMessage, players: ChatRoomPlayer[]) {
   return recipient?.displayName ?? 'room player';
 }
 
-export function ChatMessageItem({ currentUserId = 'local-player', message, players = [] }: ChatMessageItemProps) {
-  const isSystem = message.tone === 'system';
+export function ChatMessageItem({ chatType = 'group', currentUserId = 'local-player', message, players = [] }: ChatMessageItemProps) {
+  const isDirectChat = chatType === 'direct';
+  const isSystem = message.tone === 'system' || message.kind === 'system' || message.messageType === 'system';
   const isCurrentUser = message.authorId === currentUserId;
   const isGiftClip = isGiftClipMessage(message);
   const giftClipNote = message.giftClip?.message || message.body;
+  const timestamp = formatChatTimestamp(message.createdAt);
+  const showRoomAvatar = !isDirectChat && !isCurrentUser;
+  const showRoomHeader = !isDirectChat;
+  const showDirectFooter = isDirectChat && !isSystem;
+
+  if (isSystem) {
+    return (
+      <View style={[styles.systemRow, isDirectChat ? styles.directSystemRow : null]}>
+        <View style={[styles.systemPill, isDirectChat ? styles.directSystemPill : null]}>
+          <Text style={styles.systemPillText}>{message.body}</Text>
+          <Text style={styles.systemPillTime}>{timestamp}</Text>
+        </View>
+      </View>
+    );
+  }
 
   return (
-    <View style={[styles.row, isCurrentUser ? styles.localRow : null]}>
-      <View
-        style={[
-          styles.avatar,
-          isGiftClip ? styles.giftAvatar : null,
-          isSystem ? styles.systemAvatar : null,
-          isCurrentUser ? styles.localAvatar : null,
-        ]}
-      >
-        {isGiftClip ? (
-          <MaterialCommunityIcons color={colors.background} name="gift-outline" size={18} />
-        ) : (
-          <Text style={[styles.avatarText, isCurrentUser ? styles.localAvatarText : null]}>
-            {isSystem ? 'HB' : getInitials(message.authorName)}
-          </Text>
-        )}
-      </View>
+    <View
+      style={[
+        styles.row,
+        isDirectChat ? styles.directRow : null,
+        isDirectChat && isCurrentUser ? styles.directLocalRow : null,
+        !isDirectChat && isCurrentUser ? styles.localRow : null,
+      ]}
+    >
+      {showRoomAvatar ? (
+        <View style={[styles.avatar, isGiftClip ? styles.giftAvatar : null]}>
+          {isGiftClip ? (
+            <MaterialCommunityIcons color={colors.background} name="gift-outline" size={18} />
+          ) : (
+            <Text style={styles.avatarText}>{getInitials(message.authorName)}</Text>
+          )}
+        </View>
+      ) : null}
       <View
         style={[
           styles.messageBubble,
+          isDirectChat ? styles.directMessageBubble : null,
           isGiftClip ? styles.giftClipBubble : null,
-          isSystem ? styles.systemMessageBubble : null,
           isCurrentUser ? styles.localMessageBubble : null,
+          isDirectChat && isCurrentUser ? styles.directLocalMessageBubble : null,
+          isDirectChat && !isCurrentUser ? styles.directRecipientMessageBubble : null,
         ]}
       >
-        <View style={styles.messageHeader}>
-          <Text style={[styles.messageAuthor, isSystem ? styles.systemText : null]}>{message.authorName}</Text>
-          <Text style={[styles.messageTime, isCurrentUser ? styles.localMessageTime : null]}>
-            {formatChatTimestamp(message.createdAt)}
-          </Text>
-        </View>
+        {showRoomHeader ? (
+          <View style={styles.messageHeader}>
+            <Text style={styles.messageAuthor}>{message.authorName}</Text>
+            <Text style={[styles.messageTime, isCurrentUser ? styles.localMessageTime : null]}>{timestamp}</Text>
+          </View>
+        ) : null}
         {isGiftClip ? (
           <View style={styles.giftClipCard}>
             <View style={styles.giftClipTitleRow}>
@@ -87,8 +106,15 @@ export function ChatMessageItem({ currentUserId = 'local-player', message, playe
             {giftClipNote ? <Text style={styles.giftClipNote}>“{giftClipNote}”</Text> : null}
           </View>
         ) : (
-          <Text style={[styles.messageBody, isSystem ? styles.systemText : null]}>{message.body}</Text>
+          <Text style={[styles.messageBody, isDirectChat ? styles.directMessageBody : null]}>{message.body}</Text>
         )}
+        {showDirectFooter ? (
+          <View style={[styles.directMessageFooter, isCurrentUser ? styles.directLocalMessageFooter : null]}>
+            <Text style={[styles.messageTime, isCurrentUser ? styles.directLocalMessageTime : null]}>
+              {timestamp}{isCurrentUser ? ' • Sent' : ''}
+            </Text>
+          </View>
+        ) : null}
       </View>
     </View>
   );
@@ -109,6 +135,53 @@ const styles = StyleSheet.create({
     color: colors.secondary,
     fontSize: 12,
     fontWeight: '900',
+  },
+  directLocalMessageBubble: {
+    backgroundColor: colors.success,
+    borderColor: colors.success,
+    borderBottomRightRadius: 6,
+  },
+  directLocalMessageFooter: {
+    justifyContent: 'flex-end',
+  },
+  directLocalMessageTime: {
+    color: colors.background,
+  },
+  directLocalRow: {
+    justifyContent: 'flex-end',
+  },
+  directMessageBody: {
+    fontSize: 15,
+    lineHeight: 21,
+  },
+  directMessageBubble: {
+    borderRadius: 20,
+    flex: 0,
+    maxWidth: '78%',
+    minWidth: 72,
+    paddingHorizontal: 13,
+    paddingVertical: 9,
+  },
+  directMessageFooter: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    marginTop: 2,
+  },
+  directRecipientMessageBubble: {
+    backgroundColor: colors.surface,
+    borderBottomLeftRadius: 6,
+    borderColor: colors.border,
+  },
+  directRow: {
+    gap: 0,
+    justifyContent: 'flex-start',
+  },
+  directSystemPill: {
+    maxWidth: '82%',
+    paddingVertical: 8,
+  },
+  directSystemRow: {
+    marginVertical: 2,
   },
   giftAvatar: {
     backgroundColor: colors.gold,
@@ -149,13 +222,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flexDirection: 'row',
     gap: 6,
-  },
-  localAvatar: {
-    backgroundColor: colors.success,
-    borderColor: colors.success,
-  },
-  localAvatarText: {
-    color: colors.background,
   },
   localMessageBubble: {
     backgroundColor: 'rgba(77,243,199,0.16)',
@@ -203,14 +269,30 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 10,
   },
-  systemAvatar: {
-    borderColor: colors.primary,
-  },
-  systemMessageBubble: {
+  systemPill: {
+    alignItems: 'center',
     backgroundColor: 'rgba(139,92,255,0.18)',
     borderColor: colors.primary,
+    borderRadius: 16,
+    borderWidth: 1,
+    gap: 3,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
   },
-  systemText: {
+  systemPillText: {
     color: colors.secondary,
+    fontSize: 13,
+    fontWeight: '800',
+    textAlign: 'center',
+  },
+  systemPillTime: {
+    color: colors.mutedText,
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  systemRow: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
   },
 });
