@@ -37,11 +37,16 @@ export function FeedMediaGallery({ isActive = false, media, onRequestVideoActive
   const videos = media.filter((item) => item.type === 'video');
   const move = (delta: number) => setPreviewIndex((index) => index === null ? null : (index + delta + images.length) % images.length);
   const tile = (image: FeedImageMedia, index: number) => <FeedImage collage key={`${image.url}-${index}`} media={image} onPress={() => setPreviewIndex(index)} />;
-  const collage = images.length === 2 || images.length === 4
-    ? <View style={[styles.collage, images.length === 4 && styles.wrap]}>{images.map(tile)}</View>
-    : <View style={styles.collage}><View style={styles.lead}>{tile(images[0], 0)}</View><View style={styles.column}>{images.slice(1).map((image, index) => tile(image, index + 1))}</View></View>;
+  const renderCollage = () => {
+    if (images.length === 2 || images.length === 4) {
+      return <View style={[styles.collage, images.length === 4 && styles.wrap]}>{images.map(tile)}</View>;
+    }
+
+    return <View style={styles.collage}><View style={styles.lead}>{tile(images[0], 0)}</View><View style={styles.column}>{images.slice(1).map((image, index) => tile(image, index + 1))}</View></View>;
+  };
   return <View accessibilityLabel={`${media.length} media attachment${media.length === 1 ? '' : 's'}`} style={styles.gallery}>
-    {images.length === 1 ? <FeedImage media={images[0]} onPress={() => setPreviewIndex(0)} /> : images.length > 1 ? collage : null}
+    {images.length === 1 ? <FeedImage media={images[0]} onPress={() => setPreviewIndex(0)} /> : null}
+    {images.length > 1 ? renderCollage() : null}
     {videos.map((item, index) => <FeedVideo isActive={isActive} key={`${item.url}-${index}`} media={item} onRequestActive={onRequestVideoActive} />)}
     <Modal animationType="fade" onRequestClose={() => setPreviewIndex(null)} transparent visible={previewIndex !== null}><View accessibilityViewIsModal style={styles.preview}>
       {previewIndex !== null ? <Image accessibilityLabel={`Full-screen preview: ${images[previewIndex].altText}`} resizeMode="contain" source={{ uri: images[previewIndex].url }} style={StyleSheet.absoluteFillObject} /> : null}
