@@ -209,6 +209,15 @@ function userCanAccessChatRoom(room, userId) {
   );
 }
 
+function buildDirectParticipantKey(userIds) {
+  const normalizedIds = userIds
+    .map(normalizeObjectIdString)
+    .filter(Boolean)
+    .sort();
+
+  return normalizedIds.length === 2 ? normalizedIds.join(":") : null;
+}
+
 function buildParticipantState(userId) {
   const now = new Date();
 
@@ -256,6 +265,48 @@ async function getActiveFriendUsers(user) {
   })
     .select("avatar email isOnline name playerStatus")
     .sort({ name: 1, email: 1 });
+}
+
+async function getEligibleDirectChatRecipient(user, recipientUserId) {
+  const normalizedRecipientId = normalizeObjectIdString(recipientUserId);
+  const normalizedUserId = normalizeObjectIdString(user?._id);
+
+  if (!normalizedRecipientId || !normalizedUserId) {
+    return null;
+  }
+
+  if (normalizedRecipientId === normalizedUserId) {
+    const error = new Error("You cannot create a direct chat with yourself");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const [freshUser, recipient] = await Promise.all([
+    User.findById(user._id).select("friends referredByUserId"),
+    User.findOne({
+      _id: normalizedRecipientId,
+      isBlocked: { $ne: true },
+      status: { $ne: "blocked" },
+    }).select("avatar email isOnline name playerStatus referredByUserId"),
+  ]);
+
+  if (!recipient) {
+    return null;
+  }
+
+  const friendIds = new Set(
+    (freshUser?.friends || [])
+      .map(normalizeObjectIdString)
+      .filter(Boolean)
+  );
+  const referrerId = normalizeObjectIdString(freshUser?.referredByUserId);
+  const recipientReferrerId = normalizeObjectIdString(recipient.referredByUserId);
+  const isEligible =
+    friendIds.has(normalizedRecipientId) ||
+    referrerId === normalizedRecipientId ||
+    recipientReferrerId === normalizedUserId;
+
+  return isEligible ? recipient : null;
 }
 
 async function getEligibleActiveFriendUsers(user, requestedPlayerIds) {
@@ -330,8 +381,23 @@ async function serializeSocialChatRoomDetail(room, recentMessageLimit, userId = 
 
   const serializedMessages = messages.reverse().map(serializeChatRoomMessage);
 
+  const roomListItem = room.toRoomListItem(userId);
+
+  if ((room.chatType || roomListItem.chatType) === "direct" && userId) {
+    const otherParticipantId = (room.participantStates || [])
+      .map((state) => String(state.userId))
+      .find((participantId) => participantId !== String(userId));
+
+    if (otherParticipantId) {
+      const otherParticipant = await User.findById(otherParticipantId).select("email name");
+      if (otherParticipant) {
+        roomListItem.name = getDisplayName(otherParticipant);
+      }
+    }
+  }
+
   return {
-    ...room.toRoomListItem(userId),
+    ...roomListItem,
     activePlayerCount: presenceSnapshot.activePlayerCount || room.activePlayerCount || 0,
     activePlayers: (presenceSnapshot.players || []).map(serializeChatRoomPlayer),
     messages: serializedMessages,
@@ -664,6 +730,7 @@ const createChatRoom = async (req, res) => {
       activePlayerCount: 0,
       createdByUserId: req.user._id,
       description: description || "Private room for planning poker sessions.",
+      chatType: "group",
       isPublic: false,
       name,
       participantStates: participantIds.map(buildParticipantState),
@@ -693,6 +760,59 @@ const createChatRoom = async (req, res) => {
       message: "Error creating chat room",
       error: error.message,
     });
+  }
+};
+
+const createOrGetDirectChatRoom = async (req, res) => {
+  try {
+    const recipientUserId = req.body?.recipientUserId;
+    const recipient = await getEligibleDirectChatRecipient(req.user, recipientUserId);
+
+    if (!recipient) {
+      return res.status(400).json({
+        message: "Recipient must be an eligible friend",
+      });
+    }
+
+    const participantIds = [String(req.user._id), String(recipient._id)];
+    const directParticipantKey = buildDirectParticipantKey(participantIds);
+    let room = await ChatRoom.findOne({ directParticipantKey, isDisabled: { $ne: true } });
+    let created = false;
+
+    if (!room) {
+      try {
+        room = await ChatRoom.create({
+          activePlayerCount: 0,
+          chatType: "direct",
+          createdByUserId: req.user._id,
+          description: "Direct one-to-one chat.",
+          directParticipantKey,
+          isPublic: false,
+          name: `${getDisplayName(req.user)} & ${getDisplayName(recipient)}`,
+          participantStates: participantIds.map(buildParticipantState),
+          slug: await generateUniqueRoomSlug(`direct-${directParticipantKey.replace(/:/g, "-")}`),
+          topic: "Direct chat",
+          visibility: "private",
+        });
+        created = true;
+      } catch (error) {
+        if (error?.code !== 11000) {
+          throw error;
+        }
+        room = await ChatRoom.findOne({ directParticipantKey, isDisabled: { $ne: true } });
+      }
+    }
+
+    if (!room) {
+      return res.status(500).json({ message: "Unable to create direct chat room" });
+    }
+
+    return res.status(created ? 201 : 200).json({
+      directParticipantKey,
+      room: await serializeSocialChatRoomDetail(room, DEFAULT_RECENT_MESSAGE_LIMIT, req.user._id),
+    });
+  } catch (error) {
+    return sendServerError(res, error, "Error creating direct chat room");
   }
 };
 
@@ -825,6 +945,7 @@ async function sendChatRoomGiftClip(req, res) {
 
 module.exports = {
   createChatRoom,
+  createOrGetDirectChatRoom,
   getActiveChatRoomFriends,
   getChatRoomById,
   getChatRooms,

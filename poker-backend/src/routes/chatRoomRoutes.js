@@ -2,6 +2,7 @@ const express = require("express");
 
 const {
   createChatRoom,
+  createOrGetDirectChatRoom,
   getActiveChatRoomFriends,
   getChatRoomById,
   getChatRooms,
@@ -15,6 +16,7 @@ const router = express.Router();
 
 router.get("/", optionalUser, getChatRooms);
 router.post("/", protectUser, createChatRoom);
+router.post("/direct", protectUser, createOrGetDirectChatRoom);
 router.get("/active-friends", protectUser, getActiveChatRoomFriends);
 router.get("/:roomId", optionalUser, getChatRoomById);
 router.post("/:roomId/invites", protectUser, inviteChatRoomFriends);
