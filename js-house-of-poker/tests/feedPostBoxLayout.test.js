@@ -32,7 +32,6 @@ function ActionButton() {}
 function FeedAvatar() {}
 
 const reactNativeMock = {
-  Alert: { alert: () => {} },
   Image: 'Image',
   Modal: 'Modal',
   Pressable: 'Pressable',
@@ -60,7 +59,7 @@ function renderFeedPostBox() {
     },
   });
 
-  return FeedPostBox({ onCreatePost: async () => ({}), onUploadAttachment: async () => ({}) });
+  return FeedPostBox({ onCreatePost: async () => ({}), onToast: () => {}, onUploadAttachment: async () => ({}) });
 }
 
 test('feed composer displays its heading and updated prompt', () => {
