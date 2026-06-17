@@ -1,4 +1,4 @@
-import { useMemo, type PropsWithChildren } from 'react';
+import { useMemo, type PropsWithChildren, type ReactNode } from 'react';
 import {
   Platform,
   PanResponder,
@@ -26,6 +26,7 @@ type ScreenProps = PropsWithChildren<{
   refreshing?: boolean;
   subtitle?: string;
   showPlatformNavigation?: boolean;
+  headerRight?: ReactNode;
   title: string;
 }>;
 
@@ -34,6 +35,7 @@ export function Screen({
   onRefresh,
   refreshing = false,
   showPlatformNavigation = false,
+  headerRight,
   subtitle,
   title,
   children,
@@ -101,8 +103,13 @@ export function Screen({
             ) : undefined}
           >
             <View style={styles.header}>
-              {eyebrow ? <Text style={styles.eyebrow}>{eyebrow}</Text> : null}
-              <Text style={styles.title}>{title}</Text>
+              <View style={styles.headerTopRow}>
+                <View style={styles.headerCopy}>
+                  {eyebrow ? <Text style={styles.eyebrow}>{eyebrow}</Text> : null}
+                  <Text style={styles.title}>{title}</Text>
+                </View>
+                {headerRight ? <View style={styles.headerRight}>{headerRight}</View> : null}
+              </View>
               {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
             </View>
             <View style={styles.body}>{children}</View>
@@ -148,6 +155,19 @@ const styles = StyleSheet.create({
   },
   header: {
     gap: 8,
+  },
+  headerCopy: {
+    flex: 1,
+    gap: 8,
+  },
+  headerRight: {
+    alignItems: 'flex-end',
+    justifyContent: 'flex-start',
+  },
+  headerTopRow: {
+    alignItems: 'flex-start',
+    flexDirection: 'row',
+    gap: 12,
   },
   root: {
     backgroundColor: colors.background,
