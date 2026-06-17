@@ -132,6 +132,10 @@ type CreateChatRoomResponse = {
   room?: BackendChatRoomDetail;
 };
 
+type CreateDirectChatRoomInput = {
+  recipientUserId: string;
+};
+
 type CreateDirectChatRoomResponse = {
   room?: BackendChatRoomDetail;
 };
@@ -528,7 +532,7 @@ export async function createChatRoom(input: CreateChatRoomInput, token: string) 
 export async function createOrGetDirectChatRoom(recipientUserId: string, token: string) {
   try {
     const response = await apiRequest<CreateDirectChatRoomResponse>('/api/chat-rooms/direct', {
-      body: { recipientUserId },
+      body: { recipientUserId } satisfies CreateDirectChatRoomInput,
       method: 'POST',
       token,
     });

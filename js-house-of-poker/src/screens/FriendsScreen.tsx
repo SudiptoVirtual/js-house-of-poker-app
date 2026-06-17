@@ -21,7 +21,7 @@ import {
   searchPlayers,
   sendFriendRequest,
 } from '../services/api';
-import { createChatRoom, createOrGetDirectChatRoom } from '../services/api/chatRooms';
+import { createOrGetDirectChatRoom } from '../services/api/chatRooms';
 import { friendRealtimeEvents } from '../services/friends/friendRealtimeService';
 import {
   mergeFriendPresenceUpdate,
@@ -48,7 +48,7 @@ function updatePlayerRelationship(
 }
 
 export function FriendsScreen({ navigation }: Props) {
-  const { currentUser, token } = useAuth();
+  const { token } = useAuth();
   const {
     events: friendRealtimeEventsReceived,
     pendingRequests: incomingRequests,
@@ -287,18 +287,11 @@ export function FriendsScreen({ navigation }: Props) {
     }
 
     try {
-      const currentUserDisplayName = currentUser?.name?.trim() || 'Player';
-      const createdRoom = await createChatRoom(
-        {
-          invitedPlayerIds: [player.id],
-          name: `${currentUserDisplayName} & ${player.displayName}`,
-        },
-        token,
-      );
-      setFeedbackMessage(`Chat invite sent to ${player.displayName}.`);
-      navigation.navigate(routes.ChatRoomDetail, { roomId: createdRoom.room.id });
+      const room = await createOrGetDirectChatRoom(player.id, token);
+      setFeedbackMessage(`Opening chat with ${player.displayName}.`);
+      navigation.navigate(routes.ChatRoomDetail, { roomId: room.id });
     } catch (error) {
-      const { message } = getApiErrorDetails(error, `Unable to send a chat invite to ${player.displayName}.`);
+      const { message } = getApiErrorDetails(error, `Unable to open a chat with ${player.displayName}.`);
       setFeedbackMessage(message);
     }
   }
