@@ -8,11 +8,12 @@ type PlayerSearchResultsListProps = {
   emptyMessage?: string;
   hasActiveTable: boolean;
   isSearchActive: boolean;
-  onInviteToChat: (player: FriendsPlayer) => void;
+  onInviteToChatRoom: (player: FriendsPlayer) => void;
   onInviteToTable: (player: FriendsPlayer) => void;
   onRemoveFriend?: (player: FriendsPlayer) => void;
   onRespondToRequest: (player: FriendsPlayer, response: 'accept' | 'reject') => void;
   onSendFriendRequest: (player: FriendsPlayer) => void;
+  onStartDirectChat: (player: FriendsPlayer) => void;
   onViewProfile: (player: FriendsPlayer) => void;
   players: FriendsPlayer[];
 };
@@ -21,11 +22,12 @@ export function PlayerSearchResultsList({
   emptyMessage = 'No players match that name or username.',
   hasActiveTable,
   isSearchActive,
-  onInviteToChat,
+  onInviteToChatRoom,
   onInviteToTable,
   onRemoveFriend,
   onRespondToRequest,
   onSendFriendRequest,
+  onStartDirectChat,
   onViewProfile,
   players,
 }: PlayerSearchResultsListProps) {
@@ -45,11 +47,12 @@ export function PlayerSearchResultsList({
       renderItem={({ item }) => (
         <PlayerSearchResultCard
           hasActiveTable={hasActiveTable}
-          onInviteToChat={onInviteToChat}
+          onInviteToChatRoom={onInviteToChatRoom}
           onInviteToTable={onInviteToTable}
           onRemoveFriend={onRemoveFriend}
           onRespondToRequest={onRespondToRequest}
           onSendFriendRequest={onSendFriendRequest}
+          onStartDirectChat={onStartDirectChat}
           onViewProfile={onViewProfile}
           player={item}
         />

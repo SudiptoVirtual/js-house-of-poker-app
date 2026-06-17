@@ -10,9 +10,10 @@ import { SendFriendRequestButton } from './SendFriendRequestButton';
 
 type FriendQuickActionsProps = {
   hasActiveTable: boolean;
-  onInviteToChat: (player: FriendsPlayer) => void | Promise<void>;
+  onInviteToChatRoom: (player: FriendsPlayer) => void | Promise<void>;
   onInviteToTable: (player: FriendsPlayer) => void | Promise<void>;
   onRemoveFriend?: (player: FriendsPlayer) => void | Promise<void>;
+  onStartDirectChat: (player: FriendsPlayer) => void | Promise<void>;
   onRespondToRequest?: (player: FriendsPlayer, response: 'accept' | 'reject') => void | Promise<void>;
   onSendFriendRequest: (player: FriendsPlayer) => void | Promise<void>;
   onViewProfile: (player: FriendsPlayer) => void;
@@ -22,17 +23,18 @@ type FriendQuickActionsProps = {
 
 export function FriendQuickActions({
   hasActiveTable,
-  onInviteToChat,
+  onInviteToChatRoom,
   onInviteToTable,
   onRemoveFriend,
   onRespondToRequest,
   onSendFriendRequest,
+  onStartDirectChat,
   onViewProfile,
   player,
   showFriendRequestAction = false,
 }: FriendQuickActionsProps) {
   const canInviteOnlinePlayer = player.isOnline;
-  const canStartDirectChat = player.relationshipStatus === 'friend' || canInviteOnlinePlayer;
+  const canUseChatActions = player.relationshipStatus === 'friend' || canInviteOnlinePlayer;
   const [pendingAction, setPendingAction] = useState<string | null>(null);
 
   async function runAction(actionId: string, action: () => void | Promise<void>) {
@@ -59,32 +61,35 @@ export function FriendQuickActions({
         onPress={() => onViewProfile(player)}
         variant="secondary"
       />
-      {canStartDirectChat ? (
-        canInviteOnlinePlayer ? (
-          <View style={styles.actionRow}>
-            <InviteToChatButton
-              disabled={Boolean(pendingAction)}
-              fullWidth={false}
-              label={player.relationshipStatus === 'friend' ? 'Chat' : undefined}
-              loading={pendingAction === 'invite-chat'}
-              onPress={() => { void runAction('invite-chat', () => onInviteToChat(player)); }}
-            />
-            <InviteToTableButton
-              disabled={Boolean(pendingAction)}
-              fullWidth={false}
-              hasActiveTable={hasActiveTable}
-              loading={pendingAction === 'invite-table'}
-              onPress={() => { void runAction('invite-table', () => onInviteToTable(player)); }}
-            />
-          </View>
-        ) : (
+      {canUseChatActions ? (
+        <View style={styles.actionRow}>
+          <ActionButton
+            compact
+            containerStyle={styles.actionButton}
+            disabled={Boolean(pendingAction)}
+            icon="chat-outline"
+            label="Chat"
+            loading={pendingAction === 'direct-chat'}
+            onPress={() => { void runAction('direct-chat', () => onStartDirectChat(player)); }}
+            tone="primary"
+            variant="secondary"
+          />
           <InviteToChatButton
             disabled={Boolean(pendingAction)}
-            label="Chat"
-            loading={pendingAction === 'invite-chat'}
-            onPress={() => { void runAction('invite-chat', () => onInviteToChat(player)); }}
+            fullWidth={false}
+            label="Chat Invite"
+            loading={pendingAction === 'invite-chat-room'}
+            onPress={() => { void runAction('invite-chat-room', () => onInviteToChatRoom(player)); }}
           />
-        )
+        </View>
+      ) : null}
+      {canInviteOnlinePlayer ? (
+        <InviteToTableButton
+          disabled={Boolean(pendingAction)}
+          hasActiveTable={hasActiveTable}
+          loading={pendingAction === 'invite-table'}
+          onPress={() => { void runAction('invite-table', () => onInviteToTable(player)); }}
+        />
       ) : null}
       {showFriendRequestAction && player.relationshipStatus === 'not_friends' ? (
         <SendFriendRequestButton
@@ -137,6 +142,10 @@ export function FriendQuickActions({
 }
 
 const styles = StyleSheet.create({
+  actionButton: {
+    flex: 1,
+    minWidth: 0,
+  },
   actionRow: {
     flexDirection: 'row',
     gap: 8,

@@ -75,44 +75,50 @@ const requestPlayer = {
 function renderRequestActions(onRespondToRequest = () => {}) {
   const QuickActions = loadFriendQuickActions();
   return QuickActions({
-    hasActiveTable: false, onInviteToChat: () => {}, onInviteToTable: () => {}, onRespondToRequest,
-    onSendFriendRequest: () => {}, onViewProfile: () => {}, player: requestPlayer, showFriendRequestAction: true,
+    hasActiveTable: false, onInviteToChatRoom: () => {}, onInviteToTable: () => {}, onRespondToRequest,
+    onSendFriendRequest: () => {}, onStartDirectChat: () => {}, onViewProfile: () => {}, player: requestPlayer, showFriendRequestAction: true,
   });
 }
 
 function renderFriendActions() {
   const QuickActions = loadFriendQuickActions();
   return QuickActions({
-    hasActiveTable: false, onInviteToChat: () => {}, onInviteToTable: () => {}, onRemoveFriend: () => {},
-    onSendFriendRequest: () => {}, onViewProfile: () => {},
+    hasActiveTable: false, onInviteToChatRoom: () => {}, onInviteToTable: () => {}, onRemoveFriend: () => {},
+    onSendFriendRequest: () => {}, onStartDirectChat: () => {}, onViewProfile: () => {},
     player: { ...requestPlayer, relationshipStatus: 'friend' },
   });
 }
 
-test('an offline friend renders Chat and Remove friend without online-only table invites', () => {
+test('an offline friend renders distinct direct chat and chat-room invite actions without online-only table invites', () => {
   const tree = renderFriendActions();
   const removeActions = findElements(tree, (element) => element.type === ActionButton && element.props.label === 'Remove friend');
-  const chatActions = findElements(tree, (element) => element.type === InviteToChatButton);
+  const directChatActions = findElements(tree, (element) => element.type === ActionButton && element.props.label === 'Chat');
+  const chatRoomInviteActions = findElements(tree, (element) => element.type === InviteToChatButton);
 
   assert.equal(removeActions.length, 1);
-  assert.equal(chatActions.length, 1);
-  assert.equal(chatActions[0].props.label, 'Chat');
-  assert.equal(chatActions[0].props.fullWidth, undefined);
+  assert.equal(directChatActions.length, 1);
+  assert.equal(chatRoomInviteActions.length, 1);
+  assert.equal(chatRoomInviteActions[0].props.label, 'Chat Invite');
+  assert.equal(chatRoomInviteActions[0].props.fullWidth, false);
+  assert.notEqual(directChatActions[0].props.onPress, chatRoomInviteActions[0].props.onPress);
   assert.equal(findElements(tree, (element) => element.type === InviteToTableButton).length, 0);
 });
 
-test('an online friend labels the chat action as Chat next to table invite', () => {
+test('an online friend renders direct chat, chat-room invite, and table invite actions', () => {
   const QuickActions = loadFriendQuickActions();
   const friend = { ...requestPlayer, isOnline: true, relationshipStatus: 'friend' };
   const tree = QuickActions({
-    hasActiveTable: false, onInviteToChat: () => {}, onInviteToTable: () => {}, onRemoveFriend: () => {},
-    onSendFriendRequest: () => {}, onViewProfile: () => {}, player: friend,
+    hasActiveTable: false, onInviteToChatRoom: () => {}, onInviteToTable: () => {}, onRemoveFriend: () => {},
+    onSendFriendRequest: () => {}, onStartDirectChat: () => {}, onViewProfile: () => {}, player: friend,
   });
-  const chatActions = findElements(tree, (element) => element.type === InviteToChatButton);
+  const directChatActions = findElements(tree, (element) => element.type === ActionButton && element.props.label === 'Chat');
+  const chatRoomInviteActions = findElements(tree, (element) => element.type === InviteToChatButton);
 
-  assert.equal(chatActions.length, 1);
-  assert.equal(chatActions[0].props.label, 'Chat');
-  assert.equal(chatActions[0].props.fullWidth, false);
+  assert.equal(directChatActions.length, 1);
+  assert.equal(chatRoomInviteActions.length, 1);
+  assert.equal(chatRoomInviteActions[0].props.label, 'Chat Invite');
+  assert.equal(chatRoomInviteActions[0].props.fullWidth, false);
+  assert.notEqual(directChatActions[0].props.onPress, chatRoomInviteActions[0].props.onPress);
   assert.equal(findElements(tree, (element) => element.type === InviteToTableButton).length, 1);
 });
 
@@ -122,9 +128,9 @@ test('Remove friend waits for destructive confirmation before invoking the remov
   const QuickActions = loadFriendQuickActions((friendName, onConfirm) => confirmationCalls.push({ friendName, onConfirm }));
   const friend = { ...requestPlayer, relationshipStatus: 'friend' };
   const tree = QuickActions({
-    hasActiveTable: false, onInviteToChat: () => {}, onInviteToTable: () => {},
+    hasActiveTable: false, onInviteToChatRoom: () => {}, onInviteToTable: () => {},
     onRemoveFriend: (player) => removalCalls.push(player.id), onSendFriendRequest: () => {},
-    onViewProfile: () => {}, player: friend,
+    onStartDirectChat: () => {}, onViewProfile: () => {}, player: friend,
   });
   const removeAction = findElements(tree, (element) => element.type === ActionButton && element.props.label === 'Remove friend')[0];
 
@@ -149,8 +155,8 @@ test('a friend returned through player search exposes the forwarded Remove frien
     './RelationshipStatusBadge': { RelationshipStatusBadge: () => null },
   });
   const card = PlayerSearchResultCard({
-    hasActiveTable: false, onInviteToChat: () => {}, onInviteToTable: () => {}, onRemoveFriend,
-    onRespondToRequest: () => {}, onSendFriendRequest: () => {}, onViewProfile: () => {}, player: searchFriend,
+    hasActiveTable: false, onInviteToChatRoom: () => {}, onInviteToTable: () => {}, onRemoveFriend,
+    onRespondToRequest: () => {}, onSendFriendRequest: () => {}, onStartDirectChat: () => {}, onViewProfile: () => {}, player: searchFriend,
   });
   const quickActionsElement = findElements(card, (element) => element.type === QuickActions)[0];
   const quickActions = QuickActions(quickActionsElement.props);
@@ -218,8 +224,8 @@ test('PlayerSearchResultCard preserves the expected narrow-width content area', 
     './RelationshipStatusBadge': { RelationshipStatusBadge: () => null },
   });
   const card = PlayerSearchResultCard({
-    hasActiveTable: false, onInviteToChat: () => {}, onInviteToTable: () => {}, onRespondToRequest: () => {},
-    onSendFriendRequest: () => {}, onViewProfile: () => {}, player: requestPlayer,
+    hasActiveTable: false, onInviteToChatRoom: () => {}, onInviteToTable: () => {}, onRespondToRequest: () => {},
+    onSendFriendRequest: () => {}, onStartDirectChat: () => {}, onViewProfile: () => {}, player: requestPlayer,
   });
 
   assert.equal(card.props.style.padding, 14);

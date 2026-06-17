@@ -20,7 +20,7 @@ import {
   searchPlayers,
   sendFriendRequest,
 } from '../services/api';
-import { createChatRoom } from '../services/api/chatRooms';
+import { createChatRoom, createOrGetDirectChatRoom } from '../services/api/chatRooms';
 import { friendRealtimeEvents } from '../services/friends/friendRealtimeService';
 import {
   mergeFriendPresenceUpdate,
@@ -252,7 +252,23 @@ export function FriendsScreen({ navigation }: Props) {
     setFeedbackMessage(`${player.displayName} removed from your friends.`);
   }
 
-  async function handleInviteToChat(player: FriendsPlayer) {
+  async function handleStartDirectChat(player: FriendsPlayer) {
+    if (!token) {
+      setFeedbackMessage('Sign in to start a direct chat.');
+      return;
+    }
+
+    try {
+      const room = await createOrGetDirectChatRoom(player.id, token);
+      setFeedbackMessage(`Opening chat with ${player.displayName}.`);
+      navigation.navigate(routes.ChatRoomDetail, { roomId: room.id });
+    } catch (error) {
+      const { message } = getApiErrorDetails(error, `Unable to start a direct chat with ${player.displayName}.`);
+      setFeedbackMessage(message);
+    }
+  }
+
+  async function handleInviteToChatRoom(player: FriendsPlayer) {
     if (!token) {
       setFeedbackMessage('Sign in to send chat invites.');
       return;
@@ -319,7 +335,8 @@ export function FriendsScreen({ navigation }: Props) {
             emptyMessage="You have no pending friend requests."
             hasActiveTable={Boolean(activeTableCode)}
             isSearchActive
-            onInviteToChat={handleInviteToChat}
+            onInviteToChatRoom={handleInviteToChatRoom}
+            onStartDirectChat={handleStartDirectChat}
             onInviteToTable={handleInviteToTable}
             onRespondToRequest={handleRespondToRequest}
             onSendFriendRequest={handleSendFriendRequest}
@@ -337,7 +354,8 @@ export function FriendsScreen({ navigation }: Props) {
           <PlayerSearchResultsList
             hasActiveTable={Boolean(activeTableCode)}
             isSearchActive={isSearchActive}
-            onInviteToChat={handleInviteToChat}
+            onInviteToChatRoom={handleInviteToChatRoom}
+            onStartDirectChat={handleStartDirectChat}
             onInviteToTable={handleInviteToTable}
             onRemoveFriend={handleRemoveFriend}
             onRespondToRequest={handleRespondToRequest}
@@ -352,7 +370,8 @@ export function FriendsScreen({ navigation }: Props) {
             emptyMessage="You have no friends yet."
             hasActiveTable={Boolean(activeTableCode)}
             isSearchActive
-            onInviteToChat={handleInviteToChat}
+            onInviteToChatRoom={handleInviteToChatRoom}
+            onStartDirectChat={handleStartDirectChat}
             onInviteToTable={handleInviteToTable}
             onRemoveFriend={handleRemoveFriend}
             onRespondToRequest={handleRespondToRequest}

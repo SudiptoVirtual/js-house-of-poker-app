@@ -132,6 +132,10 @@ type CreateChatRoomResponse = {
   room?: BackendChatRoomDetail;
 };
 
+type CreateDirectChatRoomResponse = {
+  room?: BackendChatRoomDetail;
+};
+
 type InviteChatRoomFriendsResponse = {
   alreadyInRoomPlayerIds?: string[];
   invitedPlayerIds?: string[];
@@ -516,6 +520,24 @@ export async function createChatRoom(input: CreateChatRoomInput, token: string) 
       invitedPlayerIds: response.invitedPlayerIds ?? [],
       room: toChatRoom(response.room),
     };
+  } catch (error) {
+    throw normalizeChatRoomApiError(error);
+  }
+}
+
+export async function createOrGetDirectChatRoom(recipientUserId: string, token: string) {
+  try {
+    const response = await apiRequest<CreateDirectChatRoomResponse>('/api/chat-rooms/direct', {
+      body: { recipientUserId },
+      method: 'POST',
+      token,
+    });
+
+    if (!response.room) {
+      throw new Error('Direct chat room was not returned by the server.');
+    }
+
+    return toChatRoom(response.room);
   } catch (error) {
     throw normalizeChatRoomApiError(error);
   }
