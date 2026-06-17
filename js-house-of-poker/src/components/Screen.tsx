@@ -21,6 +21,7 @@ import { getAdjacentPlatformRoute } from './navigation/platformNavigation';
 import type { RootStackParamList } from '../types/navigation';
 
 type ScreenProps = PropsWithChildren<{
+  compactHeader?: boolean;
   eyebrow?: string;
   onRefresh?: () => void;
   refreshing?: boolean;
@@ -31,6 +32,7 @@ type ScreenProps = PropsWithChildren<{
 }>;
 
 export function Screen({
+  compactHeader = false,
   eyebrow,
   onRefresh,
   refreshing = false,
@@ -86,6 +88,7 @@ export function Screen({
             automaticallyAdjustKeyboardInsets
             contentContainerStyle={[
               styles.content,
+              compactHeader ? styles.compactContent : null,
               showPlatformNavigation ? styles.contentWithBottomNavigation : null,
             ]}
             keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
@@ -102,11 +105,11 @@ export function Screen({
               />
             ) : undefined}
           >
-            <View style={styles.header}>
-              <View style={styles.headerTopRow}>
-                <View style={styles.headerCopy}>
+            <View style={[styles.header, compactHeader ? styles.compactHeader : null]}>
+              <View style={[styles.headerTopRow, compactHeader ? styles.compactHeaderTopRow : null]}>
+                <View style={[styles.headerCopy, compactHeader ? styles.compactHeaderCopy : null]}>
                   {eyebrow ? <Text style={styles.eyebrow}>{eyebrow}</Text> : null}
-                  <Text style={styles.title}>{title}</Text>
+                  <Text style={[styles.title, compactHeader ? styles.compactTitle : null]}>{title}</Text>
                 </View>
                 {headerRight ? <View style={styles.headerRight}>{headerRight}</View> : null}
               </View>
@@ -143,8 +146,24 @@ const styles = StyleSheet.create({
     padding: 20,
     rowGap: 18,
   },
+  compactContent: {
+    paddingTop: 12,
+    rowGap: 10,
+  },
   contentWithBottomNavigation: {
     paddingBottom: 112,
+  },
+  compactHeader: {
+    gap: 0,
+  },
+  compactHeaderCopy: {
+    gap: 0,
+  },
+  compactHeaderTopRow: {
+    alignItems: 'center',
+  },
+  compactTitle: {
+    fontSize: 22,
   },
   eyebrow: {
     color: colors.primary,
