@@ -7,6 +7,7 @@ const {
   getFriendList,
   getFriendStatus,
   getIncomingFriendRequests,
+  removeFriend,
   requestFriend,
   searchPlayers,
 } = require("../controllers/friendController");
@@ -20,6 +21,7 @@ router.post("/decline", protectUser, declineFriend);
 router.get("/search", protectUser, searchPlayers);
 router.get("/requests/incoming", protectUser, getIncomingFriendRequests);
 router.get("/status/:userId", protectUser, getFriendStatus);
+router.delete("/:userId", protectUser, removeFriend);
 router.get("/:userId/details", protectUser, getFriendDetails);
 router.get("/", protectUser, getFriendList);
 router.get("/list", protectUser, getFriendList);

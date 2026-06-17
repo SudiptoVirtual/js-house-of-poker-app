@@ -3,6 +3,7 @@ import { createSocketManager } from '../socket/socketManager';
 
 export const friendRealtimeEvents = {
   notification: 'friend:notification',
+  friendRemoved: 'friends:friend_removed',
   presenceUpdated: 'friends:presence_updated',
   requestAccepted: 'friends:request_accepted',
   requestDeclined: 'friends:request_declined',

@@ -18,3 +18,11 @@ test("canonical and legacy friend-list routes use the same protected handler cha
     legacyRoute.route.stack.map((layer) => layer.handle)
   );
 });
+
+
+test("DELETE /:userId uses the protected remove-friend handler chain", () => {
+  const deleteRoute = friendRoutes.stack.find((layer) => layer.route?.path === "/:userId" && layer.route.methods.delete);
+
+  assert.ok(deleteRoute, "DELETE /:userId should be registered for removing friends");
+  assert.equal(deleteRoute.route.stack.length, 2);
+});

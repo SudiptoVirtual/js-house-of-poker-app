@@ -34,6 +34,7 @@ const tests = [
         "accepted",
         "declined",
         "blocked",
+        "removed",
       ]);
 
       const invalidRequest = new FriendRequest({

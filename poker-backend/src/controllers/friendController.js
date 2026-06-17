@@ -9,6 +9,7 @@ const {
   emitFriendNotificationRecords,
 } = require("../services/friendNotificationService");
 const {
+  emitFriendRemoved,
   emitFriendRequestAccepted,
   emitFriendRequestCreated,
   emitFriendRequestDeclined,
@@ -466,6 +467,79 @@ const declineFriend = async (req, res) => {
   }
 };
 
+const removeFriend = async (req, res) => {
+  try {
+    const currentUserId = req.user._id;
+    const targetUserId = normalizeObjectId(req.params.userId || req.body.userId || req.body.friendUserId);
+
+    if (!targetUserId) {
+      return res.status(400).json({ message: "A valid userId is required" });
+    }
+
+    if (areSameObjectId(currentUserId, targetUserId)) {
+      return res.status(400).json({ message: "You cannot remove yourself as a friend" });
+    }
+
+    const [currentUser, targetUser] = await Promise.all([
+      User.findById(currentUserId).select("friends isBlocked status name email avatar"),
+      User.findById(targetUserId).select("friends isBlocked status name email avatar"),
+    ]);
+
+    if (!targetUser) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    if (isBlockedAccount(currentUser)) {
+      return res.status(403).json({ message: "Your account is blocked" });
+    }
+
+    if (isBlockedAccount(targetUser)) {
+      return res.status(403).json({ message: "Cannot remove this friend right now" });
+    }
+
+    const pairKey = FriendRequest.buildFriendPairKey(currentUserId, targetUserId);
+    const blockedRequest = await FriendRequest.exists({ pairKey, status: "blocked" });
+
+    if (blockedRequest) {
+      return res.status(403).json({ message: "Friend actions are blocked between these users" });
+    }
+
+    const areFriends =
+      getFriendIds(currentUser).has(String(targetUserId)) ||
+      getFriendIds(targetUser).has(String(currentUserId));
+
+    if (!areFriends) {
+      return res.status(404).json({ message: "Friend relationship not found" });
+    }
+
+    await Promise.all([
+      User.updateOne({ _id: currentUserId }, { $pull: { friends: targetUserId } }),
+      User.updateOne({ _id: targetUserId }, { $pull: { friends: currentUserId } }),
+      FriendRequest.findOneAndUpdate(
+        { pairKey, status: "accepted" },
+        {
+          $set: {
+            senderUserId: currentUserId,
+            receiverUserId: targetUserId,
+            status: "removed",
+          },
+        },
+        { new: true, setDefaultsOnInsert: true, sort: { updatedAt: -1 }, upsert: true }
+      ),
+    ]);
+
+    emitFriendRemoved({ actorUserId: currentUserId, otherUser: targetUser, removedUser: currentUser });
+
+    return res.status(200).json({
+      message: "Friend removed",
+      status: "none",
+      userId: String(targetUserId),
+    });
+  } catch (error) {
+    return res.status(500).json({ message: "Error removing friend", error: error.message });
+  }
+};
+
 const searchPlayers = async (req, res) => {
   try {
     const query = getSearchQuery(req);
@@ -653,6 +727,7 @@ module.exports = {
   getFriendList,
   getFriendStatus,
   getIncomingFriendRequests,
+  removeFriend,
   requestFriend,
   searchPlayers,
 };
