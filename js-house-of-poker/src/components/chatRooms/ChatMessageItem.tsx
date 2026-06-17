@@ -1,4 +1,4 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { Image, StyleSheet, Text, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 import { colors } from '../../theme/colors';
@@ -108,6 +108,18 @@ export function ChatMessageItem({ chatType = 'group', currentUserId = 'local-pla
         ) : (
           <Text style={[styles.messageBody, isDirectChat ? styles.directMessageBody : null]}>{message.body}</Text>
         )}
+        {message.attachments?.length ? (
+          <View style={styles.mediaStack}>
+            {message.attachments.map((attachment, index) => attachment.type === 'image' ? (
+              <Image key={`${attachment.url}-${index}`} source={{ uri: attachment.url }} style={styles.mediaImage} />
+            ) : (
+              <View key={`${attachment.url}-${index}`} style={styles.videoCard}>
+                <MaterialCommunityIcons color={colors.gold} name="play-circle-outline" size={28} />
+                <Text style={styles.videoText}>Video attachment</Text>
+              </View>
+            ))}
+          </View>
+        ) : null}
         {showDirectFooter ? (
           <View style={[styles.directMessageFooter, isCurrentUser ? styles.directLocalMessageFooter : null]}>
             <Text style={[styles.messageTime, isCurrentUser ? styles.directLocalMessageTime : null]}>
@@ -233,6 +245,10 @@ const styles = StyleSheet.create({
   localRow: {
     flexDirection: 'row-reverse',
   },
+  mediaImage: { borderRadius: 12, height: 180, width: '100%' },
+  mediaStack: { gap: 8 },
+  videoCard: { alignItems: 'center', backgroundColor: colors.background, borderColor: colors.border, borderRadius: 12, borderWidth: 1, gap: 6, justifyContent: 'center', minHeight: 140 },
+  videoText: { color: colors.text, fontWeight: '800' },
   messageAuthor: {
     color: colors.text,
     flex: 1,

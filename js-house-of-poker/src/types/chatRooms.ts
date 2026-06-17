@@ -22,7 +22,19 @@ export interface ChatRoomFriend {
   userId?: string;
 }
 
-export type ChatRoomMessageKind = 'message' | 'system' | 'gift_clip';
+export type ChatRoomMessageKind = 'message' | 'text' | 'system' | 'gift_clip';
+
+export type ChatRoomMediaAttachment = {
+  durationMs?: number | null;
+  height?: number | null;
+  mimeType: string;
+  moderation?: { flags?: string[]; reason?: string | null; reviewedAt?: string | null; status: 'accepted' | 'blocked' | 'pending-review' };
+  size?: number | null;
+  thumbnailUrl?: string | null;
+  type: 'image' | 'video';
+  url: string;
+  width?: number | null;
+};
 
 export interface ChatRoomGiftClipMetadata {
   amount: number;
@@ -40,6 +52,7 @@ export interface ChatRoomGiftClipMetadata {
 export interface ChatRoomMessage {
   id: string;
   roomId: string;
+  attachments?: ChatRoomMediaAttachment[];
   authorId: string | null;
   authorName: string;
   body: string;

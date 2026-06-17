@@ -1,9 +1,20 @@
+import { useState } from 'react';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { ActivityIndicator, Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { ActivityIndicator, Image, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { AIPrimeButton } from './AIPrimeButton';
 
 import { colors } from '../../theme/colors';
+import type { ChatRoomMediaAttachment } from '../../types/chatRooms';
+
+type PendingChatAttachment = { fileSize?: number; id: string; mimeType: string; name: string; type: 'image' | 'video'; uri: string };
+type PickerAsset = { assetId?: string | null; fileName?: string | null; fileSize?: number; mimeType?: string; type?: string; uri: string };
+type PickerResult = { canceled: boolean; assets?: PickerAsset[] | null };
+const ImagePicker = require('expo-image-picker') as {
+  launchImageLibraryAsync(options?: Record<string, unknown>): Promise<PickerResult>;
+  requestMediaLibraryPermissionsAsync(): Promise<{ granted: boolean }>;
+};
+function toAttachment(asset: PickerAsset): PendingChatAttachment { const type = asset.type === 'video' ? 'video' : 'image'; return { fileSize: asset.fileSize, id: asset.assetId || asset.uri, mimeType: asset.mimeType || (type === 'video' ? 'video/mp4' : 'image/jpeg'), name: asset.fileName || `chat-${Date.now()}.${type === 'video' ? 'mp4' : 'jpg'}`, type, uri: asset.uri }; }
 
 type ChatInputBarProps = {
   draft: string;
@@ -11,7 +22,8 @@ type ChatInputBarProps = {
   openingAIPrime?: boolean;
   onOpenAIPrime: () => void;
   onOpenGiftClips?: () => void;
-  onSend: () => void;
+  onSend: (attachments?: ChatRoomMediaAttachment[]) => void | Promise<void>;
+  onUploadAttachment?: (attachment: PendingChatAttachment) => Promise<ChatRoomMediaAttachment>;
   placeholder?: string;
   sending?: boolean;
 };
@@ -23,13 +35,27 @@ export function ChatInputBar({
   onOpenAIPrime,
   onOpenGiftClips,
   onSend,
+  onUploadAttachment,
   placeholder = 'Message the room before launching a table...',
   sending = false,
 }: ChatInputBarProps) {
-  const canSend = Boolean(draft.trim()) && !sending;
+  const [attachments, setAttachments] = useState<PendingChatAttachment[]>([]);
+  const canSend = (Boolean(draft.trim()) || attachments.length > 0) && !sending;
+  async function addMedia() {
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) return;
+    const result = await ImagePicker.launchImageLibraryAsync({ allowsMultipleSelection: true, mediaTypes: ['images', 'videos'], quality: 0.9, selectionLimit: Math.max(1, 4 - attachments.length) });
+    if (!result.canceled && result.assets) setAttachments((current: PendingChatAttachment[]) => [...current, ...result.assets!.map(toAttachment)].slice(0, 4));
+  }
+  async function sendWithAttachments() {
+    const uploaded = onUploadAttachment ? await Promise.all(attachments.map(onUploadAttachment)) : [];
+    await onSend(uploaded);
+    setAttachments([]);
+  }
 
   return (
     <View style={styles.composer}>
+      {attachments.length > 0 ? <View style={styles.attachmentPreviewRow}>{attachments.map((attachment) => <View key={attachment.id} style={styles.attachmentPreview}>{attachment.type === 'image' ? <Image source={{ uri: attachment.uri }} style={styles.attachmentImage} /> : <MaterialCommunityIcons color={colors.gold} name="video-outline" size={18} />}<Pressable onPress={() => setAttachments((current: PendingChatAttachment[]) => current.filter((item) => item.id !== attachment.id))}><Text style={styles.removeAttachment}>×</Text></Pressable></View>)}</View> : null}
       <TextInput
         multiline
         onChangeText={onChangeDraft}
@@ -44,10 +70,10 @@ export function ChatInputBar({
           accessibilityLabel="Add emoji"
           accessibilityRole="button"
           hitSlop={4}
-          onPress={() => undefined}
+          onPress={() => { void addMedia(); }}
           style={({ pressed }) => [styles.iconButton, pressed ? styles.pressed : null]}
         >
-          <MaterialCommunityIcons color={colors.gold} name="emoticon-happy-outline" size={15} />
+          <MaterialCommunityIcons color={colors.gold} name="paperclip" size={15} />
         </Pressable>
         {onOpenGiftClips ? (
           <Pressable
@@ -66,7 +92,7 @@ export function ChatInputBar({
           accessibilityRole="button"
           disabled={!canSend}
           hitSlop={4}
-          onPress={onSend}
+          onPress={() => { void sendWithAttachments(); }}
           style={({ pressed }) => [
             styles.sendButton,
             !canSend ? styles.sendButtonDisabled : null,
@@ -95,6 +121,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6,
     paddingVertical: 2,
   },
+  attachmentImage: { borderRadius: 8, height: 44, width: 44 },
+  attachmentPreview: { alignItems: 'center', backgroundColor: colors.surface, borderColor: colors.border, borderRadius: 10, borderWidth: 1, flexDirection: 'row', gap: 4, padding: 4 },
+  attachmentPreviewRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, padding: 6 },
+  removeAttachment: { color: colors.danger, fontSize: 18, fontWeight: '900', paddingHorizontal: 4 },
   composerActions: {
     alignItems: 'center',
     borderTopColor: colors.border,

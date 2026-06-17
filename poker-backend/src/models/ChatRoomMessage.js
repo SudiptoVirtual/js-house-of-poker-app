@@ -32,6 +32,21 @@ const moderationSchema = new mongoose.Schema(
   { _id: false }
 );
 
+const mediaAttachmentSchema = new mongoose.Schema(
+  {
+    durationMs: { type: Number, default: null, min: 0 },
+    height: { type: Number, default: null, min: 0 },
+    mimeType: { type: String, required: true, trim: true },
+    moderation: { type: moderationSchema, default: () => ({}) },
+    size: { type: Number, default: null, min: 0 },
+    thumbnailUrl: { type: String, default: null, trim: true },
+    type: { type: String, enum: ["image", "video"], required: true },
+    url: { type: String, required: true, trim: true },
+    width: { type: Number, default: null, min: 0 },
+  },
+  { _id: false }
+);
+
 const giftClipSchema = new mongoose.Schema(
   {
     amount: {
@@ -108,7 +123,7 @@ const chatRoomMessageSchema = new mongoose.Schema(
     text: {
       type: String,
       required() {
-        return this.kind !== "gift_clip";
+        return this.kind !== "gift_clip" && (!this.attachments || this.attachments.length === 0);
       },
       trim: true,
       maxlength: 1000,
@@ -117,6 +132,10 @@ const chatRoomMessageSchema = new mongoose.Schema(
     giftClip: {
       type: giftClipSchema,
       default: null,
+    },
+    attachments: {
+      type: [mediaAttachmentSchema],
+      default: [],
     },
     moderation: {
       type: moderationSchema,
@@ -163,6 +182,11 @@ chatRoomMessageSchema.index({ "moderation.status": 1, createdAt: -1 });
 function getMessagePreviewText(message) {
   if (message.text) {
     return message.text;
+  }
+
+  if (message.attachments?.length) {
+    const hasVideo = message.attachments.some((attachment) => attachment.type === "video");
+    return message.text || (hasVideo ? "sent a video" : "sent an image");
   }
 
   if (message.kind === "gift_clip") {

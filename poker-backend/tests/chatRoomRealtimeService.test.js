@@ -325,3 +325,42 @@ test('serializeChatRoomMessage includes Gift Clip payload details for card rende
     },
   });
 });
+
+test('User can send image media attachment without text', async (t) => {
+  const originalSave = ChatRoomMessage.prototype.save;
+  const originalInsertMany = Notification.insertMany;
+  ChatRoomMessage.prototype.save = async function saveStub() { this._id = '507f1f77bcf86cd799439020'; this.createdAt = new Date('2026-01-01T00:00:00.000Z'); return this; };
+  Notification.insertMany = async () => [];
+  t.after(() => { ChatRoomMessage.prototype.save = originalSave; Notification.insertMany = originalInsertMany; });
+  const service = createService({ io: createIoMock() });
+  const response = await service.sendMessage(createSocketMock(), { roomId: ROOM_ID, attachments: [{ url: 'https://cdn.example.test/chat/image.jpg', mimeType: 'image/jpeg', type: 'image', size: 1024, width: 640, height: 480 }] });
+  assert.equal(response.ok, true);
+  assert.equal(response.message.text, '');
+  assert.equal(response.message.attachments[0].type, 'image');
+  assert.equal(response.message.attachments[0].mimeType, 'image/jpeg');
+});
+
+test('User can send video media attachment metadata', async (t) => {
+  const originalSave = ChatRoomMessage.prototype.save;
+  const originalInsertMany = Notification.insertMany;
+  ChatRoomMessage.prototype.save = async function saveStub() { this._id = '507f1f77bcf86cd799439021'; this.createdAt = new Date('2026-01-01T00:00:00.000Z'); return this; };
+  Notification.insertMany = async () => [];
+  t.after(() => { ChatRoomMessage.prototype.save = originalSave; Notification.insertMany = originalInsertMany; });
+  const response = await createService().sendMessage(createSocketMock(), { roomId: ROOM_ID, text: 'watch this', attachments: [{ url: 'https://cdn.example.test/chat/video.mp4', mimeType: 'video/mp4', type: 'video', size: 2048, width: 1280, height: 720, durationMs: 12345 }] });
+  assert.equal(response.message.attachments[0].type, 'video');
+  assert.equal(response.message.attachments[0].durationMs, 12345);
+});
+
+test('Invalid media attachment is rejected', async () => {
+  await assert.rejects(
+    createService().sendMessage(createSocketMock(), { roomId: ROOM_ID, text: 'bad', attachments: [{ url: 'ftp://example.test/file.txt', mimeType: 'text/plain', type: 'image' }] }),
+    /valid URL|Unsupported chat/,
+  );
+});
+
+test('Blocked media moderation is rejected', async () => {
+  await assert.rejects(
+    createService().sendMessage(createSocketMock(), { roomId: ROOM_ID, attachments: [{ url: 'https://cdn.example.test/chat/image.jpg', mimeType: 'image/jpeg', type: 'image', moderation: { status: 'blocked', reason: 'unsafe' } }] }),
+    /blocked by moderation/,
+  );
+});
