@@ -347,6 +347,7 @@ export function ChatRoomDetailScreen({ navigation, route }: Props) {
   const [isDirectActionDialogVisible, setIsDirectActionDialogVisible] = useState(false);
   const [isSendingDirectTableInvite, setIsSendingDirectTableInvite] = useState(false);
   const [directActionFeedback, setDirectActionFeedback] = useState<string | null>(null);
+  const [directBottomInset, setDirectBottomInset] = useState(0);
   const [roomInviteStatus, setRoomInviteStatus] = useState<string | null>(null);
   const [tableInviteDeliveries, setTableInviteDeliveries] = useState<TableInviteDelivery[]>([]);
   const [tableInviteFeedback, setTableInviteFeedback] = useState<string | null>(null);
@@ -1301,6 +1302,7 @@ export function ChatRoomDetailScreen({ navigation, route }: Props) {
         contentStyle={styles.directScreenContent}
         scrollable={false}
         title=""
+        topSafeAreaScale={0}
       >
         <View style={styles.directChatRoot}>
           <View style={styles.directHeader}>
@@ -1317,7 +1319,7 @@ export function ChatRoomDetailScreen({ navigation, route }: Props) {
 
           <FlatList
             automaticallyAdjustKeyboardInsets
-            contentContainerStyle={styles.directMessageListContent}
+            contentContainerStyle={[styles.directMessageListContent, { paddingBottom: directBottomInset + 12 }]}
             data={room.messages}
             keyExtractor={(message) => message.id}
             keyboardDismissMode="on-drag"
@@ -1337,23 +1339,34 @@ export function ChatRoomDetailScreen({ navigation, route }: Props) {
             style={styles.directMessageList}
           />
 
-          {roomError || realtimeError ? (
-            <View style={styles.directErrorBanner}>
-              {roomError ? <Text style={styles.errorText}>{roomError}</Text> : null}
-              {realtimeError ? <Text style={styles.errorText}>{realtimeError}</Text> : null}
-            </View>
-          ) : null}
+          <View
+            onLayout={({ nativeEvent }) => {
+              const nextHeight = nativeEvent.layout.height;
+              setDirectBottomInset((currentHeight) => Math.abs(currentHeight - nextHeight) > 1 ? nextHeight : currentHeight);
+            }}
+            style={styles.directBottomStack}
+          >
+            {roomError || realtimeError ? (
+              <View style={styles.directErrorBanner}>
+                {roomError ? <Text style={styles.errorText}>{roomError}</Text> : null}
+                {realtimeError ? <Text style={styles.errorText}>{realtimeError}</Text> : null}
+              </View>
+            ) : null}
 
-          <View style={styles.directComposerWrap}>
-            <ChatInputBar
-              draft={draft}
-              onChangeDraft={setDraft}
-              onSend={(attachments) => { void handleSendMessage(attachments); }}
-              onUploadAttachment={async (attachment) => uploadFeedMedia(attachment, authRef.current?.token ?? '') as Promise<ChatRoomMediaAttachment>}
-              placeholder={isSendingMessage ? 'Sending...' : 'Message'}
-              sending={isSendingMessage}
-              variant="direct"
-            />
+            <View style={styles.directComposerWrap}>
+              <ChatInputBar
+                draft={draft}
+                onChangeDraft={setDraft}
+                onOpenGiftClips={handleOpenGiftClips}
+                onOpenAIPrime={() => { void handleOpenAIPrime(); }}
+                onSend={(attachments) => { void handleSendMessage(attachments); }}
+                onUploadAttachment={async (attachment) => uploadFeedMedia(attachment, authRef.current?.token ?? '') as Promise<ChatRoomMediaAttachment>}
+                openingAIPrime={isOpeningAIPrime}
+                placeholder={isSendingMessage ? 'Sending...' : 'Message'}
+                sending={isSendingMessage}
+                variant="direct"
+              />
+            </View>
           </View>
 
           <Modal
@@ -1630,6 +1643,15 @@ const styles = StyleSheet.create({
   directChatRoot: {
     backgroundColor: colors.background,
     flex: 1,
+    overflow: 'hidden',
+  },
+  directBottomStack: {
+    backgroundColor: colors.background,
+    bottom: 0,
+    left: 0,
+    paddingBottom: 12,
+    position: 'absolute',
+    right: 0,
   },
   directComposerWrap: {
     backgroundColor: colors.background,
@@ -1701,7 +1723,7 @@ const styles = StyleSheet.create({
   },
   directHeader: {
     alignItems: 'center',
-    backgroundColor: colors.surface,
+    backgroundColor: colors.background,
     borderBottomColor: colors.border,
     borderBottomWidth: 1,
     flexDirection: 'row',

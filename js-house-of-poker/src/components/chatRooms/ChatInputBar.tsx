@@ -70,6 +70,18 @@ export function ChatInputBar({
           >
             <MaterialCommunityIcons color={colors.gold} name="paperclip" size={15} />
           </Pressable>
+          {onOpenGiftClips ? (
+            <Pressable
+              accessibilityLabel="Send Gift Clips"
+              accessibilityRole="button"
+              hitSlop={4}
+              onPress={onOpenGiftClips}
+              style={({ pressed }) => [styles.directIconButton, styles.directGiftButton, pressed ? styles.pressed : null]}
+            >
+              <MaterialCommunityIcons color={colors.gold} name="gift-outline" size={15} />
+            </Pressable>
+          ) : null}
+          {onOpenAIPrime ? <AIPrimeButton compact loading={openingAIPrime} onPress={onOpenAIPrime} /> : null}
           <TextInput
             multiline
             onChangeText={onChangeDraft}
@@ -202,9 +214,9 @@ const styles = StyleSheet.create({
     fontSize: 15,
     lineHeight: 20,
     maxHeight: 109,
-    minHeight: 26,
+    minHeight: 42,
     paddingHorizontal: 12,
-    paddingVertical: 3,
+    paddingVertical: 9,
     textAlignVertical: 'center',
   },
   directComposerRow: {
@@ -222,6 +234,10 @@ const styles = StyleSheet.create({
     height: 32,
     justifyContent: 'center',
     width: 32,
+  },
+  directGiftButton: {
+    backgroundColor: 'rgba(255,201,94,0.12)',
+    borderColor: colors.gold,
   },
   directSendButton: {
     alignItems: 'center',

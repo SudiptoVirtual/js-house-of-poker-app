@@ -109,22 +109,24 @@ test('non-AI composer icons are at least 15% smaller than their previous sizes',
   assert.ok(sendButton.props.children.props.size <= 17 * 0.85);
 });
 
-test('direct chat composer uses one compact row without gift or AI controls', () => {
+test('direct chat composer keeps compact actions beside the taller input', () => {
   const composer = renderChatInputBar({ variant: 'direct' });
   const [row] = getChildren(composer);
-  const [attachButton, input, sendButton] = getChildren(row);
+  const [attachButton, giftButton, aiPrimeButton, input, sendButton] = getChildren(row);
 
   assert.equal(flattenStyle(composer.props.style).borderWidth, 0);
   assert.equal(row.props.style.flexDirection, 'row');
   assert.equal(row.props.style.gap, 6);
-  assert.equal(getChildren(row).length, 3);
+  assert.equal(getChildren(row).length, 5);
   assert.equal(attachButton.type, 'Pressable');
+  assert.equal(giftButton.props.accessibilityLabel, 'Send Gift Clips');
+  assert.equal(aiPrimeButton.type, AIPrimeButton);
+  assert.equal(aiPrimeButton.props.compact, true);
   assert.equal(input.type, 'TextInput');
   assert.equal(sendButton.type, 'Pressable');
-  assert.equal(input.props.style.minHeight, 26);
+  assert.equal(input.props.style.minHeight, 42);
   assert.equal(input.props.style.maxHeight, 109);
   assert.equal(flattenStyle(attachButton.props.style({ pressed: false })).height, 32);
+  assert.equal(flattenStyle(giftButton.props.style({ pressed: false })).height, 32);
   assert.equal(flattenStyle(sendButton.props.style({ pressed: false })).width, 32);
-  assert.equal(getChildren(row).some((child) => child.type === AIPrimeButton), false);
-  assert.equal(getChildren(row).some((child) => child.props?.accessibilityLabel === 'Send Gift Clips'), false);
 });

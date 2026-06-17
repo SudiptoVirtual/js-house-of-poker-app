@@ -5,6 +5,8 @@ import { colors } from '../../theme/colors';
 import type { ChatRoom, ChatRoomMessage, ChatRoomPlayer } from '../../types/chatRooms';
 import { formatChatTimestamp } from './chatRoomUtils';
 
+const directLocalBubbleColor = '#087260';
+
 type ChatMessageItemProps = {
   chatType?: ChatRoom['chatType'];
   currentUserId?: string;
@@ -149,15 +151,15 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
   directLocalMessageBubble: {
-    backgroundColor: colors.success,
-    borderColor: colors.success,
+    backgroundColor: directLocalBubbleColor,
+    borderColor: directLocalBubbleColor,
     borderBottomRightRadius: 6,
   },
   directLocalMessageFooter: {
     justifyContent: 'flex-end',
   },
   directLocalMessageTime: {
-    color: colors.background,
+    color: colors.text,
   },
   directLocalRow: {
     justifyContent: 'flex-end',

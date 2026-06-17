@@ -4,11 +4,12 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-nati
 import { colors } from '../../theme/colors';
 
 type AIPrimeButtonProps = {
+  compact?: boolean;
   loading?: boolean;
   onPress: () => void;
 };
 
-export function AIPrimeButton({ loading = false, onPress }: AIPrimeButtonProps) {
+export function AIPrimeButton({ compact = false, loading = false, onPress }: AIPrimeButtonProps) {
   return (
     <Pressable
       accessibilityLabel="Open AI Prime chat actions"
@@ -16,16 +17,16 @@ export function AIPrimeButton({ loading = false, onPress }: AIPrimeButtonProps) 
       disabled={loading}
       hitSlop={4}
       onPress={onPress}
-      style={({ pressed }) => [styles.button, pressed ? styles.pressed : null]}
+      style={({ pressed }) => [styles.button, compact ? styles.compactButton : null, pressed ? styles.pressed : null]}
     >
-      <View style={styles.iconHalo}>
+      <View style={[styles.iconHalo, compact ? styles.compactIconHalo : null]}>
         {loading ? (
           <ActivityIndicator color={colors.background} size="small" />
         ) : (
-          <MaterialCommunityIcons color={colors.background} name="creation" size={15} />
+          <MaterialCommunityIcons color={colors.background} name="creation" size={compact ? 13 : 15} />
         )}
       </View>
-      <Text style={styles.label}>AI</Text>
+      <Text style={[styles.label, compact ? styles.compactLabel : null]}>AI</Text>
     </Pressable>
   );
 }
@@ -41,6 +42,19 @@ const styles = StyleSheet.create({
     height: 36,
     justifyContent: 'center',
     width: 36,
+  },
+  compactButton: {
+    borderRadius: 16,
+    height: 32,
+    width: 32,
+  },
+  compactIconHalo: {
+    height: 16,
+    width: 16,
+  },
+  compactLabel: {
+    fontSize: 7,
+    letterSpacing: 0,
   },
   iconHalo: {
     alignItems: 'center',
