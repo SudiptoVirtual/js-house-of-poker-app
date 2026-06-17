@@ -99,7 +99,10 @@ test('an offline friend renders distinct direct chat and chat-room invite action
   assert.equal(directChatActions.length, 1);
   assert.equal(chatRoomInviteActions.length, 1);
   assert.equal(chatRoomInviteActions[0].props.label, 'Chat Invite');
-  assert.equal(chatRoomInviteActions[0].props.fullWidth, false);
+  assert.equal(directChatActions[0].props.fullWidth, true);
+  assert.deepEqual(directChatActions[0].props.containerStyle, { flex: 1, minWidth: 0 });
+  assert.equal(chatRoomInviteActions[0].props.fullWidth, undefined);
+  assert.deepEqual(chatRoomInviteActions[0].props.containerStyle, { flex: 1, minWidth: 0 });
   assert.notEqual(directChatActions[0].props.onPress, chatRoomInviteActions[0].props.onPress);
   assert.equal(findElements(tree, (element) => element.type === InviteToTableButton).length, 0);
 });
@@ -117,7 +120,10 @@ test('an online friend renders direct chat, chat-room invite, and table invite a
   assert.equal(directChatActions.length, 1);
   assert.equal(chatRoomInviteActions.length, 1);
   assert.equal(chatRoomInviteActions[0].props.label, 'Chat Invite');
-  assert.equal(chatRoomInviteActions[0].props.fullWidth, false);
+  assert.equal(directChatActions[0].props.fullWidth, true);
+  assert.deepEqual(directChatActions[0].props.containerStyle, { flex: 1, minWidth: 0 });
+  assert.equal(chatRoomInviteActions[0].props.fullWidth, undefined);
+  assert.deepEqual(chatRoomInviteActions[0].props.containerStyle, { flex: 1, minWidth: 0 });
   assert.notEqual(directChatActions[0].props.onPress, chatRoomInviteActions[0].props.onPress);
   assert.equal(findElements(tree, (element) => element.type === InviteToTableButton).length, 1);
 });

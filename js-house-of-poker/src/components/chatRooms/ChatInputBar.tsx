@@ -20,12 +20,13 @@ type ChatInputBarProps = {
   draft: string;
   onChangeDraft: (value: string) => void;
   openingAIPrime?: boolean;
-  onOpenAIPrime: () => void;
+  onOpenAIPrime?: () => void;
   onOpenGiftClips?: () => void;
   onSend: (attachments?: ChatRoomMediaAttachment[]) => void | Promise<void>;
   onUploadAttachment?: (attachment: PendingChatAttachment) => Promise<ChatRoomMediaAttachment>;
   placeholder?: string;
   sending?: boolean;
+  variant?: 'room' | 'direct';
 };
 
 export function ChatInputBar({
@@ -38,8 +39,10 @@ export function ChatInputBar({
   onUploadAttachment,
   placeholder = 'Message the room before launching a table...',
   sending = false,
+  variant = 'room',
 }: ChatInputBarProps) {
   const [attachments, setAttachments] = useState<PendingChatAttachment[]>([]);
+  const isDirectVariant = variant === 'direct';
   const canSend = (Boolean(draft.trim()) || attachments.length > 0) && !sending;
   async function addMedia() {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -51,6 +54,52 @@ export function ChatInputBar({
     const uploaded = onUploadAttachment ? await Promise.all(attachments.map(onUploadAttachment)) : [];
     await onSend(uploaded);
     setAttachments([]);
+  }
+
+  if (isDirectVariant) {
+    return (
+      <View style={[styles.composer, styles.directComposer]}>
+        {attachments.length > 0 ? <View style={styles.attachmentPreviewRow}>{attachments.map((attachment) => <View key={attachment.id} style={styles.attachmentPreview}>{attachment.type === 'image' ? <Image source={{ uri: attachment.uri }} style={styles.attachmentImage} /> : <MaterialCommunityIcons color={colors.gold} name="video-outline" size={18} />}<Pressable onPress={() => setAttachments((current: PendingChatAttachment[]) => current.filter((item) => item.id !== attachment.id))}><Text style={styles.removeAttachment}>x</Text></Pressable></View>)}</View> : null}
+        <View style={styles.directComposerRow}>
+          <Pressable
+            accessibilityLabel="Attach media"
+            accessibilityRole="button"
+            hitSlop={4}
+            onPress={() => { void addMedia(); }}
+            style={({ pressed }) => [styles.directIconButton, pressed ? styles.pressed : null]}
+          >
+            <MaterialCommunityIcons color={colors.gold} name="paperclip" size={15} />
+          </Pressable>
+          <TextInput
+            multiline
+            onChangeText={onChangeDraft}
+            placeholder={placeholder}
+            placeholderTextColor={colors.mutedText}
+            editable={!sending}
+            style={styles.directComposerInput}
+            value={draft}
+          />
+          <Pressable
+            accessibilityLabel="Send chat message"
+            accessibilityRole="button"
+            disabled={!canSend}
+            hitSlop={4}
+            onPress={() => { void sendWithAttachments(); }}
+            style={({ pressed }) => [
+              styles.directSendButton,
+              !canSend ? styles.sendButtonDisabled : null,
+              pressed ? styles.pressed : null,
+            ]}
+          >
+            {sending ? (
+              <ActivityIndicator color={colors.background} size="small" />
+            ) : (
+              <MaterialCommunityIcons color={colors.background} name="send" size={14} />
+            )}
+          </Pressable>
+        </View>
+      </View>
+    );
   }
 
   return (
@@ -67,7 +116,7 @@ export function ChatInputBar({
       />
       <View style={styles.composerActions}>
         <Pressable
-          accessibilityLabel="Add emoji"
+          accessibilityLabel="Attach media"
           accessibilityRole="button"
           hitSlop={4}
           onPress={() => { void addMedia(); }}
@@ -86,7 +135,7 @@ export function ChatInputBar({
             <MaterialCommunityIcons color={colors.gold} name="gift-outline" size={15} />
           </Pressable>
         ) : null}
-        <AIPrimeButton loading={openingAIPrime} onPress={onOpenAIPrime} />
+        {onOpenAIPrime ? <AIPrimeButton loading={openingAIPrime} onPress={onOpenAIPrime} /> : null}
         <Pressable
           accessibilityLabel="Send chat message"
           accessibilityRole="button"
@@ -134,6 +183,53 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
     paddingTop: 2,
     width: '100%',
+  },
+  directComposer: {
+    backgroundColor: colors.background,
+    borderRadius: 0,
+    borderWidth: 0,
+    gap: 6,
+    paddingHorizontal: 0,
+    paddingVertical: 0,
+  },
+  directComposerInput: {
+    backgroundColor: colors.surfaceMuted,
+    borderColor: colors.border,
+    borderRadius: 18,
+    borderWidth: 1,
+    color: colors.text,
+    flex: 1,
+    fontSize: 15,
+    lineHeight: 20,
+    maxHeight: 109,
+    minHeight: 26,
+    paddingHorizontal: 12,
+    paddingVertical: 3,
+    textAlignVertical: 'center',
+  },
+  directComposerRow: {
+    alignItems: 'flex-end',
+    flexDirection: 'row',
+    gap: 6,
+    width: '100%',
+  },
+  directIconButton: {
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderRadius: 16,
+    borderWidth: 1,
+    height: 32,
+    justifyContent: 'center',
+    width: 32,
+  },
+  directSendButton: {
+    alignItems: 'center',
+    backgroundColor: colors.secondary,
+    borderRadius: 16,
+    height: 32,
+    justifyContent: 'center',
+    width: 32,
   },
   composerInput: {
     color: colors.text,

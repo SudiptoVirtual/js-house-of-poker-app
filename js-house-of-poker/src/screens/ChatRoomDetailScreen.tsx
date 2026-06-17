@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { FlatList, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { io, type Socket } from 'socket.io-client';
@@ -248,6 +249,62 @@ function mergeMessages(currentMessages: ChatRoomMessage[], incomingMessages: Cha
   );
 }
 
+function getInitials(value: string) {
+  return (
+    value
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((word) => word[0]?.toUpperCase())
+      .join('') || 'P'
+  );
+}
+
+function getDirectRecipientName(room: ChatRoom) {
+  return room.directRecipient?.displayName ?? room.title;
+}
+
+function getDirectRecipientId(room: ChatRoom, currentUserId: string) {
+  const recipientId = room.directRecipientUserId ?? room.directRecipient?.userId ?? room.directRecipient?.id;
+
+  if (recipientId) {
+    return recipientId;
+  }
+
+  const recipientPlayer = room.players.find((player) => ![player.id, player.userId].filter(Boolean).includes(currentUserId));
+
+  return recipientPlayer?.userId ?? recipientPlayer?.id ?? null;
+}
+
+function getDirectTableSetupPlayers(room: ChatRoom, currentUserId: string): ChatRoomPlayer[] {
+  const recipientId = getDirectRecipientId(room, currentUserId);
+
+  if (!recipientId) {
+    return room.players;
+  }
+
+  const hasRecipientPlayer = room.players.some((player) => player.id === recipientId || player.userId === recipientId);
+
+  if (hasRecipientPlayer) {
+    return room.players;
+  }
+
+  const recipientName = getDirectRecipientName(room);
+
+  return [
+    {
+      avatarInitials: room.directRecipient?.avatarInitials ?? getInitials(recipientName),
+      chipStackLabel: 'Available',
+      displayName: recipientName,
+      handle: room.directRecipient?.handle ?? recipientName,
+      id: recipientId,
+      status: 'available' as const,
+      userId: room.directRecipient?.userId ?? recipientId,
+    },
+    ...room.players,
+  ];
+}
+
 export function ChatRoomDetailScreen({ navigation, route }: Props) {
   const { clearActiveRoom, markRoomRead, setActiveRoom } = useChatNotifications();
 
@@ -256,8 +313,9 @@ export function ChatRoomDetailScreen({ navigation, route }: Props) {
     void markRoomRead(route.params.roomId);
     return () => clearActiveRoom(route.params.roomId);
   }, [clearActiveRoom, markRoomRead, route.params.roomId, setActiveRoom]));
-  const { transportKind } = usePoker();
+  const { roomState, sendTableInvite, transportKind } = usePoker();
   const socketRef = useRef<Socket | null>(null);
+  const directMessageListRef = useRef<FlatList<ChatRoomMessage>>(null);
   const authRef = useRef<{ token: string | null; user: { id?: string; name?: string; email?: string } } | null>(null);
   const roomPlayersRef = useRef<ChatRoomPlayer[]>([]);
   const [room, setRoom] = useState<ChatRoom | null>(null);
@@ -286,6 +344,9 @@ export function ChatRoomDetailScreen({ navigation, route }: Props) {
   const [isSendingGiftClip, setIsSendingGiftClip] = useState(false);
   const [selectedGiftRecipientId, setSelectedGiftRecipientId] = useState<string | null>(null);
   const [isInvitingFriends, setIsInvitingFriends] = useState(false);
+  const [isDirectActionDialogVisible, setIsDirectActionDialogVisible] = useState(false);
+  const [isSendingDirectTableInvite, setIsSendingDirectTableInvite] = useState(false);
+  const [directActionFeedback, setDirectActionFeedback] = useState<string | null>(null);
   const [roomInviteStatus, setRoomInviteStatus] = useState<string | null>(null);
   const [tableInviteDeliveries, setTableInviteDeliveries] = useState<TableInviteDelivery[]>([]);
   const [tableInviteFeedback, setTableInviteFeedback] = useState<string | null>(null);
@@ -296,6 +357,18 @@ export function ChatRoomDetailScreen({ navigation, route }: Props) {
   useEffect(() => {
     roomPlayersRef.current = room?.players ?? [];
   }, [room?.players]);
+
+  useEffect(() => {
+    if (room?.chatType !== 'direct' || room.messages.length === 0) {
+      return undefined;
+    }
+
+    const timeout = setTimeout(() => {
+      directMessageListRef.current?.scrollToEnd({ animated: true });
+    }, 0);
+
+    return () => clearTimeout(timeout);
+  }, [room?.chatType, room?.messages.length]);
 
   function applyTableInvitePayload(payload: ChatRoomPlayerInvitedPayload) {
     const successfulPlayerIds = getSuccessfulInvitePlayerIds(payload);
@@ -752,6 +825,14 @@ export function ChatRoomDetailScreen({ navigation, route }: Props) {
     return activeFriends.filter((friend) => !activeRoomPlayerIds.has(friend.id) && !invitedIds.has(friend.id));
   }, [activeFriends, room, roomInvitedFriendIds]);
 
+  const directRecipientId = room ? getDirectRecipientId(room, currentUserId) : null;
+  const directRecipientName = room ? getDirectRecipientName(room) : 'Player';
+  const directActiveTableCode = roomState?.roomId ?? null;
+  const tableSetupPlayers = useMemo(
+    () => (room?.chatType === 'direct' ? getDirectTableSetupPlayers(room, currentUserId) : room?.players ?? []),
+    [currentUserId, room],
+  );
+
   if (isLoadingRoom) {
     return (
       <Screen showPlatformNavigation eyebrow="Chat room" title="Loading room" subtitle="Fetching live chat room data…" />
@@ -837,6 +918,51 @@ export function ChatRoomDetailScreen({ navigation, route }: Props) {
     setIsGiftClipsModalVisible(true);
   }
 
+  function handleOpenDirectActions() {
+    setDirectActionFeedback(null);
+    setIsDirectActionDialogVisible(true);
+  }
+
+  async function handleInviteDirectRecipientToTable() {
+    if (!directRecipientId) {
+      setDirectActionFeedback('Unable to resolve this player for a table invite.');
+      return;
+    }
+
+    if (!directActiveTableCode) {
+      setDirectActionFeedback('Create or join a table before sending an invite.');
+      return;
+    }
+
+    if (isSendingDirectTableInvite) {
+      return;
+    }
+
+    setIsSendingDirectTableInvite(true);
+    setDirectActionFeedback(null);
+
+    try {
+      await sendTableInvite({
+        message: `Join my table ${directActiveTableCode}`,
+        recipientAccountId: directRecipientId,
+        source: 'friend-list',
+      });
+      setIsDirectActionDialogVisible(false);
+    } catch (error) {
+      setDirectActionFeedback(error instanceof Error ? error.message : `Unable to invite ${directRecipientName} to a table.`);
+    } finally {
+      setIsSendingDirectTableInvite(false);
+    }
+  }
+
+  function handleCreateDirectTable() {
+    setDirectActionFeedback(null);
+    setSelectedPlayerIds(directRecipientId ? [directRecipientId] : []);
+    setIsPrivate(true);
+    setIsDirectActionDialogVisible(false);
+    setIsSetUpTableFlowVisible(true);
+  }
+
   async function handleSendGiftClip(amount: number, message: string, recipientUserId?: string) {
     const token = authRef.current?.token;
     const resolvedRecipientUserId = recipientUserId ?? selectedGiftRecipientId;
@@ -892,7 +1018,8 @@ export function ChatRoomDetailScreen({ navigation, route }: Props) {
       return;
     }
 
-    const [eligiblePlayerId] = getInviteEligiblePlayerIds(room.players, [playerId], invitedPlayerIds);
+    const eligiblePlayers = room.chatType === 'direct' ? tableSetupPlayers : room.players;
+    const [eligiblePlayerId] = getInviteEligiblePlayerIds(eligiblePlayers, [playerId], invitedPlayerIds);
 
     if (!eligiblePlayerId) {
       return;
@@ -1167,6 +1294,148 @@ export function ChatRoomDetailScreen({ navigation, route }: Props) {
     });
   }
 
+  if (room.chatType === 'direct') {
+    return (
+      <Screen
+        bodyStyle={styles.directScreenBody}
+        contentStyle={styles.directScreenContent}
+        scrollable={false}
+        title=""
+      >
+        <View style={styles.directChatRoot}>
+          <View style={styles.directHeader}>
+            <Text numberOfLines={1} style={styles.directHeaderTitle}>{directRecipientName}</Text>
+            <Pressable
+              accessibilityLabel="Open chat actions"
+              accessibilityRole="button"
+              onPress={handleOpenDirectActions}
+              style={({ pressed }) => [styles.directHeaderAction, pressed ? styles.pressed : null]}
+            >
+              <MaterialCommunityIcons color={colors.text} name="dots-vertical" size={22} />
+            </Pressable>
+          </View>
+
+          <FlatList
+            automaticallyAdjustKeyboardInsets
+            contentContainerStyle={styles.directMessageListContent}
+            data={room.messages}
+            keyExtractor={(message) => message.id}
+            keyboardDismissMode="on-drag"
+            keyboardShouldPersistTaps="handled"
+            onContentSizeChange={() => directMessageListRef.current?.scrollToEnd({ animated: true })}
+            onLayout={() => directMessageListRef.current?.scrollToEnd({ animated: false })}
+            ref={directMessageListRef}
+            renderItem={({ item }) => (
+              <ChatMessageItem
+                chatType={room.chatType}
+                currentUserId={currentUserId}
+                message={item}
+                players={room.players}
+              />
+            )}
+            showsVerticalScrollIndicator={false}
+            style={styles.directMessageList}
+          />
+
+          {roomError || realtimeError ? (
+            <View style={styles.directErrorBanner}>
+              {roomError ? <Text style={styles.errorText}>{roomError}</Text> : null}
+              {realtimeError ? <Text style={styles.errorText}>{realtimeError}</Text> : null}
+            </View>
+          ) : null}
+
+          <View style={styles.directComposerWrap}>
+            <ChatInputBar
+              draft={draft}
+              onChangeDraft={setDraft}
+              onSend={(attachments) => { void handleSendMessage(attachments); }}
+              onUploadAttachment={async (attachment) => uploadFeedMedia(attachment, authRef.current?.token ?? '') as Promise<ChatRoomMediaAttachment>}
+              placeholder={isSendingMessage ? 'Sending...' : 'Message'}
+              sending={isSendingMessage}
+              variant="direct"
+            />
+          </View>
+
+          <Modal
+            animationType="fade"
+            onRequestClose={() => setIsDirectActionDialogVisible(false)}
+            transparent
+            visible={isDirectActionDialogVisible}
+          >
+            <View style={styles.directDialogBackdrop}>
+              <Pressable
+                accessibilityLabel="Close chat actions"
+                accessibilityRole="button"
+                onPress={() => setIsDirectActionDialogVisible(false)}
+                style={StyleSheet.absoluteFill}
+              />
+              <View style={styles.directDialogCard}>
+                <Pressable
+                  accessibilityRole="button"
+                  disabled={!directActiveTableCode || !directRecipientId || isSendingDirectTableInvite}
+                  onPress={() => { void handleInviteDirectRecipientToTable(); }}
+                  style={({ pressed }) => [
+                    styles.directDialogAction,
+                    !directActiveTableCode || !directRecipientId ? styles.directDialogActionDisabled : null,
+                    pressed ? styles.pressed : null,
+                  ]}
+                >
+                  <MaterialCommunityIcons color={colors.success} name="cards-playing-outline" size={21} />
+                  <View style={styles.directDialogActionCopy}>
+                    <Text style={styles.directDialogActionText}>
+                      {isSendingDirectTableInvite ? 'Sending invite...' : 'Invite to a table'}
+                    </Text>
+                    {!directActiveTableCode ? (
+                      <Text style={styles.directDialogHelper}>Create or join a table before inviting.</Text>
+                    ) : null}
+                    {directActiveTableCode && !directRecipientId ? (
+                      <Text style={styles.directDialogHelper}>Player invite target unavailable.</Text>
+                    ) : null}
+                    {directActiveTableCode ? (
+                      <Text style={styles.directDialogHelper}>Active table {directActiveTableCode}</Text>
+                    ) : null}
+                  </View>
+                </Pressable>
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={handleCreateDirectTable}
+                  style={({ pressed }) => [styles.directDialogAction, pressed ? styles.pressed : null]}
+                >
+                  <MaterialCommunityIcons color={colors.primary} name="table-plus" size={21} />
+                  <View style={styles.directDialogActionCopy}>
+                    <Text style={styles.directDialogActionText}>Create a table</Text>
+                  </View>
+                </Pressable>
+                {directActionFeedback ? <Text style={styles.directDialogFeedback}>{directActionFeedback}</Text> : null}
+              </View>
+            </View>
+          </Modal>
+
+          <SetUpTableFlow
+            gameOptions={defaultGameOptions}
+            invitedPlayerIds={invitedPlayerIds}
+            isLaunching={isLaunchingTable}
+            isPrivate={isPrivate}
+            onClose={() => setIsSetUpTableFlowVisible(false)}
+            onConfirmSetup={() => { void handleLaunchTable(); }}
+            onSelectGame={handleSelectGame}
+            onSelectRules={handleSelectRules}
+            onSelectTier={handleSelectTier}
+            onTogglePlayerSelection={handleTogglePlayerSelection}
+            onTogglePrivacy={setIsPrivate}
+            players={tableSetupPlayers}
+            rulesSummary={rulesSummary}
+            selectedGameId={selectedGameId}
+            selectedPlayerIds={selectedPlayerIds}
+            selectedRuleId={selectedRuleId}
+            selectedTierId={selectedTierId}
+            visible={isSetUpTableFlowVisible}
+          />
+        </View>
+      </Screen>
+    );
+  }
+
   return (
     <Screen
       showPlatformNavigation
@@ -1358,6 +1627,115 @@ export function ChatRoomDetailScreen({ navigation, route }: Props) {
 }
 
 const styles = StyleSheet.create({
+  directChatRoot: {
+    backgroundColor: colors.background,
+    flex: 1,
+  },
+  directComposerWrap: {
+    backgroundColor: colors.background,
+    borderColor: colors.border,
+    borderTopWidth: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+  },
+  directDialogAction: {
+    alignItems: 'center',
+    backgroundColor: colors.surfaceMuted,
+    borderColor: colors.border,
+    borderRadius: 16,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 12,
+    minHeight: 56,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  directDialogActionCopy: {
+    flex: 1,
+    gap: 3,
+  },
+  directDialogActionDisabled: {
+    opacity: 0.5,
+  },
+  directDialogActionText: {
+    color: colors.text,
+    fontSize: 15,
+    fontWeight: '900',
+  },
+  directDialogBackdrop: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(3,7,18,0.72)',
+    flex: 1,
+    justifyContent: 'center',
+    padding: 20,
+  },
+  directDialogCard: {
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderRadius: 20,
+    borderWidth: 1,
+    gap: 10,
+    padding: 12,
+    width: '100%',
+  },
+  directDialogFeedback: {
+    color: colors.danger,
+    fontSize: 13,
+    fontWeight: '800',
+    lineHeight: 18,
+    paddingHorizontal: 4,
+  },
+  directDialogHelper: {
+    color: colors.mutedText,
+    fontSize: 12,
+    fontWeight: '700',
+    lineHeight: 17,
+  },
+  directErrorBanner: {
+    backgroundColor: 'rgba(255,91,110,0.10)',
+    borderColor: colors.danger,
+    borderTopWidth: 1,
+    gap: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  directHeader: {
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderBottomColor: colors.border,
+    borderBottomWidth: 1,
+    flexDirection: 'row',
+    minHeight: 54,
+    paddingHorizontal: 14,
+  },
+  directHeaderAction: {
+    alignItems: 'center',
+    borderRadius: 18,
+    height: 36,
+    justifyContent: 'center',
+    width: 36,
+  },
+  directHeaderTitle: {
+    color: colors.text,
+    flex: 1,
+    fontSize: 19,
+    fontWeight: '900',
+  },
+  directMessageList: {
+    flex: 1,
+  },
+  directMessageListContent: {
+    gap: 10,
+    padding: 12,
+  },
+  directScreenBody: {
+    flex: 1,
+    gap: 0,
+  },
+  directScreenContent: {
+    padding: 0,
+    rowGap: 0,
+  },
   errorText: {
     color: colors.danger,
     fontSize: 13,

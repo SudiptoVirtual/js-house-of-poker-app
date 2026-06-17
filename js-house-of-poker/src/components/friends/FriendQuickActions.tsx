@@ -67,6 +67,7 @@ export function FriendQuickActions({
             compact
             containerStyle={styles.actionButton}
             disabled={Boolean(pendingAction)}
+            fullWidth
             icon="chat-outline"
             label="Chat"
             loading={pendingAction === 'direct-chat'}
@@ -75,8 +76,8 @@ export function FriendQuickActions({
             variant="secondary"
           />
           <InviteToChatButton
+            containerStyle={styles.actionButton}
             disabled={Boolean(pendingAction)}
-            fullWidth={false}
             label="Chat Invite"
             loading={pendingAction === 'invite-chat-room'}
             onPress={() => { void runAction('invite-chat-room', () => onInviteToChatRoom(player)); }}
