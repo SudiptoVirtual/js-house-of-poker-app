@@ -9,22 +9,24 @@ import { RelationshipStatusBadge } from './RelationshipStatusBadge';
 
 type PlayerSearchResultCardProps = {
   hasActiveTable: boolean;
-  onInviteToChat: (player: FriendsPlayer) => void;
+  onInviteToChatRoom: (player: FriendsPlayer) => void;
   onInviteToTable: (player: FriendsPlayer) => void;
   onRemoveFriend?: (player: FriendsPlayer) => void;
   onRespondToRequest: (player: FriendsPlayer, response: 'accept' | 'reject') => void;
   onSendFriendRequest: (player: FriendsPlayer) => void;
+  onStartDirectChat: (player: FriendsPlayer) => void;
   onViewProfile: (player: FriendsPlayer) => void;
   player: FriendsPlayer;
 };
 
 export function PlayerSearchResultCard({
   hasActiveTable,
-  onInviteToChat,
+  onInviteToChatRoom,
   onInviteToTable,
   onRemoveFriend,
   onRespondToRequest,
   onSendFriendRequest,
+  onStartDirectChat,
   onViewProfile,
   player,
 }: PlayerSearchResultCardProps) {
@@ -50,11 +52,12 @@ export function PlayerSearchResultCard({
       </View>
       <FriendQuickActions
         hasActiveTable={hasActiveTable}
-        onInviteToChat={onInviteToChat}
+        onInviteToChatRoom={onInviteToChatRoom}
         onInviteToTable={onInviteToTable}
         onRemoveFriend={onRemoveFriend}
         onRespondToRequest={onRespondToRequest}
         onSendFriendRequest={onSendFriendRequest}
+        onStartDirectChat={onStartDirectChat}
         onViewProfile={onViewProfile}
         player={player}
         showFriendRequestAction

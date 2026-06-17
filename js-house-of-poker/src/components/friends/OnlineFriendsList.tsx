@@ -6,16 +6,18 @@ import { OnlineFriendCard } from './OnlineFriendCard';
 
 type OnlineFriendsListProps = {
   hasActiveTable: boolean;
-  onInviteToChat: (player: FriendsPlayer) => void;
+  onInviteToChatRoom: (player: FriendsPlayer) => void;
   onInviteToTable: (player: FriendsPlayer) => void;
+  onStartDirectChat: (player: FriendsPlayer) => void;
   onViewProfile: (player: FriendsPlayer) => void;
   players: FriendsPlayer[];
 };
 
 export function OnlineFriendsList({
   hasActiveTable,
-  onInviteToChat,
+  onInviteToChatRoom,
   onInviteToTable,
+  onStartDirectChat,
   onViewProfile,
   players,
 }: OnlineFriendsListProps) {
@@ -27,8 +29,9 @@ export function OnlineFriendsList({
       renderItem={({ item }) => (
         <OnlineFriendCard
           hasActiveTable={hasActiveTable}
-          onInviteToChat={onInviteToChat}
+          onInviteToChatRoom={onInviteToChatRoom}
           onInviteToTable={onInviteToTable}
+          onStartDirectChat={onStartDirectChat}
           onViewProfile={onViewProfile}
           player={item}
         />

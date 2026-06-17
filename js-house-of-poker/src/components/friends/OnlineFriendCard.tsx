@@ -8,16 +8,18 @@ import { PlayerStatusBadge } from './PlayerStatusBadge';
 
 type OnlineFriendCardProps = {
   hasActiveTable: boolean;
-  onInviteToChat: (player: FriendsPlayer) => void;
+  onInviteToChatRoom: (player: FriendsPlayer) => void;
   onInviteToTable: (player: FriendsPlayer) => void;
+  onStartDirectChat: (player: FriendsPlayer) => void;
   onViewProfile: (player: FriendsPlayer) => void;
   player: FriendsPlayer;
 };
 
 export function OnlineFriendCard({
   hasActiveTable,
-  onInviteToChat,
+  onInviteToChatRoom,
   onInviteToTable,
+  onStartDirectChat,
   onViewProfile,
   player,
 }: OnlineFriendCardProps) {
@@ -40,9 +42,10 @@ export function OnlineFriendCard({
       </View>
       <FriendQuickActions
         hasActiveTable={hasActiveTable}
-        onInviteToChat={onInviteToChat}
+        onInviteToChatRoom={onInviteToChatRoom}
         onInviteToTable={onInviteToTable}
         onSendFriendRequest={() => undefined}
+        onStartDirectChat={onStartDirectChat}
         onViewProfile={onViewProfile}
         player={player}
       />
