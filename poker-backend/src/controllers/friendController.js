@@ -154,6 +154,35 @@ function serializeFriend(user) {
   };
 }
 
+function valueOrZero(value) {
+  return Number.isFinite(Number(value)) ? Number(value) : 0;
+}
+
+function serializeFriendDetails(user) {
+  return {
+    id: String(user._id),
+    userId: String(user._id),
+    name: user.name,
+    username: user.username || user.handle || (user.email ? user.email.split("@")[0] : undefined),
+    handle: user.handle,
+    avatar: user.avatar,
+    isOnline: Boolean(user.isOnline),
+    status: user.status,
+    playerStatus: user.playerStatus?.tier || "NO_STATUS",
+    statusIcon: user.playerStatus?.iconKey || "badge-no-status",
+    chips: valueOrZero(user.chips),
+    gameplayStats: {
+      chips: valueOrZero(user.chips),
+      tablesPlayed: valueOrZero(user.tablesPlayed),
+      gamesPlayed: valueOrZero(user.gamesPlayed || user.totalGames),
+      handsPlayed: valueOrZero(user.handsPlayed || user.totalHands),
+      wins: valueOrZero(user.wins || user.totalWins),
+      losses: valueOrZero(user.losses || user.totalLosses),
+      winRate: valueOrZero(user.winRate),
+    },
+  };
+}
+
 function buildStatusPayload(status, request = null) {
   const serializedRequest = serializeRequest(request);
 
@@ -473,6 +502,58 @@ const searchPlayers = async (req, res) => {
   }
 };
 
+const getFriendDetails = async (req, res) => {
+  try {
+    const userId = normalizeObjectId(req.params.userId);
+
+    if (!userId) {
+      return res.status(400).json({ message: "A valid userId is required" });
+    }
+
+    const currentUserId = req.user._id;
+    const isSelfLookup = areSameObjectId(currentUserId, userId);
+    const [currentUser, targetUser] = await Promise.all([
+      User.findById(currentUserId).select("friends isBlocked status"),
+      User.findById(userId).select(
+        "name username handle email avatar isOnline status isBlocked playerStatus chips friends tablesPlayed gamesPlayed totalGames handsPlayed totalHands wins totalWins losses totalLosses winRate"
+      ),
+    ]);
+
+    if (!targetUser) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    if (isBlockedAccount(currentUser)) {
+      return res.status(403).json({ message: "Your account is blocked" });
+    }
+
+    if (isBlockedAccount(targetUser)) {
+      return res.status(403).json({ message: "This user's details are not available" });
+    }
+
+    if (!isSelfLookup) {
+      const pairKey = FriendRequest.buildFriendPairKey(currentUserId, userId);
+      const blockedRequest = await FriendRequest.exists({ pairKey, status: "blocked" });
+
+      if (blockedRequest) {
+        return res.status(403).json({ message: "This user's details are not available" });
+      }
+
+      const areFriends =
+        getFriendIds(currentUser).has(String(userId)) ||
+        getFriendIds(targetUser).has(String(currentUserId));
+
+      if (!areFriends) {
+        return res.status(403).json({ message: "You can only view details for friends" });
+      }
+    }
+
+    return res.status(200).json({ user: serializeFriendDetails(targetUser) });
+  } catch (error) {
+    return res.status(500).json({ message: "Error fetching friend details", error: error.message });
+  }
+};
+
 const getFriendStatus = async (req, res) => {
   try {
     const userId = normalizeObjectId(req.params.userId);
@@ -568,6 +649,7 @@ const getFriendList = async (req, res) => {
 module.exports = {
   acceptFriend,
   declineFriend,
+  getFriendDetails,
   getFriendList,
   getFriendStatus,
   getIncomingFriendRequests,
