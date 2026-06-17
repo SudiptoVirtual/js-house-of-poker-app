@@ -195,9 +195,8 @@ export function FriendsScreen({ navigation }: Props) {
   }, [isSearchActive, loadFriends, token, trimmedQuery]);
 
   function handleViewProfile(player: FriendsPlayer) {
-    // TODO(profile:openFromFriends): Deep-link to the selected player's public profile when profile routes accept player IDs.
     setFeedbackMessage(`Opening profile for ${player.displayName}.`);
-    navigation.navigate(routes.Profile);
+    navigation.navigate(routes.UserProfile, { userId: player.id });
   }
 
   async function handleSendFriendRequest(player: FriendsPlayer) {

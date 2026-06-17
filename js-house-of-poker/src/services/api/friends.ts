@@ -60,6 +60,13 @@ type FriendListResponse = {
 
 type FriendSearchResponse = FriendListResponse;
 
+export type PublicUserProfile = FriendsPlayer & {
+  gamesPlayed?: number;
+  handsPlayed?: number;
+  winRate?: number;
+  totalWinnings?: number;
+};
+
 type FriendActionResponse = {
   message?: string;
   request?: BackendFriendRequest | null;
@@ -249,4 +256,55 @@ export async function rejectFriendRequest(input: { requestId?: string; userId: s
     method: 'POST',
     token,
   });
+}
+
+
+export async function fetchPublicUserProfile(userId: string, token: string) {
+  const encodedUserId = encodeURIComponent(userId);
+  const response = await requestFirstAvailable<{ player?: BackendFriendPlayer; user?: BackendFriendPlayer } & BackendFriendPlayer>(
+    [`/api/users/${encodedUserId}/public-profile`, `/api/friends/users/${encodedUserId}`, `/api/players/${encodedUserId}`],
+    token,
+  );
+  const backendPlayer = response.player ?? response.user ?? response;
+  const normalizedPlayer = toFriendsPlayer(backendPlayer, 'friend');
+
+  if (!normalizedPlayer) {
+    throw new Error('Unable to load this player profile.');
+  }
+
+  const statsSource = backendPlayer as BackendFriendPlayer & {
+    gameplayStats?: { gamesPlayed?: number; handsPlayed?: number; totalWinnings?: number; winRate?: number };
+    gamesPlayed?: number;
+    handsPlayed?: number;
+    totalWinnings?: number;
+    winRate?: number;
+  };
+
+  return {
+    ...normalizedPlayer,
+    gamesPlayed: statsSource.gameplayStats?.gamesPlayed ?? statsSource.gamesPlayed,
+    handsPlayed: statsSource.gameplayStats?.handsPlayed ?? statsSource.handsPlayed,
+    totalWinnings: statsSource.gameplayStats?.totalWinnings ?? statsSource.totalWinnings,
+    winRate: statsSource.gameplayStats?.winRate ?? statsSource.winRate,
+  } satisfies PublicUserProfile;
+}
+
+export async function removeFriend(userId: string, token: string) {
+  const encodedUserId = encodeURIComponent(userId);
+  let notFoundError: unknown = null;
+
+  for (const path of [`/api/friends/${encodedUserId}`, `/api/friends/remove/${encodedUserId}`]) {
+    try {
+      return await apiRequest<FriendActionResponse>(path, { method: 'DELETE', token });
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 404) {
+        notFoundError = error;
+        continue;
+      }
+
+      throw error;
+    }
+  }
+
+  throw notFoundError ?? new Error('Remove friend API route was not found.');
 }

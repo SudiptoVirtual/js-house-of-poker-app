@@ -6,6 +6,7 @@ export const routes = {
   ChatRooms: 'ChatRooms',
   ChatRoomDetail: 'ChatRoomDetail',
   Profile: 'Profile',
+  UserProfile: 'UserProfile',
   Friends: 'Friends',
   Feed: 'Feed',
   PlayerDirectory: 'PlayerDirectory',

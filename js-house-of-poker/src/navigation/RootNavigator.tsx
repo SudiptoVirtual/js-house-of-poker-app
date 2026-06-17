@@ -16,6 +16,7 @@ import { HomeScreen } from '../screens/HomeScreen';
 import { LoginScreen } from '../screens/LoginScreen';
 import { PlayerDirectoryScreen } from '../screens/PlayerDirectoryScreen';
 import { ProfileScreen } from '../screens/ProfileScreen';
+import { UserProfileScreen } from '../screens/UserProfileScreen';
 import { RegistrationScreen } from '../screens/RegistrationScreen';
 import { WelcomeScreen } from '../screens/WelcomeScreen';
 import { useAuth } from '../context/AuthProvider';
@@ -99,6 +100,11 @@ export function RootNavigator() {
           name={routes.Profile}
           component={ProfileScreen}
           options={{ title: 'Profile' }}
+        />
+        <Stack.Screen
+          name={routes.UserProfile}
+          component={UserProfileScreen}
+          options={{ title: 'Player Profile' }}
         />
         <Stack.Screen
           name={routes.Friends}
