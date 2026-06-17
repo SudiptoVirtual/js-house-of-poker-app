@@ -26,6 +26,7 @@ import { useChatNotifications } from '../context/ChatNotificationProvider';
 import { usePoker } from '../context/PokerProvider';
 import { routes } from '../constants/routes';
 import { fetchActiveChatRoomFriends, fetchChatRoom, inviteChatRoomFriends } from '../services/api/chatRooms';
+import { uploadFeedMedia } from '../services/api/feed';
 import { clearAuthSession, getAuthSession } from '../services/storage/sessionStorage';
 import { colors } from '../theme/colors';
 import { chatRoomSocketEvents } from '../services/chatRooms/events';
@@ -53,7 +54,7 @@ import type {
   SendChatRoomMessageResponse,
 } from '../services/chatRooms/types';
 import type { PokerGameSettingsUpdate } from '../services/poker';
-import type { ChatRoom, ChatRoomFriend, ChatRoomMessage, ChatRoomPlayer } from '../types/chatRooms';
+import type { ChatRoom, ChatRoomFriend, ChatRoomMediaAttachment, ChatRoomMessage, ChatRoomPlayer } from '../types/chatRooms';
 import type { RootStackParamList } from '../types/navigation';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ChatRoomDetail'>;
@@ -778,11 +779,11 @@ export function ChatRoomDetailScreen({ navigation, route }: Props) {
     );
   }
 
-  async function handleSendMessage() {
+  async function handleSendMessage(attachments: ChatRoomMediaAttachment[] = []) {
     const trimmedDraft = draft.trim();
     const token = authRef.current?.token;
 
-    if (!trimmedDraft || !room || !token || !socketRef.current?.connected || isSendingMessage) {
+    if ((!trimmedDraft && attachments.length === 0) || !room || !token || !socketRef.current?.connected || isSendingMessage) {
       return;
     }
 
@@ -792,7 +793,7 @@ export function ChatRoomDetailScreen({ navigation, route }: Props) {
       const ack = await new Promise<SendChatRoomMessageResponse>((resolve, reject) => {
         socketRef.current?.timeout(10000).emit(
           chatRoomSocketEvents.sendMessage,
-          { body: trimmedDraft, roomId: room.id, token } satisfies SendChatRoomMessageRequest,
+          { attachments, body: trimmedDraft, roomId: room.id, token } satisfies SendChatRoomMessageRequest,
           (error: Error | null, response: SendChatRoomMessageResponse) => {
             if (error) {
               reject(error);
@@ -1212,7 +1213,8 @@ export function ChatRoomDetailScreen({ navigation, route }: Props) {
           onChangeDraft={setDraft}
           onOpenGiftClips={handleOpenGiftClips}
           onOpenAIPrime={() => { void handleOpenAIPrime(); }}
-          onSend={() => { void handleSendMessage(); }}
+          onSend={(attachments) => { void handleSendMessage(attachments); }}
+          onUploadAttachment={async (attachment) => uploadFeedMedia(attachment, authRef.current?.token ?? '') as Promise<ChatRoomMediaAttachment>}
           placeholder={isSendingMessage ? 'Sending…' : 'Message the live room…'}
           openingAIPrime={isOpeningAIPrime}
           sending={isSendingMessage}

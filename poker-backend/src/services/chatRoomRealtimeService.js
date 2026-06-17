@@ -6,6 +6,7 @@ const User = require("../models/User");
 const { sendChatRoomGiftClip } = require("./chatRoomGiftClipService");
 const { assertUserCanAccessChatRoom, userCanAccessChatRoom } = require("./chatRoomAccessService");
 const { getChatRoomPresenceService } = require("./chatRoomPresenceService");
+const { normalizeChatMediaAttachments } = require("./chatRoomMediaAttachments");
 const {
   createChatRoomGiftClipNotifications,
   createMessageNotifications,
@@ -363,6 +364,20 @@ function serializeGiftClipPayload(giftClip) {
   };
 }
 
+function serializeMediaAttachments(attachments = []) {
+  return (attachments || []).map((attachment) => ({
+    durationMs: attachment.durationMs ?? null,
+    height: attachment.height ?? null,
+    mimeType: attachment.mimeType,
+    moderation: attachment.moderation || createAcceptedModeration(),
+    size: attachment.size ?? null,
+    thumbnailUrl: attachment.thumbnailUrl || null,
+    type: attachment.type,
+    url: attachment.url,
+    width: attachment.width ?? null,
+  }));
+}
+
 function serializeChatRoomMessage(message) {
   const roomId = String(message.roomId);
   const authorId = message.senderUserId ? String(message.senderUserId) : null;
@@ -370,9 +385,11 @@ function serializeChatRoomMessage(message) {
   const kind = getChatRoomMessageKind(message);
   const giftClip = serializeGiftClipPayload(message.giftClip);
   const text = message.text || giftClip?.message || "";
+  const attachments = serializeMediaAttachments(message.attachments);
 
   return {
     authorId,
+    attachments,
     authorName: message.senderDisplayName,
     body: text,
     createdAt: createdAt instanceof Date ? createdAt.toISOString() : new Date(createdAt).toISOString(),
@@ -732,9 +749,10 @@ class ChatRoomRealtimeService {
     const room = await this.findRoom(normalizeChatRoomId(payload));
     const roomId = String(room._id);
     const text = normalizeMessageText(payload.message || payload.text || payload.body);
+    const attachments = normalizeChatMediaAttachments(payload.attachments || payload.media);
 
     assertUserCanAccessChatRoom(room, user._id);
-    if (!text) {
+    if (!text && attachments.length === 0) {
       throw new Error("Chat message cannot be empty.");
     }
 
@@ -744,6 +762,7 @@ class ChatRoomRealtimeService {
     const message = new ChatRoomMessage({
       kind: "text",
       messageType: "text",
+      attachments,
       moderation,
       roomId,
       senderDisplayName: getDisplayName(user),

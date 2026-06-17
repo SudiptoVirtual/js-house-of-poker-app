@@ -91,6 +91,20 @@ function serializeGiftClipPayload(giftClip) {
   };
 }
 
+function serializeMediaAttachments(attachments = []) {
+  return (attachments || []).map((attachment) => ({
+    durationMs: attachment.durationMs ?? null,
+    height: attachment.height ?? null,
+    mimeType: attachment.mimeType,
+    moderation: attachment.moderation || null,
+    size: attachment.size ?? null,
+    thumbnailUrl: attachment.thumbnailUrl || null,
+    type: attachment.type,
+    url: attachment.url,
+    width: attachment.width ?? null,
+  }));
+}
+
 function serializeChatRoomMessage(message) {
   const createdAt = message.createdAt || new Date();
   const roomId = String(message.roomId);
@@ -98,8 +112,10 @@ function serializeChatRoomMessage(message) {
   const kind = getChatRoomMessageKind(message);
   const giftClip = serializeGiftClipPayload(message.giftClip);
   const text = message.text || giftClip?.message || "";
+  const attachments = serializeMediaAttachments(message.attachments);
 
   return {
+    attachments,
     authorId,
     authorName: message.senderDisplayName,
     body: text,

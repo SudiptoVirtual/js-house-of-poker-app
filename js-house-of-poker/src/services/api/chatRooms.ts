@@ -317,6 +317,7 @@ function toChatRoomMessage(
   const kind = message.kind ?? message.messageType ?? (message.tone === 'system' ? 'system' : 'message');
 
   return {
+    attachments: message.attachments ?? [],
     authorId,
     authorName,
     body,

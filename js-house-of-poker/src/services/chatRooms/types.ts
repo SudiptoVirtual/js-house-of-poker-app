@@ -1,5 +1,5 @@
 import type { PokerGameSettingsUpdate } from '../../types/poker';
-import type { ChatRoomMessage, ChatRoomPlayer } from '../../types/chatRooms';
+import type { ChatRoomMediaAttachment, ChatRoomMessage, ChatRoomPlayer } from '../../types/chatRooms';
 
 export type ChatRoomSocketError = string | {
   code?: string;
@@ -82,8 +82,10 @@ export type LeaveChatRoomResponse = ChatRoomSocketAck & {
 };
 
 export type SendChatRoomMessageRequest = ChatRoomIdRequest & {
+  attachments?: ChatRoomMediaAttachment[];
   body?: string;
   clientMessageId?: string;
+  media?: ChatRoomMediaAttachment[];
   message?: string;
   text?: string;
 };
