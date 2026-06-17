@@ -1,6 +1,6 @@
 const mongoose = require("mongoose");
 
-const FRIEND_REQUEST_STATUSES = ["pending", "accepted", "declined", "blocked"];
+const FRIEND_REQUEST_STATUSES = ["pending", "accepted", "declined", "blocked", "removed"];
 
 function buildFriendPairKey(senderUserId, receiverUserId) {
   const ids = [senderUserId, receiverUserId]

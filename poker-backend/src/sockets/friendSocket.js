@@ -9,6 +9,7 @@ const FRIEND_SOCKET_EVENTS = {
   requestDeclined: "friends:request_declined",
   requestReceived: "friends:request_received",
   requestSent: "friends:request_sent",
+  friendRemoved: "friends:friend_removed",
   statusUpdated: "friends:status_updated",
   presenceUpdated: "friends:presence_updated",
 };
@@ -165,6 +166,26 @@ function emitFriendRequestAccepted({ receiver, request, sender }) {
   emitStatusUpdate(receiverUserId, receiverPayload);
 }
 
+function emitFriendRemoved({ actorUserId, otherUser, removedUser }) {
+  const actorId = String(actorUserId);
+  const otherUserId = String(otherUser?._id || otherUser?.id || otherUser?.userId || "");
+  const actorPayload = buildFriendEventPayload({
+    actorUserId: actorId,
+    otherUser,
+    status: "none",
+  });
+  const otherPayload = buildFriendEventPayload({
+    actorUserId: actorId,
+    otherUser: removedUser,
+    status: "none",
+  });
+
+  emitToUser(actorId, FRIEND_SOCKET_EVENTS.friendRemoved, actorPayload);
+  emitToUser(otherUserId, FRIEND_SOCKET_EVENTS.friendRemoved, otherPayload);
+  emitStatusUpdate(actorId, actorPayload);
+  emitStatusUpdate(otherUserId, otherPayload);
+}
+
 function emitFriendRequestDeclined({ receiver, request, sender }) {
   const senderUserId = String(request.senderUserId);
   const receiverUserId = String(request.receiverUserId);
@@ -189,6 +210,7 @@ function emitFriendRequestDeclined({ receiver, request, sender }) {
 
 module.exports = {
   FRIEND_SOCKET_EVENTS,
+  emitFriendRemoved,
   emitFriendRequestAccepted,
   emitFriendRequestCreated,
   emitFriendRequestDeclined,

@@ -17,6 +17,7 @@ import {
   fetchIncomingFriendRequests,
   getApiErrorDetails,
   rejectFriendRequest,
+  removeFriend,
   searchPlayers,
   sendFriendRequest,
 } from '../services/api';
@@ -246,9 +247,21 @@ export function FriendsScreen({ navigation }: Props) {
     }
   }
 
-  function handleRemoveFriend(player: FriendsPlayer) {
-    updatePlayerRelationship(player.id, 'not_friends', setPlayers, setSearchResults);
-    setFeedbackMessage(`${player.displayName} removed from your friends.`);
+  async function handleRemoveFriend(player: FriendsPlayer) {
+    if (!token) {
+      setFeedbackMessage('Sign in to remove friends.');
+      return;
+    }
+
+    try {
+      await removeFriend(player.id, token);
+      updatePlayerRelationship(player.id, 'not_friends', setPlayers, setSearchResults);
+      await loadFriends();
+      setFeedbackMessage(`${player.displayName} removed from your friends.`);
+    } catch (error) {
+      const { message } = getApiErrorDetails(error, `Unable to remove ${player.displayName} from your friends.`);
+      setFeedbackMessage(message);
+    }
   }
 
   async function handleStartDirectChat(player: FriendsPlayer) {
