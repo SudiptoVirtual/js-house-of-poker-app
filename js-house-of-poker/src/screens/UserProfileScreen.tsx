@@ -7,7 +7,7 @@ import { Screen } from '../components/Screen';
 import { SectionCard } from '../components/SectionCard';
 import { routes } from '../constants/routes';
 import { useAuth } from '../context/AuthProvider';
-import { createChatRoom, createOrGetDirectChatRoom } from '../services/api/chatRooms';
+import { createOrGetDirectChatRoom } from '../services/api/chatRooms';
 import {
   fetchPublicUserProfile,
   getApiErrorDetails,
@@ -37,7 +37,7 @@ function formatPercent(value: number | undefined) {
 }
 
 export function UserProfileScreen({ navigation, route }: Props) {
-  const { currentUser, token } = useAuth();
+  const { token } = useAuth();
   const { userId } = route.params;
   const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
   const [isRefreshingProfile, setIsRefreshingProfile] = useState(false);
@@ -91,17 +91,10 @@ export function UserProfileScreen({ navigation, route }: Props) {
     }
 
     try {
-      const currentUserDisplayName = currentUser?.name?.trim() || 'Player';
-      const createdRoom = await createChatRoom(
-        {
-          invitedPlayerIds: [profile.id],
-          name: `${currentUserDisplayName} & ${profile.displayName}`,
-        },
-        token,
-      );
-      navigation.navigate(routes.ChatRoomDetail, { roomId: createdRoom.room.id });
+      const room = await createOrGetDirectChatRoom(profile.id, token);
+      navigation.navigate(routes.ChatRoomDetail, { roomId: room.id });
     } catch (error) {
-      const { message } = getApiErrorDetails(error, `Unable to invite ${profile.displayName} to a chat room.`);
+      const { message } = getApiErrorDetails(error, `Unable to open a chat with ${profile.displayName}.`);
       setFeedbackMessage(message);
     }
   }
@@ -169,7 +162,7 @@ export function UserProfileScreen({ navigation, route }: Props) {
       <SectionCard title="Actions">
         <View style={styles.actionStack}>
           <ActionButton fullWidth icon="message-text-outline" label="One-to-one chat" onPress={() => { void handleStartDirectChat(); }} />
-          <ActionButton fullWidth icon="chat-plus-outline" label="Invite to chat room" onPress={() => { void handleInviteToChatRoom(); }} variant="secondary" />
+          <ActionButton fullWidth icon="chat-plus-outline" label="Open chat" onPress={() => { void handleInviteToChatRoom(); }} variant="secondary" />
           <ActionButton fullWidth icon="account-remove-outline" label="Remove friend" loading={isRemovingFriend} onPress={() => { void handleRemoveFriend(); }} tone="danger" />
         </View>
       </SectionCard>
