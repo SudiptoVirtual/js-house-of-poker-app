@@ -1,14 +1,13 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import { ActionButton } from '../components/ActionButton';
 import { ChatInboxListItem } from '../components/chatRooms';
-import { ComplianceNotice } from '../components/ComplianceNotice';
 import { Screen } from '../components/Screen';
 import { SectionCard } from '../components/SectionCard';
 import { routes } from '../constants/routes';
-import { usePoker } from '../context/PokerProvider';
 import { createChatRoom, fetchActiveChatRoomFriends, fetchChatRooms } from '../services/api/chatRooms';
 import { clearAuthSession, getAuthSession } from '../services/storage/sessionStorage';
 import { colors } from '../theme/colors';
@@ -22,8 +21,6 @@ function isInvalidUserTokenError(error: unknown) {
 }
 
 export function ChatRoomsScreen({ navigation }: Props) {
-  const { roomState } = usePoker();
-  const activeTableCode = roomState?.roomId ?? null;
   const [rooms, setRooms] = useState<ChatRoom[]>([]);
   const [activeFriends, setActiveFriends] = useState<ChatRoomFriend[]>([]);
   const [authToken, setAuthToken] = useState<string | null>(null);
@@ -31,6 +28,7 @@ export function ChatRoomsScreen({ navigation }: Props) {
   const [tableEntryCode, setTableEntryCode] = useState('');
   const [selectedFriendIds, setSelectedFriendIds] = useState<string[]>([]);
   const [isCreateRoomDialogVisible, setIsCreateRoomDialogVisible] = useState(false);
+  const [isMoreMenuVisible, setIsMoreMenuVisible] = useState(false);
   const [isTableDialogVisible, setIsTableDialogVisible] = useState(false);
   const [isLoadingRooms, setIsLoadingRooms] = useState(true);
   const [isRefreshingRooms, setIsRefreshingRooms] = useState(false);
@@ -94,6 +92,28 @@ export function ChatRoomsScreen({ navigation }: Props) {
     );
   }
 
+  function handleOpenCreateRoom() {
+    if (!authToken) {
+      setIsMoreMenuVisible(false);
+      navigation.navigate(routes.Login);
+      return;
+    }
+
+    setIsMoreMenuVisible(false);
+    setIsCreateRoomDialogVisible(true);
+  }
+
+  function handleCreateTable() {
+    setIsMoreMenuVisible(false);
+    navigation.navigate(routes.Home);
+  }
+
+  function handleOpenJoinTable() {
+    setIsMoreMenuVisible(false);
+    setTableEntryCode('');
+    setIsTableDialogVisible(true);
+  }
+
   async function handleCreateRoom() {
     const roomName = newRoomName.trim();
 
@@ -145,36 +165,17 @@ export function ChatRoomsScreen({ navigation }: Props) {
       refreshing={isRefreshingRooms}
       title="Platform chat rooms"
       subtitle="Join production social rooms backed by the API and realtime socket messaging."
+      headerRight={(
+        <Pressable
+          accessibilityLabel="Open chat room actions"
+          accessibilityRole="button"
+          onPress={() => setIsMoreMenuVisible(true)}
+          style={({ pressed }) => [styles.moreButton, pressed ? styles.pressed : null]}
+        >
+          <MaterialCommunityIcons color={colors.primary} name="dots-vertical" size={24} />
+        </Pressable>
+      )}
     >
-      <View style={styles.topActionRow}>
-        <View style={styles.topActionButton}>
-          <ActionButton
-            fullWidth
-            icon="plus-circle-outline"
-            label="Create room"
-            onPress={() => {
-              if (!authToken) {
-                navigation.navigate(routes.Login);
-                return;
-              }
-
-              setIsCreateRoomDialogVisible(true);
-            }}
-            tone="success"
-          />
-        </View>
-        <View style={styles.topActionButton}>
-          <ActionButton
-            fullWidth
-            icon={activeTableCode ? 'cards-playing-outline' : 'door-open'}
-            label="Create or join table"
-            onPress={() => setIsTableDialogVisible(true)}
-            tone="primary"
-            variant={activeTableCode ? 'primary' : 'secondary'}
-          />
-        </View>
-      </View>
-
       <SectionCard title="Rooms">
         {roomsError ? (
           <View style={styles.statusStack}>
@@ -212,6 +213,35 @@ export function ChatRoomsScreen({ navigation }: Props) {
         </View>
       </SectionCard>
 
+      <Modal
+        animationType="fade"
+        onRequestClose={() => setIsMoreMenuVisible(false)}
+        transparent
+        visible={isMoreMenuVisible}
+      >
+        <View style={styles.dropdownBackdrop}>
+          <Pressable
+            accessibilityLabel="Close chat room actions"
+            accessibilityRole="button"
+            onPress={() => setIsMoreMenuVisible(false)}
+            style={StyleSheet.absoluteFill}
+          />
+          <View style={styles.dropdownCard}>
+            <Pressable accessibilityRole="button" onPress={handleOpenCreateRoom} style={styles.menuRow}>
+              <MaterialCommunityIcons color={colors.success} name="plus-circle-outline" size={20} />
+              <Text style={styles.menuRowText}>Create room</Text>
+            </Pressable>
+            <Pressable accessibilityRole="button" onPress={handleCreateTable} style={styles.menuRow}>
+              <MaterialCommunityIcons color={colors.primary} name="cards-playing-outline" size={20} />
+              <Text style={styles.menuRowText}>Create a table</Text>
+            </Pressable>
+            <Pressable accessibilityRole="button" onPress={handleOpenJoinTable} style={styles.menuRow}>
+              <MaterialCommunityIcons color={colors.secondary} name="door-open" size={20} />
+              <Text style={styles.menuRowText}>Join a table</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
 
       <Modal
         animationType="fade"
@@ -285,8 +315,8 @@ export function ChatRoomsScreen({ navigation }: Props) {
       >
         <View style={styles.modalBackdrop}>
           <View style={styles.dialogCard}>
-            <Text style={styles.dialogTitle}>Create or join table</Text>
-            <Text style={styles.mutedText}>Enter a table code to join, or create a new table from the lobby.</Text>
+            <Text style={styles.dialogTitle}>Join a table</Text>
+            <Text style={styles.mutedText}>Enter a table code to join an existing table.</Text>
             <TextInput
               autoCapitalize="characters"
               autoCorrect={false}
@@ -297,13 +327,6 @@ export function ChatRoomsScreen({ navigation }: Props) {
               value={tableEntryCode}
             />
             <View style={styles.dialogActionRow}>
-              <ActionButton
-                label="Create"
-                onPress={() => {
-                  setIsTableDialogVisible(false);
-                  navigation.navigate(routes.Home);
-                }}
-              />
               <ActionButton
                 disabled={!tableEntryCode.trim()}
                 label="Join"
@@ -323,16 +346,11 @@ export function ChatRoomsScreen({ navigation }: Props) {
           </View>
         </View>
       </Modal>
-
-      {/* <ComplianceNotice /> */}
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  createRoomStack: {
-    gap: 12,
-  },
   dialogActionRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -406,12 +424,48 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 10,
   },
+  dropdownBackdrop: {
+    flex: 1,
+  },
+  dropdownCard: {
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderRadius: 18,
+    borderWidth: 1,
+    overflow: 'hidden',
+    position: 'absolute',
+    right: 20,
+    top: 72,
+    width: 210,
+  },
+  menuRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 13,
+  },
+  menuRowText: {
+    color: colors.text,
+    fontSize: 14,
+    fontWeight: '900',
+  },
   modalBackdrop: {
     alignItems: 'center',
     backgroundColor: 'rgba(3,7,18,0.72)',
     flex: 1,
     justifyContent: 'center',
     padding: 20,
+  },
+  moreButton: {
+    alignItems: 'center',
+    backgroundColor: colors.surfaceMuted,
+    borderColor: colors.border,
+    borderRadius: 999,
+    borderWidth: 1,
+    height: 42,
+    justifyContent: 'center',
+    width: 42,
   },
   mutedText: {
     color: colors.mutedText,
@@ -425,15 +479,6 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   statusStack: {
-    gap: 10,
-  },
-  topActionButton: {
-    flex: 1,
-    minWidth: 150,
-  },
-  topActionRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
     gap: 10,
   },
 });
