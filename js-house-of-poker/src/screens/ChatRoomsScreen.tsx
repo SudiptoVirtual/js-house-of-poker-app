@@ -159,12 +159,11 @@ export function ChatRoomsScreen({ navigation }: Props) {
 
   return (
     <Screen
+      compactHeader
       showPlatformNavigation
-      eyebrow="Chat rooms"
       onRefresh={() => { void loadRooms(true); }}
       refreshing={isRefreshingRooms}
-      title="Platform chat rooms"
-      subtitle="Join production social rooms backed by the API and realtime socket messaging."
+      title="Chat Rooms"
       headerRight={(
         <Pressable
           accessibilityLabel="Open chat room actions"
