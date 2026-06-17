@@ -48,7 +48,10 @@ export {
   fetchFriends,
   fetchIncomingFriendRequests,
   fetchOnlineFriends,
+  fetchPublicUserProfile,
   rejectFriendRequest,
+  removeFriend,
   searchPlayers,
   sendFriendRequest,
 } from './api/friends';
+export type { PublicUserProfile } from './api/friends';
