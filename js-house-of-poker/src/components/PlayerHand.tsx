@@ -7,6 +7,7 @@ import { AnimatedCard, type CardSize } from './AnimatedCard';
 import { CardReadout } from './CardReadout';
 import { HandRankDisplay } from './HandRankDisplay';
 
+import { colors } from '../theme/colors';
 type PlayerHandProps = {
   barMode?: boolean;
   cardSize?: CardSize;
@@ -139,12 +140,12 @@ const styles = StyleSheet.create({
   cardFanCompactLead: { zIndex: 2 },
   cardFanCompactTrail: { marginLeft: 6, zIndex: 1 },
   cardFanLead: { transform: [{ rotate: '-10deg' }], zIndex: 2 },
-  cardFanSlot: { shadowColor: '#000000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.26, shadowRadius: 12 },
+  cardFanSlot: { shadowColor: colors.black, shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.26, shadowRadius: 12 },
   cardFanTrail: { marginLeft: -18, transform: [{ rotate: '10deg' }], zIndex: 1 },
   cardsFan: { alignItems: 'center', flexDirection: 'row', justifyContent: 'center', minHeight: 96 },
   cardsFanBar: { flexShrink: 0, minHeight: 0 },
   cardsFanCompact: { minHeight: 72 },
-  container: { borderColor: 'rgba(109,219,255,0.42)', borderRadius: 20, borderWidth: 1, gap: 10, paddingHorizontal: 14, paddingVertical: 12, shadowColor: '#000', shadowOpacity: 0.25, shadowRadius: 14, shadowOffset: { width: 0, height: 8 } },
+  container: { borderColor: 'rgba(109,219,255,0.42)', borderRadius: 20, borderWidth: 1, gap: 10, paddingHorizontal: 14, paddingVertical: 12, shadowColor: colors.black, shadowOpacity: 0.25, shadowRadius: 14, shadowOffset: { width: 0, height: 8 } },
   containerBar: { gap: 6, minHeight: 0, paddingHorizontal: 10, paddingVertical: 8 },
   containerCompact: { gap: 8, minHeight: 148, paddingHorizontal: 12, paddingVertical: 10 },
   contentRow: { alignItems: 'center', flexDirection: 'row', gap: 14 },

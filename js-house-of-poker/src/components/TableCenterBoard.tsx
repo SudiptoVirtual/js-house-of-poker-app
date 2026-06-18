@@ -5,6 +5,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import type { PokerPhase } from '../types/poker';
 import { AnimatedCard, type CardSize } from './AnimatedCard';
 
+import { colors } from '../theme/colors';
 type TableCenterBoardProps = {
   cardSize?: CardSize;
   cards: string[];
@@ -134,7 +135,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   potAmount: {
-    color: '#FFFFFF',
+    color: colors.white,
     fontSize: 28,
     fontWeight: '900',
     letterSpacing: 0.8,

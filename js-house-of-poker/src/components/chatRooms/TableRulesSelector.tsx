@@ -1,8 +1,8 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { colors } from '../../theme/colors';
 import type { PokerGameSettingsUpdate } from '../../services/poker';
 
+import { colors } from '../../theme/colors';
 export type TableRulesValue = Pick<PokerGameSettingsUpdate, 'lowRule' | 'mode' | 'wildCards'>;
 
 export type TableRulesOption = {

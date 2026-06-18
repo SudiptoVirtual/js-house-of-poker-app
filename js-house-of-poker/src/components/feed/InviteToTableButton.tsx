@@ -1,8 +1,8 @@
 import { ActivityIndicator, Pressable, StyleSheet, Text } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
-import { colors } from '../../theme/colors';
 
+import { colors } from '../../theme/colors';
 type JoinTableButtonProps = {
   disabled?: boolean;
   loading?: boolean;
@@ -26,7 +26,7 @@ const styles = StyleSheet.create({
   button: {
     alignItems: 'center',
     alignSelf: 'stretch',
-    backgroundColor: 'rgba(255,201,94,0.10)',
+    backgroundColor: colors.goldTint,
     borderColor: 'rgba(255,201,94,0.32)',
     borderRadius: 15,
     borderWidth: 1,

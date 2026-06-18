@@ -27,6 +27,7 @@ import { PlayerAvatar } from '../PlayerAvatar';
 import { PlayerStatusBadge } from '../player/PlayerStatusBadge';
 import { TurnIndicator } from '../TurnIndicator';
 
+import { colors } from '../../theme/colors';
 type Props = {
   align?: SeatAlignment;
   anteAmount?: number;
@@ -204,7 +205,7 @@ function getActionBadge(
   if (player.isAllIn) {
     return {
       backgroundColor: 'rgba(131, 80, 14, 0.94)',
-      borderColor: '#FFC66C',
+      borderColor: colors.gold,
       color: '#FFF4DD',
       label: 'ALL-IN',
     };
@@ -231,7 +232,7 @@ function getActionBadge(
   if (player.isTurn) {
     return {
       backgroundColor: 'rgba(7, 84, 130, 0.92)',
-      borderColor: '#5EEDFF',
+      borderColor: colors.secondary,
       color: '#E9FEFF',
       label: 'TURN',
     };
@@ -1953,7 +1954,7 @@ const styles = StyleSheet.create({
     paddingVertical: 9,
   },
   nameBoxName: {
-    color: '#FFFFFF',
+    color: colors.white,
     fontSize: 11,
     fontWeight: '700',
   },

@@ -1,11 +1,11 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
-import { colors } from '../../theme/colors';
 import { CommentButton } from './CommentButton';
 import { JoinTableButton } from './InviteToTableButton';
 import { SupportButton } from './SupportButton';
 
+import { colors } from '../../theme/colors';
 type FeedActionBarProps = {
   actionsDisabled?: boolean;
   commentLoading?: boolean;

@@ -2,9 +2,9 @@ import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 import { ActionButton } from '../ActionButton';
-import { colors } from '../../theme/colors';
 import type { FeedPost } from './types';
 
+import { colors } from '../../theme/colors';
 type PromotionPaymentState = 'idle' | 'creating' | 'pending-payment';
 
 type PromoteForCreatorPanelProps = {

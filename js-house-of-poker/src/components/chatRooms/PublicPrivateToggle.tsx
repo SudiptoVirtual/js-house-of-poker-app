@@ -1,7 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { colors } from '../../theme/colors';
 
+import { colors } from '../../theme/colors';
 type PublicPrivateToggleProps = {
   isPrivate: boolean;
   onTogglePrivacy: (isPrivate: boolean) => void;

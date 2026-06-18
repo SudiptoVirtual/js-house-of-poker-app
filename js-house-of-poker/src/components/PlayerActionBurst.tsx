@@ -6,6 +6,7 @@ import {
   Text,
 } from 'react-native';
 
+import { colors } from '../theme/colors';
 type PlayerActionBurstProps = {
   label: string;
   tone?: 'accent' | 'danger' | 'neutral' | 'primary';

@@ -6,9 +6,9 @@ import {
   View,
 } from 'react-native';
 
-import { colors } from '../theme/colors';
 import { AnimatedChipStack } from './AnimatedChipStack';
 
+import { colors } from '../theme/colors';
 type PotAreaProps = {
   currentBet: number;
   handNumber: number;
@@ -158,7 +158,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     paddingVertical: 18,
     position: 'relative',
-    shadowColor: '#000000',
+    shadowColor: colors.black,
     shadowOffset: { width: 0, height: 14 },
     shadowOpacity: 0.22,
     shadowRadius: 20,

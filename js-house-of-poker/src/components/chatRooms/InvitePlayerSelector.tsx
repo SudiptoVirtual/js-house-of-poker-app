@@ -1,10 +1,10 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { colors } from '../../theme/colors';
 import type { ChatRoomPlayer } from '../../types/chatRooms';
 import { getPlayerStatusLabel } from './chatRoomUtils';
 
+import { colors } from '../../theme/colors';
 type InvitePlayerSelectorProps = {
   invitedPlayerIds: string[];
   onTogglePlayer: (playerId: string) => void;
@@ -150,7 +150,7 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
   },
   invitedPill: {
-    backgroundColor: 'rgba(77,243,199,0.14)',
+    backgroundColor: colors.successTint,
     borderColor: colors.success,
   },
   invitedPillText: {

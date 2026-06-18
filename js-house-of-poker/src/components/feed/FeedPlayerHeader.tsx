@@ -1,11 +1,11 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
-import { colors } from '../../theme/colors';
 import { FeedAvatar } from './FeedAvatar';
 import { PlayerStatusBadge } from './PlayerStatusBadge';
 import type { FeedPlayer } from '../../types/feed';
 
+import { colors } from '../../theme/colors';
 type FeedPlayerHeaderProps = {
   isPromoted?: boolean;
   onOpenProfile: (playerId: string) => void;

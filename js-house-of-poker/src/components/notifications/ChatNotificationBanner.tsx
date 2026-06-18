@@ -6,9 +6,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { routes } from '../../constants/routes';
 import { useChatNotifications } from '../../context/ChatNotificationProvider';
-import { colors } from '../../theme/colors';
 import type { RootStackParamList } from '../../types/navigation';
 
+import { colors } from '../../theme/colors';
 export function ChatNotificationBanner() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { banner, clearBanner, queueLength } = useChatNotifications();

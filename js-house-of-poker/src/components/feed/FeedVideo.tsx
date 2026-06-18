@@ -3,9 +3,9 @@ import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { VideoView, useVideoPlayer } from 'expo-video';
 
-import { colors } from '../../theme/colors';
 import type { FeedVideoMedia } from '../../types/feed';
 
+import { colors } from '../../theme/colors';
 type FeedVideoProps = {
   isActive: boolean;
   media: FeedVideoMedia;

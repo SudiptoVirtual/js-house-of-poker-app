@@ -1,12 +1,12 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { colors } from '../../theme/colors';
 import type { FriendsPlayer } from '../../types/friends';
 import { FriendQuickActions } from './FriendQuickActions';
 import { PlayerAvatar } from './PlayerAvatar';
 import { PlayerStatusBadge } from './PlayerStatusBadge';
 import { RelationshipStatusBadge } from './RelationshipStatusBadge';
 
+import { colors } from '../../theme/colors';
 type PlayerSearchResultCardProps = {
   hasActiveTable: boolean;
   onInviteToChatRoom: (player: FriendsPlayer) => void;

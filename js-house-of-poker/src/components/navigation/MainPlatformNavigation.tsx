@@ -8,9 +8,9 @@ import { isPlatformRouteActive, type PlatformRouteName } from './platformNavigat
 import { useChatNotifications } from '../../context/ChatNotificationProvider';
 import { useFeedNotifications } from '../../context/FeedNotificationProvider';
 import { useFriendNotifications } from '../../context/FriendNotificationProvider';
-import { colors } from '../../theme/colors';
 import type { RootStackParamList } from '../../types/navigation';
 
+import { colors } from '../../theme/colors';
 type NavigationItem = {
   activeIcon: keyof typeof MaterialCommunityIcons.glyphMap;
   icon: keyof typeof MaterialCommunityIcons.glyphMap;

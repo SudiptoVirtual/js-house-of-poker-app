@@ -1,9 +1,9 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { colors } from '../../theme/colors';
 import type { ChatRoom } from '../../types/chatRooms';
 
+import { colors } from '../../theme/colors';
 type ChatRoomListItemProps = {
   enterLabel?: string;
   onEnter: () => void;

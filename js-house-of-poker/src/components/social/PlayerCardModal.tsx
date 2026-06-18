@@ -4,9 +4,9 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 import { PlayerAvatar } from '../PlayerAvatar';
 import { PlayerStatusBadge } from '../player/PlayerStatusBadge';
-import { colors } from '../../theme/colors';
 import type { PokerPlayerState } from '../../types/poker';
 
+import { colors } from '../../theme/colors';
 export type PlayerCardFriendState =
   | 'none'
   | 'request-sent'

@@ -9,6 +9,7 @@ import type {
   PokerRoomState,
 } from '../../types/poker';
 
+import { colors } from '../../theme/colors';
 type Props = {
   revealedDecisions?: Record<string, Poker357Decision>;
   revealState?: 'hidden' | 'revealed' | 'resolved';
@@ -309,7 +310,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   goShowdownPlayers: {
-    color: '#FFFFFF',
+    color: colors.white,
     fontSize: 10,
     fontWeight: '900',
     textAlign: 'center',
@@ -353,7 +354,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   potAmount: {
-    color: '#FFFFFF',
+    color: colors.white,
     fontSize: 13,
     fontWeight: '900',
     letterSpacing: 0.2,
@@ -411,7 +412,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   roundSubtitle: {
-    color: '#FFFFFF',
+    color: colors.white,
     fontSize: 11,
     fontWeight: '800',
     textAlign: 'center',
@@ -466,7 +467,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
   },
   stepText: {
-    color: '#FFFFFF',
+    color: colors.white,
     fontSize: 8,
     fontWeight: '900',
   },

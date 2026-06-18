@@ -1,7 +1,7 @@
 import { Image, StyleSheet, Text, View } from 'react-native';
 
-import { colors } from '../theme/colors';
 
+import { colors } from '../theme/colors';
 const appLogo = require('../../assets/images/app-logo.jpg');
 
 type BrandPanelProps = {

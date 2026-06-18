@@ -1,8 +1,8 @@
 import { StyleSheet, TextInput, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
-import { colors } from '../../theme/colors';
 
+import { colors } from '../../theme/colors';
 type PlayerSearchInputProps = {
   onChangeText: (query: string) => void;
   value: string;

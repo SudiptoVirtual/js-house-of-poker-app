@@ -1533,7 +1533,7 @@ export function GameScreen({ navigation }: Props) {
       >
         <StatusBar style="light" />
         <LinearGradient
-          colors={['#04020A', '#090314', '#05030B']}
+          colors={colors.casinoNightGradient}
           style={StyleSheet.absoluteFillObject}
         />
         <View style={styles.emptyState}>
@@ -2011,7 +2011,7 @@ export function GameScreen({ navigation }: Props) {
     >
       <StatusBar style="light" />
       <LinearGradient
-        colors={['#04020A', '#090314', '#05030B']}
+        colors={colors.casinoNightGradient}
         style={StyleSheet.absoluteFillObject}
       />
       <Animated.View
@@ -2328,7 +2328,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0,
   },
   roundWildsTableCode: {
-    color: '#67F3BB',
+    color: colors.success,
     fontSize: 10,
     fontWeight: '900',
     letterSpacing: 0,
@@ -2521,7 +2521,7 @@ const styles = StyleSheet.create({
   shareWinTitle: { color: colors.text, fontSize: 16, fontWeight: '900' },
   shareWinButton: { backgroundColor: colors.gold, borderRadius: 999, paddingHorizontal: 14, paddingVertical: 8 },
   shareWinButtonPressed: { opacity: 0.8 },
-  shareWinButtonText: { color: '#21140A', fontSize: 12, fontWeight: '900' },
+  shareWinButtonText: { color: colors.roles.chipLabelOnGold, fontSize: 12, fontWeight: '900' },
   shareWinInput: { backgroundColor: 'rgba(255,255,255,0.07)', borderRadius: 10, color: colors.text, fontSize: 13, paddingHorizontal: 10, paddingVertical: 8 },
   shareWinMessage: { color: colors.mutedText, fontSize: 11, fontWeight: '700' },
   showdownBanner: {
@@ -2635,7 +2635,7 @@ const styles = StyleSheet.create({
     top: '11%',
   },
   tableShadow: {
-    backgroundColor: '#000000',
+    backgroundColor: colors.black,
     borderRadius: 200,
     bottom: 8,
     left: 18,
@@ -2668,7 +2668,7 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   tableViewportFocused: {
-    shadowColor: '#000',
+    shadowColor: colors.black,
     shadowOffset: { width: 0, height: 24 },
     shadowOpacity: 0.5,
     shadowRadius: 28,

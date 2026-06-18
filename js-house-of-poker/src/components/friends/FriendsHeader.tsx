@@ -1,7 +1,7 @@
 import { StyleSheet, Text, View } from 'react-native';
 
-import { colors } from '../../theme/colors';
 
+import { colors } from '../../theme/colors';
 type FriendsHeaderProps = {
   activeTableCode: string | null;
   feedbackMessage?: string | null;

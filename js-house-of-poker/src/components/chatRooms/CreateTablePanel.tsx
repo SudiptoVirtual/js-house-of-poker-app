@@ -3,7 +3,6 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { ActionButton } from '../ActionButton';
 import { SectionCard } from '../SectionCard';
-import { colors } from '../../theme/colors';
 import type { ChatRoomPlayer } from '../../types/chatRooms';
 import { defaultGameOptions, GameSelector, type GameSelectorOption } from './GameSelector';
 import { InvitePlayerSelector } from './InvitePlayerSelector';
@@ -13,6 +12,7 @@ import {
   type TableTierOption,
 } from './TableTierSelector';
 
+import { colors } from '../../theme/colors';
 type CreateTablePanelProps = {
   gameOptions?: GameSelectorOption[];
   invitedPlayerIds: string[];

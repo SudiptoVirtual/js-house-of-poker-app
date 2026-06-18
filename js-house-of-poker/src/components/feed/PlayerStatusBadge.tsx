@@ -1,10 +1,10 @@
 import { StyleSheet, Text, View } from 'react-native';
 
 import { PlayerStatusBadge as TierStatusBadge } from '../player/PlayerStatusBadge';
-import { colors } from '../../theme/colors';
 import type { FeedPlayerStatus } from './types';
 import type { PlayerStatusTier } from '../../constants/playerStatus';
 
+import { colors } from '../../theme/colors';
 type PlayerStatusBadgeProps = {
   status: FeedPlayerStatus;
   statusTier?: PlayerStatusTier;

@@ -1,9 +1,9 @@
 import { Text, View, StyleSheet } from 'react-native';
 
-import { colors } from '../../theme/colors';
 import type { ChatRoomPlayer } from '../../types/chatRooms';
 import { InvitePlayerSelector } from './InvitePlayerSelector';
 
+import { colors } from '../../theme/colors';
 type RoomPlayerInviteSelectorProps = {
   invitedPlayerIds: string[];
   onTogglePlayer: (playerId: string) => void;

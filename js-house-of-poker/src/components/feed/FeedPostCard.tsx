@@ -752,7 +752,7 @@ const styles = StyleSheet.create({
     padding: 14,
   },
   deleteMenuText: { color: colors.danger, fontSize: 14, fontWeight: "900" },
-  modalBackdrop: { alignItems: "center", backgroundColor: "rgba(0,0,0,0.68)", flex: 1, justifyContent: "center", padding: 24 },
+  modalBackdrop: { alignItems: "center", backgroundColor: colors.modalBackdrop, flex: 1, justifyContent: "center", padding: 24 },
   moreButton: { alignItems: "center", backgroundColor: colors.surfaceMuted, borderColor: colors.border, borderRadius: 999, borderWidth: 1, height: 38, justifyContent: "center", position: "absolute", right: 12, top: 12, width: 38, zIndex: 2 },
   postEditInput: { backgroundColor: colors.surfaceMuted, borderColor: colors.border, borderRadius: 14, borderWidth: 1, color: colors.text, minHeight: 110, padding: 12, textAlignVertical: "top" },
   postEditor: { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: 20, borderWidth: 1, gap: 14, padding: 18, width: "100%" },
@@ -874,7 +874,7 @@ const styles = StyleSheet.create({
     width: 42,
   },
   shareWinContext: {
-    backgroundColor: "rgba(255,201,94,0.10)",
+    backgroundColor: colors.goldTint,
     borderColor: "rgba(255,201,94,0.42)",
   },
   shareWinIconShell: { backgroundColor: "rgba(255,201,94,0.16)" },
@@ -882,7 +882,7 @@ const styles = StyleSheet.create({
   giftStats: {
     alignItems: "center",
     alignSelf: "flex-start",
-    backgroundColor: "rgba(255,201,94,0.10)",
+    backgroundColor: colors.goldTint,
     borderColor: "rgba(255,201,94,0.28)",
     borderRadius: 999,
     borderWidth: 1,
@@ -948,7 +948,7 @@ const styles = StyleSheet.create({
   },
   tableIconShell: {
     alignItems: "center",
-    backgroundColor: "rgba(255,201,94,0.10)",
+    backgroundColor: colors.goldTint,
     borderRadius: 14,
     height: 42,
     justifyContent: "center",

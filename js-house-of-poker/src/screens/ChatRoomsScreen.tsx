@@ -577,7 +577,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   friendChipSelected: {
-    backgroundColor: 'rgba(77,243,199,0.14)',
+    backgroundColor: colors.successTint,
     borderColor: colors.success,
   },
   friendChipText: {
@@ -634,7 +634,7 @@ const styles = StyleSheet.create({
   },
   modalBackdrop: {
     alignItems: 'center',
-    backgroundColor: 'rgba(3,7,18,0.72)',
+    backgroundColor: colors.modalBackdrop,
     flex: 1,
     justifyContent: 'center',
     padding: 20,

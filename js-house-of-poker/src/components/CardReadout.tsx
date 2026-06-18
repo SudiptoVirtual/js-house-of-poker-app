@@ -3,6 +3,7 @@ import { StyleSheet, Text, View } from 'react-native';
 
 import { AnimatedCard, type CardSize } from './AnimatedCard';
 
+import { colors } from '../theme/colors';
 type CardReadoutProps = {
   cards: Array<string | undefined>;
   placeholder?: string;
@@ -42,7 +43,7 @@ export const CardReadout = memo(function CardReadout({
 
 const styles = StyleSheet.create({
   card: {
-    shadowColor: '#000000',
+    shadowColor: colors.black,
     shadowOffset: { width: 0, height: 5 },
     shadowOpacity: 0.16,
     shadowRadius: 8,

@@ -4,9 +4,9 @@ import { ActivityIndicator, Image, Pressable, StyleSheet, Text, TextInput, View 
 
 import { AIPrimeButton } from './AIPrimeButton';
 
-import { colors } from '../../theme/colors';
 import type { ChatRoomMediaAttachment } from '../../types/chatRooms';
 
+import { colors } from '../../theme/colors';
 type PendingChatAttachment = { fileSize?: number; id: string; mimeType: string; name: string; type: 'image' | 'video'; uri: string };
 type PickerAsset = { assetId?: string | null; fileName?: string | null; fileSize?: number; mimeType?: string; type?: string; uri: string };
 type PickerResult = { canceled: boolean; assets?: PickerAsset[] | null };

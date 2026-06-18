@@ -11,8 +11,8 @@ import {
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 
-import { colors } from '../theme/colors';
 
+import { colors } from '../theme/colors';
 export type CardSize = 'lg' | 'md' | 'sm';
 export type CardVariant = 'default' | 'board';
 
@@ -144,24 +144,24 @@ function getSuitMeta(suit: string, variant: CardVariant) {
       case 'h':
       case 'd':
         return {
-          color: '#D6231B',
+          color: colors.roles.cardRedSuit,
           icon: suit === 'h' ? ('cards-heart' as const) : ('cards-diamond' as const),
         };
       case 'c':
-        return { color: '#091018', icon: 'cards-club' as const };
+        return { color: colors.roles.cardBlackSuit, icon: 'cards-club' as const };
       case 's':
       default:
-        return { color: '#0A1118', icon: 'cards-spade' as const };
+        return { color: colors.roles.cardBlackSuit, icon: 'cards-spade' as const };
     }
   }
 
   switch (suit) {
     case 'h':
-      return { color: '#D24563', icon: 'cards-heart' as const };
+      return { color: colors.roles.cardHeart, icon: 'cards-heart' as const };
     case 'd':
-      return { color: '#E26D4B', icon: 'cards-diamond' as const };
+      return { color: colors.roles.cardDiamond, icon: 'cards-diamond' as const };
     case 'c':
-      return { color: '#162031', icon: 'cards-club' as const };
+      return { color: colors.roles.cardClub, icon: 'cards-club' as const };
     case 's':
     default:
       return { color: '#101827', icon: 'cards-spade' as const };
@@ -526,7 +526,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     position: 'absolute',
     right: 0,
-    shadowColor: '#000000',
+    shadowColor: colors.black,
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.18,
     shadowRadius: 10,

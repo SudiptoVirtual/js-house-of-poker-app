@@ -9,6 +9,7 @@ import { DealerButton } from './DealerButton';
 import { PlayerAvatar } from './PlayerAvatar';
 import { TurnIndicator } from './TurnIndicator';
 
+import { colors } from '../theme/colors';
 type ClassicPlayerSeatProps = {
   align?: SeatAlignment;
   isBottomSeat?: boolean;
@@ -317,7 +318,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     overflow: 'visible',
     position: 'relative',
-    shadowColor: '#000000',
+    shadowColor: colors.black,
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.22,
     shadowRadius: 14,

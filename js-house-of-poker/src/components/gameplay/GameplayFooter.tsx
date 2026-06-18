@@ -1,6 +1,7 @@
 import { StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
+import { colors } from '../../theme/colors';
 type Props = {
   latencyLabel: string;
   serverTimeLabel: string;
@@ -10,7 +11,7 @@ type Props = {
 function getConnectionColor(status: Props['transportStatus']) {
   switch (status) {
     case 'connected':
-      return '#67F3BB';
+      return colors.success;
     case 'connecting':
     case 'reconnecting':
       return '#FFCB6B';

@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import type { PokerGameSettingsUpdate, PokerRoomState } from '../../types/poker';
 import { PanelShell } from './PanelShell';
 
+import { colors } from '../../theme/colors';
 type Props = {
   onLeave: () => void;
   onUpdateGameSettings: (update: PokerGameSettingsUpdate) => void;
@@ -191,7 +192,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   copyTitle: {
-    color: '#67F3BB',
+    color: colors.success,
     fontSize: 12,
     fontWeight: '900',
     letterSpacing: 0.6,
@@ -209,7 +210,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   detailValue: {
-    color: '#FFFFFF',
+    color: colors.white,
     flexShrink: 1,
     fontSize: 12,
     fontWeight: '800',
@@ -221,7 +222,7 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   featureValue: {
-    color: '#FFFFFF',
+    color: colors.white,
     fontSize: 20,
     fontWeight: '900',
     textAlign: 'center',
