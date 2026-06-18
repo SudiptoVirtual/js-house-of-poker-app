@@ -1,3 +1,4 @@
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import type { PokerGameSettingsUpdate } from '../../services/poker';
@@ -56,11 +57,16 @@ export function TableRulesSelector({ onSelectRules, options, selectedRuleId }: T
               pressed ? styles.pressed : null,
             ]}
           >
+            <View style={[styles.ruleIcon, isSelected ? styles.ruleIconSelected : null]}>
+              <MaterialCommunityIcons color={isSelected ? colors.background : colors.secondary} name="playlist-check" size={18} />
+            </View>
             <View style={styles.ruleCopy}>
               <Text style={styles.ruleTitle}>{option.label}</Text>
               <Text style={styles.ruleDescription}>{option.description}</Text>
             </View>
-            <View style={[styles.radio, isSelected ? styles.radioSelected : null]} />
+            <View style={[styles.radio, isSelected ? styles.radioSelected : null]}>
+              {isSelected ? <View style={styles.radioDot} /> : null}
+            </View>
           </Pressable>
         );
       })}
@@ -82,14 +88,21 @@ const styles = StyleSheet.create({
     height: 18,
     width: 18,
   },
-  radioSelected: {
+  radioDot: {
     backgroundColor: colors.success,
+    borderRadius: 999,
+    height: 8,
+    width: 8,
+  },
+  radioSelected: {
+    alignItems: 'center',
     borderColor: colors.success,
+    justifyContent: 'center',
   },
   ruleCard: {
     alignItems: 'center',
-    backgroundColor: colors.surfaceMuted,
-    borderColor: colors.border,
+    backgroundColor: '#120D2C',
+    borderColor: 'rgba(255,255,255,0.10)',
     borderRadius: 18,
     borderWidth: 1,
     flexDirection: 'row',
@@ -97,6 +110,21 @@ const styles = StyleSheet.create({
     padding: 12,
   },
   ruleCardSelected: {
+    backgroundColor: 'rgba(43,226,140,0.08)',
+    borderColor: colors.success,
+  },
+  ruleIcon: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(54,231,255,0.09)',
+    borderColor: 'rgba(54,231,255,0.18)',
+    borderRadius: 14,
+    borderWidth: 1,
+    height: 38,
+    justifyContent: 'center',
+    width: 38,
+  },
+  ruleIconSelected: {
+    backgroundColor: colors.success,
     borderColor: colors.success,
   },
   ruleCopy: {
