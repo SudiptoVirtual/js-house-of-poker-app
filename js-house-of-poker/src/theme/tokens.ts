@@ -13,6 +13,12 @@ export const palette = {
   feltDeep: '#061812',
   gold: '#FFC95E',
   goldSoft: '#F4D99E',
+  action: '#36E7FF',
+  actionDeep: '#0A3F5C',
+  muted: '#7F75A8',
+  glowCyan: 'rgba(54,231,255,0.28)',
+  glowGold: 'rgba(255,201,94,0.32)',
+  glowDanger: 'rgba(255,95,137,0.26)',
   success: '#4DF3C7',
   danger: '#FF5F89',
   cardFace: '#F7F5FF',
@@ -34,6 +40,12 @@ export const palette = {
 export const gradients = {
   casinoNight: [palette.ink, '#090314', palette.ink] as const,
   feltTable: [palette.felt, palette.feltDark, palette.feltDeep] as const,
+  feltOval: ['#0F7770', palette.felt, palette.feltDark, palette.feltDeep] as const,
+  tableRim: ['#3A2812', '#9D6A24', '#2A180B'] as const,
+  actionPrimary: [palette.actionDeep, palette.action] as const,
+  actionSecondary: ['#1B1432', palette.neonViolet] as const,
+  actionDestructive: ['#3A0B18', palette.danger] as const,
+  actionGold: ['#4A2E07', palette.gold] as const,
   modalOverlay: ['rgba(3,7,18,0.72)', 'rgba(3,7,18,0.88)'] as const,
 } as const;
 
@@ -47,6 +59,10 @@ export const surfaces = {
   goldTint: 'rgba(255,201,94,0.10)',
   successTint: 'rgba(77,243,199,0.14)',
   cyanTint: 'rgba(54,231,255,0.12)',
+  feltTint: 'rgba(11,90,86,0.28)',
+  actionTint: 'rgba(54,231,255,0.14)',
+  mutedTint: 'rgba(127,117,168,0.14)',
+  glowPanel: 'rgba(54,231,255,0.08)',
 } as const;
 
 export const spacing = {

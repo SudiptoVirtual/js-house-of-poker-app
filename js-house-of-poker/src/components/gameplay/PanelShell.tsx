@@ -1,6 +1,8 @@
 import { StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 
+import { colors } from '../../theme/colors';
+
 type Props = {
   children: React.ReactNode;
   contentStyle?: StyleProp<ViewStyle>;
@@ -11,7 +13,7 @@ type Props = {
 export function PanelShell({ children, contentStyle, eyebrow, title }: Props) {
   return (
     <LinearGradient
-      colors={['rgba(10, 7, 20, 0.98)', 'rgba(5, 4, 12, 0.99)']}
+      colors={[colors.surface, colors.background]}
       end={{ x: 1, y: 1 }}
       start={{ x: 0, y: 0 }}
       style={styles.shell}
@@ -30,20 +32,20 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   eyebrow: {
-    color: '#8BD7B7',
+    color: colors.action,
     fontSize: 10,
     fontWeight: '900',
     letterSpacing: 1.6,
     textTransform: 'uppercase',
   },
   header: {
-    borderBottomColor: 'rgba(180, 84, 255, 0.16)',
+    borderBottomColor: colors.surfaces.actionTint,
     borderBottomWidth: 1,
     gap: 4,
     paddingBottom: 8,
   },
   shell: {
-    borderColor: 'rgba(180, 84, 255, 0.28)',
+    borderColor: colors.glowCyan,
     borderRadius: 18,
     borderWidth: 1,
     gap: 10,
@@ -52,7 +54,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   title: {
-    color: '#B35CFF',
+    color: colors.gold,
     fontSize: 15,
     fontWeight: '900',
     letterSpacing: 0.8,

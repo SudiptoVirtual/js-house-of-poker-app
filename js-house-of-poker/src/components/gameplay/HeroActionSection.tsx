@@ -1,5 +1,8 @@
 import { StyleSheet, View } from 'react-native';
 
+import { LinearGradient } from 'expo-linear-gradient';
+
+import { colors } from '../../theme/colors';
 import { GameControls } from './GameControls';
 import type { PokerAction, PokerControls, PokerPhase, PokerPlayerState } from '../../types/poker';
 import { isLiveHand } from '../../utils/pokerTable';
@@ -46,7 +49,8 @@ export function HeroActionSection({
   const compactActions = compact || barMode;
 
   return (
-    <View
+    <LinearGradient
+      colors={[colors.surfaces.glowPanel, 'transparent']}
       style={[
         styles.root,
         barMode ? styles.rootBar : null,
@@ -86,7 +90,7 @@ export function HeroActionSection({
           />
         </View>
       </View>
-    </View>
+    </LinearGradient>
   );
 }
 
@@ -103,7 +107,9 @@ const styles = StyleSheet.create({
   compact: { gap: 10 },
   expanded: { gap: 14 },
   root: {
+    borderColor: colors.glowCyan,
     borderRadius: 16,
+    borderWidth: 1,
     width: '100%',
   },
   rootBar: {

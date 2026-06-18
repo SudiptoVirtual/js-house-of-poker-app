@@ -6,6 +6,7 @@ import type { PokerAction, PokerControls, PokerPlayerState } from '../../types/p
 
 import { colors } from '../../theme/colors';
 type ControlMode = '357' | 'standard';
+type ButtonVariant = 'destructive' | 'primary' | 'secondary' | 'gold';
 type ControlLayout = 'default' | 'leftPanel' | 'rightPanel' | 'column';
 
 type Props = {
@@ -46,7 +47,7 @@ function ControlButton({
   loading?: boolean;
   onPress: () => void;
   subtitle?: string;
-  tone: 'blue' | 'gold' | 'green' | 'pink' | 'purple' | 'red';
+  tone: ButtonVariant;
 }) {
   return (
     <Pressable
@@ -69,11 +70,11 @@ function ControlButton({
           styles.controlButton,
           compact ? styles.controlButtonCompact : null,
           large ? styles.controlButtonLarge : null,
-          styles[`${tone}Button`],
+          buttonVariantStyles[tone],
         ]}
       >
         {loading ? (
-          <ActivityIndicator color="#FFFFFF" size="small" />
+          <ActivityIndicator color={colors.white} size="small" />
         ) : (
           <Text
             adjustsFontSizeToFit
@@ -83,7 +84,7 @@ function ControlButton({
               styles.buttonLabel,
               compact ? styles.buttonLabelCompact : null,
               large ? styles.buttonLabelLarge : null,
-              styles[`${tone}Text`],
+              buttonTextVariantStyles[tone],
             ]}
           >
             {label}
@@ -107,12 +108,24 @@ function ControlButton({
 }
 
 const buttonColors = {
-  blue: ['rgba(2, 18, 38, 0.98)', 'rgba(0, 39, 81, 0.96)'],
-  gold: ['rgba(36, 22, 3, 0.98)', 'rgba(73, 43, 4, 0.96)'],
-  green: ['rgba(2, 36, 14, 0.98)', 'rgba(4, 67, 27, 0.96)'],
-  pink: ['rgba(41, 2, 27, 0.98)', 'rgba(86, 4, 57, 0.96)'],
-  purple: ['rgba(23, 5, 44, 0.98)', 'rgba(50, 9, 88, 0.96)'],
-  red: ['rgba(39, 6, 12, 0.98)', 'rgba(76, 9, 20, 0.96)'],
+  destructive: colors.gradients.actionDestructive,
+  gold: colors.gradients.actionGold,
+  primary: colors.gradients.actionPrimary,
+  secondary: colors.gradients.actionSecondary,
+} as const;
+
+const buttonVariantStyles = {
+  destructive: { borderColor: colors.danger, shadowColor: colors.danger },
+  gold: { borderColor: colors.gold, shadowColor: colors.gold },
+  primary: { borderColor: colors.action, shadowColor: colors.action },
+  secondary: { borderColor: colors.primary, shadowColor: colors.primary },
+} as const;
+
+const buttonTextVariantStyles = {
+  destructive: { color: colors.danger },
+  gold: { color: colors.gold },
+  primary: { color: colors.action },
+  secondary: { color: colors.text },
 } as const;
 
 export const GameControls = memo(function GameControls({
@@ -228,7 +241,7 @@ export const GameControls = memo(function GameControls({
             loading={pendingAction === 'go'}
             onPress={() => onAction('go')}
             subtitle="ENTER"
-            tone="blue"
+            tone="primary"
           />
           <ControlButton
             compact={isSidePanel}
@@ -238,7 +251,7 @@ export const GameControls = memo(function GameControls({
             loading={pendingAction === 'stay'}
             onPress={() => onAction('stay')}
             subtitle="SIT OUT"
-            tone="pink"
+            tone="destructive"
           />
         </View>
       ) : null}
@@ -252,7 +265,7 @@ export const GameControls = memo(function GameControls({
               label="FOLD"
               loading={pendingAction === 'fold'}
               onPress={() => onAction('fold')}
-              tone="blue"
+              tone="primary"
             />
             <ControlButton
               compact={isColumn}
@@ -260,7 +273,7 @@ export const GameControls = memo(function GameControls({
               label={canCheck ? 'CHECK' : `CALL ${controls.callAmount}`}
               loading={pendingAction === 'check' || pendingAction === 'call'}
               onPress={() => onAction(canCheck ? 'check' : 'call')}
-              tone="purple"
+              tone="secondary"
             />
             <ControlButton
               compact={isColumn}
@@ -294,7 +307,7 @@ export const GameControls = memo(function GameControls({
                   keyboardType="numeric"
                   onChangeText={onRaiseChange}
                   placeholder={`${minRaise}`}
-                  placeholderTextColor="rgba(255,255,255,0.36)"
+                  placeholderTextColor={colors.mutedText}
                   style={styles.raiseInput}
                   value={raiseTo}
                 />
@@ -335,7 +348,7 @@ export const GameControls = memo(function GameControls({
               large={isRightPanel}
               loading={pendingAction === 'start'}
               onPress={onStartHand}
-              tone="green"
+              tone="primary"
             />
           ) : null}
           {controls.canRebuy ? (
@@ -355,13 +368,6 @@ export const GameControls = memo(function GameControls({
 });
 
 const styles = StyleSheet.create({
-  blueButton: {
-    borderColor: 'rgba(26, 139, 255, 0.95)',
-    shadowColor: '#1593FF',
-  },
-  blueText: {
-    color: '#18A4FF',
-  },
   buttonDisabled: {
     opacity: 0.42,
   },
@@ -460,19 +466,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 7,
   },
-  goldButton: {
-    borderColor: 'rgba(255, 184, 46, 0.95)',
-    shadowColor: '#FFB829',
-  },
   goldText: {
-    color: '#FFBE31',
-  },
-  greenButton: {
-    borderColor: 'rgba(74, 255, 117, 0.82)',
-    shadowColor: '#35F066',
-  },
-  greenText: {
-    color: '#4DFF76',
+    color: colors.gold,
   },
   metaRow: {
     alignItems: 'center',
@@ -487,13 +482,6 @@ const styles = StyleSheet.create({
     maxWidth: 236,
     width: '100%',
   },
-  pinkButton: {
-    borderColor: 'rgba(255, 54, 167, 0.95)',
-    shadowColor: '#FF36A7',
-  },
-  pinkText: {
-    color: '#FF3DAE',
-  },
   playerText: {
     color: colors.white,
     flexShrink: 0,
@@ -505,13 +493,6 @@ const styles = StyleSheet.create({
     color: '#F4ECFF',
     fontSize: 14,
     maxWidth: '100%',
-  },
-  purpleButton: {
-    borderColor: 'rgba(186, 53, 255, 0.95)',
-    shadowColor: '#B934FF',
-  },
-  purpleText: {
-    color: '#C04CFF',
   },
   raiseAmount: {
     color: colors.white,
@@ -529,8 +510,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   raiseInput: {
-    backgroundColor: 'rgba(255,255,255,0.04)',
-    borderColor: 'rgba(255,184,46,0.34)',
+    backgroundColor: colors.surfaces.inputField,
+    borderColor: colors.glowGold,
     borderRadius: 8,
     borderWidth: 1,
     color: colors.white,
@@ -543,14 +524,14 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
   },
   raiseLabel: {
-    color: '#FFBE31',
+    color: colors.gold,
     fontSize: 11,
     fontWeight: '900',
   },
   raisePanel: {
     alignSelf: 'center',
-    backgroundColor: 'rgba(5, 4, 13, 0.94)',
-    borderColor: 'rgba(255,184,46,0.26)',
+    backgroundColor: colors.background,
+    borderColor: colors.glowGold,
     borderRadius: 12,
     borderWidth: 1,
     gap: 8,
@@ -559,13 +540,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 8,
     width: '74%',
-  },
-  redButton: {
-    borderColor: 'rgba(255, 94, 115, 0.9)',
-    shadowColor: '#FF5E73',
-  },
-  redText: {
-    color: '#FF5E73',
   },
   root: {
     alignSelf: 'center',
@@ -584,21 +558,21 @@ const styles = StyleSheet.create({
     transform: [{ translateX: '-30%' }],
   },
   statusText: {
-    color: 'rgba(239, 235, 255, 0.66)',
+    color: colors.mutedText,
     flex: 1,
     fontSize: 11,
     fontWeight: '700',
     textAlign: 'right',
   },
   statusTextLeftPanel: {
-    color: 'rgba(239, 235, 255, 0.72)',
+    color: colors.mutedText,
     fontSize: 11,
     fontWeight: '700',
     lineHeight: 14,
   },
   stepper: {
     alignItems: 'center',
-    borderColor: 'rgba(255,184,46,0.34)',
+    borderColor: colors.glowGold,
     borderRadius: 8,
     borderWidth: 1,
     height: 38,
@@ -613,8 +587,8 @@ const styles = StyleSheet.create({
   },
   submitRaise: {
     alignItems: 'center',
-    backgroundColor: 'rgba(73, 43, 4, 0.96)',
-    borderColor: 'rgba(255,184,46,0.7)',
+    backgroundColor: colors.surfaces.goldTint,
+    borderColor: colors.gold,
     borderRadius: 8,
     borderWidth: 1,
     height: 38,
@@ -622,7 +596,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
   },
   submitRaiseText: {
-    color: '#FFBE31',
+    color: colors.gold,
     fontSize: 12,
     fontWeight: '900',
   },
@@ -641,8 +615,8 @@ const styles = StyleSheet.create({
   },
   waitingPanel: {
     alignSelf: 'center',
-    backgroundColor: 'rgba(5,4,13,0.7)',
-    borderColor: 'rgba(180,84,255,0.24)',
+    backgroundColor: colors.surfaces.glowPanel,
+    borderColor: colors.glowCyan,
     borderRadius: 12,
     borderWidth: 1,
     minHeight: 58,
@@ -651,7 +625,7 @@ const styles = StyleSheet.create({
     width: '70%',
   },
   waitingText: {
-    color: '#EEE8FF',
+    color: colors.text,
     fontSize: 12,
     fontWeight: '700',
     textAlign: 'center',

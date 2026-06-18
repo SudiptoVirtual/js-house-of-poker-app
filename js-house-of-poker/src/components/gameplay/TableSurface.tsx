@@ -15,6 +15,7 @@ import type {
 import type { Point, SeatDescriptor } from '../../utils/pokerTable';
 import type { CardSize } from '../AnimatedCard';
 import { GameTableSeat } from './GameTableSeat';
+import { colors } from '../../theme/colors';
 import { gameplayLayoutConfig } from './layoutConfig';
 import { ThreeFiveSevenCenterBoard } from './ThreeFiveSevenCenterBoard';
 
@@ -450,11 +451,7 @@ export function TableSurface({
                 ]}
               />
               <LinearGradient
-                colors={[
-                  'rgba(99,24,176,0.98)',
-                  'rgba(54,13,103,0.98)',
-                  'rgba(22,8,43,0.99)',
-                ]}
+                colors={colors.gradients.tableRim}
                 end={{ x: 1, y: 1 }}
                 start={{ x: 0, y: 0 }}
                 style={[
@@ -464,7 +461,7 @@ export function TableSurface({
               >
                 <View style={styles.tableRail}>
                   <LinearGradient
-                    colors={['#14051F', '#0A0415', '#05030B']}
+                    colors={colors.gradients.feltOval}
                     end={{ x: 1, y: 1 }}
                     start={{ x: 0, y: 0 }}
                     style={styles.tableFelt}
@@ -753,7 +750,7 @@ const styles = StyleSheet.create({
     zIndex: 1,
   },
   brandWatermarkText: {
-    color: '#7A39CA',
+    color: colors.gold,
     fontSize: 38,
     fontWeight: '900',
     letterSpacing: 2.6,
@@ -802,8 +799,8 @@ const styles = StyleSheet.create({
   leftPanelResetButton: {
     alignItems: 'center',
     alignSelf: 'stretch',
-    backgroundColor: 'rgba(7, 3, 14, 0.92)',
-    borderColor: 'rgba(186, 53, 255, 0.48)',
+    backgroundColor: colors.surfaces.glowPanel,
+    borderColor: colors.glowCyan,
     borderRadius: 10,
     borderWidth: 1,
     justifyContent: 'center',
@@ -817,7 +814,7 @@ const styles = StyleSheet.create({
     transform: [{ scale: 0.98 }],
   },
   leftPanelResetText: {
-    color: '#F4ECFF',
+    color: colors.text,
     fontSize: 10,
     fontWeight: '900',
     letterSpacing: 0.8,
@@ -829,7 +826,7 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   feltGlowA: {
-    backgroundColor: 'rgba(209, 88, 255, 0.15)',
+    backgroundColor: colors.glowGold,
     borderRadius: 999,
     height: 240,
     left: 52,
@@ -838,7 +835,7 @@ const styles = StyleSheet.create({
     width: 240,
   },
   feltGlowB: {
-    backgroundColor: 'rgba(58, 182, 255, 0.12)',
+    backgroundColor: colors.glowCyan,
     borderRadius: 999,
     bottom: 58,
     height: 250,
@@ -847,7 +844,7 @@ const styles = StyleSheet.create({
     width: 250,
   },
   innerRingInner: {
-    borderColor: 'rgba(192, 78, 255, 0.48)',
+    borderColor: colors.gold,
     borderRadius: 999,
     borderWidth: 2,
     bottom: '12%',
@@ -857,7 +854,7 @@ const styles = StyleSheet.create({
     top: '12%',
   },
   innerRingOuter: {
-    borderColor: 'rgba(143, 42, 226, 0.64)',
+    borderColor: colors.glowGold,
     borderRadius: 999,
     borderWidth: 3,
     bottom: '8%',
@@ -891,7 +888,7 @@ const styles = StyleSheet.create({
     flexShrink: 0,
   },
   tableHalo: {
-    backgroundColor: 'rgba(154, 58, 255, 0.18)',
+    backgroundColor: colors.glowCyan,
     borderRadius: 999,
     bottom: -8,
     left: 18,
@@ -900,7 +897,7 @@ const styles = StyleSheet.create({
     top: 16,
   },
   tableInnerCore: {
-    backgroundColor: 'rgba(11, 7, 17, 0.96)',
+    backgroundColor: colors.feltDark,
     borderRadius: 999,
     bottom: '12%',
     left: '5%',
@@ -911,15 +908,15 @@ const styles = StyleSheet.create({
   tableOuter: {
     borderRadius: 999,
     flex: 1,
-    padding: 2,
+    padding: 6,
   },
   tableRail: {
-    backgroundColor: '#09050F',
-    borderColor: 'rgba(204, 77, 255, 0.48)',
+    backgroundColor: colors.feltDeep,
+    borderColor: colors.gold,
     borderRadius: 999,
     borderWidth: 2,
     flex: 1,
-    padding: 2,
+    padding: 5,
   },
   tableSurface: {
     overflow: 'visible',
@@ -941,7 +938,7 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
   },
   tableViewportFocused: {
-    shadowColor: '#B44DFF',
+    shadowColor: colors.gold,
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.28,
     shadowRadius: 22,
@@ -961,7 +958,7 @@ const styles = StyleSheet.create({
     zIndex: 7,
   },
   centerAura: {
-    backgroundColor: 'rgba(114, 26, 177, 0.06)',
+    backgroundColor: colors.surfaces.feltTint,
     borderRadius: 999,
     bottom: '23%',
     left: '22%',

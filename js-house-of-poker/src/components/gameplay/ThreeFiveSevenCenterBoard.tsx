@@ -121,7 +121,7 @@ export const ThreeFiveSevenCenterBoard = memo(
       return (
         <View style={styles.wrapper}>
           <LinearGradient
-            colors={['rgba(25, 11, 40, 0.97)', 'rgba(8, 7, 18, 0.99)']}
+            colors={[colors.surface, colors.background]}
             end={{ x: 1, y: 1 }}
             start={{ x: 0, y: 0 }}
             style={styles.roundShell}
@@ -180,7 +180,7 @@ export const ThreeFiveSevenCenterBoard = memo(
 
           {showGoShowdown ? (
             <LinearGradient
-              colors={['rgba(11, 84, 76, 0.98)', 'rgba(8, 24, 36, 0.99)']}
+              colors={colors.gradients.feltTable}
               end={{ x: 1, y: 1 }}
               start={{ x: 0, y: 0 }}
               style={styles.goShowdownShell}
@@ -205,7 +205,7 @@ export const ThreeFiveSevenCenterBoard = memo(
     return (
       <View style={styles.wrapper}>
         <LinearGradient
-          colors={['rgba(14, 10, 28, 0.98)', 'rgba(7, 6, 16, 0.99)']}
+          colors={[colors.surface, colors.background]}
           end={{ x: 1, y: 1 }}
           start={{ x: 0, y: 0 }}
           style={styles.potShell}
@@ -222,7 +222,7 @@ export const ThreeFiveSevenCenterBoard = memo(
         </View>
 
         <LinearGradient
-          colors={['rgba(17, 11, 32, 0.96)', 'rgba(8, 7, 18, 0.99)']}
+          colors={[colors.surface, colors.background]}
           end={{ x: 1, y: 1 }}
           start={{ x: 0, y: 0 }}
           style={styles.messageShell}
@@ -241,7 +241,7 @@ export const ThreeFiveSevenCenterBoard = memo(
 
         {showGoShowdown ? (
           <LinearGradient
-            colors={['rgba(11, 84, 76, 0.98)', 'rgba(8, 24, 36, 0.99)']}
+            colors={colors.gradients.feltTable}
             end={{ x: 1, y: 1 }}
             start={{ x: 0, y: 0 }}
             style={styles.goShowdownShell}
@@ -266,7 +266,7 @@ export const ThreeFiveSevenCenterBoard = memo(
 
 const styles = StyleSheet.create({
   chipDark: {
-    backgroundColor: '#2E2D35',
+    backgroundColor: colors.muted,
   },
   chipDot: {
     borderColor: 'rgba(255,255,255,0.28)',
@@ -276,27 +276,27 @@ const styles = StyleSheet.create({
     width: 19,
   },
   chipGold: {
-    backgroundColor: '#E0A72B',
+    backgroundColor: colors.gold,
   },
   chipGreen: {
-    backgroundColor: '#46B756',
+    backgroundColor: colors.success,
   },
   chipRail: {
     flexDirection: 'row',
     gap: 6,
   },
   chipRed: {
-    backgroundColor: '#BF465E',
+    backgroundColor: colors.danger,
   },
   gameSubTitle: {
-    color: '#FFCB6B',
+    color: colors.gold,
     fontSize: 13,
     fontWeight: '800',
     textAlign: 'center',
     textTransform: 'capitalize',
   },
   gameTitle: {
-    color: '#B35CFF',
+    color: colors.action,
     fontSize: 18,
     fontWeight: '900',
     letterSpacing: 1.2,
@@ -317,7 +317,7 @@ const styles = StyleSheet.create({
   },
   goShowdownShell: {
     alignItems: 'center',
-    borderColor: 'rgba(77, 255, 214, 0.42)',
+    borderColor: colors.success,
     borderRadius: 14,
     borderWidth: 1,
     gap: 2,
@@ -326,20 +326,20 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   goShowdownTitle: {
-    color: '#4DFFD6',
+    color: colors.success,
     fontSize: 11,
     fontWeight: '900',
     letterSpacing: 1.2,
     textAlign: 'center',
   },
   instruction: {
-    color: '#F7F4FF',
+    color: colors.text,
     fontSize: 9,
     lineHeight: 11,
     textAlign: 'center',
   },
   messageShell: {
-    borderColor: 'rgba(191, 86, 255, 0.2)',
+    borderColor: colors.glowCyan,
     borderRadius: 18,
     borderWidth: 1,
     gap: 5,
@@ -360,14 +360,14 @@ const styles = StyleSheet.create({
     letterSpacing: 0.2,
   },
   potLabel: {
-    color: '#B35CFF',
+    color: colors.action,
     fontSize: 7,
     fontWeight: '900',
     letterSpacing: 0.6,
   },
   potShell: {
     alignItems: 'center',
-    borderColor: 'rgba(191, 86, 255, 0.24)',
+    borderColor: colors.glowCyan,
     borderRadius: 12,
     borderWidth: 1,
     gap: 1,
@@ -381,7 +381,7 @@ const styles = StyleSheet.create({
   roundPotChip: {
     alignItems: 'center',
     backgroundColor: 'rgba(255, 255, 255, 0.06)',
-    borderColor: 'rgba(191, 86, 255, 0.24)',
+    borderColor: colors.glowCyan,
     borderRadius: 999,
     borderWidth: 1,
     flexDirection: 'row',
@@ -391,7 +391,7 @@ const styles = StyleSheet.create({
   },
   roundShell: {
     alignSelf: 'center',
-    borderColor: 'rgba(255, 131, 203, 0.24)',
+    borderColor: colors.glowGold,
     borderRadius: 14,
     borderWidth: 1,
     gap: 3,
@@ -418,14 +418,14 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   roundTitle: {
-    color: '#FF5ABF',
+    color: colors.danger,
     fontSize: 11,
     fontWeight: '900',
     letterSpacing: 0.8,
     textAlign: 'center',
   },
   roundWilds: {
-    color: '#C87BFF',
+    color: colors.action,
     flexShrink: 1,
     fontSize: 10,
     fontWeight: '900',
@@ -443,15 +443,15 @@ const styles = StyleSheet.create({
     zIndex: 1,
   },
   stepDotActive: {
-    backgroundColor: '#FF5ABF',
-    borderColor: '#FFA6DA',
+    backgroundColor: colors.danger,
+    borderColor: colors.glowDanger,
   },
   stepDotReached: {
-    backgroundColor: 'rgba(255, 90, 191, 0.24)',
-    borderColor: 'rgba(255, 166, 218, 0.54)',
+    backgroundColor: colors.glowDanger,
+    borderColor: colors.danger,
   },
   stepLine: {
-    backgroundColor: 'rgba(255, 166, 218, 0.26)',
+    backgroundColor: colors.glowDanger,
     flex: 1,
     height: 1,
     marginHorizontal: -2,
