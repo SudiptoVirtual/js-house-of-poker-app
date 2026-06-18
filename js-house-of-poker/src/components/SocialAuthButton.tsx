@@ -1,7 +1,9 @@
-import { FontAwesome5 } from '@expo/vector-icons';
-import { ActivityIndicator, Pressable, StyleSheet } from 'react-native';
+import { FontAwesome5 } from "@expo/vector-icons";
+import { ActivityIndicator, Pressable, StyleSheet, Text } from "react-native";
 
-type SocialProvider = 'facebook' | 'google';
+import { colors } from "../theme/colors";
+
+type SocialProvider = "facebook" | "google";
 
 type SocialAuthButtonProps = {
   disabled?: boolean;
@@ -16,20 +18,26 @@ const providerStyles: Record<
     backgroundColor: string;
     borderColor: string;
     iconColor: string;
-    iconName: 'facebook-f' | 'google';
+    iconName: "facebook-f" | "google";
+    label: string;
+    textColor: string;
   }
 > = {
   facebook: {
-    backgroundColor: 'rgba(57, 88, 165, 0.16)',
-    borderColor: 'rgba(57, 88, 165, 0.45)',
-    iconColor: '#8cb7ff',
-    iconName: 'facebook-f',
+    backgroundColor: "#1877F2",
+    borderColor: "rgba(255,255,255,0.20)",
+    iconColor: colors.white,
+    iconName: "facebook-f",
+    label: "Continue with Facebook",
+    textColor: colors.white,
   },
   google: {
-    backgroundColor: 'rgba(255, 99, 195, 0.12)',
-    borderColor: 'rgba(255, 99, 195, 0.35)',
-    iconColor: '#ffd2ef',
-    iconName: 'google',
+    backgroundColor: colors.white,
+    borderColor: "rgba(255,255,255,0.72)",
+    iconColor: "#4285F4",
+    iconName: "google",
+    label: "Continue with Google",
+    textColor: "#1F1F1F",
   },
 };
 
@@ -43,7 +51,7 @@ export function SocialAuthButton({
 
   return (
     <Pressable
-      accessibilityLabel={provider === 'google' ? 'Continue with Google' : 'Continue with Facebook'}
+      accessibilityLabel={providerStyle.label}
       accessibilityRole="button"
       disabled={disabled || loading}
       onPress={onPress}
@@ -52,7 +60,7 @@ export function SocialAuthButton({
         {
           backgroundColor: providerStyle.backgroundColor,
           borderColor: providerStyle.borderColor,
-          opacity: disabled || loading ? 0.5 : 1,
+          opacity: disabled || loading ? 0.55 : 1,
         },
         !disabled && !loading && pressed ? styles.pressed : null,
       ]}
@@ -63,24 +71,36 @@ export function SocialAuthButton({
         <FontAwesome5
           color={providerStyle.iconColor}
           name={providerStyle.iconName}
-          size={28}
+          size={19}
         />
       )}
+      <Text style={[styles.label, { color: providerStyle.textColor }]}>
+        {providerStyle.label}
+      </Text>
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
   button: {
-    alignItems: 'center',
-    borderRadius: 22,
+    alignItems: "center",
+    borderRadius: colors.radii.lg,
     borderWidth: 1,
-    height: 72,
-    justifyContent: 'center',
-    width: 72,
+    flexDirection: "row",
+    gap: colors.spacing[12],
+    justifyContent: "center",
+    minHeight: 52,
+    paddingHorizontal: colors.spacing[16],
+    paddingVertical: colors.spacing[12],
+    width: "100%",
+    ...colors.shadows.sm,
+  },
+  label: {
+    fontSize: 15,
+    fontWeight: "800",
   },
   pressed: {
-    opacity: 0.82,
-    transform: [{ scale: 0.97 }],
+    opacity: 0.88,
+    transform: [{ scale: 0.985 }],
   },
 });

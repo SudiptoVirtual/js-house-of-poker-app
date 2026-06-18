@@ -1,25 +1,25 @@
-import { useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
-import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useState } from "react";
+import { Pressable, StyleSheet, Text, View } from "react-native";
+import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 
-import { ActionButton } from '../components/ActionButton';
-import { AuthTextField } from '../components/AuthTextField';
-import { BrandPanel } from '../components/BrandPanel';
-import { ComplianceNotice } from '../components/ComplianceNotice';
-import { BotTrainingPromoBanner } from '../components/BotTrainingPromoBanner';
-import { Screen } from '../components/Screen';
-import { SectionCard } from '../components/SectionCard';
-import { complianceCopy } from '../constants/compliance';
-import { SocialAuthButton } from '../components/SocialAuthButton';
-import { routes } from '../constants/routes';
-import { useAuth } from '../context/AuthProvider';
-import { useGoogleAuth } from '../hooks/useGoogleAuth';
-import { authenticateWithGoogle, loginUser } from '../services/api/auth';
-import { getApiErrorDetails } from '../services/api/client';
-import { colors } from '../theme/colors';
-import type { RootStackParamList } from '../types/navigation';
+import { ActionButton } from "../components/ActionButton";
+import { AuthTextField } from "../components/AuthTextField";
+import { BrandPanel } from "../components/BrandPanel";
+import { ComplianceNotice } from "../components/ComplianceNotice";
+import { BotTrainingPromoBanner } from "../components/BotTrainingPromoBanner";
+import { Screen } from "../components/Screen";
+import { SectionCard } from "../components/SectionCard";
+import { complianceCopy } from "../constants/compliance";
+import { SocialAuthButton } from "../components/SocialAuthButton";
+import { routes } from "../constants/routes";
+import { useAuth } from "../context/AuthProvider";
+import { useGoogleAuth } from "../hooks/useGoogleAuth";
+import { authenticateWithGoogle, loginUser } from "../services/api/auth";
+import { getApiErrorDetails } from "../services/api/client";
+import { colors } from "../theme/colors";
+import type { RootStackParamList } from "../types/navigation";
 
-type Props = NativeStackScreenProps<RootStackParamList, 'Login'>;
+type Props = NativeStackScreenProps<RootStackParamList, "Login">;
 
 type LoginFieldErrors = {
   email?: string;
@@ -28,13 +28,16 @@ type LoginFieldErrors = {
 
 export function LoginScreen({ navigation }: Props) {
   const { setAuthenticatedSession } = useAuth();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [fieldErrors, setFieldErrors] = useState<LoginFieldErrors>({});
-  const [errorMessage, setErrorMessage] = useState('');
+  const [errorMessage, setErrorMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  async function completeAuth(token: string, user: Parameters<typeof setAuthenticatedSession>[0]['user']) {
+  async function completeAuth(
+    token: string,
+    user: Parameters<typeof setAuthenticatedSession>[0]["user"],
+  ) {
     await setAuthenticatedSession({ token, user });
     navigation.reset({
       index: 0,
@@ -43,7 +46,7 @@ export function LoginScreen({ navigation }: Props) {
   }
 
   function clearError(field?: keyof LoginFieldErrors) {
-    setErrorMessage('');
+    setErrorMessage("");
 
     if (field) {
       setFieldErrors((current) => ({
@@ -73,18 +76,18 @@ export function LoginScreen({ navigation }: Props) {
     const nextFieldErrors: LoginFieldErrors = {};
 
     if (!trimmedEmail) {
-      nextFieldErrors.email = 'Email is required.';
-    } else if (!trimmedEmail.includes('@')) {
-      nextFieldErrors.email = 'Use a valid email address.';
+      nextFieldErrors.email = "Email is required.";
+    } else if (!trimmedEmail.includes("@")) {
+      nextFieldErrors.email = "Use a valid email address.";
     }
 
     if (!password) {
-      nextFieldErrors.password = 'Password is required.';
+      nextFieldErrors.password = "Password is required.";
     }
 
     if (Object.keys(nextFieldErrors).length > 0) {
       setFieldErrors(nextFieldErrors);
-      setErrorMessage('');
+      setErrorMessage("");
       return;
     }
 
@@ -99,7 +102,7 @@ export function LoginScreen({ navigation }: Props) {
 
       await completeAuth(response.token, response.user);
     } catch (error) {
-      const details = getApiErrorDetails(error, 'Unable to login right now.');
+      const details = getApiErrorDetails(error, "Unable to login right now.");
 
       setErrorMessage(details.message);
       setFieldErrors({
@@ -131,10 +134,11 @@ export function LoginScreen({ navigation }: Props) {
           autoCorrect={false}
           errorText={fieldErrors.email}
           keyboardType="email-address"
+          iconName="email-outline"
           label="Email"
           onChangeText={(value) => {
             setEmail(value);
-            clearError('email');
+            clearError("email");
           }}
           placeholder="you@example.com"
           textContentType="emailAddress"
@@ -145,10 +149,11 @@ export function LoginScreen({ navigation }: Props) {
           autoComplete="password"
           autoCorrect={false}
           errorText={fieldErrors.password}
+          iconName="lock-outline"
           label="Password"
           onChangeText={(value) => {
             setPassword(value);
-            clearError('password');
+            clearError("password");
           }}
           placeholder="Enter your password"
           secureTextEntry
@@ -157,12 +162,19 @@ export function LoginScreen({ navigation }: Props) {
           value={password}
         />
         {errorMessage ? <Text style={styles.error}>{errorMessage}</Text> : null}
-        <ActionButton disabled={isBusy} label="Login" loading={isSubmitting} onPress={() => void handleLogin()} />
+        <ActionButton
+          disabled={isBusy}
+          fullWidth
+          icon="login"
+          label="Login"
+          loading={isSubmitting}
+          onPress={() => void handleLogin()}
+        />
       </SectionCard>
 
       <View style={styles.dividerRow}>
         <View style={styles.dividerLine} />
-        <Text style={styles.dividerText}>or continue with Google</Text>
+        <Text style={styles.dividerText}>or use social login</Text>
         <View style={styles.dividerLine} />
       </View>
 
@@ -181,7 +193,7 @@ export function LoginScreen({ navigation }: Props) {
         </SectionCard>
       ) : null}
 
-      <SectionCard title="Google login">
+      <SectionCard title="Social login">
         <View style={styles.socialRow}>
           <SocialAuthButton
             disabled={isBusy}
@@ -197,7 +209,10 @@ export function LoginScreen({ navigation }: Props) {
 
       <View style={styles.actions}>
         <Text style={styles.metaText}>New to J's House of Poker?</Text>
-        <Pressable disabled={isBusy} onPress={() => navigation.navigate(routes.Registration)}>
+        <Pressable
+          disabled={isBusy}
+          onPress={() => navigation.navigate(routes.Registration)}
+        >
           <Text style={styles.link}>Create an account</Text>
         </Pressable>
       </View>
@@ -207,7 +222,7 @@ export function LoginScreen({ navigation }: Props) {
 
 const styles = StyleSheet.create({
   actions: {
-    alignItems: 'center',
+    alignItems: "center",
     gap: 6,
     paddingBottom: 50,
   },
@@ -217,35 +232,33 @@ const styles = StyleSheet.create({
     height: 1,
   },
   dividerRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
+    alignItems: "center",
+    flexDirection: "row",
     gap: 12,
   },
   dividerText: {
     color: colors.mutedText,
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: "700",
     letterSpacing: 1,
-    textTransform: 'uppercase',
+    textTransform: "uppercase",
   },
   error: {
     color: colors.danger,
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: "600",
     lineHeight: 20,
   },
   link: {
     color: colors.secondary,
     fontSize: 16,
-    fontWeight: '700',
+    fontWeight: "700",
   },
   metaText: {
     color: colors.mutedText,
     fontSize: 14,
   },
   socialRow: {
-    flexDirection: 'row',
-    gap: 16,
-    justifyContent: 'center',
+    gap: colors.spacing[12],
   },
 });
