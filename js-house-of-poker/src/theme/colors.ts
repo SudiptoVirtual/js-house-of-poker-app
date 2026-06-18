@@ -1,4 +1,4 @@
-import { gradients, palette, radii, shadows, spacing, surfaces, typography } from './tokens';
+import { borders, componentSpacing, gradients, palette, radii, shadows, spacing, surfaces, typography } from './tokens';
 
 export const colors = {
   background: palette.casinoMidnight,
@@ -32,6 +32,8 @@ export const colors = {
   successTint: surfaces.successTint,
   cyanTint: surfaces.cyanTint,
   casinoNightGradient: gradients.casinoNight,
+  borders,
+  componentSpacing,
   gradients,
   palette,
   radii,

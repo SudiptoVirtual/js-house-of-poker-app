@@ -66,10 +66,14 @@ export const surfaces = {
 } as const;
 
 export const spacing = {
+  2: 2,
   4: 4,
   8: 8,
+  10: 10,
   12: 12,
+  14: 14,
   16: 16,
+  18: 18,
   20: 20,
   24: 24,
   32: 32,
@@ -79,8 +83,27 @@ export const radii = {
   sm: 8,
   md: 12,
   lg: 16,
+  button: 18,
+  card: 22,
   xl: 24,
   pill: 999,
+} as const;
+
+export const borders = {
+  hairline: 1,
+  default: { borderColor: palette.border, borderWidth: 1 } satisfies ViewStyle,
+  cyan: { borderColor: palette.neonCyan, borderWidth: 1 } satisfies ViewStyle,
+  gold: { borderColor: palette.gold, borderWidth: 1 } satisfies ViewStyle,
+  danger: { borderColor: palette.danger, borderWidth: 1 } satisfies ViewStyle,
+  mutedCyan: { borderColor: 'rgba(54,231,255,0.18)', borderWidth: 1 } satisfies ViewStyle,
+  mutedViolet: { borderColor: 'rgba(138,113,255,0.42)', borderWidth: 1 } satisfies ViewStyle,
+} as const;
+
+export const componentSpacing = {
+  button: { gap: spacing[8], paddingHorizontal: spacing[18], paddingVertical: spacing[14] },
+  buttonCompact: { gap: spacing[8], paddingHorizontal: spacing[14], paddingVertical: 11 },
+  card: { gap: spacing[12], padding: spacing[18] },
+  banner: { gap: spacing[12], margin: spacing[12], padding: spacing[14] },
 } as const;
 
 export const typography = {
@@ -113,6 +136,8 @@ export const shadows = {
 } as const;
 
 export const theme = {
+  borders,
+  componentSpacing,
   gradients,
   palette,
   radii,

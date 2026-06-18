@@ -8,7 +8,7 @@ import { routes } from '../../constants/routes';
 import { useFeedNotifications } from '../../context/FeedNotificationProvider';
 import type { RootStackParamList } from '../../types/navigation';
 
-import { colors } from '../../theme/colors';
+import { borders, colors, radii, shadows, spacing } from '../../theme';
 export function FeedNotificationBanner() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { bannerNotification, clearBannerNotification } = useFeedNotifications();
@@ -70,18 +70,14 @@ const styles = StyleSheet.create({
   banner: {
     alignItems: 'center',
     backgroundColor: colors.surface,
-    borderColor: colors.secondary,
-    borderRadius: 22,
-    borderWidth: 1,
+    ...borders.cyan,
+    borderRadius: radii.card,
     flexDirection: 'row',
-    gap: 12,
-    marginHorizontal: 14,
-    marginTop: 8,
-    padding: 12,
-    shadowColor: colors.secondary,
-    shadowOffset: { height: 8, width: 0 },
-    shadowOpacity: 0.25,
-    shadowRadius: 18,
+    gap: spacing[12],
+    marginHorizontal: spacing[14],
+    marginTop: spacing[8],
+    padding: spacing[12],
+    ...shadows.md,
   },
   bannerPressed: {
     opacity: 0.86,
@@ -109,7 +105,7 @@ const styles = StyleSheet.create({
   iconBadge: {
     alignItems: 'center',
     backgroundColor: colors.secondary,
-    borderRadius: 16,
+    borderRadius: radii.lg,
     height: 32,
     justifyContent: 'center',
     width: 32,
@@ -125,7 +121,7 @@ const styles = StyleSheet.create({
   metaRow: {
     alignItems: 'center',
     flexDirection: 'row',
-    gap: 8,
+    gap: spacing[8],
   },
   safeArea: {
     left: 0,

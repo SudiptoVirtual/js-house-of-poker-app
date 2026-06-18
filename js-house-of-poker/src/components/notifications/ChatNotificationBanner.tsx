@@ -8,7 +8,7 @@ import { routes } from '../../constants/routes';
 import { useChatNotifications } from '../../context/ChatNotificationProvider';
 import type { RootStackParamList } from '../../types/navigation';
 
-import { colors } from '../../theme/colors';
+import { borders, colors, componentSpacing, radii, spacing } from '../../theme';
 export function ChatNotificationBanner() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { banner, clearBanner, queueLength } = useChatNotifications();
@@ -49,11 +49,11 @@ export function ChatNotificationBanner() {
 }
 
 const styles = StyleSheet.create({
-  action: { borderColor: colors.secondary, borderRadius: 999, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 7 },
+  action: { ...borders.cyan, borderRadius: radii.pill, paddingHorizontal: spacing[12], paddingVertical: 7 },
   actionText: { color: colors.secondary, fontSize: 12, fontWeight: '800' },
-  banner: { alignItems: 'center', backgroundColor: colors.surface, borderColor: colors.secondary, borderRadius: 16, borderWidth: 1, flexDirection: 'row', gap: 12, margin: 12, padding: 14 },
+  banner: { ...borders.cyan, alignItems: 'center', backgroundColor: colors.surface, borderRadius: radii.lg, flexDirection: 'row', gap: componentSpacing.banner.gap, margin: componentSpacing.banner.margin, padding: componentSpacing.banner.padding },
   body: { color: colors.mutedText, fontSize: 13 },
-  copy: { flex: 1, gap: 2 },
+  copy: { flex: 1, gap: spacing[2] },
   queued: { color: colors.gold, fontSize: 11, fontWeight: '700' },
   safeArea: { left: 0, position: 'absolute', right: 0, top: 0, zIndex: 40 },
   title: { color: colors.text, fontSize: 14, fontWeight: '800' },

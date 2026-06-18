@@ -12,8 +12,10 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
+import { borders, colors, componentSpacing, gradients, radii, spacing } from '../theme';
 
-import { colors } from '../theme/colors';
+type ActionButtonVariant = 'primary' | 'secondary' | 'ghost' | 'gold' | 'danger' | 'compact' | 'full-width';
+
 type ActionButtonProps = {
   compact?: boolean;
   containerStyle?: StyleProp<ViewStyle>;
@@ -25,18 +27,52 @@ type ActionButtonProps = {
   fullWidth?: boolean;
   style?: StyleProp<ViewStyle>;
   tone?: 'accent' | 'danger' | 'neutral' | 'primary' | 'success';
-  variant?: 'primary' | 'secondary';
+  variant?: ActionButtonVariant;
+};
+
+type ButtonVisuals = {
+  borderColor: string;
+  glow: string;
+  gradient: readonly [string, string];
+  textColor: string;
 };
 
 function getVisuals(
-  variant: 'primary' | 'secondary',
+  variant: Exclude<ActionButtonVariant, 'compact' | 'full-width'>,
   tone: NonNullable<ActionButtonProps['tone']>,
-) {
+): ButtonVisuals {
+  if (variant === 'ghost') {
+    return {
+      borderColor: colors.border,
+      glow: 'rgba(138,113,255,0.12)',
+      gradient: ['rgba(255,255,255,0.00)', 'rgba(255,255,255,0.04)'],
+      textColor: colors.text,
+    };
+  }
+
+  if (variant === 'gold') {
+    return {
+      borderColor: colors.gold,
+      glow: colors.glowGold,
+      gradient: gradients.actionGold,
+      textColor: colors.palette.textOnGold,
+    };
+  }
+
+  if (variant === 'danger') {
+    return {
+      borderColor: colors.danger,
+      glow: colors.glowDanger,
+      gradient: gradients.actionDestructive,
+      textColor: '#FFF3F8',
+    };
+  }
+
   if (variant === 'secondary' && tone === 'neutral') {
     return {
-      borderColor: 'rgba(138,113,255,0.42)',
+      borderColor: borders.mutedViolet.borderColor,
       glow: 'rgba(108,238,255,0.16)',
-      gradient: ['rgba(35,25,70,0.94)', 'rgba(20,15,46,0.98)'] as const,
+      gradient: ['rgba(35,25,70,0.94)', 'rgba(20,15,46,0.98)'],
       textColor: colors.text,
     };
   }
@@ -46,42 +82,46 @@ function getVisuals(
       return {
         borderColor: colors.danger,
         glow: 'rgba(255,126,165,0.28)',
-        gradient: ['#A83367', '#6B234A'] as const,
+        gradient: ['#A83367', '#6B234A'],
         textColor: '#FFF3F8',
       };
     case 'success':
       return {
-        borderColor: '#63FFCF',
+        borderColor: colors.success,
         glow: 'rgba(99,255,207,0.26)',
-        gradient: ['#168A6B', '#0C5948'] as const,
+        gradient: ['#168A6B', '#0C5948'],
         textColor: '#E8FFF7',
       };
     case 'accent':
       return {
         borderColor: colors.gold,
-        glow: 'rgba(255,198,108,0.28)',
-        gradient: ['#9A5C12', '#61370A'] as const,
+        glow: colors.glowGold,
+        gradient: gradients.actionGold,
         textColor: '#FFF7E6',
       };
     case 'neutral':
       return {
         borderColor: variant === 'primary' ? '#9F89FF' : colors.border,
         glow: 'rgba(140,112,255,0.24)',
-        gradient:
-          variant === 'primary'
-            ? (['#613FC9', '#422A90'] as const)
-            : (['#2A225B', '#1E1841'] as const),
+        gradient: variant === 'primary' ? ['#613FC9', '#422A90'] : ['#2A225B', '#1E1841'],
         textColor: colors.text,
       };
     case 'primary':
     default:
       return {
         borderColor: colors.secondary,
-        glow: 'rgba(94,237,255,0.28)',
-        gradient: ['#178CA2', '#0E5A80'] as const,
+        glow: colors.glowCyan,
+        gradient: gradients.actionPrimary,
         textColor: '#ECFFFF',
       };
   }
+}
+
+function resolveVariant(variant: ActionButtonVariant) {
+  if (variant === 'compact' || variant === 'full-width') {
+    return 'primary' as const;
+  }
+  return variant;
 }
 
 export function ActionButton({
@@ -99,8 +139,11 @@ export function ActionButton({
 }: ActionButtonProps) {
   const scale = useRef(new Animated.Value(1)).current;
   const shine = useRef(new Animated.Value(0.14)).current;
-  const resolvedTone = tone ?? (variant === 'secondary' ? 'neutral' : 'primary');
-  const visuals = useMemo(() => getVisuals(variant, resolvedTone), [resolvedTone, variant]);
+  const visualVariant = resolveVariant(variant);
+  const isCompact = compact || variant === 'compact';
+  const isFullWidth = fullWidth || variant === 'full-width';
+  const resolvedTone = tone ?? (visualVariant === 'secondary' || visualVariant === 'ghost' ? 'neutral' : 'primary');
+  const visuals = useMemo(() => getVisuals(visualVariant, resolvedTone), [resolvedTone, visualVariant]);
 
   useEffect(() => {
     const loop = Animated.loop(
@@ -125,7 +168,7 @@ export function ActionButton({
   return (
     <Animated.View
       style={[
-        fullWidth ? styles.fullWidthContainer : null,
+        isFullWidth ? styles.fullWidthContainer : null,
         { transform: [{ scale }] },
         containerStyle,
       ]}
@@ -153,8 +196,8 @@ export function ActionButton({
         }
         style={({ pressed }) => [
           styles.button,
-          compact ? styles.compactButton : null,
-          fullWidth ? styles.fullWidth : null,
+          isCompact ? styles.compactButton : null,
+          isFullWidth ? styles.fullWidth : null,
           style,
           {
             borderColor: visuals.borderColor,
@@ -172,11 +215,9 @@ export function ActionButton({
           {loading ? (
             <ActivityIndicator color={visuals.textColor} size="small" />
           ) : icon ? (
-            <MaterialCommunityIcons color={visuals.textColor} name={icon} size={compact ? 16 : 18} />
+            <MaterialCommunityIcons color={visuals.textColor} name={icon} size={isCompact ? 16 : 18} />
           ) : null}
-          <Text style={[styles.label, compact ? styles.labelCompact : null, { color: visuals.textColor }]}>
-            {label}
-          </Text>
+          <Text style={[styles.label, isCompact ? styles.labelCompact : null, { color: visuals.textColor }]}>{label}</Text>
         </View>
       </Pressable>
     </Animated.View>
@@ -185,23 +226,23 @@ export function ActionButton({
 
 const styles = StyleSheet.create({
   button: {
-    borderRadius: 18,
-    borderWidth: 1,
+    ...borders.default,
+    borderRadius: radii.button,
     minWidth: 148,
     overflow: 'hidden',
-    paddingHorizontal: 18,
-    paddingVertical: 14,
+    paddingHorizontal: componentSpacing.button.paddingHorizontal,
+    paddingVertical: componentSpacing.button.paddingVertical,
     position: 'relative',
   },
   compactButton: {
     minWidth: 0,
-    paddingHorizontal: 14,
-    paddingVertical: 11,
+    paddingHorizontal: componentSpacing.buttonCompact.paddingHorizontal,
+    paddingVertical: componentSpacing.buttonCompact.paddingVertical,
   },
   content: {
     alignItems: 'center',
     flexDirection: 'row',
-    gap: 8,
+    gap: spacing[8],
     justifyContent: 'center',
     minWidth: 0,
   },
