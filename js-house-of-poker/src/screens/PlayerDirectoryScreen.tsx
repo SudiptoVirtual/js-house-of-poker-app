@@ -6,6 +6,7 @@ import { ActionButton } from '../components/ActionButton';
 import { ComplianceNotice } from '../components/ComplianceNotice';
 import { Screen } from '../components/Screen';
 import { SectionCard } from '../components/SectionCard';
+import { PlayerIdentityCard } from '../components/player/PlayerIdentityCard';
 import { routes } from '../constants/routes';
 import { buildSocialInvitePreset, socialPlayers } from '../constants/social';
 import { usePoker } from '../context/PokerProvider';
@@ -70,12 +71,16 @@ export function PlayerDirectoryScreen({ navigation }: Props) {
       <SectionCard title="Results">
         <View style={styles.resultStack}>
           {filteredPlayers.map((player) => (
-            <View key={player.id} style={styles.resultCard}>
-              <Text style={styles.resultName}>{player.name}</Text>
-              <Text style={styles.resultHandle}>{player.handle}</Text>
-              <Text style={styles.resultStatus}>{player.statusLabel}</Text>
-              <Text style={styles.resultMeta}>{player.mutualTables}</Text>
-              <Text style={styles.resultBio}>{player.bio}</Text>
+            <PlayerIdentityCard
+              key={player.id}
+              badges={[{ label: player.statusLabel, tone: player.statusLabel.includes('Online') ? 'success' : 'gold' }]}
+              connected={player.statusLabel.includes('Online')}
+              displayName={player.name}
+              meta={player.bio}
+              seed={player.id}
+              stats={[{ label: 'Shared', value: player.mutualTables }, { label: 'Seat note', value: player.favoriteSeat }]}
+              username={player.handle}
+            >
               <ActionButton
                 compact
                 fullWidth
@@ -85,7 +90,7 @@ export function PlayerDirectoryScreen({ navigation }: Props) {
                 tone={activeTableCode ? 'success' : 'neutral'}
                 variant={activeTableCode ? 'primary' : 'secondary'}
               />
-            </View>
+            </PlayerIdentityCard>
           ))}
           {filteredPlayers.length === 0 ? (
             <View style={styles.emptyCard}>

@@ -6,11 +6,13 @@ import { ActionButton } from '../components/ActionButton';
 import { ComplianceNotice } from '../components/ComplianceNotice';
 import { Screen } from '../components/Screen';
 import { SectionCard } from '../components/SectionCard';
+import { PlayerIdentityCard } from '../components/player/PlayerIdentityCard';
 import { routes } from '../constants/routes';
 import { useAuth } from '../context/AuthProvider';
 import { usePoker } from '../context/PokerProvider';
 import { colors } from '../theme/colors';
 import type { RootStackParamList } from '../types/navigation';
+import type { PokerPlayerStatus } from '../types/poker';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Profile'>;
 
@@ -22,6 +24,12 @@ function buildHandle(email: string | undefined) {
   }
 
   return `@${localPart.toLowerCase().replace(/[^a-z0-9._-]/g, '-')}`;
+}
+
+const PLAYER_STATUS_VALUES = new Set<string>(['NO_STATUS', 'LOW_ROLLER', 'MID_ROLLER', 'UP_AND_COMING', 'HIGH_ROLLER', 'SHARK']);
+
+function getPokerPlayerStatus(status: string | undefined): PokerPlayerStatus | undefined {
+  return status && PLAYER_STATUS_VALUES.has(status) ? (status as PokerPlayerStatus) : undefined;
 }
 
 function formatCurrency(value: number | undefined) {
@@ -45,6 +53,7 @@ export function ProfileScreen({ navigation }: Props) {
   const statusLine = currentUser?.email
     ? `${handle} | ${currentUser.email}`
     : `${handle} | Sign in to sync your profile`;
+  const playerStatus = getPokerPlayerStatus(currentUser?.playerStatus);
   const profileStats = [
     { label: 'Friends', value: formatCount(currentUser?.friendCount) },
     { label: 'Posts', value: formatCount(currentUser?.postCount) },
@@ -92,21 +101,22 @@ export function ProfileScreen({ navigation }: Props) {
     >
       {refreshError ? <Text style={styles.errorText}>{refreshError}</Text> : null}
       <SectionCard title="Player card">
-        <Text style={styles.metaLine}>Chips: {formatCount(currentUser?.chips)}</Text>
-        <Text style={styles.metaLine}>Wallet / bankroll: {formatCurrency(currentUser?.walletBalance)}</Text>
-        <Text style={styles.metaLine}>Status: {currentUser?.status ?? 'Unknown'}</Text>
+        <PlayerIdentityCard
+          badges={[{ label: currentUser?.status ?? 'Unknown', tone: currentUser?.status === 'online' ? 'success' : 'muted' }]}
+          chipsLabel={`Chips: ${formatCount(currentUser?.chips)}`}
+          connected={currentUser?.status === 'online'}
+          displayName={displayName}
+          meta={`Wallet / bankroll: ${formatCurrency(currentUser?.walletBalance)}`}
+          seed={currentUser?.id ?? currentUser?.email ?? displayName}
+          size="lg"
+          stats={profileStats}
+          status={playerStatus}
+          username={handle}
+        />
         <Text style={styles.metaLine}>Player tier: {currentUser?.playerStatus ?? 'NO_STATUS'}</Text>
         {currentUser?.referralCode ? (
           <Text style={styles.metaLine}>Referral code: {currentUser.referralCode}</Text>
         ) : null}
-        <View style={styles.statRow}>
-          {profileStats.map((stat) => (
-            <View key={stat.label} style={styles.statCard}>
-              <Text style={styles.statValue}>{stat.value}</Text>
-              <Text style={styles.statLabel}>{stat.label}</Text>
-            </View>
-          ))}
-        </View>
       </SectionCard>
 
       <SectionCard title="Shared invite flow">

@@ -5,6 +5,8 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { ActionButton } from '../components/ActionButton';
 import { Screen } from '../components/Screen';
 import { SectionCard } from '../components/SectionCard';
+import { PlayerIdentityCard } from '../components/player/PlayerIdentityCard';
+import { getActivityBadge, getRelationshipBadge } from '../components/player/PlayerMetaBadge';
 import { routes } from '../constants/routes';
 import { useAuth } from '../context/AuthProvider';
 import { createOrGetDirectChatRoom } from '../services/api/chatRooms';
@@ -135,27 +137,28 @@ export function UserProfileScreen({ navigation, route }: Props) {
       {feedbackMessage ? <Text style={styles.feedbackText}>{feedbackMessage}</Text> : null}
 
       <SectionCard title="Public details">
-        <Text style={styles.metaLine}>Name: {displayName}</Text>
-        <Text style={styles.metaLine}>Handle: {handle}</Text>
-        <Text style={styles.metaLine}>Online: {profile?.isOnline ? 'Yes' : 'No'}</Text>
-        <Text style={styles.metaLine}>Status: {status}</Text>
+        {profile ? (
+          <PlayerIdentityCard
+            avatar={profile.avatar}
+            badges={[getActivityBadge(profile.activityStatus), getRelationshipBadge(profile.relationshipStatus)]}
+            connected={profile.isOnline}
+            displayName={displayName}
+            meta={status}
+            seed={profile.id}
+            size="lg"
+            stats={[
+              { label: 'Games', value: formatCount(profile.gamesPlayed) },
+              { label: 'Hands', value: formatCount(profile.handsPlayed) },
+              { label: 'Win rate', value: formatPercent(profile.winRate) },
+            ]}
+            username={handle}
+          />
+        ) : (
+          <Text style={styles.metaLine}>Loading public player details…</Text>
+        )}
       </SectionCard>
 
       <SectionCard title="Gameplay stats">
-        <View style={styles.statRow}>
-          <View style={styles.statCard}>
-            <Text style={styles.statValue}>{formatCount(profile?.gamesPlayed)}</Text>
-            <Text style={styles.statLabel}>Games</Text>
-          </View>
-          <View style={styles.statCard}>
-            <Text style={styles.statValue}>{formatCount(profile?.handsPlayed)}</Text>
-            <Text style={styles.statLabel}>Hands</Text>
-          </View>
-          <View style={styles.statCard}>
-            <Text style={styles.statValue}>{formatPercent(profile?.winRate)}</Text>
-            <Text style={styles.statLabel}>Win rate</Text>
-          </View>
-        </View>
         <Text style={styles.metaLine}>Total winnings: {formatCount(profile?.totalWinnings)}</Text>
       </SectionCard>
 
