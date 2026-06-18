@@ -79,8 +79,12 @@ export function SetUpTableFlow({
       <View style={styles.container}>
         <View style={styles.headerRow}>
           <View style={styles.headerCopy}>
-            <Text style={styles.eyebrow}>AI Prime → Set Up Table</Text>
-            <Text style={styles.title}>Guided table setup</Text>
+            <View style={styles.aiBadge}>
+              <MaterialCommunityIcons color={colors.background} name="auto-fix" size={13} />
+              <Text style={styles.aiBadgeText}>AI Prime action</Text>
+            </View>
+            <Text style={styles.eyebrow}>Set Up Table</Text>
+            <Text style={styles.title}>Guided club table setup</Text>
             <Text style={styles.subtitle}>
               Pick Game → Set Tier / Rules → Choose Public or Private → Invite Room Players → Launch Table.
             </Text>
@@ -98,27 +102,27 @@ export function SetUpTableFlow({
 
         <ScrollView contentContainerStyle={styles.content}>
           <View style={styles.stepCard}>
-            <StepHeader index={1} title="Pick Game" />
+            <StepHeader index={1} title="Pick Game" helper="Choose the table format before invites go out." />
             <GameSelector options={gameOptions} selectedGameId={selectedGameId} onSelectGame={onSelectGame} />
           </View>
 
           <View style={styles.stepCard}>
-            <StepHeader index={2} title="Set Table Tier" />
+            <StepHeader index={2} title="Set Table Tier" helper="Make stakes and pacing obvious at a glance." />
             <TableTierSelector options={tierOptions} selectedTierId={selectedTierId} onSelectTier={onSelectTier} />
           </View>
 
           <View style={styles.stepCard}>
-            <StepHeader index={3} title="Choose Rules" />
+            <StepHeader index={3} title="Choose Rules" helper="Lock in the variant before launch." />
             <TableRulesSelector options={rulesOptions} selectedRuleId={selectedRuleId} onSelectRules={onSelectRules} />
           </View>
 
           <View style={styles.stepCard}>
-            <StepHeader index={4} title="Public or Private" />
+            <StepHeader index={4} title="Public or Private" helper="Set discovery and seat access." />
             <PublicPrivateToggle isPrivate={isPrivate} onTogglePrivacy={onTogglePrivacy} />
           </View>
 
           <View style={styles.stepCard}>
-            <StepHeader index={5} title="Invite Room Players" />
+            <StepHeader index={5} title="Invite Room Players" helper="Bring available club members to the table." />
             <RoomPlayerInviteSelector
               invitedPlayerIds={invitedPlayerIds}
               players={players}
@@ -157,18 +161,37 @@ export function SetUpTableFlow({
   );
 }
 
-function StepHeader({ index, title }: { index: number; title: string }) {
+function StepHeader({ helper, index, title }: { helper: string; index: number; title: string }) {
   return (
     <View style={styles.stepHeader}>
       <View style={styles.stepBadge}>
         <Text style={styles.stepBadgeText}>{index}</Text>
       </View>
-      <Text style={styles.stepTitle}>{title}</Text>
+      <View style={styles.stepCopy}>
+        <Text style={styles.stepTitle}>{title}</Text>
+        <Text style={styles.stepHelper}>{helper}</Text>
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  aiBadge: {
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    backgroundColor: colors.gold,
+    borderRadius: 999,
+    flexDirection: 'row',
+    gap: 5,
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+  },
+  aiBadgeText: {
+    color: colors.background,
+    fontSize: 11,
+    fontWeight: '900',
+    textTransform: 'uppercase',
+  },
   closeButton: {
     alignItems: 'center',
     backgroundColor: colors.surfaceMuted,
@@ -197,8 +220,8 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   footer: {
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
+    backgroundColor: '#120D2C',
+    borderColor: 'rgba(255,255,255,0.10)',
     borderTopWidth: 1,
     gap: 8,
     padding: 16,
@@ -215,8 +238,8 @@ const styles = StyleSheet.create({
   },
   headerRow: {
     alignItems: 'flex-start',
-    backgroundColor: colors.surface,
-    borderBottomColor: colors.border,
+    backgroundColor: '#120D2C',
+    borderBottomColor: 'rgba(255,201,94,0.20)',
     borderBottomWidth: 1,
     flexDirection: 'row',
     gap: 12,
@@ -236,17 +259,26 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
   stepCard: {
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
+    backgroundColor: '#120D2C',
+    borderColor: 'rgba(255,255,255,0.10)',
     borderRadius: 22,
     borderWidth: 1,
     gap: 10,
     padding: 14,
   },
+  stepCopy: {
+    flex: 1,
+    gap: 2,
+  },
   stepHeader: {
     alignItems: 'center',
     flexDirection: 'row',
     gap: 8,
+  },
+  stepHelper: {
+    color: colors.mutedText,
+    fontSize: 12,
+    lineHeight: 16,
   },
   stepTitle: {
     color: colors.text,

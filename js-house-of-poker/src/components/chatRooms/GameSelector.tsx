@@ -45,7 +45,7 @@ export function GameSelector({ onSelectGame, options, selectedGameId }: GameSele
               pressed ? styles.pressed : null,
             ]}
           >
-            <View style={styles.optionIcon}>
+            <View style={[styles.optionIcon, isSelected ? styles.optionIconSelected : null]}>
               <MaterialCommunityIcons
                 color={isSelected ? colors.background : colors.secondary}
                 name={option.id === '3-5-7' ? 'cards-outline' : 'cards-playing-outline'}
@@ -53,10 +53,13 @@ export function GameSelector({ onSelectGame, options, selectedGameId }: GameSele
               />
             </View>
             <View style={styles.optionCopy}>
-              <Text style={styles.optionTitle}>{option.label}</Text>
+              <View style={styles.optionTitleRow}>
+                <Text style={styles.optionTitle}>{option.label}</Text>
+                <Text style={styles.formatBadge}>{option.id === '3-5-7' ? 'Training' : 'Classic'}</Text>
+              </View>
               <Text style={styles.optionDescription}>{option.description}</Text>
             </View>
-            {isSelected ? <MaterialCommunityIcons color={colors.success} name="check-circle" size={20} /> : null}
+            {isSelected ? <MaterialCommunityIcons color={colors.success} name="check-decagram" size={22} /> : null}
           </Pressable>
         );
       })}
@@ -67,8 +70,8 @@ export function GameSelector({ onSelectGame, options, selectedGameId }: GameSele
 const styles = StyleSheet.create({
   optionCard: {
     alignItems: 'center',
-    backgroundColor: colors.surfaceMuted,
-    borderColor: colors.border,
+    backgroundColor: '#120D2C',
+    borderColor: 'rgba(255,255,255,0.10)',
     borderRadius: 18,
     borderWidth: 1,
     flexDirection: 'row',
@@ -76,7 +79,8 @@ const styles = StyleSheet.create({
     padding: 12,
   },
   optionCardSelected: {
-    borderColor: colors.success,
+    backgroundColor: 'rgba(255,201,94,0.08)',
+    borderColor: colors.gold,
   },
   optionCopy: {
     flex: 1,
@@ -89,16 +93,37 @@ const styles = StyleSheet.create({
   },
   optionIcon: {
     alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
+    backgroundColor: 'rgba(54,231,255,0.09)',
+    borderColor: 'rgba(54,231,255,0.18)',
     borderRadius: 14,
     borderWidth: 1,
     height: 38,
     justifyContent: 'center',
     width: 38,
   },
+  formatBadge: {
+    backgroundColor: 'rgba(255,201,94,0.12)',
+    borderRadius: 999,
+    color: colors.gold,
+    fontSize: 10,
+    fontWeight: '900',
+    overflow: 'hidden',
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    textTransform: 'uppercase',
+  },
+  optionIconSelected: {
+    backgroundColor: colors.gold,
+    borderColor: colors.gold,
+  },
   optionStack: {
     gap: 8,
+  },
+  optionTitleRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 7,
   },
   optionTitle: {
     color: colors.text,

@@ -1,3 +1,4 @@
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 
@@ -53,8 +54,21 @@ export function TableTierSelector({ onSelectTier, options, selectedTierId }: Tab
               pressed ? styles.pressed : null,
             ]}
           >
+            <View style={styles.tierTopRow}>
+              <View style={[styles.tierIcon, isSelected ? styles.tierIconSelected : null]}>
+                <MaterialCommunityIcons
+                  color={isSelected ? colors.background : colors.gold}
+                  name={option.id.includes('free') ? 'school-outline' : option.id.includes('private') ? 'shield-lock-outline' : 'poker-chip'}
+                  size={18}
+                />
+              </View>
+              {isSelected ? <MaterialCommunityIcons color={colors.success} name="check-circle" size={18} /> : null}
+            </View>
             <Text style={styles.tierLabel}>{option.label}</Text>
-            <Text style={styles.stakesLabel}>{option.stakesLabel}</Text>
+            <View style={styles.stakesPill}>
+              <MaterialCommunityIcons color={colors.secondary} name="cash-multiple" size={12} />
+              <Text style={styles.stakesLabel}>{option.stakesLabel}</Text>
+            </View>
             <Text style={styles.rulesLabel}>{option.rulesLabel}</Text>
           </Pressable>
         );
@@ -74,12 +88,23 @@ const styles = StyleSheet.create({
   },
   stakesLabel: {
     color: colors.secondary,
-    fontSize: 12,
-    fontWeight: '800',
+    fontSize: 11,
+    fontWeight: '900',
+    textTransform: 'uppercase',
+  },
+  stakesPill: {
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(54,231,255,0.10)',
+    borderRadius: 999,
+    flexDirection: 'row',
+    gap: 5,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
   },
   tierCard: {
-    backgroundColor: colors.surfaceMuted,
-    borderColor: colors.border,
+    backgroundColor: '#120D2C',
+    borderColor: 'rgba(255,255,255,0.10)',
     borderRadius: 16,
     borderWidth: 1,
     flexGrow: 1,
@@ -90,6 +115,25 @@ const styles = StyleSheet.create({
   tierCardSelected: {
     backgroundColor: 'rgba(54,231,255,0.12)',
     borderColor: colors.secondary,
+  },
+  tierIcon: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,201,94,0.10)',
+    borderColor: 'rgba(255,201,94,0.24)',
+    borderRadius: 13,
+    borderWidth: 1,
+    height: 34,
+    justifyContent: 'center',
+    width: 34,
+  },
+  tierIconSelected: {
+    backgroundColor: colors.gold,
+    borderColor: colors.gold,
+  },
+  tierTopRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
   },
   tierGrid: {
     flexDirection: 'row',

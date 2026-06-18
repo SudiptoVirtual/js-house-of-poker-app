@@ -50,6 +50,7 @@ export function ChatInboxListItem({ onEnter, room }: ChatInboxListItemProps) {
   const isGroupChat = room.players.length > 2 || !room.tableConfig.isPrivate;
   const unreadCount = Math.min(room.unreadCount, 99);
   const messagePreview = room.lastMessagePreview;
+  const accessLabel = room.tableConfig.isPrivate ? 'Private' : 'Public';
 
   return (
     <Pressable
@@ -109,6 +110,14 @@ export function ChatInboxListItem({ onEnter, room }: ChatInboxListItemProps) {
               {isGroupChat ? `${room.activePlayerCount} players at table` : 'Heads-up chat'}
             </Text>
           </View>
+          <View style={[styles.accessPill, room.tableConfig.isPrivate ? styles.privatePill : styles.publicPill]}>
+            <MaterialCommunityIcons
+              color={room.tableConfig.isPrivate ? colors.gold : colors.secondary}
+              name={room.tableConfig.isPrivate ? 'lock-outline' : 'earth'}
+              size={11}
+            />
+            <Text style={[styles.accessText, room.tableConfig.isPrivate ? styles.privateText : styles.publicText]}>{accessLabel}</Text>
+          </View>
           <Text numberOfLines={1} style={styles.topicText}>{room.topic}</Text>
         </View>
       </View>
@@ -117,6 +126,19 @@ export function ChatInboxListItem({ onEnter, room }: ChatInboxListItemProps) {
 }
 
 const styles = StyleSheet.create({
+  accessPill: {
+    alignItems: 'center',
+    borderRadius: 999,
+    flexDirection: 'row',
+    gap: 4,
+    paddingHorizontal: 7,
+    paddingVertical: 4,
+  },
+  accessText: {
+    fontSize: 10,
+    fontWeight: '900',
+    textTransform: 'uppercase',
+  },
   avatarImage: {
     height: '100%',
     width: '100%',
@@ -166,6 +188,10 @@ const styles = StyleSheet.create({
     gap: 7,
     minWidth: 0,
   },
+  privatePill: { backgroundColor: 'rgba(255,201,94,0.12)' },
+  privateText: { color: colors.gold },
+  publicPill: { backgroundColor: 'rgba(54,231,255,0.10)' },
+  publicText: { color: colors.secondary },
   directAvatarRing: {
     backgroundColor: 'rgba(255,201,94,0.12)',
     borderColor: colors.gold,
@@ -219,8 +245,8 @@ const styles = StyleSheet.create({
   },
   row: {
     alignItems: 'center',
-    backgroundColor: '#100B27',
-    borderColor: 'rgba(64,48,112,0.75)',
+    backgroundColor: '#120D2C',
+    borderColor: 'rgba(255,201,94,0.18)',
     borderRadius: 22,
     borderWidth: 1,
     flexDirection: 'row',

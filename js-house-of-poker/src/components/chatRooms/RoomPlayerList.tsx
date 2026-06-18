@@ -44,7 +44,7 @@ export function RoomPlayerList({
         const inviteState = getInviteToggleState(player, selectedPlayerIds, invitedPlayerIds);
 
         return (
-          <View key={player.id} style={styles.playerCard}>
+          <View key={player.id} style={[styles.playerCard, player.isHost ? styles.hostPlayerCard : null]}>
             <View style={styles.avatar}>
               <Text style={styles.avatarText}>{player.avatarInitials}</Text>
             </View>
@@ -98,8 +98,8 @@ export function RoomPlayerList({
 const styles = StyleSheet.create({
   avatar: {
     alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderColor: colors.secondary,
+    backgroundColor: 'rgba(54,231,255,0.10)',
+    borderColor: 'rgba(54,231,255,0.32)',
     borderRadius: 18,
     borderWidth: 1,
     height: 44,
@@ -110,6 +110,9 @@ const styles = StyleSheet.create({
     color: colors.secondary,
     fontSize: 14,
     fontWeight: '900',
+  },
+  hostPlayerCard: {
+    borderColor: 'rgba(255,201,94,0.34)',
   },
   hostBadge: {
     backgroundColor: colors.gold,
@@ -147,8 +150,8 @@ const styles = StyleSheet.create({
   },
   playerCard: {
     alignItems: 'center',
-    backgroundColor: colors.surfaceMuted,
-    borderColor: colors.border,
+    backgroundColor: '#120D2C',
+    borderColor: 'rgba(255,255,255,0.10)',
     borderRadius: 20,
     borderWidth: 1,
     flexDirection: 'row',

@@ -22,10 +22,13 @@ export function ChatRoomHeader({
     <View style={styles.headerCard}>
       <View style={styles.titleRow}>
         <View style={styles.iconWrap}>
-          <MaterialCommunityIcons color={colors.secondary} name="chat-processing-outline" size={26} />
+          <MaterialCommunityIcons color={colors.secondary} name="cards-club" size={26} />
         </View>
         <View style={styles.titleGroup}>
-          <Text style={styles.eyebrow}>{statusLabel}</Text>
+          <View style={styles.eyebrowRow}>
+            <MaterialCommunityIcons color={colors.gold} name="crown-outline" size={13} />
+            <Text style={styles.eyebrow}>{statusLabel}</Text>
+          </View>
           <Text style={styles.title}>{title}</Text>
         </View>
       </View>
@@ -61,9 +64,14 @@ const styles = StyleSheet.create({
     letterSpacing: 0.7,
     textTransform: 'uppercase',
   },
+  eyebrowRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 5,
+  },
   headerCard: {
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
+    backgroundColor: '#120D2C',
+    borderColor: 'rgba(255,201,94,0.24)',
     borderRadius: 24,
     borderWidth: 1,
     gap: 14,
@@ -71,8 +79,8 @@ const styles = StyleSheet.create({
   },
   iconWrap: {
     alignItems: 'center',
-    backgroundColor: colors.surfaceMuted,
-    borderColor: colors.secondary,
+    backgroundColor: 'rgba(255,201,94,0.10)',
+    borderColor: 'rgba(255,201,94,0.36)',
     borderRadius: 18,
     borderWidth: 1,
     height: 48,
@@ -81,8 +89,8 @@ const styles = StyleSheet.create({
   },
   metaPill: {
     alignItems: 'center',
-    backgroundColor: colors.surfaceMuted,
-    borderColor: colors.border,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderColor: 'rgba(255,255,255,0.10)',
     borderRadius: 999,
     borderWidth: 1,
     flexDirection: 'row',

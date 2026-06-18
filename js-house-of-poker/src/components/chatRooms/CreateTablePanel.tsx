@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { ActionButton } from '../ActionButton';
@@ -70,9 +71,17 @@ export function CreateTablePanel({
 
   return (
     <SectionCard title="Create table">
-      <Text style={styles.helperText}>
-        Configure a room-scoped table before launch. Gameplay chat remains separate once players sit down.
-      </Text>
+      <View style={styles.heroPanel}>
+        <View style={styles.heroIcon}>
+          <MaterialCommunityIcons color={colors.gold} name="creation" size={22} />
+        </View>
+        <View style={styles.heroCopy}>
+          <Text style={styles.heroEyebrow}>Club table builder</Text>
+          <Text style={styles.helperText}>
+            Configure a room-scoped table before launch. Gameplay chat remains separate once players sit down.
+          </Text>
+        </View>
+      </View>
 
       <View style={styles.group}>
         <Text style={styles.groupLabel}>Game type</Text>
@@ -87,8 +96,8 @@ export function CreateTablePanel({
       <View style={styles.group}>
         <Text style={styles.groupLabel}>Access</Text>
         <View style={styles.privacyRow}>
-          <PrivacyToggle label="Public" selected={!isPrivate} onPress={() => onTogglePrivacy(false)} />
-          <PrivacyToggle label="Private" selected={isPrivate} onPress={() => onTogglePrivacy(true)} />
+          <PrivacyToggle icon="earth" label="Public" selected={!isPrivate} subtitle="Discoverable by the room" onPress={() => onTogglePrivacy(false)} />
+          <PrivacyToggle icon="shield-lock-outline" label="Private" selected={isPrivate} subtitle="Invite-only seating" onPress={() => onTogglePrivacy(true)} />
         </View>
       </View>
 
@@ -139,19 +148,54 @@ export function CreateTablePanel({
   );
 }
 
-function PrivacyToggle({ label, onPress, selected }: { label: string; onPress: () => void; selected: boolean }) {
+function PrivacyToggle({ icon, label, onPress, selected, subtitle }: { icon: keyof typeof MaterialCommunityIcons.glyphMap; label: string; onPress: () => void; selected: boolean; subtitle: string }) {
   return (
     <Pressable
       accessibilityRole="button"
       onPress={onPress}
       style={({ pressed }) => [styles.privacyToggle, selected ? styles.privacyToggleSelected : null, pressed ? styles.pressed : null]}
     >
-      <Text style={[styles.privacyText, selected ? styles.privacyTextSelected : null]}>{label}</Text>
+      <MaterialCommunityIcons color={selected ? colors.background : colors.gold} name={icon} size={17} />
+      <View style={styles.privacyCopy}>
+        <Text style={[styles.privacyText, selected ? styles.privacyTextSelected : null]}>{label}</Text>
+        <Text style={[styles.privacySubtext, selected ? styles.privacySubtextSelected : null]}>{subtitle}</Text>
+      </View>
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
+  heroCopy: {
+    flex: 1,
+    gap: 3,
+  },
+  heroEyebrow: {
+    color: colors.gold,
+    fontSize: 11,
+    fontWeight: '900',
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+  },
+  heroIcon: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,201,94,0.12)',
+    borderColor: 'rgba(255,201,94,0.28)',
+    borderRadius: 16,
+    borderWidth: 1,
+    height: 44,
+    justifyContent: 'center',
+    width: 44,
+  },
+  heroPanel: {
+    alignItems: 'center',
+    backgroundColor: '#120D2C',
+    borderColor: 'rgba(255,201,94,0.22)',
+    borderRadius: 20,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 12,
+    padding: 12,
+  },
   group: {
     gap: 8,
   },
@@ -179,6 +223,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 8,
   },
+  privacyCopy: { flex: 1, gap: 2 },
+  privacySubtext: {
+    color: colors.mutedText,
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  privacySubtextSelected: {
+    color: 'rgba(8,11,28,0.72)',
+  },
   privacyText: {
     color: colors.mutedText,
     fontSize: 13,
@@ -189,12 +242,14 @@ const styles = StyleSheet.create({
   },
   privacyToggle: {
     alignItems: 'center',
-    backgroundColor: colors.surfaceMuted,
+    backgroundColor: '#120D2C',
     borderColor: colors.border,
     borderRadius: 999,
     borderWidth: 1,
     flex: 1,
     paddingHorizontal: 14,
+    flexDirection: 'row',
+    gap: 8,
     paddingVertical: 10,
   },
   privacyToggleSelected: {
@@ -202,7 +257,7 @@ const styles = StyleSheet.create({
     borderColor: colors.gold,
   },
   summaryBox: {
-    backgroundColor: 'rgba(139,92,255,0.16)',
+    backgroundColor: 'rgba(139,92,255,0.18)',
     borderColor: colors.primary,
     borderRadius: 18,
     borderWidth: 1,
