@@ -1141,7 +1141,7 @@ export function PlayerFeedScreen({ navigation, route }: PlayerFeedScreenProps) {
           <StatusBar style="light" />
           <FlatList
           automaticallyAdjustKeyboardInsets
-          contentContainerStyle={styles.content}
+          contentContainerStyle={styles.feedContent}
           data={posts}
           keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
           keyboardShouldPersistTaps="handled"
@@ -1328,9 +1328,9 @@ const styles = StyleSheet.create({
     position: 'absolute',
     right: 0,
   },
-  content: {
-    gap: 14,
-    padding: 18,
+  feedContent: {
+    gap: colors.spacing[16],
+    padding: colors.spacing[20],
     paddingBottom: 116,
   },
   emptyState: {
@@ -1361,7 +1361,7 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   headerStack: {
-    gap: 14,
+    gap: colors.spacing[16],
   },
   notificationCallout: {
     backgroundColor: 'rgba(54,231,255,0.12)',

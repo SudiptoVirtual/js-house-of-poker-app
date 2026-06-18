@@ -180,6 +180,42 @@ export function FeedPostCard({
     );
   }
 
+  const pokerMetadata = useMemo(() => {
+    const hasTableInvite = Boolean(post.tableContext || post.postKind === "table-invite");
+    const hasWinShare = Boolean(post.gameContext || post.postKind === "share-win");
+
+    return [
+      {
+        accent: colors.gold,
+        icon: "trophy-outline" as const,
+        label: "Wins",
+        value: hasWinShare ? post.gameContext?.resultLabel ?? "Shared" : "—",
+      },
+      {
+        accent: colors.secondary,
+        icon: "cards-playing-outline" as const,
+        label: "Tables",
+        value: post.tableContext?.tableName ?? post.gameContext?.tableName ?? "Lobby",
+      },
+      {
+        accent: colors.success,
+        icon: "account-group-outline" as const,
+        label: "Invites",
+        value: hasTableInvite
+          ? post.tableContext?.seatsOpen != null
+            ? `${post.tableContext.seatsOpen} seats`
+            : "Open"
+          : "—",
+      },
+      {
+        accent: colors.accent,
+        icon: "movie-open-play-outline" as const,
+        label: "Clips",
+        value: (post.giftClipsTotal ?? post.giftClipsCount ?? 0).toLocaleString(),
+      },
+    ];
+  }, [post]);
+
   async function loadPersistedComments() {
     if (actionsDisabled || commentPanelLoadState === "loading") {
       return;
@@ -456,6 +492,18 @@ export function FeedPostCard({
           </View>
         </View>
       ) : null}
+
+      <View style={styles.metadataRow}>
+        {pokerMetadata.map((item) => (
+          <View key={item.label} style={styles.metadataPill}>
+            <MaterialCommunityIcons color={item.accent} name={item.icon} size={15} />
+            <View style={styles.metadataCopy}>
+              <Text style={styles.metadataLabel}>{item.label}</Text>
+              <Text numberOfLines={1} style={styles.metadataValue}>{item.value}</Text>
+            </View>
+          </View>
+        ))}
+      </View>
 
       <Text style={styles.stats}>{statsLine}</Text>
 
@@ -744,12 +792,14 @@ export function FeedPostCard({
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderRadius: 24,
+    backgroundColor: colors.roles.glassPanel,
+    borderColor: 'rgba(255,255,255,0.14)',
+    borderRadius: colors.radii.xl,
     borderWidth: 1,
-    gap: 12,
-    padding: 14,
+    gap: colors.spacing[16],
+    overflow: 'hidden',
+    padding: colors.spacing[16],
+    ...colors.shadows.lg,
   },
   deleteMenuText: { color: colors.danger, fontSize: 14, fontWeight: "900" },
   modalBackdrop: { alignItems: "center", backgroundColor: colors.modalBackdrop, flex: 1, justifyContent: "center", padding: 24 },
@@ -851,9 +901,8 @@ const styles = StyleSheet.create({
     fontWeight: "900",
   },
   content: {
+    ...colors.typography.body,
     color: colors.text,
-    fontSize: 15,
-    lineHeight: 22,
   },
   gameContext: {
     alignItems: "center",
@@ -926,10 +975,38 @@ const styles = StyleSheet.create({
     padding: 10,
   },
   stats: {
+    ...colors.typography.caption,
     color: colors.mutedText,
+  },
+  metadataCopy: { flex: 1, gap: 2, minWidth: 0 },
+  metadataLabel: {
+    ...colors.typography.chipLabel,
+    color: colors.mutedText,
+    fontSize: 10,
+    lineHeight: 12,
+  },
+  metadataPill: {
+    alignItems: 'center',
+    backgroundColor: colors.surfaces.glassPanel,
+    borderColor: 'rgba(255,255,255,0.10)',
+    borderRadius: colors.radii.lg,
+    borderWidth: 1,
+    flexBasis: '48%',
+    flexDirection: 'row',
+    flexGrow: 1,
+    gap: colors.spacing[8],
+    paddingHorizontal: colors.spacing[12],
+    paddingVertical: colors.spacing[8],
+  },
+  metadataRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: colors.spacing[8],
+  },
+  metadataValue: {
+    color: colors.text,
     fontSize: 12,
-    fontWeight: "800",
-    lineHeight: 18,
+    fontWeight: '900',
   },
   tableContext: {
     alignItems: "center",
