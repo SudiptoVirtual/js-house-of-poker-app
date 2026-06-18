@@ -8,6 +8,7 @@ import {
   type ViewStyle,
 } from 'react-native';
 
+import { colors } from '../theme/colors';
 type AnimatedChipStackProps = {
   amount: number;
   highlighted?: boolean;
@@ -186,7 +187,7 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     justifyContent: 'center',
     position: 'absolute',
-    shadowColor: '#000000',
+    shadowColor: colors.black,
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.24,
     shadowRadius: 4,

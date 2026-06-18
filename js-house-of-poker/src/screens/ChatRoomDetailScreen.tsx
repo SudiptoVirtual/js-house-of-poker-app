@@ -1686,7 +1686,7 @@ const styles = StyleSheet.create({
   },
   directDialogBackdrop: {
     alignItems: 'center',
-    backgroundColor: 'rgba(3,7,18,0.72)',
+    backgroundColor: colors.modalBackdrop,
     flex: 1,
     justifyContent: 'center',
     padding: 20,
@@ -1779,7 +1779,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   friendChipSelected: {
-    backgroundColor: 'rgba(77,243,199,0.14)',
+    backgroundColor: colors.successTint,
     borderColor: colors.success,
   },
   friendChipText: {
@@ -1852,12 +1852,12 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
   tableInvitePillDelivered: {
-    backgroundColor: 'rgba(77,243,199,0.14)',
+    backgroundColor: colors.successTint,
     borderColor: colors.success,
     color: colors.success,
   },
   tableInvitePillFailed: {
-    backgroundColor: 'rgba(255,91,110,0.12)',
+    backgroundColor: colors.destructivePanel,
     borderColor: colors.danger,
     color: colors.danger,
   },

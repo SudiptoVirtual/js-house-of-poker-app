@@ -49,7 +49,6 @@ import {
 import { fetchChatRooms } from '../../services/api/chatRooms';
 import { getAuthSession } from '../../services/storage/sessionStorage';
 import { env } from '../../config/env';
-import { colors } from '../../theme/colors';
 import type { RootStackParamList } from '../../types/navigation';
 import { FeedPostBox, type ComposeFeedPostInput, type FeedPostBoxProfile } from './FeedPostBox';
 import { FeedPostCard } from './FeedPostCard';
@@ -69,6 +68,7 @@ import type { ChatRoom } from '../../types/chatRooms';
 import { mergeRealtimePostList } from './mergeRealtimePostList';
 import { selectActiveVideoPostId } from './feedVideoSelection';
 
+import { colors } from '../../theme/colors';
 type FeedLoadState =
   | 'idle'
   | 'loading'
@@ -1409,7 +1409,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 18,
     paddingHorizontal: 14,
     paddingVertical: 12,
-    shadowColor: '#000',
+    shadowColor: colors.black,
     shadowOffset: { height: 6, width: 0 },
     shadowOpacity: 0.28,
     shadowRadius: 12,

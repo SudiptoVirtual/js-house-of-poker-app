@@ -1,8 +1,8 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { colors } from '../../theme/colors';
 
+import { colors } from '../../theme/colors';
 export type GameSelectorOption = {
   description: string;
   id: string;

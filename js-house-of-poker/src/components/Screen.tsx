@@ -18,10 +18,10 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { KeyboardSafeView } from './KeyboardSafeView';
 import { useKeyboardVisible } from '../hooks/useKeyboardVisible';
 import { MainPlatformNavigation } from './navigation/MainPlatformNavigation';
-import { colors } from '../theme/colors';
 import { getAdjacentPlatformRoute } from './navigation/platformNavigation';
 import type { RootStackParamList } from '../types/navigation';
 
+import { colors } from '../theme/colors';
 type ScreenProps = PropsWithChildren<{
   bodyStyle?: StyleProp<ViewStyle>;
   compactHeader?: boolean;

@@ -4,6 +4,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 
 import type { PokerAction, PokerControls, PokerPlayerState } from '../../types/poker';
 
+import { colors } from '../../theme/colors';
 type ControlMode = '357' | 'standard';
 type ControlLayout = 'default' | 'leftPanel' | 'rightPanel' | 'column';
 
@@ -418,7 +419,7 @@ const styles = StyleSheet.create({
     maxWidth: 236 * 1.2,
   },
   buttonSubtitle: {
-    color: '#FFFFFF',
+    color: colors.white,
     fontSize: 11,
     fontWeight: '800',
     marginTop: 2,
@@ -494,7 +495,7 @@ const styles = StyleSheet.create({
     color: '#FF3DAE',
   },
   playerText: {
-    color: '#FFFFFF',
+    color: colors.white,
     flexShrink: 0,
     fontSize: 12,
     fontWeight: '900',
@@ -513,7 +514,7 @@ const styles = StyleSheet.create({
     color: '#C04CFF',
   },
   raiseAmount: {
-    color: '#FFFFFF',
+    color: colors.white,
     fontSize: 13,
     fontWeight: '900',
   },
@@ -532,7 +533,7 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,184,46,0.34)',
     borderRadius: 8,
     borderWidth: 1,
-    color: '#FFFFFF',
+    color: colors.white,
     flex: 1,
     fontSize: 13,
     fontWeight: '800',
@@ -605,7 +606,7 @@ const styles = StyleSheet.create({
     width: 38,
   },
   stepperText: {
-    color: '#FFFFFF',
+    color: colors.white,
     fontSize: 22,
     fontWeight: '900',
     marginTop: -2,

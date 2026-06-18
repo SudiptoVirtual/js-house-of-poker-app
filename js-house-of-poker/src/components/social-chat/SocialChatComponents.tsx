@@ -1,7 +1,6 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
-import { colors } from '../../theme/colors';
 import type {
   ChatRoomInviteState,
   ChatRoomMessage,
@@ -9,6 +8,7 @@ import type {
   ChatRoomTableConfig,
 } from '../../types/chatRooms';
 
+import { colors } from '../../theme/colors';
 type SocialChatMessageListProps = {
   messages: ChatRoomMessage[];
 };

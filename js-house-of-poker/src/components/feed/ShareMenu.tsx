@@ -2,9 +2,9 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
-import { colors } from '../../theme/colors';
 import type { BackendShareDestinationId, FeedPost } from '../../types/feed';
 
+import { colors } from '../../theme/colors';
 type BackendShareDestination = {
   icon: keyof typeof MaterialCommunityIcons.glyphMap;
   id: BackendShareDestinationId;

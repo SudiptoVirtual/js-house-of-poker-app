@@ -2,10 +2,10 @@ import { useState } from 'react';
 import { ActivityIndicator, Image, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
-import { colors } from '../../theme/colors';
 import type { FeedImageMedia, FeedMedia } from '../../types/feed';
 import { FeedVideo } from './FeedVideo';
 
+import { colors } from '../../theme/colors';
 type FeedMediaGalleryProps = {
   isActive?: boolean;
   media: FeedMedia[];

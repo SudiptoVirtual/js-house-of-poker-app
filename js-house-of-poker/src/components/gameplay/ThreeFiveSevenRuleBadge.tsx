@@ -4,6 +4,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 
 import type { Poker357Mode, PokerGameMode, PokerRoomState } from '../../types/poker';
 
+import { colors } from '../../theme/colors';
 type Props = {
   state: PokerRoomState;
   wildLabel?: string | null;
@@ -137,7 +138,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.45,
   },
   wildLabel: {
-    color: '#67F3BB',
+    color: colors.success,
     flexShrink: 1,
     fontSize: 7,
     fontWeight: '900',

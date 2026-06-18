@@ -26,6 +26,7 @@ import {
   TABLE_CHAT_MESSAGE_CHAR_LIMIT,
 } from '../../utils/tableChat';
 
+import { colors } from '../../theme/colors';
 const gamePlayIcon = require('../../../assets/icon.png');
 
 const INCOMING_CHAT_TOAST_TIMEOUT_MS = 4000;
@@ -52,10 +53,10 @@ type Props = {
 function getSignalColor(status: Props['transportStatus']) {
   switch (status) {
     case 'connected':
-      return '#67F3BB';
+      return colors.success;
     case 'connecting':
     case 'reconnecting':
-      return '#FFC66C';
+      return colors.gold;
     case 'error':
     case 'disconnected':
       return '#FF6EAA';
@@ -621,7 +622,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
   },
   inviteButtonText: {
-    color: '#67F3BB',
+    color: colors.success,
     fontSize: 12,
     fontWeight: '900',
     letterSpacing: 0.6,
@@ -720,7 +721,7 @@ const styles = StyleSheet.create({
     width: 16,
   },
   notificationBadgeText: {
-    color: '#FFFFFF',
+    color: colors.white,
     fontSize: 9,
     fontWeight: '900',
   },

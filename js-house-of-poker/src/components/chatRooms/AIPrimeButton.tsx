@@ -1,8 +1,8 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { colors } from '../../theme/colors';
 
+import { colors } from '../../theme/colors';
 type AIPrimeButtonProps = {
   compact?: boolean;
   loading?: boolean;

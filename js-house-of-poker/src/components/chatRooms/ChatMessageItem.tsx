@@ -1,10 +1,10 @@
 import { Image, StyleSheet, Text, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
-import { colors } from '../../theme/colors';
 import type { ChatRoom, ChatRoomMessage, ChatRoomPlayer } from '../../types/chatRooms';
 import { formatChatTimestamp } from './chatRoomUtils';
 
+import { colors } from '../../theme/colors';
 const directLocalBubbleColor = '#087260';
 
 type ChatMessageItemProps = {

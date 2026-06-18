@@ -4,6 +4,7 @@ import type { PokerRoomState } from '../../types/poker';
 import { build357ShowdownPanelViewModel } from '../../utils/threeFiveSevenShowdown';
 import { PanelShell } from './PanelShell';
 
+import { colors } from '../../theme/colors';
 type Props = {
   onQuickEmote?: (message: string) => void;
   roomState: PokerRoomState;
@@ -144,7 +145,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   detailValue: {
-    color: '#FFFFFF',
+    color: colors.white,
     flexShrink: 1,
     fontSize: 12,
     fontWeight: '800',

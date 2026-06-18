@@ -6,8 +6,8 @@ import {
   type BotTrainingPromoPlacement,
   getRotatingBotTrainingMessage,
 } from '../constants/botTrainingPromotion';
-import { colors } from '../theme/colors';
 
+import { colors } from '../theme/colors';
 type Props = {
   compact?: boolean;
   hideCtas?: boolean;

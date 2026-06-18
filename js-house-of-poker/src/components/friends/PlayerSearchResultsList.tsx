@@ -1,9 +1,9 @@
 import { FlatList, StyleSheet, Text, View } from 'react-native';
 
-import { colors } from '../../theme/colors';
 import type { FriendsPlayer } from '../../types/friends';
 import { PlayerSearchResultCard } from './PlayerSearchResultCard';
 
+import { colors } from '../../theme/colors';
 type PlayerSearchResultsListProps = {
   emptyMessage?: string;
   hasActiveTable: boolean;

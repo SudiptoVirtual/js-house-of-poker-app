@@ -1,8 +1,8 @@
 import type { PropsWithChildren, ReactNode } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
-import { colors } from '../theme/colors';
 
+import { colors } from '../theme/colors';
 type SectionCardProps = PropsWithChildren<{
   headerRight?: ReactNode;
   title: string;

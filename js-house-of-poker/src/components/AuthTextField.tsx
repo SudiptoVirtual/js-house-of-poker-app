@@ -2,8 +2,8 @@ import { useState } from 'react';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Pressable, StyleSheet, Text, TextInput, type TextInputProps, View } from 'react-native';
 
-import { colors } from '../theme/colors';
 
+import { colors } from '../theme/colors';
 type AuthTextFieldProps = TextInputProps & {
   errorText?: string;
   helperText?: string;

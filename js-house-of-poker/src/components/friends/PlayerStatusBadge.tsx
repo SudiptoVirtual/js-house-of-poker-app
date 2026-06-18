@@ -1,8 +1,8 @@
 import { StyleSheet, Text, View } from 'react-native';
 
-import { colors } from '../../theme/colors';
 import type { PlayerActivityStatus } from '../../types/friends';
 
+import { colors } from '../../theme/colors';
 type PlayerStatusBadgeProps = {
   status: PlayerActivityStatus;
 };
@@ -17,12 +17,12 @@ const STATUS_LABELS: Record<PlayerActivityStatus, string> = {
 };
 
 const STATUS_COLORS: Record<PlayerActivityStatus, { backgroundColor: string; borderColor: string; color: string }> = {
-  at_table: { backgroundColor: 'rgba(255,198,108,0.14)', borderColor: '#FFC66C', color: '#FFE2A6' },
+  at_table: { backgroundColor: 'rgba(255,198,108,0.14)', borderColor: colors.gold, color: '#FFE2A6' },
   in_chat_room: { backgroundColor: 'rgba(159,137,255,0.16)', borderColor: '#9F89FF', color: '#D9D0FF' },
-  in_lobby: { backgroundColor: 'rgba(94,237,255,0.14)', borderColor: '#5EEDFF', color: '#C6FAFF' },
+  in_lobby: { backgroundColor: 'rgba(94,237,255,0.14)', borderColor: colors.secondary, color: '#C6FAFF' },
   offline: { backgroundColor: 'rgba(115,122,136,0.16)', borderColor: '#737A88', color: colors.mutedText },
-  online: { backgroundColor: 'rgba(103,243,187,0.14)', borderColor: '#67F3BB', color: '#C8FFE9' },
-  playing_357: { backgroundColor: 'rgba(255,126,165,0.16)', borderColor: '#FF7EA5', color: '#FFD0E0' },
+  online: { backgroundColor: 'rgba(103,243,187,0.14)', borderColor: colors.success, color: '#C8FFE9' },
+  playing_357: { backgroundColor: 'rgba(255,126,165,0.16)', borderColor: colors.danger, color: '#FFD0E0' },
 };
 
 export function PlayerStatusBadge({ status }: PlayerStatusBadgeProps) {

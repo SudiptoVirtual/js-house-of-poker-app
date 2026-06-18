@@ -20,6 +20,7 @@ import { DealerButton } from './DealerButton';
 import { PlayerAvatar } from './PlayerAvatar';
 import { TurnIndicator } from './TurnIndicator';
 
+import { colors } from '../theme/colors';
 type PlayerSeatProps = {
   align?: SeatAlignment;
   dealtCardCount: number;
@@ -451,7 +452,7 @@ const styles = StyleSheet.create({
   surface: {
     overflow: 'visible',
     position: 'relative',
-    shadowColor: '#000000',
+    shadowColor: colors.black,
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.24,
     shadowRadius: 18,

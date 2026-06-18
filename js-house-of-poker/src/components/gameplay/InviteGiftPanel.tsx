@@ -13,6 +13,7 @@ import type {
 } from '../../types/poker';
 import { PanelShell } from './PanelShell';
 
+import { colors } from '../../theme/colors';
 type InviteOption = {
   id: PokerInviteSource;
   label: string;
@@ -417,7 +418,7 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   choiceChipTextSelected: {
-    color: '#FFFFFF',
+    color: colors.white,
   },
   complianceText: {
     color: 'rgba(239, 235, 255, 0.54)',
@@ -505,7 +506,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   infoValue: {
-    color: '#FFFFFF',
+    color: colors.white,
     fontSize: 12,
     fontWeight: '900',
   },
@@ -519,7 +520,7 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(180, 84, 255, 0.18)',
     borderRadius: 14,
     borderWidth: 1,
-    color: '#FFFFFF',
+    color: colors.white,
     fontSize: 12,
     paddingHorizontal: 12,
     paddingVertical: 10,
@@ -544,7 +545,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   notificationTitle: {
-    color: '#FFFFFF',
+    color: colors.white,
     fontSize: 12,
     fontWeight: '800',
   },
@@ -573,7 +574,7 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(180, 84, 255, 0.28)',
   },
   primaryRailButtonText: {
-    color: '#FFFFFF',
+    color: colors.white,
     fontSize: 13,
     fontWeight: '900',
     letterSpacing: 0.4,
@@ -603,7 +604,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   recipientLabel: {
-    color: '#FFFFFF',
+    color: colors.white,
     fontSize: 12,
     fontWeight: '800',
   },

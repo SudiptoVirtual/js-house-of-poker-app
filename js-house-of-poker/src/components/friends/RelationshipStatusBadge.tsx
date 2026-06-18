@@ -1,8 +1,8 @@
 import { StyleSheet, Text, View } from 'react-native';
 
-import { colors } from '../../theme/colors';
 import type { RelationshipStatus } from '../../types/friends';
 
+import { colors } from '../../theme/colors';
 type RelationshipStatusBadgeProps = {
   status: RelationshipStatus;
 };
@@ -15,10 +15,10 @@ const RELATIONSHIP_LABELS: Record<RelationshipStatus, string> = {
 };
 
 const RELATIONSHIP_COLORS: Record<RelationshipStatus, { backgroundColor: string; borderColor: string; color: string }> = {
-  friend: { backgroundColor: 'rgba(103,243,187,0.12)', borderColor: '#67F3BB', color: '#C8FFE9' },
+  friend: { backgroundColor: 'rgba(103,243,187,0.12)', borderColor: colors.success, color: '#C8FFE9' },
   not_friends: { backgroundColor: 'rgba(115,122,136,0.14)', borderColor: colors.border, color: colors.mutedText },
-  request_received: { backgroundColor: 'rgba(255,198,108,0.14)', borderColor: '#FFC66C', color: '#FFE2A6' },
-  request_sent: { backgroundColor: 'rgba(94,237,255,0.12)', borderColor: '#5EEDFF', color: '#C6FAFF' },
+  request_received: { backgroundColor: 'rgba(255,198,108,0.14)', borderColor: colors.gold, color: '#FFE2A6' },
+  request_sent: { backgroundColor: 'rgba(94,237,255,0.12)', borderColor: colors.secondary, color: '#C6FAFF' },
 };
 
 export function RelationshipStatusBadge({ status }: RelationshipStatusBadgeProps) {

@@ -11,6 +11,7 @@ import {
 } from '../utils/pokerTable';
 import type { PokerPlayerStatus } from '../types/poker';
 
+import { colors } from '../theme/colors';
 type PlayerAvatarProps = {
   avatar?: string;
   connected?: boolean;
@@ -154,7 +155,7 @@ export const PlayerAvatar = memo(function PlayerAvatar({
         style={[
           styles.presence,
           {
-            backgroundColor: connected ? '#67F3BB' : '#737A88',
+            backgroundColor: connected ? colors.success : '#737A88',
             borderColor: '#071316',
             height: config.dot,
             width: config.dot,
@@ -211,7 +212,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     position: 'absolute',
     right: 3,
-    shadowColor: '#000000',
+    shadowColor: colors.black,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.18,
     shadowRadius: 3,

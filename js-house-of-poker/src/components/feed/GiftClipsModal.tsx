@@ -4,9 +4,9 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 import { ActionButton } from '../ActionButton';
 import { KeyboardSafeView } from '../KeyboardSafeView';
-import { colors } from '../../theme/colors';
 import type { FeedPost } from './types';
 
+import { colors } from '../../theme/colors';
 const presetAmounts = [100, 500, 1000, 5000, 10000];
 
 export type GiftClipsRecipientOption = {
@@ -279,7 +279,7 @@ const styles = StyleSheet.create({
     paddingVertical: 9,
   },
   recipientChipSelected: {
-    backgroundColor: 'rgba(77,243,199,0.14)',
+    backgroundColor: colors.successTint,
     borderColor: colors.success,
   },
   recipientGrid: {

@@ -12,8 +12,8 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
-import { colors } from '../theme/colors';
 
+import { colors } from '../theme/colors';
 type ActionButtonProps = {
   compact?: boolean;
   containerStyle?: StyleProp<ViewStyle>;
@@ -44,7 +44,7 @@ function getVisuals(
   switch (tone) {
     case 'danger':
       return {
-        borderColor: '#FF7EA5',
+        borderColor: colors.danger,
         glow: 'rgba(255,126,165,0.28)',
         gradient: ['#A83367', '#6B234A'] as const,
         textColor: '#FFF3F8',
@@ -58,7 +58,7 @@ function getVisuals(
       };
     case 'accent':
       return {
-        borderColor: '#FFC66C',
+        borderColor: colors.gold,
         glow: 'rgba(255,198,108,0.28)',
         gradient: ['#9A5C12', '#61370A'] as const,
         textColor: '#FFF7E6',
@@ -76,7 +76,7 @@ function getVisuals(
     case 'primary':
     default:
       return {
-        borderColor: '#5EEDFF',
+        borderColor: colors.secondary,
         glow: 'rgba(94,237,255,0.28)',
         gradient: ['#178CA2', '#0E5A80'] as const,
         textColor: '#ECFFFF',

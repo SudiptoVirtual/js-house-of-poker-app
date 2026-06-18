@@ -2,7 +2,6 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { ActionButton } from '../ActionButton';
-import { colors } from '../../theme/colors';
 import type { ChatRoomPlayer } from '../../types/chatRooms';
 import { defaultGameOptions, GameSelector, type GameSelectorOption } from './GameSelector';
 import { PublicPrivateToggle } from './PublicPrivateToggle';
@@ -18,6 +17,7 @@ import {
   type TableTierOption,
 } from './TableTierSelector';
 
+import { colors } from '../../theme/colors';
 type SetUpTableFlowProps = {
   gameOptions?: GameSelectorOption[];
   invitedPlayerIds: string[];

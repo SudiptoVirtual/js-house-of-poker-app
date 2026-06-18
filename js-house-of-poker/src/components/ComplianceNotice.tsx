@@ -1,8 +1,8 @@
 import { StyleSheet, Text, View } from 'react-native';
 
 import { complianceCopy } from '../constants/compliance';
-import { colors } from '../theme/colors';
 
+import { colors } from '../theme/colors';
 type ComplianceNoticeProps = {
   title?: string;
 };

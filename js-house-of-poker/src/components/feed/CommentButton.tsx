@@ -1,8 +1,8 @@
 import { ActivityIndicator, Pressable, StyleSheet, Text } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
-import { colors } from '../../theme/colors';
 
+import { colors } from '../../theme/colors';
 type CommentButtonProps = {
   disabled?: boolean;
   loading?: boolean;

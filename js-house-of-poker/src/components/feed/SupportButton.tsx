@@ -1,8 +1,8 @@
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
-import { colors } from '../../theme/colors';
 
+import { colors } from '../../theme/colors';
 type SupportButtonProps = {
   disabled?: boolean;
   isSupported: boolean;
@@ -50,7 +50,7 @@ const styles = StyleSheet.create({
     paddingVertical: 9,
   },
   buttonActive: {
-    backgroundColor: 'rgba(255,201,94,0.10)',
+    backgroundColor: colors.goldTint,
   },
   copy: {
     alignItems: 'flex-start',
