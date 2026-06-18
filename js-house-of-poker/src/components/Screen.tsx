@@ -10,6 +10,7 @@ import {
   View,
   type ViewStyle,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -22,17 +23,22 @@ import { getAdjacentPlatformRoute } from './navigation/platformNavigation';
 import type { RootStackParamList } from '../types/navigation';
 
 import { colors } from '../theme/colors';
+
+const platformNavigationHeight = 96;
+
 type ScreenProps = PropsWithChildren<{
   bodyStyle?: StyleProp<ViewStyle>;
   compactHeader?: boolean;
   contentStyle?: StyleProp<ViewStyle>;
   eyebrow?: string;
+  headerHero?: ReactNode;
+  headerRight?: ReactNode;
+  headerStats?: ReactNode;
   onRefresh?: () => void;
   refreshing?: boolean;
   scrollable?: boolean;
   subtitle?: string;
   showPlatformNavigation?: boolean;
-  headerRight?: ReactNode;
   title: string;
   topSafeAreaScale?: number;
 }>;
@@ -42,11 +48,13 @@ export function Screen({
   compactHeader = false,
   contentStyle,
   eyebrow,
+  headerHero,
+  headerRight,
+  headerStats,
   onRefresh,
   refreshing = false,
   scrollable = true,
   showPlatformNavigation = false,
-  headerRight,
   subtitle,
   title,
   topSafeAreaScale = 1,
@@ -63,11 +71,15 @@ export function Screen({
     ? styles.safeArea
     : [styles.safeArea, { paddingTop: Math.max(insets.top * topSafeAreaScale, 0) }];
   const hasHeaderCopy = Boolean(eyebrow || title || subtitle);
-  const hasHeader = hasHeaderCopy || Boolean(headerRight);
+  const hasHeaderSlots = Boolean(headerHero || headerStats);
+  const hasHeader = hasHeaderCopy || Boolean(headerRight) || hasHeaderSlots;
+  const bottomNavigationPadding = showPlatformNavigation
+    ? platformNavigationHeight + insets.bottom + colors.spacing[20]
+    : colors.spacing[20];
   const contentStyles = [
     styles.content,
+    { paddingBottom: bottomNavigationPadding },
     compactHeader ? styles.compactContent : null,
-    showPlatformNavigation ? styles.contentWithBottomNavigation : null,
     !scrollable ? styles.staticContent : null,
     contentStyle,
   ];
@@ -102,23 +114,33 @@ export function Screen({
     [isKeyboardVisible, navigation, route.name, showPlatformNavigation],
   );
   const header = hasHeader ? (
-    <View style={[styles.header, compactHeader ? styles.compactHeader : null]}>
+    <LinearGradient colors={colors.gradients.feltTable} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[styles.header, compactHeader ? styles.compactHeader : null]}>
+      <View style={styles.headerGlow} />
       <View style={[styles.headerTopRow, compactHeader ? styles.compactHeaderTopRow : null]}>
         {hasHeaderCopy ? (
           <View style={[styles.headerCopy, compactHeader ? styles.compactHeaderCopy : null]}>
             {eyebrow ? <Text style={styles.eyebrow}>{eyebrow}</Text> : null}
             {title ? <Text style={[styles.title, compactHeader ? styles.compactTitle : null]}>{title}</Text> : null}
+            {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
           </View>
         ) : null}
         {headerRight ? <View style={styles.headerRight}>{headerRight}</View> : null}
       </View>
-      {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
-    </View>
+      {hasHeaderSlots ? (
+        <View style={styles.headerSlotStack}>
+          {headerHero ? <View style={styles.headerHeroSlot}>{headerHero}</View> : null}
+          {headerStats ? <View style={styles.headerStatsSlot}>{headerStats}</View> : null}
+        </View>
+      ) : null}
+    </LinearGradient>
   ) : null;
   const body = <View style={bodyStyles}>{children}</View>;
 
   return (
     <View style={styles.root}>
+      <LinearGradient colors={[colors.palette.casinoMidnight, colors.palette.casinoPurple, colors.palette.feltDeep]} locations={[0, 0.58, 1]} style={StyleSheet.absoluteFill} />
+      <View style={[styles.backgroundOrb, styles.backgroundOrbGold]} />
+      <View style={[styles.backgroundOrb, styles.backgroundOrbFelt]} />
       <KeyboardSafeView>
         <SafeAreaView
           edges={safeAreaEdges}
@@ -165,77 +187,125 @@ export function Screen({
 }
 
 const styles = StyleSheet.create({
+  backgroundOrb: {
+    borderRadius: colors.radii.pill,
+    height: 220,
+    opacity: 0.28,
+    position: 'absolute',
+    width: 220,
+  },
+  backgroundOrbFelt: {
+    backgroundColor: colors.felt,
+    bottom: 96,
+    left: -118,
+  },
+  backgroundOrbGold: {
+    backgroundColor: colors.gold,
+    right: -132,
+    top: 84,
+  },
   body: {
-    gap: 16,
+    gap: colors.spacing[16],
   },
   bottomNavigationSafeArea: {
-    backgroundColor: colors.surface,
+    backgroundColor: colors.roles.navigationBar,
     borderColor: colors.border,
     borderTopWidth: 1,
     bottom: 0,
     left: 0,
     position: 'absolute',
     right: 0,
+    ...colors.shadows.lg,
   },
   content: {
     flexGrow: 1,
-    padding: 20,
-    rowGap: 18,
+    paddingHorizontal: colors.spacing[20],
+    paddingTop: colors.spacing[20],
+    rowGap: colors.spacing[16] + 2,
   },
   compactContent: {
-    paddingTop: 12,
-    rowGap: 10,
-  },
-  contentWithBottomNavigation: {
-    paddingBottom: 112,
+    paddingTop: colors.spacing[12],
+    rowGap: colors.spacing[8] + 2,
   },
   compactHeader: {
-    gap: 0,
+    gap: colors.spacing[12],
+    padding: colors.spacing[16],
   },
   compactHeaderCopy: {
-    gap: 0,
+    gap: colors.spacing[4],
   },
   compactHeaderTopRow: {
     alignItems: 'center',
   },
   compactTitle: {
-    fontSize: 22,
+    fontSize: colors.typography.title.fontSize,
+    lineHeight: colors.typography.title.lineHeight,
   },
   eyebrow: {
-    color: colors.primary,
-    fontSize: 12,
-    fontWeight: '800',
-    letterSpacing: 1,
-    textTransform: 'uppercase',
+    ...colors.typography.chipLabel,
+    color: colors.gold,
   },
   header: {
-    gap: 8,
+    borderColor: 'rgba(255,255,255,0.16)',
+    borderRadius: colors.radii.xl,
+    borderWidth: 1,
+    gap: colors.spacing[16],
+    overflow: 'hidden',
+    padding: colors.spacing[20],
+    ...colors.shadows.lg,
   },
   headerCopy: {
     flex: 1,
-    gap: 8,
+    gap: colors.spacing[8],
+  },
+  headerGlow: {
+    backgroundColor: colors.gold,
+    borderRadius: colors.radii.pill,
+    height: 96,
+    opacity: 0.12,
+    position: 'absolute',
+    right: -32,
+    top: -40,
+    width: 150,
+  },
+  headerHeroSlot: {
+    backgroundColor: colors.surfaces.glassPanel,
+    borderColor: 'rgba(255,255,255,0.12)',
+    borderRadius: colors.radii.lg,
+    borderWidth: 1,
+    padding: colors.spacing[12],
   },
   headerRight: {
     alignItems: 'flex-end',
     justifyContent: 'flex-start',
   },
+  headerSlotStack: {
+    gap: colors.spacing[12],
+  },
+  headerStatsSlot: {
+    backgroundColor: colors.surfaces.goldTint,
+    borderColor: 'rgba(255,201,94,0.22)',
+    borderRadius: colors.radii.lg,
+    borderWidth: 1,
+    padding: colors.spacing[12],
+  },
   headerTopRow: {
     alignItems: 'flex-start',
     flexDirection: 'row',
-    gap: 12,
+    gap: colors.spacing[12],
   },
   root: {
     backgroundColor: colors.background,
     flex: 1,
+    overflow: 'hidden',
   },
   safeArea: {
-    backgroundColor: colors.background,
+    backgroundColor: 'transparent',
     flex: 1,
   },
   subtitle: {
+    ...colors.typography.body,
     color: colors.mutedText,
-    fontSize: 16,
-    lineHeight: 23,
   },
   staticBody: {
     flex: 1,
@@ -244,8 +314,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   title: {
+    ...colors.typography.display,
     color: colors.text,
-    fontSize: 30,
-    fontWeight: '800',
   },
 });
