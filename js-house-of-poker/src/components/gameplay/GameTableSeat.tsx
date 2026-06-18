@@ -128,9 +128,9 @@ function getShowdownResult(
 
   if (isWinner) {
     return {
-      backgroundColor: 'rgba(77, 46, 5, 0.96)',
-      borderColor: '#FFCB6B',
-      color: '#FFF5D8',
+      backgroundColor: colors.surfaces.goldTint,
+      borderColor: colors.gold,
+      color: colors.gold,
       label: 'GO WIN',
       text: showdownDescription ?? 'Winning GO hand',
     };
@@ -138,18 +138,18 @@ function getShowdownResult(
 
   if (isLoser) {
     return {
-      backgroundColor: 'rgba(79, 14, 36, 0.96)',
-      borderColor: '#FF79B4',
-      color: '#FFF0F8',
+      backgroundColor: colors.destructivePanel,
+      borderColor: colors.danger,
+      color: colors.text,
       label: 'GO LOSE',
       text: showdownDescription ?? 'Losing GO hand',
     };
   }
 
   return {
-    backgroundColor: 'rgba(11, 70, 66, 0.96)',
-    borderColor: '#4DFFD6',
-    color: '#E6FFF8',
+    backgroundColor: colors.surfaces.feltTint,
+    borderColor: colors.success,
+    color: colors.textSoft,
     label: 'GO SHOWDOWN',
     text: showdownDescription ?? 'Cards revealed for showdown',
   };
@@ -161,11 +161,11 @@ function getStatusRibbon(isWinner: boolean) {
   }
 
   return {
-    color: '#FFF5D8',
+    color: colors.gold,
     icon: 'crown',
     label: 'Winner',
-    ring: '#FFCB6B',
-    tone: '#5E3606',
+    ring: colors.gold,
+    tone: colors.surfaces.goldTint,
   };
 }
 
@@ -177,71 +177,71 @@ function getActionBadge(
 ) {
   if (isWinner) {
     return {
-      backgroundColor: '#4E2E05',
-      borderColor: '#FFCB6B',
-      color: '#FFF1D1',
+      backgroundColor: colors.surfaces.goldTint,
+      borderColor: colors.gold,
+      color: colors.text,
       label: 'WIN',
     };
   }
 
   if (decision === 'GO') {
     return {
-      backgroundColor: 'rgba(17, 104, 94, 0.9)',
-      borderColor: '#4DFFD6',
-      color: '#E6FFF8',
+      backgroundColor: colors.surfaces.feltTint,
+      borderColor: colors.success,
+      color: colors.textSoft,
       label: 'GO',
     };
   }
 
   if (decision === 'STAY') {
     return {
-      backgroundColor: 'rgba(71, 35, 70, 0.9)',
-      borderColor: '#FF90D2',
-      color: '#FFF0FA',
+      backgroundColor: colors.surfaces.mutedTint,
+      borderColor: colors.danger,
+      color: colors.text,
       label: 'STAY',
     };
   }
 
   if (player.isAllIn) {
     return {
-      backgroundColor: 'rgba(131, 80, 14, 0.94)',
+      backgroundColor: colors.surfaces.goldTint,
       borderColor: colors.gold,
-      color: '#FFF4DD',
+      color: colors.text,
       label: 'ALL-IN',
     };
   }
 
   if (player.hasFolded) {
     return {
-      backgroundColor: 'rgba(52, 52, 60, 0.94)',
-      borderColor: 'rgba(190, 190, 208, 0.4)',
-      color: '#EEF0FF',
+      backgroundColor: colors.surfaces.mutedTint,
+      borderColor: colors.muted,
+      color: colors.text,
       label: 'FOLD',
     };
   }
 
   if (!player.isConnected) {
     return {
-      backgroundColor: 'rgba(38, 46, 59, 0.94)',
-      borderColor: 'rgba(141, 157, 180, 0.4)',
-      color: '#EEF4FF',
+      backgroundColor: colors.surfaces.mutedTint,
+      borderColor: colors.muted,
+      color: colors.text,
       label: 'AWAY',
     };
   }
 
   if (player.isTurn) {
     return {
-      backgroundColor: 'rgba(7, 84, 130, 0.92)',
+      backgroundColor: colors.surfaces.actionTint,
       borderColor: colors.secondary,
-      color: '#E9FEFF',
+      color: colors.text,
       label: 'TURN',
     };
   }
 
   return {
-    backgroundColor: 'rgba(21, 21, 29, 0.94)',
-    borderColor: 'rgba(171, 109, 255, 0.36)',
-    color: '#EDE7FF',
+    backgroundColor: colors.surface,
+    borderColor: colors.glowCyan,
+    color: colors.text,
     label: getPlayerStatusLabel(player, phase, isWinner).toUpperCase(),
   };
 }
@@ -252,18 +252,18 @@ function getShellGradient(
   isWinner: boolean,
 ) {
   if (isWinner) {
-    return ['rgba(72, 42, 8, 0.98)', 'rgba(17, 10, 4, 0.99)'] as const;
+    return colors.gradients.actionGold;
   }
 
   if (showDecisionMode) {
-    return ['rgba(28, 12, 42, 0.96)', 'rgba(7, 6, 17, 0.98)'] as const;
+    return colors.gradients.actionSecondary;
   }
 
   if (isBottomSeat) {
-    return ['rgba(25, 10, 38, 0.97)', 'rgba(8, 7, 18, 0.99)'] as const;
+    return [colors.surface, colors.background] as const;
   }
 
-  return ['rgba(18, 10, 30, 0.95)', 'rgba(6, 5, 14, 0.98)'] as const;
+  return [colors.surface, colors.background] as const;
 }
 
 function CardFan({
@@ -518,7 +518,7 @@ function LegsPips({
             >
               {filled ? (
                 <MaterialCommunityIcons
-                  color="#12091A"
+                  color={colors.background}
                   name="check"
                   size={mini ? 3 : compact ? 4 : 7}
                 />
@@ -821,7 +821,7 @@ export const GameTableSeat = memo(function GameTableSeat({
           <View style={styles.anchorChairAmountsRow}>
             <View style={styles.anchorChairChipsPill}>
               <MaterialCommunityIcons
-                color="#FFD88A"
+                color={colors.gold}
                 name="poker-chip"
                 size={7}
               />
@@ -1220,7 +1220,7 @@ export const GameTableSeat = memo(function GameTableSeat({
                 <View style={styles.compactStackLegsRow}>
                   <View style={styles.compactChipsPill}>
                     <MaterialCommunityIcons
-                      color="#FFD88A"
+                      color={colors.gold}
                       name="poker-chip"
                       size={7}
                     />
@@ -1496,8 +1496,8 @@ const styles = StyleSheet.create({
   anchorChairChipsPill: {
     alignItems: 'center',
     alignSelf: 'flex-start',
-    backgroundColor: 'rgba(255, 203, 107, 0.1)',
-    borderColor: 'rgba(255, 216, 138, 0.2)',
+    backgroundColor: colors.surfaces.goldTint,
+    borderColor: colors.glowGold,
     borderRadius: 999,
     borderWidth: 1,
     flexDirection: 'row',
@@ -1509,7 +1509,7 @@ const styles = StyleSheet.create({
     paddingVertical: 1,
   },
   anchorChairChipsText: {
-    color: '#FFF5D8',
+    color: colors.gold,
     flexShrink: 1,
     fontSize: 8,
     fontWeight: '900',
@@ -1545,7 +1545,7 @@ const styles = StyleSheet.create({
     minWidth: 30,
   },
   anchorChairName: {
-    color: '#F7F4FF',
+    color: colors.text,
     flexShrink: 1,
     fontSize: 8,
     fontWeight: '900',
@@ -1587,8 +1587,8 @@ const styles = StyleSheet.create({
   },
   anchorChairStakePill: {
     alignItems: 'center',
-    backgroundColor: 'rgba(48, 17, 37, 0.82)',
-    borderColor: 'rgba(255, 139, 210, 0.32)',
+    backgroundColor: colors.surfaces.mutedTint,
+    borderColor: colors.glowGold,
     borderRadius: 999,
     borderWidth: 1,
     flexShrink: 0,
@@ -1602,7 +1602,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
   },
   anchorChairStakeText: {
-    color: '#FFF6FB',
+    color: colors.text,
     fontSize: 8,
     fontWeight: '900',
   },
@@ -1614,8 +1614,8 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   anchorChairTurnGlow: {
-    backgroundColor: 'rgba(255, 203, 107, 0.08)',
-    borderColor: 'rgba(255, 211, 118, 0.95)',
+    backgroundColor: colors.surfaces.goldTint,
+    borderColor: colors.gold,
     borderRadius: 10,
     borderWidth: 2,
     zIndex: 2,
@@ -1626,8 +1626,8 @@ const styles = StyleSheet.create({
   amountBubble: {
     alignItems: 'center',
     alignSelf: 'center',
-    backgroundColor: 'rgba(10, 10, 16, 0.96)',
-    borderColor: 'rgba(255, 139, 210, 0.32)',
+    backgroundColor: colors.surface,
+    borderColor: colors.glowGold,
     borderRadius: 10,
     borderWidth: 1,
     minWidth: 56,
@@ -1641,15 +1641,15 @@ const styles = StyleSheet.create({
     paddingVertical: 3,
   },
   amountBubble357Compact: {
-    backgroundColor: 'rgba(10, 10, 16, 0.72)',
-    borderColor: 'rgba(255, 139, 210, 0.2)',
+    backgroundColor: colors.surfaces.glowPanel,
+    borderColor: colors.glowGold,
     borderRadius: 999,
     minWidth: 30,
     paddingHorizontal: 4,
     paddingVertical: 1,
   },
   amountBubbleText: {
-    color: '#FFF6FB',
+    color: colors.text,
     fontSize: 12,
     fontWeight: '800',
   },
@@ -1759,8 +1759,8 @@ const styles = StyleSheet.create({
   },
   compactChipsPill: {
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 203, 107, 0.1)',
-    borderColor: 'rgba(255, 216, 138, 0.2)',
+    backgroundColor: colors.surfaces.goldTint,
+    borderColor: colors.glowGold,
     borderRadius: 999,
     borderWidth: 1,
     flexDirection: 'row',
@@ -1821,7 +1821,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row-reverse',
   },
   compactName: {
-    color: '#F7F4FF',
+    color: colors.text,
     flexShrink: 1,
     fontSize: 8,
     fontWeight: '800',
@@ -1829,8 +1829,8 @@ const styles = StyleSheet.create({
   },
   compactNameStack: {
     alignItems: 'flex-start',
-    backgroundColor: 'rgba(5, 5, 10, 0.58)',
-    borderColor: 'rgba(196, 119, 255, 0.14)',
+    backgroundColor: colors.surfaces.glowPanel,
+    borderColor: colors.glowCyan,
     borderRadius: 8,
     borderWidth: 1,
     flexShrink: 1,
@@ -1845,7 +1845,7 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
   },
   compactStackText: {
-    color: '#FFF5D8',
+    color: colors.gold,
     flexShrink: 1,
     fontSize: 8,
     fontWeight: '900',
@@ -1868,8 +1868,8 @@ const styles = StyleSheet.create({
   },
   legsPip: {
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    borderColor: 'rgba(255, 255, 255, 0.16)',
+    backgroundColor: colors.surfaces.mutedTint,
+    borderColor: colors.muted,
     borderRadius: 999,
     borderWidth: 1,
     height: 12,
@@ -1886,11 +1886,11 @@ const styles = StyleSheet.create({
     width: 4,
   },
   legsPipFilled: {
-    backgroundColor: '#FFCB6B',
-    borderColor: 'rgba(255, 245, 216, 0.88)',
+    backgroundColor: colors.gold,
+    borderColor: colors.glowGold,
   },
   legsPipsLabel: {
-    color: 'rgba(255, 245, 216, 0.74)',
+    color: colors.gold,
     fontSize: 8,
     fontWeight: '900',
     letterSpacing: 0.2,
@@ -1907,8 +1907,8 @@ const styles = StyleSheet.create({
   },
   legsPipsShell: {
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.045)',
-    borderColor: 'rgba(255, 203, 107, 0.16)',
+    backgroundColor: colors.surfaces.glowPanel,
+    borderColor: colors.glowGold,
     borderRadius: 999,
     borderWidth: 1,
     flexDirection: 'row',
@@ -1917,7 +1917,7 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
   legsPipsShellCompact: {
-    backgroundColor: 'rgba(255, 203, 107, 0.08)',
+    backgroundColor: colors.surfaces.goldTint,
     gap: 2,
     paddingHorizontal: 3,
     paddingVertical: 2,
@@ -1944,8 +1944,8 @@ const styles = StyleSheet.create({
   },
   nameBox: {
     alignItems: 'center',
-    backgroundColor: 'rgba(8, 8, 14, 0.96)',
-    borderColor: 'rgba(196, 119, 255, 0.24)',
+    backgroundColor: colors.surface,
+    borderColor: colors.glowCyan,
     borderRadius: 14,
     borderWidth: 1,
     gap: 2,
@@ -1959,7 +1959,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   nameBoxStack: {
-    color: '#F4F1FF',
+    color: colors.text,
     fontSize: 12,
     fontWeight: '800',
   },
@@ -1980,7 +1980,7 @@ const styles = StyleSheet.create({
     minHeight: 12,
   },
   playerName: {
-    color: '#F7F4FF',
+    color: colors.text,
     fontSize: 12,
     fontWeight: '700',
   },
@@ -2001,8 +2001,8 @@ const styles = StyleSheet.create({
     gap: 0,
   },
   selfTag: {
-    backgroundColor: 'rgba(103, 237, 255, 0.18)',
-    borderColor: 'rgba(103, 237, 255, 0.4)',
+    backgroundColor: colors.surfaces.actionTint,
+    borderColor: colors.glowCyan,
     borderRadius: 999,
     borderWidth: 1,
     paddingHorizontal: 7,
@@ -2013,7 +2013,7 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
   },
   selfTagText: {
-    color: '#C9FCFF',
+    color: colors.action,
     fontSize: 9,
     fontWeight: '900',
     letterSpacing: 0.8,
@@ -2089,7 +2089,7 @@ const styles = StyleSheet.create({
   },
   shellBorder: {
     ...StyleSheet.absoluteFillObject,
-    borderColor: 'rgba(209, 110, 255, 0.22)',
+    borderColor: colors.glowCyan,
     borderRadius: 18,
     borderWidth: 1,
   },
@@ -2103,7 +2103,7 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
   },
   shell357Compact: {
-    backgroundColor: 'rgba(7, 6, 13, 0.42)',
+    backgroundColor: colors.surfaces.glowPanel,
     borderRadius: 10,
     gap: 1,
     paddingHorizontal: 3,
@@ -2125,14 +2125,14 @@ const styles = StyleSheet.create({
     paddingVertical: 3,
   },
   shellBorder357Compact: {
-    borderColor: 'rgba(209, 110, 255, 0.12)',
+    borderColor: colors.surfaces.actionTint,
     borderRadius: 12,
   },
   shellDecision: {
-    backgroundColor: 'rgba(0,0,0,0.18)',
+    backgroundColor: colors.surfaces.mutedTint,
   },
   shellLive: {
-    backgroundColor: 'rgba(0,0,0,0.12)',
+    backgroundColor: colors.surfaces.glowPanel,
   },
   showdownConnector: {
     alignItems: 'center',
@@ -2160,7 +2160,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.2,
   },
   showdownConnectorText: {
-    color: 'rgba(255,255,255,0.86)',
+    color: colors.text,
     fontSize: 8,
     fontWeight: '700',
     lineHeight: 10,
@@ -2173,8 +2173,8 @@ const styles = StyleSheet.create({
   stackPlate: {
     alignItems: 'center',
     alignSelf: 'center',
-    backgroundColor: 'rgba(8, 8, 14, 0.96)',
-    borderColor: 'rgba(196, 119, 255, 0.24)',
+    backgroundColor: colors.surface,
+    borderColor: colors.glowCyan,
     borderRadius: 14,
     borderWidth: 1,
     minWidth: 92,
@@ -2188,7 +2188,7 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
   },
   stackText: {
-    color: '#F4F1FF',
+    color: colors.text,
     fontSize: 14,
     fontWeight: '800',
   },
@@ -2212,8 +2212,8 @@ const styles = StyleSheet.create({
   },
   turnGlow: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(97, 234, 255, 0.1)',
-    borderColor: 'rgba(97, 234, 255, 0.2)',
+    backgroundColor: colors.surfaces.actionTint,
+    borderColor: colors.glowCyan,
     borderRadius: 18,
     borderWidth: 1,
   },
@@ -2225,7 +2225,7 @@ const styles = StyleSheet.create({
   },
   winnerGlow: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(255, 198, 108, 0.16)',
+    backgroundColor: colors.glowGold,
     borderRadius: 18,
   },
   wrapper: {
