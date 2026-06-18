@@ -1,12 +1,8 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
-
 import type { FriendsPlayer } from '../../types/friends';
 import { FriendQuickActions } from './FriendQuickActions';
-import { PlayerAvatar } from './PlayerAvatar';
-import { PlayerStatusBadge } from './PlayerStatusBadge';
-import { RelationshipStatusBadge } from './RelationshipStatusBadge';
+import { PlayerIdentityCard } from '../player/PlayerIdentityCard';
+import { getActivityBadge, getRelationshipBadge } from '../player/PlayerMetaBadge';
 
-import { colors } from '../../theme/colors';
 type PlayerSearchResultCardProps = {
   hasActiveTable: boolean;
   onInviteToChatRoom: (player: FriendsPlayer) => void;
@@ -31,25 +27,15 @@ export function PlayerSearchResultCard({
   player,
 }: PlayerSearchResultCardProps) {
   return (
-    <View style={styles.card}>
-      <View style={styles.identityRow}>
-        <Pressable accessibilityRole="button" onPress={() => onViewProfile(player)}>
-          <PlayerAvatar
-            avatar={player.avatar}
-            displayName={player.displayName}
-            isOnline={player.isOnline}
-            playerId={player.id}
-          />
-        </Pressable>
-        <Pressable accessibilityRole="button" onPress={() => onViewProfile(player)} style={styles.identityText}>
-          <Text style={styles.name}>{player.displayName}</Text>
-          <Text style={styles.username}>@{player.username}</Text>
-          <View style={styles.badgeRow}>
-            <PlayerStatusBadge status={player.activityStatus} />
-            <RelationshipStatusBadge status={player.relationshipStatus} />
-          </View>
-        </Pressable>
-      </View>
+    <PlayerIdentityCard
+      avatar={player.avatar}
+      badges={[getActivityBadge(player.activityStatus), getRelationshipBadge(player.relationshipStatus)]}
+      connected={player.isOnline}
+      displayName={player.displayName}
+      onPress={() => onViewProfile(player)}
+      seed={player.id}
+      username={player.username}
+    >
       <FriendQuickActions
         hasActiveTable={hasActiveTable}
         onInviteToChatRoom={onInviteToChatRoom}
@@ -62,41 +48,6 @@ export function PlayerSearchResultCard({
         player={player}
         showFriendRequestAction
       />
-    </View>
+    </PlayerIdentityCard>
   );
 }
-
-const styles = StyleSheet.create({
-  badgeRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
-  },
-  card: {
-    backgroundColor: colors.surfaceMuted,
-    borderColor: colors.border,
-    borderRadius: 20,
-    borderWidth: 1,
-    gap: 12,
-    padding: 14,
-  },
-  identityRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: 12,
-  },
-  identityText: {
-    flex: 1,
-    gap: 5,
-  },
-  name: {
-    color: colors.text,
-    fontSize: 18,
-    fontWeight: '900',
-  },
-  username: {
-    color: colors.secondary,
-    fontSize: 13,
-    fontWeight: '800',
-  },
-});

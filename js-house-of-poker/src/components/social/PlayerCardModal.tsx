@@ -4,6 +4,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 import { PlayerAvatar } from '../PlayerAvatar';
 import { PlayerStatusBadge } from '../player/PlayerStatusBadge';
+import { PlayerMetaBadge } from '../player/PlayerMetaBadge';
 import type { PokerPlayerState } from '../../types/poker';
 
 import { colors } from '../../theme/colors';
@@ -377,18 +378,12 @@ export function PlayerCardModal({
           <View style={styles.badgeRow}>
             <PlayerStatusBadge compact statusTier={player.statusTier} />
             {player.statusTier === 'none' && !player.statusIcon ? (
-              <View style={[styles.statusBadge, styles.awayBadge]}>
-                <Text style={styles.statusBadgeText}>No badge</Text>
-              </View>
+              <PlayerMetaBadge label="No badge" tone="muted" />
             ) : null}
             {player.statusIcon ? (
-              <View style={[styles.statusBadge, styles.onlineBadge]}>
-                <Text style={styles.statusBadgeText}>{player.statusIcon}</Text>
-              </View>
+              <PlayerMetaBadge label={player.statusIcon} tone="success" />
             ) : null}
-            <View style={[styles.statusBadge, player.isConnected ? styles.onlineBadge : styles.awayBadge]}>
-              <Text style={styles.statusBadgeText}>{getStatusCopy(player, isSelf)}</Text>
-            </View>
+            <PlayerMetaBadge label={getStatusCopy(player, isSelf)} tone={player.isConnected ? 'success' : 'muted'} />
           </View>
 
           {restrictionCopy ? <Text style={styles.restrictionText}>{restrictionCopy}</Text> : null}

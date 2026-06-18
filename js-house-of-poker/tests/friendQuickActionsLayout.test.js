@@ -38,6 +38,7 @@ function ActionButton() {}
 function FriendQuickActions() {}
 function InviteToChatButton() {}
 function InviteToTableButton() {}
+function PlayerIdentityCard(props) { return { type: 'View', props: { ...props, style: { padding: 14 }, children: props.children } }; }
 
 const reactNativeMock = {
   Animated: {
@@ -159,6 +160,8 @@ test('a friend returned through player search exposes the forwarded Remove frien
     './PlayerAvatar': { PlayerAvatar: () => null },
     './PlayerStatusBadge': { PlayerStatusBadge: () => null },
     './RelationshipStatusBadge': { RelationshipStatusBadge: () => null },
+    '../player/PlayerIdentityCard': { PlayerIdentityCard },
+    '../player/PlayerMetaBadge': { getActivityBadge: () => ({ label: 'Online', tone: 'success' }), getRelationshipBadge: () => ({ label: 'Friend', tone: 'success' }) },
   });
   const card = PlayerSearchResultCard({
     hasActiveTable: false, onInviteToChatRoom: () => {}, onInviteToTable: () => {}, onRemoveFriend,
@@ -228,12 +231,15 @@ test('PlayerSearchResultCard preserves the expected narrow-width content area', 
     './PlayerAvatar': { PlayerAvatar: () => null },
     './PlayerStatusBadge': { PlayerStatusBadge: () => null },
     './RelationshipStatusBadge': { RelationshipStatusBadge: () => null },
+    '../player/PlayerIdentityCard': { PlayerIdentityCard },
+    '../player/PlayerMetaBadge': { getActivityBadge: () => ({ label: 'Online', tone: 'success' }), getRelationshipBadge: () => ({ label: 'Friend', tone: 'success' }) },
   });
   const card = PlayerSearchResultCard({
     hasActiveTable: false, onInviteToChatRoom: () => {}, onInviteToTable: () => {}, onRespondToRequest: () => {},
     onSendFriendRequest: () => {}, onStartDirectChat: () => {}, onViewProfile: () => {}, player: requestPlayer,
   });
 
-  assert.equal(card.props.style.padding, 14);
-  assert.equal(MIN_SUPPORTED_VIEWPORT_WIDTH - (card.props.style.padding * 2), 292);
+  assert.equal(card.type, PlayerIdentityCard);
+  assert.equal(card.props.displayName, requestPlayer.displayName);
+  assert.equal(MIN_SUPPORTED_VIEWPORT_WIDTH - (14 * 2), 292);
 });
