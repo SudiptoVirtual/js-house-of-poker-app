@@ -65,43 +65,47 @@ function renderChatInputBar(props = {}) {
   });
 }
 
-test('chat composer uses a full-width input row above right-aligned actions', () => {
+test('chat composer aligns the input and actions in a single full-width row', () => {
   const composer = renderChatInputBar();
-  const [input, actions] = getChildren(composer);
+  const [row] = getChildren(composer);
+  const [input, actions] = getChildren(row);
 
   assert.equal(composer.type, 'View');
   assert.equal(composer.props.style.alignItems, 'stretch');
+  assert.equal(row.type, 'View');
+  assert.equal(row.props.style.alignItems, 'center');
+  assert.equal(row.props.style.flexDirection, 'row');
+  assert.equal(row.props.style.width, '100%');
   assert.equal(input.type, 'TextInput');
-  assert.equal(input.props.style.flex, undefined);
-  assert.equal(input.props.style.width, '100%');
+  assert.equal(input.props.style.flex, 1);
+  assert.equal(input.props.style.width, undefined);
   assert.equal(actions.type, 'View');
   assert.equal(actions.props.style.flexDirection, 'row');
   assert.equal(actions.props.style.justifyContent, 'flex-end');
-  assert.equal(actions.props.style.width, '100%');
+  assert.equal(actions.props.style.width, undefined);
   assert.equal(actions.props.children.length, 4);
 });
 
-test('two-row chat composer stays within the previous height envelope', () => {
+test('single-row chat composer stays within the previous height envelope', () => {
   const composer = renderChatInputBar();
-  const [input, actions] = getChildren(composer);
+  const [row] = getChildren(composer);
+  const [input] = getChildren(row);
   const chromeHeight = (composer.props.style.borderWidth * 2)
     + (composer.props.style.paddingVertical * 2)
-    + composer.props.style.gap
-    + actions.props.style.borderTopWidth
-    + actions.props.style.paddingTop
-    + ACTION_HEIGHT;
-  const restingHeight = chromeHeight + input.props.style.minHeight;
-  const maxHeight = chromeHeight + input.props.style.maxHeight;
+    + composer.props.style.gap;
+  const restingHeight = chromeHeight + Math.max(input.props.style.minHeight, ACTION_HEIGHT);
+  const maxHeight = chromeHeight + Math.max(input.props.style.maxHeight, ACTION_HEIGHT);
 
   assert.ok(restingHeight <= PREVIOUS_RESTING_HEIGHT * 1.03);
   assert.ok(maxHeight <= PREVIOUS_MAX_HEIGHT * 1.03);
-  assert.equal(restingHeight, 65);
-  assert.equal(maxHeight, 129);
+  assert.equal(restingHeight, 42);
+  assert.equal(maxHeight, 90);
 });
 
 test('non-AI composer icons are at least 15% smaller than their previous sizes', () => {
   const composer = renderChatInputBar();
-  const actions = getChildren(composer)[1];
+  const row = getChildren(composer)[0];
+  const actions = getChildren(row)[1];
   const [emojiButton, giftButton, , sendButton] = getChildren(actions);
 
   assert.ok(emojiButton.props.children.props.size <= 18 * 0.85);
@@ -116,6 +120,7 @@ test('direct chat composer keeps compact actions beside the taller input', () =>
 
   assert.equal(flattenStyle(composer.props.style).borderWidth, 0);
   assert.equal(row.props.style.flexDirection, 'row');
+  assert.equal(row.props.style.alignItems, 'center');
   assert.equal(row.props.style.gap, 6);
   assert.equal(getChildren(row).length, 5);
   assert.equal(attachButton.type, 'Pressable');

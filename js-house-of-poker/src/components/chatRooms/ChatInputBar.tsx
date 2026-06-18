@@ -117,55 +117,57 @@ export function ChatInputBar({
   return (
     <View style={styles.composer}>
       {attachments.length > 0 ? <View style={styles.attachmentPreviewRow}>{attachments.map((attachment) => <View key={attachment.id} style={styles.attachmentPreview}>{attachment.type === 'image' ? <Image source={{ uri: attachment.uri }} style={styles.attachmentImage} /> : <MaterialCommunityIcons color={colors.gold} name="video-outline" size={18} />}<Pressable onPress={() => setAttachments((current: PendingChatAttachment[]) => current.filter((item) => item.id !== attachment.id))}><Text style={styles.removeAttachment}>×</Text></Pressable></View>)}</View> : null}
-      <TextInput
-        multiline
-        onChangeText={onChangeDraft}
-        placeholder={placeholder}
-        placeholderTextColor={colors.mutedText}
-        editable={!sending}
-        style={styles.composerInput}
-        value={draft}
-      />
-      <View style={styles.composerActions}>
-        <Pressable
-          accessibilityLabel="Attach media"
-          accessibilityRole="button"
-          hitSlop={4}
-          onPress={() => { void addMedia(); }}
-          style={({ pressed }) => [styles.iconButton, pressed ? styles.pressed : null]}
-        >
-          <MaterialCommunityIcons color={colors.gold} name="paperclip" size={15} />
-        </Pressable>
-        {onOpenGiftClips ? (
+      <View style={styles.composerRow}>
+        <TextInput
+          multiline
+          onChangeText={onChangeDraft}
+          placeholder={placeholder}
+          placeholderTextColor={colors.mutedText}
+          editable={!sending}
+          style={styles.composerInput}
+          value={draft}
+        />
+        <View style={styles.composerActions}>
           <Pressable
-            accessibilityLabel="Send Gift Clips"
+            accessibilityLabel="Attach media"
             accessibilityRole="button"
             hitSlop={4}
-            onPress={onOpenGiftClips}
-            style={({ pressed }) => [styles.iconButton, styles.giftButton, pressed ? styles.pressed : null]}
+            onPress={() => { void addMedia(); }}
+            style={({ pressed }) => [styles.iconButton, pressed ? styles.pressed : null]}
           >
-            <MaterialCommunityIcons color={colors.gold} name="gift-outline" size={15} />
+            <MaterialCommunityIcons color={colors.gold} name="paperclip" size={15} />
           </Pressable>
-        ) : null}
-        {onOpenAIPrime ? <AIPrimeButton loading={openingAIPrime} onPress={onOpenAIPrime} /> : null}
-        <Pressable
-          accessibilityLabel="Send chat message"
-          accessibilityRole="button"
-          disabled={!canSend}
-          hitSlop={4}
-          onPress={() => { void sendWithAttachments(); }}
-          style={({ pressed }) => [
-            styles.sendButton,
-            !canSend ? styles.sendButtonDisabled : null,
-            pressed ? styles.pressed : null,
-          ]}
-        >
-          {sending ? (
-            <ActivityIndicator color={colors.background} size="small" />
-          ) : (
-            <MaterialCommunityIcons color={colors.background} name="send" size={14} />
-          )}
-        </Pressable>
+          {onOpenGiftClips ? (
+            <Pressable
+              accessibilityLabel="Send Gift Clips"
+              accessibilityRole="button"
+              hitSlop={4}
+              onPress={onOpenGiftClips}
+              style={({ pressed }) => [styles.iconButton, styles.giftButton, pressed ? styles.pressed : null]}
+            >
+              <MaterialCommunityIcons color={colors.gold} name="gift-outline" size={15} />
+            </Pressable>
+          ) : null}
+          {onOpenAIPrime ? <AIPrimeButton loading={openingAIPrime} onPress={onOpenAIPrime} /> : null}
+          <Pressable
+            accessibilityLabel="Send chat message"
+            accessibilityRole="button"
+            disabled={!canSend}
+            hitSlop={4}
+            onPress={() => { void sendWithAttachments(); }}
+            style={({ pressed }) => [
+              styles.sendButton,
+              !canSend ? styles.sendButtonDisabled : null,
+              pressed ? styles.pressed : null,
+            ]}
+          >
+            {sending ? (
+              <ActivityIndicator color={colors.background} size="small" />
+            ) : (
+              <MaterialCommunityIcons color={colors.background} name="send" size={14} />
+            )}
+          </Pressable>
+        </View>
       </View>
     </View>
   );
@@ -188,12 +190,14 @@ const styles = StyleSheet.create({
   removeAttachment: { color: colors.danger, fontSize: 18, fontWeight: '900', paddingHorizontal: 4 },
   composerActions: {
     alignItems: 'center',
-    borderTopColor: colors.border,
-    borderTopWidth: 1,
     flexDirection: 'row',
     gap: 8,
     justifyContent: 'flex-end',
-    paddingTop: 2,
+  },
+  composerRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 8,
     width: '100%',
   },
   directComposer: {
@@ -220,7 +224,7 @@ const styles = StyleSheet.create({
     textAlignVertical: 'center',
   },
   directComposerRow: {
-    alignItems: 'flex-end',
+    alignItems: 'center',
     flexDirection: 'row',
     gap: 6,
     width: '100%',
@@ -249,6 +253,7 @@ const styles = StyleSheet.create({
   },
   composerInput: {
     color: colors.text,
+    flex: 1,
     fontSize: 15,
     lineHeight: 20,
     maxHeight: 84,
@@ -256,7 +261,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 0,
     textAlignVertical: 'center',
-    width: '100%',
   },
   pressed: {
     opacity: 0.78,
