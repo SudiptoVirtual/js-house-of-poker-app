@@ -80,7 +80,13 @@ export function FeedPostBox({ canInviteToTable = false, currentPlayer, isAuthent
   }
 
   return <View style={styles.card}>
-    <Text accessibilityRole="header" style={styles.heading}>Create Post</Text>
+    <View style={styles.composerHeader}>
+      <View>
+        <Text style={styles.eyebrow}>Creator Studio</Text>
+        <Text accessibilityRole="header" style={styles.heading}>Create Post</Text>
+      </View>
+      <View style={styles.liveBadge}><MaterialCommunityIcons color={colors.success} name="broadcast" size={14} /><Text style={styles.liveBadgeText}>Feed-ready</Text></View>
+    </View>
     <View style={styles.row}>
       <Pressable accessibilityLabel={`Open ${player.name}'s profile`} accessibilityRole="button" onPress={() => onOpenProfile?.(player)} style={styles.avatarButton}><FeedAvatar initials={getPlayerInitials(player.name)} uri={player.avatarUrl} /></Pressable>
       <View style={styles.inputStack}>
@@ -92,12 +98,47 @@ export function FeedPostBox({ canInviteToTable = false, currentPlayer, isAuthent
         {attachments.length ? <ScrollView horizontal contentContainerStyle={styles.previewRow} showsHorizontalScrollIndicator={false}>{attachments.map((attachment) => <View key={attachment.id} style={styles.preview}>{attachment.type === 'image' ? <Image source={{ uri: attachment.uri }} style={styles.previewImage} /> : <View style={styles.videoPreview}><MaterialCommunityIcons color={colors.secondary} name="video-outline" size={28} /><Text style={styles.videoLabel}>Video</Text></View>}<Pressable accessibilityLabel={`Remove ${attachment.name}`} onPress={() => setAttachments((current) => removeFeedAttachment(current, attachment.id))} style={styles.removeButton}><MaterialCommunityIcons color={colors.text} name="close" size={15} /></Pressable></View>)}</ScrollView> : null}
       </View>
     </View>
-    {canInviteToTable ? <Pressable accessibilityRole="button" onPress={() => setIsTableInvite((current) => !current)} style={[styles.inviteOption, isTableInvite ? styles.inviteOptionSelected : null]}><MaterialCommunityIcons color={colors.gold} name="poker-chip" size={18} /><Text style={styles.inviteOptionText}>{isTableInvite ? 'Table invitation attached' : 'Invite to Table'}</Text></Pressable> : null}
+    <View style={styles.toolRow}>
+      <Pressable accessibilityRole="button" disabled={!currentPlayer || !isAuthenticated || isSubmitting || attachments.length >= MAX_FEED_ATTACHMENTS} onPress={() => setIsAttachmentSheetOpen(true)} style={styles.toolButton}><MaterialCommunityIcons color={colors.secondary} name="image-multiple-outline" size={18} /><Text style={styles.toolTitle}>Media drop</Text><Text style={styles.toolMeta}>{attachments.length}/{MAX_FEED_ATTACHMENTS}</Text></Pressable>
+      {canInviteToTable ? <Pressable accessibilityRole="button" onPress={() => setIsTableInvite((current) => !current)} style={[styles.toolButton, isTableInvite ? styles.inviteOptionSelected : null]}><MaterialCommunityIcons color={colors.gold} name="poker-chip" size={18} /><Text style={styles.toolTitle}>{isTableInvite ? 'Table linked' : 'Invite table'}</Text><Text style={styles.toolMeta}>Seats + code</Text></Pressable> : null}
+      <View style={styles.toolButton}><MaterialCommunityIcons color={colors.accent} name="gift-outline" size={18} /><Text style={styles.toolTitle}>Gift clips</Text><Text style={styles.toolMeta}>Fans tip after post</Text></View>
+    </View>
     <View style={styles.footerRow}><Text style={styles.helperText}>{statusMessage}</Text><ActionButton compact disabled={!canSubmit} icon="send-outline" label={isSubmitting ? 'Posting' : 'Post'} loading={isSubmitting} onPress={handleSubmit} /></View>
     <Modal animationType="slide" transparent visible={isAttachmentSheetOpen} onRequestClose={() => setIsAttachmentSheetOpen(false)}><Pressable style={styles.sheetBackdrop} onPress={() => setIsAttachmentSheetOpen(false)}><Pressable style={styles.sheet}><View style={styles.sheetHandle} /><Text style={styles.sheetTitle}>Attach media</Text><Pressable accessibilityRole="button" onPress={() => void addAssets('gallery')} style={styles.sheetAction}><MaterialCommunityIcons color={colors.secondary} name="image-multiple-outline" size={22} /><Text style={styles.sheetActionText}>Choose from gallery</Text></Pressable><Pressable accessibilityRole="button" onPress={() => void addAssets('camera')} style={styles.sheetAction}><MaterialCommunityIcons color={colors.secondary} name="camera-outline" size={22} /><Text style={styles.sheetActionText}>Take a snap</Text></Pressable></Pressable></Pressable></Modal>
   </View>;
 }
 
 const styles = StyleSheet.create({
-  attachmentButton: { alignItems: 'center', bottom: 8, height: 36, justifyContent: 'center', position: 'absolute', right: 8, width: 36 }, avatarButton: { borderRadius: 22 }, card: { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: 24, borderWidth: 1, gap: 13, padding: 14 }, footerRow: { alignItems: 'center', flexDirection: 'row', gap: 12, justifyContent: 'space-between' }, heading: { color: colors.text, fontSize: 18, fontWeight: '800' }, helperText: { color: colors.mutedText, flex: 1, fontSize: 12, lineHeight: 17 }, inviteOption: { alignItems: 'center', alignSelf: 'flex-start', borderColor: colors.border, borderRadius: 14, borderWidth: 1, flexDirection: 'row', gap: 7, paddingHorizontal: 12, paddingVertical: 9 }, inviteOptionSelected: { backgroundColor: colors.goldTint, borderColor: colors.gold }, inviteOptionText: { color: colors.gold, fontSize: 13, fontWeight: '800' }, input: { color: colors.text, fontSize: 15, minHeight: 52, paddingHorizontal: 14, paddingRight: 48, paddingVertical: 12, textAlignVertical: 'top' }, inputStack: { flex: 1, gap: 7 }, playerLabel: { color: colors.secondary, fontSize: 12, fontWeight: '800' }, preview: { borderColor: colors.border, borderRadius: 12, borderWidth: 1, height: 82, overflow: 'hidden', width: 82 }, previewImage: { height: '100%', width: '100%' }, previewRow: { gap: 8 }, removeButton: { alignItems: 'center', backgroundColor: colors.surface, borderRadius: 12, height: 24, justifyContent: 'center', position: 'absolute', right: 4, top: 4, width: 24 }, row: { alignItems: 'flex-start', flexDirection: 'row', gap: 10 }, sheet: { backgroundColor: colors.surface, borderTopLeftRadius: 24, borderTopRightRadius: 24, gap: 8, padding: 20, paddingBottom: 34 }, sheetAction: { alignItems: 'center', borderColor: colors.border, borderRadius: 16, borderWidth: 1, flexDirection: 'row', gap: 12, padding: 16 }, sheetActionText: { color: colors.text, fontSize: 16, fontWeight: '700' }, sheetBackdrop: { backgroundColor: 'rgba(0,0,0,0.55)', flex: 1, justifyContent: 'flex-end' }, sheetHandle: { alignSelf: 'center', backgroundColor: colors.border, borderRadius: 3, height: 5, marginBottom: 5, width: 42 }, sheetTitle: { color: colors.text, fontSize: 18, fontWeight: '800', marginBottom: 6 }, textboxArea: { backgroundColor: colors.surfaceMuted, borderColor: colors.border, borderRadius: 18, borderWidth: 1, overflow: 'hidden', position: 'relative' }, videoLabel: { color: colors.mutedText, fontSize: 11 }, videoPreview: { alignItems: 'center', flex: 1, justifyContent: 'center' },
+  attachmentButton: { alignItems: 'center', bottom: 8, height: 36, justifyContent: 'center', position: 'absolute', right: 8, width: 36 },
+  avatarButton: { borderRadius: 22 },
+  card: { backgroundColor: colors.roles.glassPanel, borderColor: 'rgba(255,255,255,0.14)', borderRadius: colors.radii.xl, borderWidth: 1, gap: colors.spacing[16], padding: colors.spacing[16], ...colors.shadows.md },
+  composerHeader: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between' },
+  eyebrow: { ...colors.typography.chipLabel, color: colors.secondary },
+  footerRow: { alignItems: 'center', flexDirection: 'row', gap: colors.spacing[12], justifyContent: 'space-between' },
+  heading: { ...colors.typography.sectionTitle, color: colors.text },
+  helperText: { ...colors.typography.caption, color: colors.mutedText, flex: 1 },
+  input: { ...colors.typography.body, color: colors.text, minHeight: 72, paddingHorizontal: 14, paddingRight: 48, paddingVertical: 12, textAlignVertical: 'top' },
+  inputStack: { flex: 1, gap: 7 },
+  inviteOptionSelected: { backgroundColor: colors.goldTint, borderColor: colors.gold },
+  liveBadge: { alignItems: 'center', backgroundColor: colors.successTint, borderColor: 'rgba(77,243,199,0.28)', borderRadius: colors.radii.pill, borderWidth: 1, flexDirection: 'row', gap: colors.spacing[4], paddingHorizontal: colors.spacing[8], paddingVertical: colors.spacing[4] },
+  liveBadgeText: { ...colors.typography.chipLabel, color: colors.success },
+  playerLabel: { color: colors.secondary, fontSize: 12, fontWeight: '800' },
+  preview: { borderColor: colors.border, borderRadius: 12, borderWidth: 1, height: 82, overflow: 'hidden', width: 82 },
+  previewImage: { height: '100%', width: '100%' },
+  previewRow: { gap: colors.spacing[8] },
+  removeButton: { alignItems: 'center', backgroundColor: colors.surface, borderRadius: 12, height: 24, justifyContent: 'center', position: 'absolute', right: 4, top: 4, width: 24 },
+  row: { alignItems: 'flex-start', flexDirection: 'row', gap: 10 },
+  sheet: { backgroundColor: colors.surface, borderTopLeftRadius: 24, borderTopRightRadius: 24, gap: 8, padding: 20, paddingBottom: 34 },
+  sheetAction: { alignItems: 'center', borderColor: colors.border, borderRadius: 16, borderWidth: 1, flexDirection: 'row', gap: 12, padding: 16 },
+  sheetActionText: { color: colors.text, fontSize: 16, fontWeight: '700' },
+  sheetBackdrop: { backgroundColor: 'rgba(0,0,0,0.55)', flex: 1, justifyContent: 'flex-end' },
+  sheetHandle: { alignSelf: 'center', backgroundColor: colors.border, borderRadius: 3, height: 5, marginBottom: 5, width: 42 },
+  sheetTitle: { color: colors.text, fontSize: 18, fontWeight: '800', marginBottom: 6 },
+  textboxArea: { backgroundColor: 'rgba(5,3,11,0.34)', borderColor: 'rgba(255,255,255,0.12)', borderRadius: colors.radii.lg, borderWidth: 1, overflow: 'hidden', position: 'relative' },
+  toolButton: { backgroundColor: 'rgba(255,255,255,0.06)', borderColor: 'rgba(255,255,255,0.10)', borderRadius: colors.radii.lg, borderWidth: 1, flex: 1, gap: colors.spacing[4], minWidth: 104, padding: colors.spacing[12] },
+  toolMeta: { color: colors.mutedText, fontSize: 11, fontWeight: '700' },
+  toolRow: { flexDirection: 'row', flexWrap: 'wrap', gap: colors.spacing[8] },
+  toolTitle: { color: colors.text, fontSize: 12, fontWeight: '900' },
+  videoLabel: { color: colors.mutedText, fontSize: 11 },
+  videoPreview: { alignItems: 'center', flex: 1, justifyContent: 'center' },
 });
