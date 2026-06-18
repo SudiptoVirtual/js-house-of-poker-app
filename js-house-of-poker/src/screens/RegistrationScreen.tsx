@@ -1,24 +1,24 @@
-import { useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
-import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useState } from "react";
+import { Pressable, StyleSheet, Text, View } from "react-native";
+import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 
-import { ActionButton } from '../components/ActionButton';
-import { AuthTextField } from '../components/AuthTextField';
-import { BrandPanel } from '../components/BrandPanel';
-import { ComplianceNotice } from '../components/ComplianceNotice';
-import { Screen } from '../components/Screen';
-import { SectionCard } from '../components/SectionCard';
-import { complianceCopy } from '../constants/compliance';
-import { SocialAuthButton } from '../components/SocialAuthButton';
-import { routes } from '../constants/routes';
-import { useAuth } from '../context/AuthProvider';
-import { useGoogleAuth } from '../hooks/useGoogleAuth';
-import { authenticateWithGoogle, registerUser } from '../services/api/auth';
-import { getApiErrorDetails } from '../services/api/client';
-import { colors } from '../theme/colors';
-import type { RootStackParamList } from '../types/navigation';
+import { ActionButton } from "../components/ActionButton";
+import { AuthTextField } from "../components/AuthTextField";
+import { BrandPanel } from "../components/BrandPanel";
+import { ComplianceNotice } from "../components/ComplianceNotice";
+import { Screen } from "../components/Screen";
+import { SectionCard } from "../components/SectionCard";
+import { complianceCopy } from "../constants/compliance";
+import { SocialAuthButton } from "../components/SocialAuthButton";
+import { routes } from "../constants/routes";
+import { useAuth } from "../context/AuthProvider";
+import { useGoogleAuth } from "../hooks/useGoogleAuth";
+import { authenticateWithGoogle, registerUser } from "../services/api/auth";
+import { getApiErrorDetails } from "../services/api/client";
+import { colors } from "../theme/colors";
+import type { RootStackParamList } from "../types/navigation";
 
-type Props = NativeStackScreenProps<RootStackParamList, 'Registration'>;
+type Props = NativeStackScreenProps<RootStackParamList, "Registration">;
 
 type RegistrationFieldErrors = {
   email?: string;
@@ -29,15 +29,18 @@ type RegistrationFieldErrors = {
 
 export function RegistrationScreen({ navigation }: Props) {
   const { setAuthenticatedSession } = useAuth();
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [contact, setContact] = useState('');
-  const [password, setPassword] = useState('');
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [contact, setContact] = useState("");
+  const [password, setPassword] = useState("");
   const [fieldErrors, setFieldErrors] = useState<RegistrationFieldErrors>({});
-  const [errorMessage, setErrorMessage] = useState('');
+  const [errorMessage, setErrorMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  async function completeAuth(token: string, user: Parameters<typeof setAuthenticatedSession>[0]['user']) {
+  async function completeAuth(
+    token: string,
+    user: Parameters<typeof setAuthenticatedSession>[0]["user"],
+  ) {
     await setAuthenticatedSession({ token, user });
     navigation.reset({
       index: 0,
@@ -46,7 +49,7 @@ export function RegistrationScreen({ navigation }: Props) {
   }
 
   function clearError(field?: keyof RegistrationFieldErrors) {
-    setErrorMessage('');
+    setErrorMessage("");
 
     if (field) {
       setFieldErrors((current) => ({
@@ -75,34 +78,34 @@ export function RegistrationScreen({ navigation }: Props) {
     const trimmedName = name.trim();
     const trimmedEmail = email.trim();
     const trimmedContact = contact.trim();
-    const digitsOnly = trimmedContact.replace(/\D/g, '');
+    const digitsOnly = trimmedContact.replace(/\D/g, "");
     const nextFieldErrors: RegistrationFieldErrors = {};
 
     if (!trimmedName) {
-      nextFieldErrors.name = 'Name is required.';
+      nextFieldErrors.name = "Name is required.";
     }
 
     if (!trimmedEmail) {
-      nextFieldErrors.email = 'Email is required.';
-    } else if (!trimmedEmail.includes('@')) {
-      nextFieldErrors.email = 'Use a valid email address.';
+      nextFieldErrors.email = "Email is required.";
+    } else if (!trimmedEmail.includes("@")) {
+      nextFieldErrors.email = "Use a valid email address.";
     }
 
     if (!trimmedContact) {
-      nextFieldErrors.phone = 'Contact number is required.';
+      nextFieldErrors.phone = "Contact number is required.";
     } else if (digitsOnly.length < 7) {
-      nextFieldErrors.phone = 'Enter a valid contact number.';
+      nextFieldErrors.phone = "Enter a valid contact number.";
     }
 
     if (!password) {
-      nextFieldErrors.password = 'Password is required.';
+      nextFieldErrors.password = "Password is required.";
     } else if (password.length < 6) {
-      nextFieldErrors.password = 'Password must be at least 6 characters long.';
+      nextFieldErrors.password = "Password must be at least 6 characters long.";
     }
 
     if (Object.keys(nextFieldErrors).length > 0) {
       setFieldErrors(nextFieldErrors);
-      setErrorMessage('');
+      setErrorMessage("");
       return;
     }
 
@@ -119,7 +122,10 @@ export function RegistrationScreen({ navigation }: Props) {
 
       await completeAuth(response.token, response.user);
     } catch (error) {
-      const details = getApiErrorDetails(error, 'Unable to create your account right now.');
+      const details = getApiErrorDetails(
+        error,
+        "Unable to create your account right now.",
+      );
 
       setErrorMessage(details.message);
       setFieldErrors({
@@ -152,10 +158,11 @@ export function RegistrationScreen({ navigation }: Props) {
           autoComplete="name"
           autoCorrect={false}
           errorText={fieldErrors.name}
+          iconName="account-outline"
           label="Name"
           onChangeText={(value) => {
             setName(value);
-            clearError('name');
+            clearError("name");
           }}
           placeholder="Your full name"
           textContentType="name"
@@ -167,10 +174,11 @@ export function RegistrationScreen({ navigation }: Props) {
           autoCorrect={false}
           errorText={fieldErrors.email}
           keyboardType="email-address"
+          iconName="email-outline"
           label="Email"
           onChangeText={(value) => {
             setEmail(value);
-            clearError('email');
+            clearError("email");
           }}
           placeholder="you@example.com"
           textContentType="emailAddress"
@@ -180,10 +188,11 @@ export function RegistrationScreen({ navigation }: Props) {
           autoComplete="tel"
           errorText={fieldErrors.phone}
           keyboardType="phone-pad"
+          iconName="phone-outline"
           label="Contact"
           onChangeText={(value) => {
             setContact(value);
-            clearError('phone');
+            clearError("phone");
           }}
           placeholder="+1 555 010 8821"
           textContentType="telephoneNumber"
@@ -195,10 +204,11 @@ export function RegistrationScreen({ navigation }: Props) {
           autoCorrect={false}
           errorText={fieldErrors.password}
           helperText="Use at least 8 characters, including one uppercase letter, one lowercase letter, and one number."
+          iconName="lock-outline"
           label="Password"
           onChangeText={(value) => {
             setPassword(value);
-            clearError('password');
+            clearError("password");
           }}
           placeholder="Create a password"
           secureTextEntry
@@ -209,6 +219,8 @@ export function RegistrationScreen({ navigation }: Props) {
         {errorMessage ? <Text style={styles.error}>{errorMessage}</Text> : null}
         <ActionButton
           disabled={isBusy}
+          fullWidth
+          icon="account-plus-outline"
           label="Create account"
           loading={isSubmitting}
           onPress={() => void handleRegistration()}
@@ -217,11 +229,11 @@ export function RegistrationScreen({ navigation }: Props) {
 
       <View style={styles.dividerRow}>
         <View style={styles.dividerLine} />
-        <Text style={styles.dividerText}>or continue with Google</Text>
+        <Text style={styles.dividerText}>or use social sign up</Text>
         <View style={styles.dividerLine} />
       </View>
 
-      <SectionCard title="Google sign up">
+      <SectionCard title="Social sign up">
         <View style={styles.socialRow}>
           <SocialAuthButton
             disabled={isBusy}
@@ -237,7 +249,10 @@ export function RegistrationScreen({ navigation }: Props) {
 
       <View style={styles.actions}>
         <Text style={styles.metaText}>Already have an account?</Text>
-        <Pressable disabled={isBusy} onPress={() => navigation.navigate(routes.Login)}>
+        <Pressable
+          disabled={isBusy}
+          onPress={() => navigation.navigate(routes.Login)}
+        >
           <Text style={styles.link}>Back to login</Text>
         </Pressable>
       </View>
@@ -247,7 +262,7 @@ export function RegistrationScreen({ navigation }: Props) {
 
 const styles = StyleSheet.create({
   actions: {
-    alignItems: 'center',
+    alignItems: "center",
     gap: 6,
     paddingBottom: 8,
   },
@@ -257,35 +272,33 @@ const styles = StyleSheet.create({
     height: 1,
   },
   dividerRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
+    alignItems: "center",
+    flexDirection: "row",
     gap: 12,
   },
   dividerText: {
     color: colors.mutedText,
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: "700",
     letterSpacing: 1,
-    textTransform: 'uppercase',
+    textTransform: "uppercase",
   },
   error: {
     color: colors.danger,
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: "600",
     lineHeight: 20,
   },
   link: {
     color: colors.secondary,
     fontSize: 16,
-    fontWeight: '700',
+    fontWeight: "700",
   },
   metaText: {
     color: colors.mutedText,
     fontSize: 14,
   },
   socialRow: {
-    flexDirection: 'row',
-    gap: 16,
-    justifyContent: 'center',
+    gap: colors.spacing[12],
   },
 });
