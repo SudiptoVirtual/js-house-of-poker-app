@@ -1,45 +1,69 @@
 import type { PropsWithChildren, ReactNode } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View, type StyleProp, type TextStyle, type ViewStyle } from 'react-native';
 
+import { borders, colors, componentSpacing, radii, shadows, spacing, typography } from '../theme';
 
-import { colors } from '../theme/colors';
+type SectionCardVariant = 'elevated' | 'glass' | 'felt' | 'warning' | 'stat' | 'modal';
+
 type SectionCardProps = PropsWithChildren<{
+  contentStyle?: StyleProp<ViewStyle>;
   headerRight?: ReactNode;
+  style?: StyleProp<ViewStyle>;
   title: string;
+  titleStyle?: StyleProp<TextStyle>;
+  variant?: SectionCardVariant;
 }>;
 
-export function SectionCard({ title, headerRight, children }: SectionCardProps) {
+export function SectionCard({
+  title,
+  headerRight,
+  children,
+  contentStyle,
+  style,
+  titleStyle,
+  variant = 'elevated',
+}: SectionCardProps) {
   return (
-    <View style={styles.card}>
+    <View style={[styles.card, styles[variant], style]}>
       {headerRight ? (
         <View style={styles.header}>
-          <Text style={[styles.title, styles.headerTitle]}>{title}</Text>
+          <Text style={[styles.title, styles.headerTitle, titleStyle]}>{title}</Text>
           <View style={styles.headerRight}>{headerRight}</View>
         </View>
-      ) : (
-        <Text style={styles.title}>{title}</Text>
-      )}
-      <View style={styles.content}>{children}</View>
+      ) : title ? (
+        <Text style={[styles.title, titleStyle]}>{title}</Text>
+      ) : null}
+      <View style={[styles.content, contentStyle]}>{children}</View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   card: {
-    // backgroundColor: colors.surface,
-    // borderColor: colors.border,
-    borderRadius: 22,
-    borderWidth: 1,
-    gap: 12,
-    // padding: 18,
+    ...borders.default,
+    borderRadius: radii.card,
+    gap: componentSpacing.card.gap,
+    padding: componentSpacing.card.padding,
   },
   content: {
-    gap: 10,
+    gap: spacing[10],
+  },
+  elevated: {
+    ...shadows.md,
+    backgroundColor: colors.surface,
+  },
+  felt: {
+    backgroundColor: colors.surfaces.feltTint,
+    borderColor: colors.felt,
+  },
+  glass: {
+    backgroundColor: colors.surfaces.glassPanel,
+    borderColor: 'rgba(255,255,255,0.12)',
   },
   header: {
     alignItems: 'center',
     flexDirection: 'row',
-    gap: 12,
+    gap: spacing[12],
     justifyContent: 'space-between',
   },
   headerRight: {
@@ -49,9 +73,21 @@ const styles = StyleSheet.create({
   headerTitle: {
     flex: 1,
   },
+  modal: {
+    ...shadows.lg,
+    backgroundColor: colors.surface,
+    borderColor: colors.primary,
+  },
+  stat: {
+    backgroundColor: colors.surfaces.actionTint,
+    borderColor: colors.secondary,
+  },
   title: {
     color: colors.text,
-    fontSize: 18,
-    fontWeight: '700',
+    ...typography.sectionTitle,
+  },
+  warning: {
+    backgroundColor: colors.goldTint,
+    borderColor: colors.gold,
   },
 });
