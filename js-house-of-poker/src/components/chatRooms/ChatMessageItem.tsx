@@ -3,6 +3,7 @@ import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 import type { ChatRoom, ChatRoomMessage, ChatRoomPlayer } from '../../types/chatRooms';
+import { MediaVideo } from '../media/MediaVideo';
 import { ZoomableMediaViewer } from '../media/ZoomableMediaViewer';
 import { formatChatTimestamp } from './chatRoomUtils';
 
@@ -121,10 +122,7 @@ export function ChatMessageItem({ chatType = 'group', currentUserId = 'local-pla
                 <Image source={{ uri: attachment.url }} style={styles.mediaImage} />
               </Pressable>
             ) : (
-              <View key={`${attachment.url}-${index}`} style={styles.videoCard}>
-                <MaterialCommunityIcons color={colors.gold} name="play-circle-outline" size={28} />
-                <Text style={styles.videoText}>Video attachment</Text>
-              </View>
+              <MediaVideo accessibilityLabel="Preview video attachment" durationMs={attachment.durationMs} key={`${attachment.url}-${index}`} thumbnailUrl={attachment.thumbnailUrl} url={attachment.url} />
             ))}
           </View>
         ) : null}
@@ -257,8 +255,6 @@ const styles = StyleSheet.create({
   mediaImage: { borderRadius: 12, height: 180, width: '100%' },
   mediaPreviewButton: { borderRadius: 12, overflow: 'hidden' },
   mediaStack: { gap: 8 },
-  videoCard: { alignItems: 'center', backgroundColor: colors.background, borderColor: colors.border, borderRadius: 12, borderWidth: 1, gap: 6, justifyContent: 'center', minHeight: 140 },
-  videoText: { color: colors.text, fontWeight: '800' },
   messageAuthor: {
     color: colors.text,
     flex: 1,
