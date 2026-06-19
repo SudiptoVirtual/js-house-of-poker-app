@@ -44,7 +44,7 @@ function getChildren(node) {
 
 function renderChatInputBar(props = {}) {
   const { ChatInputBar } = compileComponent('../src/components/chatRooms/ChatInputBar.tsx', {
-    react: { ...require('react'), useState: (initialValue) => [initialValue, () => {}] },
+    react: { ...require('react'), useRef: (initialValue) => ({ current: initialValue }), useState: (initialValue) => [initialValue, () => {}] },
     'react-native': reactNativeMock,
     '@expo/vector-icons': { MaterialCommunityIcons: () => null },
     'expo-image-picker': {
@@ -134,4 +134,63 @@ test('direct chat composer keeps compact actions beside the taller input', () =>
   assert.equal(flattenStyle(attachButton.props.style({ pressed: false })).height, 32);
   assert.equal(flattenStyle(giftButton.props.style({ pressed: false })).height, 32);
   assert.equal(flattenStyle(sendButton.props.style({ pressed: false })).width, 32);
+});
+
+function findNode(node, predicate) {
+  if (!node || typeof node !== 'object') return null;
+  if (predicate(node)) return node;
+  const children = Array.isArray(node.props?.children) ? node.props.children : [node.props?.children];
+  return children.map((child) => findNode(child, predicate)).find(Boolean) ?? null;
+}
+
+test('rapid chat input send presses only call onSend once while the first send is pending', async () => {
+  let sendCalls = 0;
+  let resolveSend;
+  const pendingSend = new Promise((resolve) => { resolveSend = resolve; });
+  const refStore = [];
+  let refIndex = 0;
+  const { ChatInputBar } = compileComponent('../src/components/chatRooms/ChatInputBar.tsx', {
+    react: {
+      ...require('react'),
+      useRef: (initialValue) => {
+        const index = refIndex++;
+        refStore[index] ??= { current: initialValue };
+        return refStore[index];
+      },
+      useState: (initialValue) => [initialValue, () => {}],
+    },
+    'react-native': { ...reactNativeMock, Image: 'Image' },
+    '@expo/vector-icons': { MaterialCommunityIcons: () => null },
+    'expo-image-picker': {
+      launchImageLibraryAsync: async () => ({ assets: [], canceled: true }),
+      requestMediaLibraryPermissionsAsync: async () => ({ granted: true }),
+    },
+    './AIPrimeButton': { AIPrimeButton },
+    '../../theme/colors': { colors: {} },
+  });
+  const tree = ChatInputBar({ draft: 'all in', onChangeDraft: () => {}, onSend: async () => { sendCalls += 1; await pendingSend; } });
+  const sendButton = findNode(tree, (node) => node.type === 'Pressable' && node.props?.accessibilityLabel === 'Send chat message');
+
+  const firstPress = sendButton.props.onPress();
+  sendButton.props.onPress();
+
+  assert.equal(sendCalls, 1);
+  resolveSend();
+  await firstPress;
+});
+
+test('chat room detail send handler guards socket emits with a synchronous ref', () => {
+  const source = fs.readFileSync(path.resolve(__dirname, '../src/screens/ChatRoomDetailScreen.tsx'), 'utf8');
+  const guardIndex = source.indexOf('isSendingMessageRef.current');
+  const setRefIndex = source.indexOf('isSendingMessageRef.current = true');
+  const setStateIndex = source.indexOf('setIsSendingMessage(true)', setRefIndex);
+  const emitIndex = source.indexOf('chatRoomSocketEvents.sendMessage', setStateIndex);
+  const resetIndex = source.indexOf('isSendingMessageRef.current = false', emitIndex);
+
+  assert.ok(source.includes('const isSendingMessageRef = useRef(false);'));
+  assert.ok(guardIndex > -1);
+  assert.ok(setRefIndex > guardIndex);
+  assert.ok(setStateIndex > setRefIndex);
+  assert.ok(emitIndex > setStateIndex);
+  assert.ok(resetIndex > emitIndex);
 });
