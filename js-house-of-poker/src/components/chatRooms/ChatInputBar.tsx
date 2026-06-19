@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { ActivityIndicator, Image, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
@@ -42,8 +42,9 @@ export function ChatInputBar({
   variant = 'room',
 }: ChatInputBarProps) {
   const [attachments, setAttachments] = useState<PendingChatAttachment[]>([]);
+  const isSubmittingRef = useRef(false);
   const isDirectVariant = variant === 'direct';
-  const canSend = (Boolean(draft.trim()) || attachments.length > 0) && !sending;
+  const canSend = (Boolean(draft.trim()) || attachments.length > 0) && !sending && !isSubmittingRef.current;
   async function addMedia() {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) return;
@@ -51,9 +52,19 @@ export function ChatInputBar({
     if (!result.canceled && result.assets) setAttachments((current: PendingChatAttachment[]) => [...current, ...result.assets!.map(toAttachment)].slice(0, 4));
   }
   async function sendWithAttachments() {
-    const uploaded = onUploadAttachment ? await Promise.all(attachments.map(onUploadAttachment)) : [];
-    await onSend(uploaded);
-    setAttachments([]);
+    if (isSubmittingRef.current) {
+      return;
+    }
+
+    isSubmittingRef.current = true;
+
+    try {
+      const uploaded = onUploadAttachment ? await Promise.all(attachments.map(onUploadAttachment)) : [];
+      await onSend(uploaded);
+      setAttachments([]);
+    } finally {
+      isSubmittingRef.current = false;
+    }
   }
 
   if (isDirectVariant) {

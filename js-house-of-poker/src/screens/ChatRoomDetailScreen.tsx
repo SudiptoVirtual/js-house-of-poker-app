@@ -345,6 +345,7 @@ export function ChatRoomDetailScreen({ navigation, route }: Props) {
   const [selectedRules, setSelectedRules] = useState<ChatRoomTableRules>({});
   const [isLaunchingTable, setIsLaunchingTable] = useState(false);
   const [isSendingMessage, setIsSendingMessage] = useState(false);
+  const isSendingMessageRef = useRef(false);
   const [isGiftClipsModalVisible, setIsGiftClipsModalVisible] = useState(false);
   const [isSendingGiftClip, setIsSendingGiftClip] = useState(false);
   const [selectedGiftRecipientId, setSelectedGiftRecipientId] = useState<string | null>(null);
@@ -905,10 +906,11 @@ export function ChatRoomDetailScreen({ navigation, route }: Props) {
     const trimmedDraft = draft.trim();
     const token = authRef.current?.token;
 
-    if ((!trimmedDraft && attachments.length === 0) || !room || !token || !socketRef.current?.connected || isSendingMessage) {
+    if ((!trimmedDraft && attachments.length === 0) || !room || !token || !socketRef.current?.connected || isSendingMessage || isSendingMessageRef.current) {
       return;
     }
 
+    isSendingMessageRef.current = true;
     setIsSendingMessage(true);
 
     try {
@@ -937,6 +939,7 @@ export function ChatRoomDetailScreen({ navigation, route }: Props) {
     } catch (error) {
       setRealtimeError(error instanceof Error ? error.message : 'Unable to send chat message.');
     } finally {
+      isSendingMessageRef.current = false;
       setIsSendingMessage(false);
     }
   }
