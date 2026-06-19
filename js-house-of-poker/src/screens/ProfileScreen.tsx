@@ -226,7 +226,7 @@ export function ProfileScreen({ navigation }: Props) {
                   {hand.tableCode} · Hand #{hand.handNumber} · {hand.gameType}
                 </Text>
                 <Text style={styles.metaLine}>
-                  {hand.result} · Pot {formatCount(hand.pot)} · {formatCompletedDate(hand.completedAt)}
+                  {hand.result} · Pot {formatCount(hand.totalPot)} · {formatCompletedDate(hand.completedAt)}
                 </Text>
               </View>
             ))

@@ -12,14 +12,18 @@ export type GameplayStats = {
 
 export type UserGameHistoryRecord = {
   id: string;
+  tableId: string;
   tableCode: string;
   tableName: string;
   handNumber: number;
   gameType: string;
+  completedAt: string | null;
+  totalPot: number;
   result: string;
   chipsDelta: number;
-  pot: number;
-  completedAt: string | null;
+  chipsWon: number;
+  handDescription: string;
+  winnerText: string;
 };
 
 export type AuthUser = {
@@ -111,12 +115,13 @@ type BackendHandPlayer = {
   result?: string;
   chipsDelta?: number;
   chipsWon?: number;
+  handDescription?: string;
 };
 
 type BackendHandHistory = {
   _id?: string;
   id?: string;
-  tableId?: { tableCode?: string; tableName?: string; gameType?: string } | string | null;
+  tableId?: { _id?: string; id?: string; tableCode?: string; tableName?: string; gameType?: string } | string | null;
   tableCode?: string;
   tableName?: string;
   handNumber?: number;
@@ -124,6 +129,11 @@ type BackendHandHistory = {
   players?: BackendHandPlayer[];
   totalPot?: number;
   pot?: number;
+  result?: string;
+  chipsDelta?: number;
+  chipsWon?: number;
+  handDescription?: string;
+  winnerText?: string;
   completedAt?: string | null;
   createdAt?: string | null;
 };
@@ -143,18 +153,23 @@ function getBackendUserId(userId: BackendHandPlayer['userId']) {
 function toUserGameHistoryRecord(hand: BackendHandHistory, currentUserId?: string): UserGameHistoryRecord {
   const table = typeof hand.tableId === 'object' && hand.tableId ? hand.tableId : null;
   const player = hand.players?.find((item) => getBackendUserId(item.userId) === currentUserId) ?? hand.players?.[0];
-  const chipsDelta = player?.chipsDelta ?? player?.chipsWon ?? 0;
+  const chipsDelta = player?.chipsDelta ?? hand.chipsDelta ?? player?.chipsWon ?? hand.chipsWon ?? 0;
+  const chipsWon = player?.chipsWon ?? hand.chipsWon ?? Math.max(chipsDelta, 0);
 
   return {
     id: hand.id ?? hand._id ?? `${hand.tableCode ?? table?.tableCode ?? 'table'}-${hand.handNumber ?? 0}`,
+    tableId: typeof hand.tableId === 'string' ? hand.tableId : hand.tableId?._id ?? hand.tableId?.id ?? '',
     tableCode: hand.tableCode ?? table?.tableCode ?? 'Unknown',
     tableName: hand.tableName ?? table?.tableName ?? 'Poker table',
     handNumber: hand.handNumber ?? 0,
     gameType: hand.gameType ?? table?.gameType ?? 'Poker',
-    result: player?.result || (chipsDelta > 0 ? 'Won' : chipsDelta < 0 ? 'Lost' : 'Even'),
-    chipsDelta,
-    pot: hand.totalPot ?? hand.pot ?? 0,
     completedAt: hand.completedAt ?? hand.createdAt ?? null,
+    totalPot: hand.totalPot ?? hand.pot ?? 0,
+    result: player?.result || hand.result || (chipsDelta > 0 ? 'Won' : chipsDelta < 0 ? 'Lost' : 'Even'),
+    chipsDelta,
+    chipsWon,
+    handDescription: player?.handDescription ?? hand.handDescription ?? '',
+    winnerText: hand.winnerText ?? '',
   };
 }
 
@@ -168,11 +183,11 @@ export async function fetchCurrentUserProfile(token: string) {
 
 export async function fetchCurrentUserGameHistory(token: string, limit = 20, currentUserId?: string) {
   const normalizedLimit = Math.min(100, Math.max(1, Math.trunc(limit) || 20));
-  const response = await apiRequest<{ hands?: BackendHandHistory[]; gameHistory?: BackendHandHistory[] }>(
+  const response = await apiRequest<{ records?: BackendHandHistory[]; hands?: BackendHandHistory[]; gameHistory?: BackendHandHistory[] }>(
     `/api/users/me/game-history?limit=${encodeURIComponent(String(normalizedLimit))}`,
     { token },
   );
-  const hands = response.hands ?? response.gameHistory ?? [];
+  const hands = response.records ?? response.hands ?? response.gameHistory ?? [];
 
   return hands.map((hand) => toUserGameHistoryRecord(hand, currentUserId));
 }

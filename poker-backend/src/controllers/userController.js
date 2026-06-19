@@ -71,9 +71,34 @@ const getMyGameHistory = async (req, res) => {
       .limit(limit)
       .populate("tableId", "tableCode tableName gameType status");
 
+    const userId = String(req.user._id);
+    const records = hands.map((hand) => {
+      const table = hand.tableId && typeof hand.tableId === "object" ? hand.tableId : null;
+      const player = hand.players.find((item) => String(item.userId) === userId);
+      const chipsDelta = player?.chipsDelta ?? player?.chipsWon ?? 0;
+      const chipsWon = player?.chipsWon ?? Math.max(chipsDelta, 0);
+
+      return {
+        id: String(hand._id),
+        tableId: table?._id ? String(table._id) : String(hand.tableId || ""),
+        tableCode: hand.tableCode || table?.tableCode || "",
+        tableName: hand.tableName || table?.tableName || "Poker table",
+        handNumber: hand.handNumber,
+        gameType: hand.gameType || table?.gameType || "Poker",
+        completedAt: hand.completedAt,
+        totalPot: hand.totalPot,
+        result: player?.result || (chipsDelta > 0 ? "Won" : chipsDelta < 0 ? "Lost" : "Even"),
+        chipsDelta,
+        chipsWon,
+        handDescription: player?.handDescription || "",
+        winnerText: hand.winnerText || "",
+      };
+    });
+
     return res.status(200).json({
-      count: hands.length,
-      hands,
+      count: records.length,
+      records,
+      hands: records,
       message: "Game history fetched successfully",
     });
   } catch (error) {
