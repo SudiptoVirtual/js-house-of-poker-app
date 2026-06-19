@@ -33,6 +33,8 @@ const colors = {
   text: '#f8fafc',
 };
 
+const reactMock = { ...require('react'), useState: (initial) => [initial, () => {}] };
+
 const reactNativeMock = {
   StyleSheet: { create: (styles) => styles },
   Text: 'Text',
@@ -41,9 +43,12 @@ const reactNativeMock = {
 
 function renderChatMessageItem(props) {
   const { ChatMessageItem } = compileComponent('../src/components/chatRooms/ChatMessageItem.tsx', {
+    react: reactMock,
     'react-native': reactNativeMock,
     '@expo/vector-icons': { MaterialCommunityIcons: 'MaterialCommunityIcons' },
     '../../theme/colors': { colors },
+    '../media/MediaVideo': { MediaVideo: (props) => ({ type: 'MediaVideoMock', props }) },
+    '../media/ZoomableMediaViewer': { ZoomableMediaViewer: (props) => ({ type: 'ZoomableMediaViewerMock', props }) },
     './chatRoomUtils': { formatChatTimestamp: () => '9:41 AM' },
   });
 
@@ -82,7 +87,7 @@ test('direct chat aligns current user bubbles right without repeated author chro
   });
   const bubble = item.props.children[1];
   const body = bubble.props.children[1];
-  const footer = bubble.props.children[2];
+  const footer = bubble.props.children[4];
 
   assert.equal(item.type, 'View');
   assert.equal(styleObject(item.props.style).justifyContent, 'flex-end');
