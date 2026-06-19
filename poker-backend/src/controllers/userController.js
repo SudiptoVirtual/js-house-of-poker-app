@@ -1,6 +1,7 @@
 const User = require("../models/User");
 const HandHistory = require("../models/HandHistory");
 const { serializeUser } = require("../utils/userSerializer");
+const { buildUserGameplayStats } = require("../utils/userStats");
 
 const createTestUser = async (req, res) => {
   try {
@@ -42,9 +43,19 @@ const getAllUsers = async (req, res) => {
 };
 
 const getMyProfile = async (req, res) => {
-  return res.status(200).json({
-    user: serializeUser(req.user),
-  });
+  try {
+    const gameplayStats = await buildUserGameplayStats(req.user._id);
+
+    return res.status(200).json({
+      user: serializeUser(req.user),
+      gameplayStats,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      message: "Error fetching profile",
+      error: error.message,
+    });
+  }
 };
 
 const getMyGameHistory = async (req, res) => {
