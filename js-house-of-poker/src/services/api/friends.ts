@@ -262,7 +262,12 @@ export async function rejectFriendRequest(input: { requestId?: string; userId: s
 export async function fetchPublicUserProfile(userId: string, token: string) {
   const encodedUserId = encodeURIComponent(userId);
   const response = await requestFirstAvailable<{ player?: BackendFriendPlayer; user?: BackendFriendPlayer } & BackendFriendPlayer>(
-    [`/api/users/${encodedUserId}/public-profile`, `/api/friends/users/${encodedUserId}`, `/api/players/${encodedUserId}`],
+    [
+      `/api/friends/${encodedUserId}/details`,
+      `/api/users/${encodedUserId}/public-profile`,
+      `/api/friends/users/${encodedUserId}`,
+      `/api/players/${encodedUserId}`,
+    ],
     token,
   );
   const backendPlayer = response.player ?? response.user ?? response;
