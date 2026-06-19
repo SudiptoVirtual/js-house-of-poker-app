@@ -1,7 +1,9 @@
-import { Image, StyleSheet, Text, View } from 'react-native';
+import { useState } from 'react';
+import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 import type { ChatRoom, ChatRoomMessage, ChatRoomPlayer } from '../../types/chatRooms';
+import { ZoomableMediaViewer } from '../media/ZoomableMediaViewer';
 import { formatChatTimestamp } from './chatRoomUtils';
 
 import { colors } from '../../theme/colors';
@@ -49,6 +51,8 @@ export function ChatMessageItem({ chatType = 'group', currentUserId = 'local-pla
   const showRoomAvatar = !isDirectChat && !isCurrentUser;
   const showRoomHeader = !isDirectChat;
   const showDirectFooter = isDirectChat && !isSystem;
+  const [previewAttachmentIndex, setPreviewAttachmentIndex] = useState<number | null>(null);
+  const selectedPreviewAttachment = previewAttachmentIndex !== null ? message.attachments?.[previewAttachmentIndex] : undefined;
 
   if (isSystem) {
     return (
@@ -113,7 +117,9 @@ export function ChatMessageItem({ chatType = 'group', currentUserId = 'local-pla
         {message.attachments?.length ? (
           <View style={styles.mediaStack}>
             {message.attachments.map((attachment, index) => attachment.type === 'image' ? (
-              <Image key={`${attachment.url}-${index}`} source={{ uri: attachment.url }} style={styles.mediaImage} />
+              <Pressable accessibilityHint="Opens a full-screen preview" accessibilityLabel="Preview image attachment" accessibilityRole="imagebutton" key={`${attachment.url}-${index}`} onPress={() => setPreviewAttachmentIndex(index)} style={styles.mediaPreviewButton}>
+                <Image source={{ uri: attachment.url }} style={styles.mediaImage} />
+              </Pressable>
             ) : (
               <View key={`${attachment.url}-${index}`} style={styles.videoCard}>
                 <MaterialCommunityIcons color={colors.gold} name="play-circle-outline" size={28} />
@@ -122,6 +128,7 @@ export function ChatMessageItem({ chatType = 'group', currentUserId = 'local-pla
             ))}
           </View>
         ) : null}
+        <ZoomableMediaViewer accessibilityLabel="Full-screen chat image preview" onClose={() => setPreviewAttachmentIndex(null)} uri={selectedPreviewAttachment?.url} visible={selectedPreviewAttachment?.type === 'image'} />
         {showDirectFooter ? (
           <View style={[styles.directMessageFooter, isCurrentUser ? styles.directLocalMessageFooter : null]}>
             <Text style={[styles.messageTime, isCurrentUser ? styles.directLocalMessageTime : null]}>
@@ -248,6 +255,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row-reverse',
   },
   mediaImage: { borderRadius: 12, height: 180, width: '100%' },
+  mediaPreviewButton: { borderRadius: 12, overflow: 'hidden' },
   mediaStack: { gap: 8 },
   videoCard: { alignItems: 'center', backgroundColor: colors.background, borderColor: colors.border, borderRadius: 12, borderWidth: 1, gap: 6, justifyContent: 'center', minHeight: 140 },
   videoText: { color: colors.text, fontWeight: '800' },

@@ -37,7 +37,7 @@ const reactNativeMock = {
   StyleSheet: { absoluteFillObject: { position: 'absolute' }, create: (styles) => styles },
 };
 const iconsMock = { MaterialCommunityIcons: () => null };
-const colorsMock = { colors: { background: '#000', border: '#111', mutedText: '#aaa', secondary: '#0ff', white: '#fff' } };
+const colorsMock = { colors: { background: '#000', border: '#111', mutedText: '#aaa', secondary: '#0ff', white: '#fff', radii: { lg: 16 }, spacing: { 4: 4, 8: 8, 12: 12 } } };
 class ApiError extends Error { constructor(message, status, payload) { super(message); this.status = status; this.payload = payload; } }
 const clientMock = { ApiError, apiRequest: async () => null, parseApiPayload: (text) => { try { return JSON.parse(text); } catch { return text; } } };
 
@@ -51,6 +51,7 @@ test('image attachments render with preserved aspect ratio, loading state, and a
     '@expo/vector-icons': iconsMock,
     '../../theme/colors': colorsMock,
     './FeedVideo': { FeedVideo: () => null },
+    '../media/ZoomableMediaViewer': { ZoomableMediaViewer: (props) => ({ type: 'ZoomableMediaViewerMock', props }) },
   });
   const gallery = FeedMediaGallery({ media: [image] });
   const feedImageElement = findElements(gallery, (element) => element.type?.name === 'FeedImage')[0];
@@ -59,7 +60,7 @@ test('image attachments render with preserved aspect ratio, loading state, and a
   const imageShell = findElements(tree, (element) => element.type === 'Pressable' && element.props.accessibilityRole === 'imagebutton')[0];
   assert.equal(imageShell.props.style[1].aspectRatio, 4 / 3);
   assert.equal(findElements(tree, (element) => element.type === 'ActivityIndicator').length, 1);
-  assert.equal(findElements(gallery, (element) => element.type === 'Modal')[0].props.visible, false);
+  assert.equal(findElements(gallery, (element) => element.type?.name === 'ZoomableMediaViewer')[0].props.visible, false);
   assert.match(imageShell.props.accessibilityHint, /full-screen preview/);
 });
 
@@ -71,6 +72,7 @@ test('video-only galleries render video attachments without reading a missing fi
     '@expo/vector-icons': iconsMock,
     '../../theme/colors': colorsMock,
     './FeedVideo': { FeedVideo: (props) => { feedVideoCalls.push(props); return { type: 'FeedVideoMock', props }; } },
+    '../media/ZoomableMediaViewer': { ZoomableMediaViewer: (props) => ({ type: 'ZoomableMediaViewerMock', props }) },
   });
 
   const gallery = FeedMediaGallery({ media: [video], isActive: true });
@@ -92,13 +94,15 @@ test('two-, four-, and five-image posts use compact cover-image collages', () =>
   assert.match(source, /resizeMode=\{collage \? 'cover' : 'contain'\}/);
 });
 
-test('gallery-level preview selects every thumbnail and provides full-screen navigation', () => {
+test('gallery-level preview selects thumbnails and uses the shared zoomable viewer', () => {
   const source = fs.readFileSync(path.resolve(__dirname, '../src/components/feed/FeedMediaGallery.tsx'), 'utf8');
   assert.match(source, /setPreviewIndex\(index\)/);
   assert.match(source, /images\[previewIndex\]\.url/);
-  assert.match(source, /resizeMode="contain"/);
-  assert.match(source, /accessibilityLabel="Previous image"/);
-  assert.match(source, /accessibilityLabel="Next image"/);
+  assert.match(source, /<ZoomableMediaViewer/);
+  assert.match(source, /onClose=\{\(\) => setPreviewIndex\(null\)\}/);
+  const viewer = fs.readFileSync(path.resolve(__dirname, '../src/components/media/ZoomableMediaViewer.tsx'), 'utf8');
+  assert.match(viewer, /resizeMode="contain"/);
+  assert.match(viewer, /PanResponder\.create/);
 });
 
 test('active-video selection chooses one visible video nearest the upper-middle target', () => {

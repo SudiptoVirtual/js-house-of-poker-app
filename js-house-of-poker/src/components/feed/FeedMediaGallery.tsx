@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { ActivityIndicator, Image, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 import type { FeedImageMedia, FeedMedia } from '../../types/feed';
+import { ZoomableMediaViewer } from '../media/ZoomableMediaViewer';
 import { FeedVideo } from './FeedVideo';
 
 import { colors } from '../../theme/colors';
@@ -48,26 +49,13 @@ export function FeedMediaGallery({ isActive = false, media, onRequestVideoActive
     {images.length === 1 ? <FeedImage media={images[0]} onPress={() => setPreviewIndex(0)} /> : null}
     {images.length > 1 ? renderCollage() : null}
     {videos.map((item, index) => <FeedVideo isActive={isActive} key={`${item.url}-${index}`} media={item} onRequestActive={onRequestVideoActive} />)}
-    <Modal animationType="fade" onRequestClose={() => setPreviewIndex(null)} transparent visible={previewIndex !== null}><View accessibilityViewIsModal style={styles.preview}>
-      {previewIndex !== null ? <Image accessibilityLabel={`Full-screen preview: ${images[previewIndex].altText}`} resizeMode="contain" source={{ uri: images[previewIndex].url }} style={StyleSheet.absoluteFillObject} /> : null}
-      <Pressable accessibilityLabel="Close full-screen image preview" accessibilityRole="button" onPress={() => setPreviewIndex(null)} style={styles.closeButton}><MaterialCommunityIcons color={colors.white} name="close" size={26} /></Pressable>
+    <ZoomableMediaViewer accessibilityLabel={previewIndex !== null ? `Full-screen preview: ${images[previewIndex].altText}` : 'Full-screen image preview'} onClose={() => setPreviewIndex(null)} uri={previewIndex !== null ? images[previewIndex].url : undefined} visible={previewIndex !== null}>
       {images.length > 1 ? <><Pressable accessibilityLabel="Previous image" accessibilityRole="button" onPress={() => move(-1)} style={[styles.nav, styles.previous]}><MaterialCommunityIcons color={colors.white} name="chevron-left" size={36} /></Pressable><Pressable accessibilityLabel="Next image" accessibilityRole="button" onPress={() => move(1)} style={[styles.nav, styles.next]}><MaterialCommunityIcons color={colors.white} name="chevron-right" size={36} /></Pressable></> : null}
-    </View></Modal>
+    </ZoomableMediaViewer>
   </View>;
 }
 
 const styles = StyleSheet.create({
-  closeButton: {
-    alignItems: 'center',
-    backgroundColor: 'rgba(21,16,53,0.86)',
-    borderRadius: 999,
-    height: 46,
-    justifyContent: 'center',
-    position: 'absolute',
-    right: 18,
-    top: 54,
-    width: 46,
-  },
   collage: { flexDirection: 'row', flexWrap: 'nowrap', gap: colors.spacing[4], height: 240 },
   collageTile: { alignItems: 'center', backgroundColor: colors.background, flex: 1, justifyContent: 'center', minWidth: '48%', overflow: 'hidden' },
   column: { flex: 1, gap: 4 },
@@ -95,7 +83,6 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     width: '100%',
   },
-  preview: { backgroundColor: 'rgba(6,3,20,0.98)', flex: 1 },
   stateStack: { alignItems: 'center', gap: colors.spacing[8] },
   stateText: { color: colors.mutedText, fontSize: 13, fontWeight: '800' },
 });
