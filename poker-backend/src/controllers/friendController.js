@@ -14,6 +14,7 @@ const {
   emitFriendRequestCreated,
   emitFriendRequestDeclined,
 } = require("../sockets/friendSocket");
+const { buildUserGameplayStats } = require("../utils/userStats");
 
 function normalizeObjectId(value) {
   const normalized = String(value || "").trim();
@@ -159,7 +160,7 @@ function valueOrZero(value) {
   return Number.isFinite(Number(value)) ? Number(value) : 0;
 }
 
-function serializeFriendDetails(user) {
+function serializeFriendDetails(user, computedStats = null) {
   return {
     id: String(user._id),
     userId: String(user._id),
@@ -174,12 +175,13 @@ function serializeFriendDetails(user) {
     chips: valueOrZero(user.chips),
     gameplayStats: {
       chips: valueOrZero(user.chips),
-      tablesPlayed: valueOrZero(user.tablesPlayed),
-      gamesPlayed: valueOrZero(user.gamesPlayed || user.totalGames),
-      handsPlayed: valueOrZero(user.handsPlayed || user.totalHands),
-      wins: valueOrZero(user.wins || user.totalWins),
-      losses: valueOrZero(user.losses || user.totalLosses),
-      winRate: valueOrZero(user.winRate),
+      tablesPlayed: valueOrZero(computedStats?.tablesPlayed),
+      gamesPlayed: valueOrZero(computedStats?.gamesPlayed),
+      handsPlayed: valueOrZero(computedStats?.handsPlayed),
+      wins: valueOrZero(computedStats?.wins),
+      losses: valueOrZero(computedStats?.losses),
+      winRate: valueOrZero(computedStats?.winRate),
+      totalWinnings: valueOrZero(computedStats?.totalWinnings),
     },
   };
 }
@@ -589,7 +591,7 @@ const getFriendDetails = async (req, res) => {
     const [currentUser, targetUser] = await Promise.all([
       User.findById(currentUserId).select("friends isBlocked status"),
       User.findById(userId).select(
-        "name username handle email avatar isOnline status isBlocked playerStatus chips friends tablesPlayed gamesPlayed totalGames handsPlayed totalHands wins totalWins losses totalLosses winRate"
+        "name username handle email avatar isOnline status isBlocked playerStatus chips friends"
       ),
     ]);
 
@@ -622,7 +624,9 @@ const getFriendDetails = async (req, res) => {
       }
     }
 
-    return res.status(200).json({ user: serializeFriendDetails(targetUser) });
+    const gameplayStats = await buildUserGameplayStats(targetUser._id);
+
+    return res.status(200).json({ user: serializeFriendDetails(targetUser, gameplayStats) });
   } catch (error) {
     return res.status(500).json({ message: "Error fetching friend details", error: error.message });
   }
