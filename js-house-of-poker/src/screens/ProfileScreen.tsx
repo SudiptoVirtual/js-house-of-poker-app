@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
@@ -8,6 +8,12 @@ import { Screen } from '../components/Screen';
 import { SectionCard } from '../components/SectionCard';
 import { PlayerIdentityCard } from '../components/player/PlayerIdentityCard';
 import { routes } from '../constants/routes';
+import {
+  fetchCurrentUserGameHistory,
+  fetchCurrentUserProfile,
+  type GameplayStats,
+  type UserGameHistoryRecord,
+} from '../services/api/auth';
 import { useAuth } from '../context/AuthProvider';
 import { usePoker } from '../context/PokerProvider';
 import { colors } from '../theme/colors';
@@ -40,13 +46,54 @@ function formatCount(value: number | undefined) {
   return (value ?? 0).toLocaleString('en-US');
 }
 
+function formatPercent(value: number | undefined) {
+  return `${(value ?? 0).toLocaleString('en-US', { maximumFractionDigits: 1 })}%`;
+}
+
+function formatSignedCount(value: number | undefined) {
+  const normalizedValue = value ?? 0;
+  const prefix = normalizedValue > 0 ? '+' : '';
+
+  return `${prefix}${normalizedValue.toLocaleString('en-US')}`;
+}
+
+function formatCompletedDate(value: string | null | undefined) {
+  if (!value) {
+    return 'Date unavailable';
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return 'Date unavailable';
+  }
+
+  return date.toLocaleDateString('en-US', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  });
+}
+
+const EMPTY_GAMEPLAY_STATS: GameplayStats = {
+  gamesPlayed: 0,
+  handsPlayed: 0,
+  wins: 0,
+  losses: 0,
+  winRate: 0,
+  totalWinnings: 0,
+  biggestPotWon: 0,
+};
+
 export function ProfileScreen({ navigation }: Props) {
-  const { currentUser, refreshCurrentUser, signOut } = useAuth();
+  const { currentUser, refreshCurrentUser, signOut, token } = useAuth();
   const { roomState } = usePoker();
   const [isRefreshingProfile, setIsRefreshingProfile] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [refreshError, setRefreshError] = useState<string | null>(null);
   const [signOutError, setSignOutError] = useState<string | null>(null);
+  const [profile, setProfile] = useState(currentUser);
+  const [gameHistory, setGameHistory] = useState<UserGameHistoryRecord[]>([]);
   const activeTableCode = roomState?.roomId ?? null;
   const displayName = currentUser?.name?.trim() || 'Player';
   const handle = buildHandle(currentUser?.email);
@@ -54,11 +101,44 @@ export function ProfileScreen({ navigation }: Props) {
     ? `${handle} | ${currentUser.email}`
     : `${handle} | Sign in to sync your profile`;
   const playerStatus = getPokerPlayerStatus(currentUser?.playerStatus);
+  const activeProfile = profile ?? currentUser;
+  const gameplayStats = activeProfile?.gameplayStats ?? EMPTY_GAMEPLAY_STATS;
   const profileStats = [
-    { label: 'Friends', value: formatCount(currentUser?.friendCount) },
-    { label: 'Posts', value: formatCount(currentUser?.postCount) },
-    { label: 'Chips', value: formatCount(currentUser?.chips) },
+    { label: 'Games', value: formatCount(gameplayStats.gamesPlayed) },
+    { label: 'Hands', value: formatCount(gameplayStats.handsPlayed) },
+    { label: 'Win rate', value: formatPercent(gameplayStats.winRate) },
   ];
+
+
+  const loadProfileData = useCallback(async () => {
+    if (!token) {
+      setProfile(currentUser);
+      setGameHistory([]);
+      return;
+    }
+
+    const freshProfile = await fetchCurrentUserProfile(token);
+    const freshHistory = await fetchCurrentUserGameHistory(token, 10, freshProfile.id ?? currentUser?.id);
+
+    setProfile(freshProfile);
+    setGameHistory(freshHistory);
+  }, [currentUser, token]);
+
+  useEffect(() => {
+    void loadProfileData().catch((error) => {
+      setRefreshError(error instanceof Error ? error.message : 'Unable to load your gameplay profile.');
+    });
+  }, [loadProfileData]);
+
+  const gameplayStatCards = useMemo(
+    () => [
+      { label: 'Wins', value: formatCount(gameplayStats.wins) },
+      { label: 'Losses', value: formatCount(gameplayStats.losses) },
+      { label: 'Total winnings', value: formatSignedCount(gameplayStats.totalWinnings) },
+      { label: 'Biggest pot won', value: formatCount(gameplayStats.biggestPotWon) },
+    ],
+    [gameplayStats],
+  );
 
   const handleRefreshProfile = useCallback(async () => {
     setIsRefreshingProfile(true);
@@ -66,12 +146,13 @@ export function ProfileScreen({ navigation }: Props) {
 
     try {
       await refreshCurrentUser();
+      await loadProfileData();
     } catch (error) {
       setRefreshError(error instanceof Error ? error.message : 'Unable to refresh your profile.');
     } finally {
       setIsRefreshingProfile(false);
     }
-  }, [refreshCurrentUser]);
+  }, [loadProfileData, refreshCurrentUser]);
 
   const handleSignOut = useCallback(async () => {
     setIsSigningOut(true);
@@ -117,6 +198,42 @@ export function ProfileScreen({ navigation }: Props) {
         {currentUser?.referralCode ? (
           <Text style={styles.metaLine}>Referral code: {currentUser.referralCode}</Text>
         ) : null}
+      </SectionCard>
+
+      <SectionCard title="Gameplay stats">
+        <View style={styles.statRow}>
+          {gameplayStatCards.map((item) => (
+            <View key={item.label} style={styles.statCard}>
+              <Text style={styles.statLabel}>{item.label}</Text>
+              <Text style={styles.statValue}>{item.value}</Text>
+            </View>
+          ))}
+        </View>
+      </SectionCard>
+
+      <SectionCard title="Recent gameplay">
+        <View style={styles.historyStack}>
+          {gameHistory.length > 0 ? (
+            gameHistory.map((hand) => (
+              <View key={hand.id} style={styles.historyItem}>
+                <View style={styles.historyHeader}>
+                  <Text style={styles.historyTitle}>{hand.tableName || hand.tableCode}</Text>
+                  <Text style={[styles.deltaText, hand.chipsDelta >= 0 ? styles.positiveDelta : styles.negativeDelta]}>
+                    {formatSignedCount(hand.chipsDelta)} chips
+                  </Text>
+                </View>
+                <Text style={styles.metaLine}>
+                  {hand.tableCode} · Hand #{hand.handNumber} · {hand.gameType}
+                </Text>
+                <Text style={styles.metaLine}>
+                  {hand.result} · Pot {formatCount(hand.pot)} · {formatCompletedDate(hand.completedAt)}
+                </Text>
+              </View>
+            ))
+          ) : (
+            <Text style={styles.bodyText}>No completed hands yet. Play a hand to see your latest results here.</Text>
+          )}
+        </View>
       </SectionCard>
 
       <SectionCard title="Shared invite flow">
@@ -193,6 +310,39 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
     lineHeight: 20,
+  },
+  historyHeader: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 10,
+    justifyContent: 'space-between',
+  },
+  historyItem: {
+    backgroundColor: colors.surfaceMuted,
+    borderColor: colors.border,
+    borderRadius: 16,
+    borderWidth: 1,
+    gap: 4,
+    padding: 12,
+  },
+  historyStack: {
+    gap: 10,
+  },
+  historyTitle: {
+    color: colors.text,
+    flex: 1,
+    fontSize: 15,
+    fontWeight: '800',
+  },
+  deltaText: {
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  negativeDelta: {
+    color: colors.danger,
+  },
+  positiveDelta: {
+    color: colors.success,
   },
   metaLine: {
     color: colors.mutedText,
