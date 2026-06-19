@@ -261,7 +261,7 @@ export function ChatRoomsScreen({ navigation }: Props) {
       scrollable={false}
       showPlatformNavigation
       title="Chats"
-      topSafeAreaScale={0.2754}
+      topSafeAreaScale={0}
       headerRight={(
         <Pressable
           accessibilityLabel="Open chat room actions"

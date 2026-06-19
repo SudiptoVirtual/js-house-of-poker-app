@@ -119,7 +119,6 @@ export function MainPlatformNavigation() {
 
 const styles = StyleSheet.create({
   activeGlow: {
-    backgroundColor: colors.surfaces.cyanTint,
     borderRadius: colors.radii.pill,
     bottom: 5,
     left: 3,
@@ -176,9 +175,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 4,
     justifyContent: 'space-between',
-    paddingBottom: 8,
-    paddingHorizontal: 8,
-    paddingTop: 8,
+    paddingBottom: 5,
+    paddingHorizontal: 5,
+    paddingTop: 5,
     ...colors.shadows.md,
   },
   iconShell: {
@@ -186,9 +185,9 @@ const styles = StyleSheet.create({
     borderColor: 'transparent',
     borderRadius: colors.radii.pill,
     borderWidth: 1,
-    height: 34,
+    height: 30,
     justifyContent: 'center',
-    width: 42,
+    width: 35,
   },
   iconShellActive: {
     backgroundColor: colors.goldTint,
@@ -201,9 +200,9 @@ const styles = StyleSheet.create({
     gap: 2,
     minHeight: 62,
     overflow: 'hidden',
-    paddingBottom: 10,
-    paddingHorizontal: 3,
-    paddingTop: 6,
+    paddingBottom: 5,
+    paddingHorizontal: 0,
+    paddingTop: 3,
   },
   itemActive: {
     backgroundColor: colors.surfaces.glassPanel,
@@ -223,8 +222,8 @@ const styles = StyleSheet.create({
   },
   outerShell: {
     backgroundColor: colors.background,
-    paddingBottom: 10,
-    paddingHorizontal: 10,
-    paddingTop: 6,
+    paddingBottom: 0,
+    paddingHorizontal: 8,
+    paddingTop: 5,
   },
 });
