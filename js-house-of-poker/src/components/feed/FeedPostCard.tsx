@@ -48,6 +48,7 @@ type FeedCommentDeleteResult = {
 
 type FeedPostCardProps = {
   actionMode?: "full" | "owner-only";
+  variant?: "feed" | "ownerHistory";
   actionsDisabled?: boolean;
   isActive?: boolean;
   actionsDisabledMessage?: string;
@@ -89,7 +90,7 @@ type FeedPostCardProps = {
 };
 
 export function FeedPostCard({
-  actionMode = "full",
+  actionMode,
   actionsDisabled = false,
   actionsDisabledMessage = "Sign in and refresh the feed before using post actions.",
   currentUserId,
@@ -110,6 +111,7 @@ export function FeedPostCard({
   onUpdateComment,
   onUpdatePost,
   post,
+  variant = "feed",
 }: FeedPostCardProps) {
   const [commentDraft, setCommentDraft] = useState("");
   const [isCommentPanelVisible, setIsCommentPanelVisible] = useState(false);
@@ -140,7 +142,8 @@ export function FeedPostCard({
     currentUserId &&
       (post.authorUserId === currentUserId || post.player.id === currentUserId),
   );
-  const showFeedActions = actionMode === "full";
+  const isOwnerHistoryMode = variant === "ownerHistory" || actionMode === "owner-only";
+  const showSocialActions = !isOwnerHistoryMode;
 
   const statsLine = useMemo(() => {
     const stats = [
@@ -508,9 +511,9 @@ export function FeedPostCard({
         ))}
       </View>
 
-      <Text style={styles.stats}>{statsLine}</Text>
+      {showSocialActions ? <Text style={styles.stats}>{statsLine}</Text> : null}
 
-      {post.giftClipsTotal ? (
+      {showSocialActions && post.giftClipsTotal ? (
         <View style={styles.giftStats}>
           <MaterialCommunityIcons
             color={colors.gold}
@@ -523,7 +526,7 @@ export function FeedPostCard({
         </View>
       ) : null}
 
-      {showFeedActions ? (
+      {showSocialActions ? (
         <FeedActionBar
           actionsDisabled={actionsDisabled}
           commentLoading={commentPanelLoadState === "loading"}
@@ -541,7 +544,7 @@ export function FeedPostCard({
         />
       ) : null}
 
-      {showFeedActions && isCommentPanelVisible ? (
+      {showSocialActions && isCommentPanelVisible ? (
         <View style={styles.commentStack}>
           <View style={styles.persistedComments}>
             {commentPanelLoadState === "loading" ? (

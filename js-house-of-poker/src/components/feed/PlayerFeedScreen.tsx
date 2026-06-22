@@ -1326,7 +1326,7 @@ export function PlayerFeedScreen({ mode = 'feed', navigation, route }: PlayerFee
           }
           renderItem={({ item }) => (
             <FeedPostCard
-              actionMode={isProfileHistoryMode ? 'owner-only' : 'full'}
+              variant={isProfileHistoryMode ? 'ownerHistory' : 'feed'}
               actionsDisabled={Boolean(getPostActionDisabledMessage(item))}
               actionsDisabledMessage={getPostActionDisabledMessage(item)}
               currentUserId={currentUser?.id}
