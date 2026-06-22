@@ -9,6 +9,7 @@ import { colors } from '../../theme/colors';
 type FeedVideoProps = {
   isActive: boolean;
   media: FeedVideoMedia;
+  targetWidth?: number;
   onOpenFullScreen?: () => void;
   onRequestActive?: () => void;
 };
@@ -19,7 +20,16 @@ function mediaAspectRatio(media: FeedVideoMedia) {
     : 16 / 9;
 }
 
-export function FeedVideo({ isActive, media, onOpenFullScreen, onRequestActive }: FeedVideoProps) {
+const DEFAULT_FEED_VIDEO_WIDTH = 360;
+const MAX_FEED_VIDEO_HEIGHT = 720;
+const MIN_FEED_VIDEO_HEIGHT = 180;
+
+function clamp(value: number, min: number, max: number) {
+  return Math.min(Math.max(value, min), max);
+}
+
+export function FeedVideo({ isActive, media, onOpenFullScreen, onRequestActive, targetWidth }: FeedVideoProps) {
+  const [measuredWidth, setMeasuredWidth] = useState(targetWidth ?? DEFAULT_FEED_VIDEO_WIDTH);
   const [isManuallyPaused, setIsManuallyPaused] = useState(false);
   const [isMuted, setIsMuted] = useState(true);
   const player = useVideoPlayer(media.url, (nextPlayer) => {
@@ -28,6 +38,8 @@ export function FeedVideo({ isActive, media, onOpenFullScreen, onRequestActive }
   });
   const isPlaying = isActive && !isManuallyPaused;
   const thumbnailUrl = typeof media.thumbnailUrl === 'string' ? media.thumbnailUrl.trim() : '';
+  const estimatedMediaWidth = Math.max(targetWidth ?? measuredWidth, 280);
+  const mediaHeight = clamp(estimatedMediaWidth / mediaAspectRatio(media), MIN_FEED_VIDEO_HEIGHT, MAX_FEED_VIDEO_HEIGHT);
 
   useEffect(() => {
     player.muted = isMuted;
@@ -55,7 +67,7 @@ export function FeedVideo({ isActive, media, onOpenFullScreen, onRequestActive }
   }
 
   return (
-    <View style={[styles.shell, { aspectRatio: mediaAspectRatio(media) }]}>
+    <View onLayout={(event) => setMeasuredWidth(event.nativeEvent.layout.width)} style={[styles.shell, { height: mediaHeight }]}>
       {thumbnailUrl ? (
         <Image accessibilityLabel={`${media.altText} video thumbnail`} resizeMode="cover" source={{ uri: thumbnailUrl }} style={StyleSheet.absoluteFillObject} />
       ) : (
@@ -119,8 +131,6 @@ const styles = StyleSheet.create({
   shell: {
     backgroundColor: colors.background,
     borderRadius: 16,
-    maxHeight: 480,
-    minHeight: 180,
     overflow: 'hidden',
     width: '100%',
   },
