@@ -260,6 +260,7 @@ async function feedApiRequest<T>(path: string, options: FeedApiRequestOptions = 
 
 export type FetchFeedPostsOptions = {
   authorUserId?: string;
+  cursor?: string;
   limit?: number;
 };
 
@@ -273,7 +274,11 @@ export async function fetchFeedPosts(
     params.set('authorUserId', options.authorUserId);
   }
 
-  if (options.limit) {
+  if (options.cursor) {
+    params.set('cursor', options.cursor);
+  }
+
+  if (options.limit != null) {
     params.set('limit', String(options.limit));
   }
 
