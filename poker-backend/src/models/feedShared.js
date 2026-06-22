@@ -9,7 +9,7 @@ const POST_TYPES = ["text", "media", "table_invite", "win_share"];
 const PROMOTION_STATES = ["none", "pending", "active", "paused", "expired", "rejected"];
 const MEDIA_TYPES = ["image", "video", "clip", "link"];
 const REACTION_TYPES = ["support"];
-const SHARE_DESTINATIONS = ["copy-link", "profile", "feed", "chat-room", "table", "friends", "facebook", "external"];
+const SHARE_DESTINATIONS = ["copy-link", "profile", "feed", "chat-room", "table", "friend", "friends", "facebook", "external"];
 const SHARE_DESTINATION_ALIASES = new Map([
   ["copy", "copy-link"],
   ["link", "copy-link"],
@@ -17,9 +17,12 @@ const SHARE_DESTINATION_ALIASES = new Map([
   ["chat", "chat-room"],
   ["chatroom", "chat-room"],
   ["room", "chat-room"],
-  ["friend", "friends"],
-  ["direct-friend", "friends"],
-  ["direct-friends", "friends"],
+  ["friends", "friend"],
+  ["direct", "friend"],
+  ["dm", "friend"],
+  ["friend-chat", "friend"],
+  ["direct-friend", "friend"],
+  ["direct-friends", "friend"],
   ["poker-table", "table"],
   ["fb", "facebook"],
   ["social", "external"],

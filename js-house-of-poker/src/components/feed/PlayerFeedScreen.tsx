@@ -894,7 +894,7 @@ export function PlayerFeedScreen({ navigation, route }: PlayerFeedScreenProps) {
           selection.destinationId,
           session.token,
         );
-      } else if (selection.destinationId === 'friends') {
+      } else if (selection.destinationId === 'friend') {
         if (!selection.targetUserId) {
           setFeedToast({
             tone: 'error',
@@ -905,7 +905,7 @@ export function PlayerFeedScreen({ navigation, route }: PlayerFeedScreenProps) {
 
         await saveFeedShare(
           targetPost,
-          'friends',
+          'friend',
           {
             metadata: {
               deepLink: buildFeedPostDeepLink(targetPost.id),

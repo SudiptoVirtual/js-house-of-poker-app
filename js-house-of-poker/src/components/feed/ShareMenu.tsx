@@ -15,7 +15,7 @@ const shareDestinations: BackendShareDestination[] = [
   { icon: 'link-variant', id: 'copy-link', label: 'Copy link' },
   { icon: 'newspaper-variant-outline', id: 'feed', label: 'Share to Feed' },
   { icon: 'forum-outline', id: 'chat-room', label: 'Share to Chat Room' },
-  { icon: 'account-multiple-outline', id: 'friends', label: 'Share with friends' },
+  { icon: 'account-outline', id: 'friend', label: 'Share with friend' },
   { icon: 'facebook', id: 'facebook', label: 'Share to Facebook' },
 ];
 
@@ -85,7 +85,7 @@ export function ShareMenu({
       return;
     }
 
-    if (destination.id === 'friends') {
+    if (destination.id === 'friend') {
       return;
     }
 
@@ -142,7 +142,7 @@ export function ShareMenu({
           <View style={styles.destinationStack}>
             {shareDestinations.map((destination) => {
               const isChatRoomDestination = destination.id === 'chat-room';
-              const isFriendsDestination = destination.id === 'friends';
+              const isFriendsDestination = destination.id === 'friend';
               const targetOptions = isChatRoomDestination
                 ? chatRoomOptions
                 : isFriendsDestination
@@ -192,7 +192,7 @@ export function ShareMenu({
                         {targetOptions.map((option) => {
                           const selection = isChatRoomDestination
                             ? { destinationId: 'chat-room' as const, roomId: option.id }
-                            : { destinationId: 'friends' as const, targetUserId: option.id };
+                            : { destinationId: 'friend' as const, targetUserId: option.id };
                           const isTargetLoading = loadingSelectionKey === getSelectionKey(selection);
 
                           return <Pressable
