@@ -1,0 +1,26 @@
+const mockColors = {
+  accent: 'accent',
+  background: 'background',
+  black: 'black',
+  border: 'border',
+  danger: 'danger',
+  gold: 'gold',
+  goldTint: 'goldTint',
+  modalBackdrop: 'modalBackdrop',
+  mutedText: 'mutedText',
+  primary: 'primary',
+  radii: { lg: 12, md: 8, pill: 999, xl: 16 },
+  roles: { glassPanel: 'glassPanel' },
+  secondary: 'secondary',
+  shadows: { lg: {}, md: {} },
+  spacing: { 4: 4, 8: 8, 12: 12, 16: 16, 20: 20 },
+  success: 'success',
+  successTint: 'successTint',
+  surface: 'surface',
+  surfaceMuted: 'surfaceMuted',
+  surfaces: { glassPanel: 'glassPanel' },
+  text: 'text',
+  typography: { body: {}, caption: {}, chipLabel: {}, sectionTitle: {} },
+};
+
+module.exports = { mockColors };

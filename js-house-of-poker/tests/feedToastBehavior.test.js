@@ -4,6 +4,7 @@ const fs = require('node:fs');
 const Module = require('node:module');
 const path = require('node:path');
 const ts = require('typescript');
+const { mockColors } = require('./mockTheme');
 
 function compileComponent(relativePath, mocks) {
   const filename = path.resolve(__dirname, relativePath);
@@ -82,7 +83,7 @@ function renderFeedPostBox({ uploadAttachmentsAndCreatePost, onCreatePost = asyn
     '@expo/vector-icons': { MaterialCommunityIcons: () => null },
     'expo-image-picker': {},
     '../ActionButton': { ActionButton },
-    '../../theme/colors': { colors: {} },
+    '../../theme/colors': { colors: mockColors },
     './FeedAvatar': { FeedAvatar },
     './attachmentWorkflow': {
       appendFeedAttachments: () => [],
@@ -138,7 +139,7 @@ test('FeedPostCard disabled action feedback calls the toast callback instead of 
     react: state.react,
     'react-native': { ...reactNativeMock, Alert: { alert: (...args) => alertCalls.push(args) } },
     '@expo/vector-icons': { MaterialCommunityIcons: 'Icon' },
-    '../../theme/colors': { colors: {} },
+    '../../theme/colors': { colors: mockColors },
     './FeedActionBar': { FeedActionBar },
     './FeedPlayerHeader': { FeedPlayerHeader: () => null },
     './FeedMediaGallery': { FeedMediaGallery: () => null },

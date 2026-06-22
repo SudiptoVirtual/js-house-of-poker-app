@@ -144,30 +144,34 @@ export function FeedPostCard({
   );
   const isOwnerHistoryMode = variant === "ownerHistory" || actionMode === "owner-only";
   const showSocialActions = !isOwnerHistoryMode;
+  const allowCommentComposer = showSocialActions;
 
-  const statsLine = useMemo(() => {
-    const stats = [
-      `${post.supportersCount.toLocaleString()} Supporters`,
-      `${post.commentCount.toLocaleString()} Comments`,
-      `${post.shareCount.toLocaleString()} Shares`,
-    ];
-
-    if (post.giftClipsCount) {
-      stats.push(`${post.giftClipsCount.toLocaleString()} Gift Clips`);
-    }
-
-    if (post.promotedCount) {
-      stats.push(`${post.promotedCount.toLocaleString()} Sponsors`);
-    }
-
-    return stats.join(" · ");
-  }, [
-    post.commentCount,
-    post.giftClipsCount,
-    post.promotedCount,
-    post.shareCount,
-    post.supportersCount,
-  ]);
+  const socialStats = useMemo(
+    () => [
+      {
+        accent: colors.gold,
+        count: post.supportersCount.toLocaleString(),
+        icon: "cards-heart-outline" as const,
+        key: "supports",
+        label: post.supportersCount === 1 ? "Support" : "Supports",
+      },
+      {
+        accent: colors.secondary,
+        count: post.commentCount.toLocaleString(),
+        icon: "comment-text-outline" as const,
+        key: "comments",
+        label: post.commentCount === 1 ? "Comment" : "Comments",
+      },
+      {
+        accent: colors.primary,
+        count: post.shareCount.toLocaleString(),
+        icon: "share-variant-outline" as const,
+        key: "shares",
+        label: post.shareCount === 1 ? "Share" : "Shares",
+      },
+    ],
+    [post.commentCount, post.shareCount, post.supportersCount],
+  );
 
   function guardAction(action: () => void) {
     if (actionsDisabled) {
@@ -185,42 +189,6 @@ export function FeedPostCard({
         comment.player.id === currentUserId),
     );
   }
-
-  const pokerMetadata = useMemo(() => {
-    const hasTableInvite = Boolean(post.tableContext || post.postKind === "table-invite");
-    const hasWinShare = Boolean(post.gameContext || post.postKind === "share-win");
-
-    return [
-      {
-        accent: colors.gold,
-        icon: "trophy-outline" as const,
-        label: "Wins",
-        value: hasWinShare ? post.gameContext?.resultLabel ?? "Shared" : "—",
-      },
-      {
-        accent: colors.secondary,
-        icon: "cards-playing-outline" as const,
-        label: "Tables",
-        value: post.tableContext?.tableName ?? post.gameContext?.tableName ?? "Lobby",
-      },
-      {
-        accent: colors.success,
-        icon: "account-group-outline" as const,
-        label: "Invites",
-        value: hasTableInvite
-          ? post.tableContext?.seatsOpen != null
-            ? `${post.tableContext.seatsOpen} seats`
-            : "Open"
-          : "—",
-      },
-      {
-        accent: colors.accent,
-        icon: "movie-open-play-outline" as const,
-        label: "Clips",
-        value: (post.giftClipsTotal ?? post.giftClipsCount ?? 0).toLocaleString(),
-      },
-    ];
-  }, [post]);
 
   async function loadPersistedComments() {
     if (actionsDisabled || commentPanelLoadState === "loading") {
@@ -499,19 +467,39 @@ export function FeedPostCard({
         </View>
       ) : null}
 
-      <View style={styles.metadataRow}>
-        {pokerMetadata.map((item) => (
-          <View key={item.label} style={styles.metadataPill}>
-            <MaterialCommunityIcons color={item.accent} name={item.icon} size={15} />
-            <View style={styles.metadataCopy}>
-              <Text style={styles.metadataLabel}>{item.label}</Text>
-              <Text numberOfLines={1} style={styles.metadataValue}>{item.value}</Text>
-            </View>
-          </View>
-        ))}
-      </View>
+      <View style={styles.socialStatsRow}>
+        {socialStats.map((item) => {
+          const content = (
+            <>
+              <MaterialCommunityIcons color={item.accent} name={item.icon} size={18} />
+              <View style={styles.socialStatCopy}>
+                <Text numberOfLines={1} style={styles.socialStatCount}>{item.count}</Text>
+                <Text numberOfLines={1} style={styles.socialStatLabel}>{item.label}</Text>
+              </View>
+            </>
+          );
 
-      {showSocialActions ? <Text style={styles.stats}>{statsLine}</Text> : null}
+          return item.key === "comments" ? (
+            <Pressable
+              accessibilityLabel={`${item.count} ${item.label}. View comments`}
+              accessibilityRole="button"
+              disabled={commentPanelLoadState === "loading"}
+              key={item.key}
+              onPress={handleToggleCommentPanel}
+              style={({ pressed }) => [
+                styles.socialStatPill,
+                pressed ? styles.socialStatPillPressed : null,
+              ]}
+            >
+              {content}
+            </Pressable>
+          ) : (
+            <View key={item.key} style={styles.socialStatPill}>
+              {content}
+            </View>
+          );
+        })}
+      </View>
 
       {showSocialActions && post.giftClipsTotal ? (
         <View style={styles.giftStats}>
@@ -544,7 +532,7 @@ export function FeedPostCard({
         />
       ) : null}
 
-      {showSocialActions && isCommentPanelVisible ? (
+      {isCommentPanelVisible ? (
         <View style={styles.commentStack}>
           <View style={styles.persistedComments}>
             {commentPanelLoadState === "loading" ? (
@@ -569,11 +557,14 @@ export function FeedPostCard({
               </View>
             ) : commentPanelLoadState === "empty" ? (
               <Text style={styles.commentStateText}>
-                No comments yet. Start the table talk.
+                {allowCommentComposer
+                  ? "No comments yet. Start the table talk."
+                  : "No comments yet."}
               </Text>
             ) : latestComments.length > 0 ? (
               latestComments.map((comment) => {
                 const canManageComment =
+                  allowCommentComposer &&
                   isOwnComment(comment) &&
                   !comment.isDeleted &&
                   !comment.deletedAt;
@@ -694,38 +685,40 @@ export function FeedPostCard({
               </Text>
             )}
           </View>
-          <View style={styles.commentPanel}>
-            <TextInput
-              onChangeText={setCommentDraft}
-              onFocus={(event) => onCommentInputFocus?.(event.nativeEvent.target)}
-              placeholder="Add a table-side comment..."
-              placeholderTextColor={colors.mutedText}
-              editable={!actionsDisabled && !isSubmittingComment}
-              style={styles.commentInput}
-              value={commentDraft}
-            />
-            <Pressable
-              accessibilityRole="button"
-              disabled={actionsDisabled || isSubmittingComment}
-              onPress={handleSubmitComment}
-              style={[
-                styles.commentSendButton,
-                actionsDisabled || isSubmittingComment
-                  ? styles.commentSendButtonDisabled
-                  : null,
-              ]}
-            >
-              {isSubmittingComment ? (
-                <ActivityIndicator color={colors.text} size="small" />
-              ) : (
-                <MaterialCommunityIcons
-                  color={colors.text}
-                  name="send-outline"
-                  size={18}
-                />
-              )}
-            </Pressable>
-          </View>
+          {allowCommentComposer ? (
+            <View style={styles.commentPanel}>
+              <TextInput
+                onChangeText={setCommentDraft}
+                onFocus={(event) => onCommentInputFocus?.(event.nativeEvent.target)}
+                placeholder="Add a table-side comment..."
+                placeholderTextColor={colors.mutedText}
+                editable={!actionsDisabled && !isSubmittingComment}
+                style={styles.commentInput}
+                value={commentDraft}
+              />
+              <Pressable
+                accessibilityRole="button"
+                disabled={actionsDisabled || isSubmittingComment}
+                onPress={handleSubmitComment}
+                style={[
+                  styles.commentSendButton,
+                  actionsDisabled || isSubmittingComment
+                    ? styles.commentSendButtonDisabled
+                    : null,
+                ]}
+              >
+                {isSubmittingComment ? (
+                  <ActivityIndicator color={colors.text} size="small" />
+                ) : (
+                  <MaterialCommunityIcons
+                    color={colors.text}
+                    name="send-outline"
+                    size={18}
+                  />
+                )}
+              </Pressable>
+            </View>
+          ) : null}
         </View>
       ) : null}
       <Modal animationType="fade" onRequestClose={() => setPostMenuAnchor(null)} transparent visible={postMenuAnchor !== null}>
@@ -982,39 +975,40 @@ const styles = StyleSheet.create({
     gap: 8,
     padding: 10,
   },
-  stats: {
-    ...colors.typography.caption,
-    color: colors.mutedText,
+  socialStatCopy: {
+    flex: 1,
+    gap: 2,
+    minWidth: 0,
   },
-  metadataCopy: { flex: 1, gap: 2, minWidth: 0 },
-  metadataLabel: {
-    ...colors.typography.chipLabel,
-    color: colors.mutedText,
-    fontSize: 10,
-    lineHeight: 12,
+  socialStatCount: {
+    color: colors.text,
+    fontSize: 14,
+    fontWeight: "900",
   },
-  metadataPill: {
+  socialStatLabel: {
+    color: colors.mutedText,
+    fontSize: 11,
+    fontWeight: "800",
+  },
+  socialStatPill: {
     alignItems: 'center',
     backgroundColor: colors.surfaces.glassPanel,
     borderColor: 'rgba(255,255,255,0.10)',
     borderRadius: colors.radii.lg,
     borderWidth: 1,
-    flexBasis: '48%',
+    flex: 1,
     flexDirection: 'row',
-    flexGrow: 1,
     gap: colors.spacing[8],
+    minWidth: 0,
     paddingHorizontal: colors.spacing[12],
     paddingVertical: colors.spacing[8],
   },
-  metadataRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: colors.spacing[8],
+  socialStatPillPressed: {
+    opacity: 0.74,
   },
-  metadataValue: {
-    color: colors.text,
-    fontSize: 12,
-    fontWeight: '900',
+  socialStatsRow: {
+    flexDirection: 'row',
+    gap: colors.spacing[8],
   },
   tableContext: {
     alignItems: "center",
