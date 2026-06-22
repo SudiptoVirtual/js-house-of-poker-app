@@ -133,6 +133,30 @@ type ShareTargetOption = {
   label: string;
 };
 
+function getFriendShareHelperText(friend: FriendsPlayer) {
+  if (friend.activityStatus === 'at_table') {
+    return 'At a table';
+  }
+
+  if (friend.activityStatus === 'playing_357') {
+    return 'Playing 3-5-7';
+  }
+
+  if (friend.activityStatus === 'in_chat_room') {
+    return 'In a chat room';
+  }
+
+  if (friend.activityStatus === 'in_lobby') {
+    return 'In the lobby';
+  }
+
+  if (friend.isOnline || friend.activityStatus === 'online') {
+    return 'Online now';
+  }
+
+  return friend.username || 'Friend';
+}
+
 export function PlayerFeedScreen({ navigation, route }: PlayerFeedScreenProps) {
   const { currentUser, token } = useAuth();
   const insets = useSafeAreaInsets();
@@ -153,7 +177,7 @@ export function PlayerFeedScreen({ navigation, route }: PlayerFeedScreenProps) {
     useState<PromotionPaymentState>('idle');
   const [sharePost, setSharePost] = useState<FeedPost | null>(null);
   const [chatRooms, setChatRooms] = useState<ChatRoom[]>([]);
-  const [friends, setFriends] = useState<FriendsPlayer[]>([]);
+  const [shareFriends, setShareFriends] = useState<FriendsPlayer[]>([]);
   const [activeVideoPostId, setActiveVideoPostId] = useState<string | null>(null);
   const [isFeedFocused, setIsFeedFocused] = useState(false);
   const [isAppActive, setIsAppActive] = useState(
@@ -292,12 +316,12 @@ export function PlayerFeedScreen({ navigation, route }: PlayerFeedScreenProps) {
 
         if (isMounted) {
           setChatRooms(rooms);
-          setFriends(acceptedFriends);
+          setShareFriends(acceptedFriends);
         }
       } catch {
         if (isMounted) {
           setChatRooms([]);
-          setFriends([]);
+          setShareFriends([]);
         }
       }
     }
@@ -393,14 +417,14 @@ export function PlayerFeedScreen({ navigation, route }: PlayerFeedScreenProps) {
 
   const friendShareOptions = useMemo<ShareTargetOption[]>(
     () =>
-      friends
+      shareFriends
         .filter((friend) => friend.relationshipStatus === 'friend')
         .map((friend) => ({
-          helperText: friend.username,
+          helperText: getFriendShareHelperText(friend),
           id: friend.id,
           label: friend.displayName || friend.username || `Player ${friend.id.slice(-6)}`,
         })),
-    [friends],
+    [shareFriends],
   );
 
   async function handleCreatePost(input: ComposeFeedPostInput) {
