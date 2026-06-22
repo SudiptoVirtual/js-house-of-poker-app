@@ -129,21 +129,21 @@ test('gallery-level preview selects thumbnails and uses the shared zoomable view
   assert.match(viewer, /PanResponder\.create/);
 });
 
-test('active-video selection chooses one visible video nearest the upper-middle target', () => {
+test('active-video selection chooses the most prominent visible video', () => {
   const { selectActiveVideoPostId } = compileComponent('../src/components/feed/feedVideoSelection.ts');
   const selected = selectActiveVideoPostId([
-    { postId: 'image-top', hasVideo: false, isViewable: true },
-    { postId: 'upper-video', hasVideo: true, isViewable: true },
-    { postId: 'lower-video', hasVideo: true, isViewable: true },
-    { postId: 'offscreen-video', hasVideo: true, isViewable: false },
+    { postId: 'image-top', hasVideo: false, isViewable: true, visiblePercent: 100 },
+    { postId: 'barely-visible-video', hasVideo: true, isViewable: true, visiblePercent: 12 },
+    { postId: 'prominent-video', hasVideo: true, isViewable: true, visiblePercent: 78 },
+    { postId: 'offscreen-video', hasVideo: true, isViewable: false, visiblePercent: 100 },
   ]);
-  assert.equal(selected, 'upper-video');
+  assert.equal(selected, 'prominent-video');
   assert.equal(selectActiveVideoPostId([{ postId: 'offscreen-video', hasVideo: true, isViewable: false }]), null);
 });
 
 test('active video autoplays while off-screen videos pause and reset to muted', () => {
   const calls = [];
-  const player = { loop: false, muted: false, pause: () => calls.push('pause'), play: () => calls.push('play') };
+  const player = { addListener: () => ({ remove: () => {} }), loop: false, muted: false, pause: () => calls.push('pause'), play: () => calls.push('play'), status: 'idle' };
   const reactMock = { ...require('react'), useEffect: (effect) => effect(), useState: (initial) => [initial, () => {}] };
   const { FeedVideo } = compileComponent('../src/components/feed/FeedVideo.tsx', {
     react: reactMock, 'react-native': reactNativeMock, '@expo/vector-icons': iconsMock, '../../theme/colors': colorsMock,
@@ -163,6 +163,8 @@ test('feed focus and app-background state gate the single active video passed to
   assert.match(screen, /setIsFeedFocused\(true\)/);
   assert.match(screen, /return \(\) => setIsFeedFocused\(false\)/);
   assert.match(screen, /AppState\.addEventListener\('change'/);
+  assert.match(screen, /itemVisiblePercentThreshold: 50/);
+  assert.match(screen, /Image\.prefetch\(thumbnailUrl\)/);
   assert.match(screen, /isActive=\{isFeedFocused && isAppActive && activeVideoPostId === item\.id\}/);
 });
 
