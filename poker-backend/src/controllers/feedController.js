@@ -918,15 +918,20 @@ async function listPosts(req, res) {
       "moderation.status": { $ne: "blocked" },
       status: "published",
     };
+    const authorUserId = req.query.authorUserId;
 
-    if (currentUserId) {
+    if (authorUserId && isValidObjectId(authorUserId)) {
+      query.authorUserId = authorUserId;
+
+      if (currentUserId && String(authorUserId) === String(currentUserId)) {
+        query.visibility = { $in: POST_VISIBILITIES };
+      } else {
+        query.visibility = "public";
+      }
+    } else if (currentUserId) {
       query.$or = [{ visibility: "public" }, { authorUserId: currentUserId }];
     } else {
       query.visibility = "public";
-    }
-
-    if (req.query.authorUserId && isValidObjectId(req.query.authorUserId)) {
-      query.authorUserId = req.query.authorUserId;
     }
 
     if (req.query.tableCode) {
