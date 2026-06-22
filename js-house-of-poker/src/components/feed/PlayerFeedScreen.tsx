@@ -297,12 +297,9 @@ export function PlayerFeedScreen({ mode = 'feed', navigation, route }: PlayerFee
       }
 
       const session = await getAuthSession();
-      const response = await fetchFeedPosts(
-        session?.token ?? null,
-        isProfileHistoryMode && currentUser?.id
-          ? { authorUserId: currentUser.id }
-          : {},
-      );
+      const response = isProfileHistoryMode && currentUser?.id
+        ? await fetchFeedPosts(session?.token ?? null, { authorUserId: currentUser.id })
+        : await fetchFeedPosts(session?.token ?? null);
 
       if (!isMountedRef.current) {
         return;
