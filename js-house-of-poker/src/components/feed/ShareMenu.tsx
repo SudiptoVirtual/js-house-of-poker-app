@@ -143,7 +143,7 @@ export function ShareMenu({
                 name="account-multiple-outline"
                 size={18}
               />
-              <Text style={styles.friendsTitle}>Friends</Text>
+              <Text style={styles.friendsTitle}>Send to friends</Text>
             </View>
             {friendOptions.length > 0 ? (
               <View style={styles.friendButtonWrap}>
@@ -180,7 +180,7 @@ export function ShareMenu({
               </View>
             ) : (
               <Text style={styles.emptyTargetText}>
-                No accepted friends are available to share with right now.
+                Add friends to share posts directly.
               </Text>
             )}
           </View>

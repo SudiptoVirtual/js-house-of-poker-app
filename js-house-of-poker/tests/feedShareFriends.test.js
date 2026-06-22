@@ -6,6 +6,10 @@ const path = require('node:path');
 const ts = require('typescript');
 
 function find(node, predicate, matches = []) {
+  if (Array.isArray(node)) {
+    for (const child of node) find(child, predicate, matches);
+    return matches;
+  }
   if (!node || typeof node !== 'object') return matches;
   if (predicate(node)) matches.push(node);
   const children = Array.isArray(node.props?.children) ? node.props.children : [node.props?.children];
@@ -13,7 +17,7 @@ function find(node, predicate, matches = []) {
   return matches;
 }
 
-function loadShareMenu(onShare = () => {}) {
+function loadShareMenu(onShare = () => {}, friendOptions = [{ id: 'friend-1', label: 'Ada Lovelace' }]) {
   const state = [];
   let cursor = 0;
   const react = {
@@ -54,7 +58,7 @@ function loadShareMenu(onShare = () => {}) {
       cursor = 0;
       return compiled.exports.ShareMenu({
         chatRoomOptions: [],
-        friendOptions: [{ id: 'friend-1', label: 'Ada Lovelace' }],
+        friendOptions,
         onClose() {},
         onPromote() {},
         onShare,
@@ -76,11 +80,49 @@ test('ShareMenu renders compact friend buttons and emits a direct friend share s
   let selection;
   const menu = loadShareMenu((nextSelection) => { selection = nextSelection; });
   const tree = menu.render();
-  assert.ok(find(tree, (element) => element.type === 'Text' && element.props?.children === 'Friends').length > 0);
+  assert.ok(find(tree, (element) => element.type === 'Text' && element.props?.children === 'Send to friends').length > 0);
   const friendButton = find(tree, (element) => element.type === 'Pressable' && element.props?.children?.some?.((child) => child?.props?.children === 'Ada Lovelace'))[0];
   assert.ok(friendButton);
   await friendButton.props.onPress();
   assert.deepEqual(selection, { destinationId: 'friends', targetUserId: 'friend-1' });
+});
+
+
+test('ShareMenu prioritizes friends before slower share destinations', () => {
+  const menu = loadShareMenu();
+  const tree = menu.render();
+  const orderedLabels = find(tree, (element) => element.type === 'Text')
+    .map((element) => element.props?.children)
+    .filter((children) => typeof children === 'string');
+
+  const friendSectionIndex = orderedLabels.indexOf('Send to friends');
+  const friendIndex = orderedLabels.indexOf('Ada Lovelace');
+  const facebookIndex = orderedLabels.indexOf('Share to Facebook');
+  const externalIndex = orderedLabels.indexOf('Share Externally');
+  const tableIndex = orderedLabels.indexOf('Share to Table');
+  const chatRoomIndex = orderedLabels.indexOf('Share to Chat Room');
+  const promoteIndex = orderedLabels.indexOf('Promote for Creator');
+
+  assert.ok(friendSectionIndex >= 0);
+  assert.ok(friendIndex > friendSectionIndex);
+  for (const [label, destinationIndex] of [
+    ['Share to Facebook', facebookIndex],
+    ['Share Externally', externalIndex],
+    ['Share to Table', tableIndex],
+    ['Share to Chat Room', chatRoomIndex],
+    ['Promote for Creator', promoteIndex],
+  ]) {
+    assert.ok(destinationIndex >= 0, `${label} should be rendered`);
+    assert.ok(destinationIndex > friendIndex, `${label} should appear after friends`);
+  }
+});
+
+
+test('ShareMenu shows direct-share empty state when no friend options exist', () => {
+  const menu = loadShareMenu(() => {}, []);
+  const tree = menu.render();
+
+  assert.ok(find(tree, (element) => element.type === 'Text' && element.props?.children === 'Add friends to share posts directly.').length > 0);
 });
 
 test('PlayerFeedScreen saves friend shares with friend target identifiers and metadata', () => {
