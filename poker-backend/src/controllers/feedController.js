@@ -1821,4 +1821,7 @@ module.exports = {
   updateComment,
   updatePost,
   uploadMedia,
+  _private: {
+    buildShareInput,
+  },
 };

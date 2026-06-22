@@ -8,6 +8,7 @@ const FeedPromotion = require("../src/models/FeedPromotion");
 const FeedReaction = require("../src/models/FeedReaction");
 const FeedShare = require("../src/models/FeedShare");
 const { SHARE_DESTINATIONS, normalizeShareDestination, serializeTableContext } = require("../src/models/feedShared");
+const { _private: feedControllerPrivate } = require("../src/controllers/feedController");
 
 function objectId(hex) {
   return new mongoose.Types.ObjectId(hex.padStart(24, "0"));
@@ -255,10 +256,14 @@ const tests = [
   [
     "FeedShare maps frontend destinations and serializes share metadata",
     () => {
-      assert.deepEqual(SHARE_DESTINATIONS, ["copy-link", "profile", "feed", "chat-room", "table", "friends", "facebook", "external"]);
+      assert.deepEqual(SHARE_DESTINATIONS, ["copy-link", "profile", "feed", "chat-room", "table", "friend", "friends", "facebook", "external"]);
       assert.equal(normalizeShareDestination("fb"), "facebook");
       assert.equal(normalizeShareDestination("chatroom"), "chat-room");
-      assert.equal(normalizeShareDestination("friend"), "friends");
+      assert.equal(normalizeShareDestination("friend"), "friend");
+      assert.equal(normalizeShareDestination("friends"), "friend");
+      assert.equal(normalizeShareDestination("direct"), "friend");
+      assert.equal(normalizeShareDestination("dm"), "friend");
+      assert.equal(normalizeShareDestination("friend-chat"), "friend");
 
       const share = new FeedShare({
         destination: "fb",
@@ -274,6 +279,47 @@ const tests = [
       assert.equal(share.channel, "facebook");
       assert.deepEqual(share.toClient().metadata, { source: "share-menu" });
       assert.deepEqual(share.toClient().targetIdentifiers, { tableId: "NIGHT7" });
+    },
+  ],
+
+  [
+    "FeedShare supports direct friend targets and duplicate uniqueness per friend",
+    () => {
+      const postId = objectId("e");
+      const userId = objectId("f");
+      const firstFriendId = String(objectId("10"));
+      const secondFriendId = String(objectId("11"));
+
+      const shareInput = feedControllerPrivate.buildShareInput(
+        { metadata: { source: "share-menu" }, targetUserId: firstFriendId },
+        "friend"
+      );
+
+      assert.equal(shareInput.targetId, firstFriendId);
+      assert.deepEqual(shareInput.targetIdentifiers, { roomId: "", tableId: "", userId: firstFriendId });
+
+      const firstShare = new FeedShare({
+        ...shareInput,
+        postId,
+        userId,
+      });
+      const secondShare = new FeedShare({
+        destination: "friend",
+        postId,
+        targetId: secondFriendId,
+        targetIdentifiers: { userId: secondFriendId },
+        targetType: "friend",
+        userId,
+      });
+
+      assert.equal(firstShare.validateSync(), undefined);
+      assert.equal(firstShare.destination, "friend");
+      assert.equal(firstShare.channel, "friend");
+      assert.equal(firstShare.toClient().targetId, firstFriendId);
+      assert.deepEqual(firstShare.toClient().targetIdentifiers, { userId: firstFriendId });
+      assert.equal(secondShare.validateSync(), undefined);
+
+      assert.ok(hasIndex(FeedShare, { postId: 1, userId: 1, destination: 1, targetId: 1 }));
     },
   ],
   [
