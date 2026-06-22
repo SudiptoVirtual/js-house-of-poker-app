@@ -47,7 +47,7 @@ function FeedImage({ collage = false, media, onPress, targetWidth }: { collage?:
 }
 
 function FeedVideoPreviewModal({ media, onClose, visible }: { media?: FeedVideoMedia; onClose: () => void; visible: boolean }) {
-  const player = useVideoPlayer(media?.url ?? '', (nextPlayer) => {
+  const player = useVideoPlayer(media?.playableUrl || media?.url || '', (nextPlayer) => {
     nextPlayer.loop = false;
     nextPlayer.muted = false;
   });

@@ -77,8 +77,19 @@ export type FeedChatRoomContext = {
   visibility?: string;
 };
 
+export type FeedMediaProcessingStatus = 'pending' | 'processing' | 'ready' | 'failed' | null;
+
+export type FeedMediaVariant = {
+  height?: number | null;
+  mimeType?: string;
+  url: string;
+  width?: number | null;
+};
+
 export type FeedMediaMetadata = {
   size?: number;
+  sourceSize?: number;
+  processing?: Record<string, unknown>;
   [key: string]: unknown;
 };
 
@@ -87,7 +98,10 @@ type FeedMediaBase = {
   height: number | null;
   metadata: FeedMediaMetadata;
   mimeType: string;
+  playableUrl?: string;
+  processingStatus?: FeedMediaProcessingStatus;
   url: string;
+  variants?: Record<string, FeedMediaVariant>;
   width: number | null;
 };
 
@@ -99,6 +113,8 @@ export type FeedImageMedia = FeedMediaBase & {
 
 export type FeedVideoMedia = FeedMediaBase & {
   durationMs: number | null;
+  playableUrl: string;
+  processingStatus: Exclude<FeedMediaProcessingStatus, null>;
   thumbnailUrl: string;
   type: 'video';
 };

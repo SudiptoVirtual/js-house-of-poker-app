@@ -149,9 +149,12 @@ function normalizeMedia(value) {
       height: Number.isFinite(item?.height) ? Math.max(0, item.height) : null,
       metadata: item?.metadata && typeof item.metadata === "object" ? item.metadata : {},
       mimeType: normalizeText(item?.mimeType, 120),
+      playableUrl: normalizeText(item?.playableUrl || item?.url, 1000),
+      processingStatus: ["pending", "processing", "ready", "failed"].includes(item?.processingStatus) ? item.processingStatus : (item?.type === "video" ? "ready" : null),
       thumbnailUrl: normalizeText(item?.thumbnailUrl, 1000),
       type: normalizeText(item?.type, 20),
       url: normalizeText(item?.url, 1000),
+      variants: item?.variants && typeof item.variants === "object" ? item.variants : {},
       width: Number.isFinite(item?.width) ? Math.max(0, item.width) : null,
     }))
     .filter((item) => item.type && item.url);

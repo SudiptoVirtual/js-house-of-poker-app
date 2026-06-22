@@ -8,6 +8,7 @@ const POST_KINDS = ["standard", "table-invite", "share-win"];
 const POST_TYPES = ["text", "media", "table_invite", "win_share"];
 const PROMOTION_STATES = ["none", "pending", "active", "paused", "expired", "rejected"];
 const MEDIA_TYPES = ["image", "video", "clip", "link"];
+const MEDIA_PROCESSING_STATUSES = ["pending", "processing", "ready", "failed"];
 const REACTION_TYPES = ["support"];
 const SHARE_DESTINATIONS = ["copy-link", "profile", "feed", "chat-room", "table", "friend", "friends", "facebook", "external"];
 const SHARE_DESTINATION_ALIASES = new Map([
@@ -106,6 +107,16 @@ const mediaSchema = new mongoose.Schema(
       default: "",
       trim: true,
     },
+    playableUrl: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+    processingStatus: {
+      type: String,
+      enum: MEDIA_PROCESSING_STATUSES,
+      default: null,
+    },
     thumbnailUrl: {
       type: String,
       default: "",
@@ -120,6 +131,10 @@ const mediaSchema = new mongoose.Schema(
       type: String,
       required: true,
       trim: true,
+    },
+    variants: {
+      type: mongoose.Schema.Types.Mixed,
+      default: () => ({}),
     },
     width: {
       type: Number,
@@ -488,6 +503,7 @@ function resolveSupportedByCurrentPlayer(document, currentUserId) {
 }
 
 module.exports = {
+  MEDIA_PROCESSING_STATUSES,
   MEDIA_TYPES,
   MODERATION_STATUSES,
   PLAYER_STATUSES,
