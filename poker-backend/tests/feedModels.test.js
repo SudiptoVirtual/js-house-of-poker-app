@@ -255,9 +255,10 @@ const tests = [
   [
     "FeedShare maps frontend destinations and serializes share metadata",
     () => {
-      assert.deepEqual(SHARE_DESTINATIONS, ["copy-link", "profile", "feed", "chat-room", "table", "facebook", "external"]);
+      assert.deepEqual(SHARE_DESTINATIONS, ["copy-link", "profile", "feed", "chat-room", "table", "friends", "facebook", "external"]);
       assert.equal(normalizeShareDestination("fb"), "facebook");
       assert.equal(normalizeShareDestination("chatroom"), "chat-room");
+      assert.equal(normalizeShareDestination("friend"), "friends");
 
       const share = new FeedShare({
         destination: "fb",
