@@ -9,6 +9,7 @@ import { colors } from '../../theme/colors';
 type FeedVideoProps = {
   isActive: boolean;
   media: FeedVideoMedia;
+  onOpenFullScreen?: () => void;
   onRequestActive?: () => void;
 };
 
@@ -18,7 +19,7 @@ function mediaAspectRatio(media: FeedVideoMedia) {
     : 16 / 9;
 }
 
-export function FeedVideo({ isActive, media, onRequestActive }: FeedVideoProps) {
+export function FeedVideo({ isActive, media, onOpenFullScreen, onRequestActive }: FeedVideoProps) {
   const [isManuallyPaused, setIsManuallyPaused] = useState(false);
   const [isMuted, setIsMuted] = useState(true);
   const player = useVideoPlayer(media.url, (nextPlayer) => {
@@ -70,6 +71,11 @@ export function FeedVideo({ isActive, media, onRequestActive }: FeedVideoProps) 
         <Pressable accessibilityLabel={isMuted ? 'Enable video sound' : 'Mute video'} accessibilityRole="button" onPress={() => setIsMuted((current) => !current)} style={styles.controlButton}>
           <MaterialCommunityIcons color={colors.white} name={isMuted ? 'volume-off' : 'volume-high'} size={20} />
         </Pressable>
+        {onOpenFullScreen ? (
+          <Pressable accessibilityHint="Opens a full-screen video player" accessibilityLabel="Open video full screen" accessibilityRole="button" onPress={onOpenFullScreen} style={styles.controlButton}>
+            <MaterialCommunityIcons color={colors.white} name="arrow-expand" size={20} />
+          </Pressable>
+        ) : null}
         {media.durationMs != null ? <Text style={styles.duration}>{Math.floor(media.durationMs / 60000)}:{String(Math.floor(media.durationMs / 1000) % 60).padStart(2, '0')}</Text> : null}
       </View>
     </View>

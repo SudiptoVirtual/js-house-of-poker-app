@@ -51,6 +51,7 @@ test('image attachments render with preserved aspect ratio, loading state, and a
     '@expo/vector-icons': iconsMock,
     '../../theme/colors': colorsMock,
     './FeedVideo': { FeedVideo: () => null },
+    'expo-video': { VideoView: 'VideoView', useVideoPlayer: () => ({ pause() {} }) },
     '../media/ZoomableMediaViewer': { ZoomableMediaViewer: (props) => ({ type: 'ZoomableMediaViewerMock', props }) },
   });
   const gallery = FeedMediaGallery({ media: [image] });
@@ -72,6 +73,7 @@ test('video-only galleries render video attachments without reading a missing fi
     '@expo/vector-icons': iconsMock,
     '../../theme/colors': colorsMock,
     './FeedVideo': { FeedVideo: (props) => { feedVideoCalls.push(props); return { type: 'FeedVideoMock', props }; } },
+    'expo-video': { VideoView: 'VideoView', useVideoPlayer: () => ({ pause() {} }) },
     '../media/ZoomableMediaViewer': { ZoomableMediaViewer: (props) => ({ type: 'ZoomableMediaViewerMock', props }) },
   });
 
@@ -81,9 +83,30 @@ test('video-only galleries render video attachments without reading a missing fi
 
   assert.equal(feedVideoElement.props.media, video);
   assert.equal(feedVideoElement.props.isActive, true);
+  assert.equal(typeof feedVideoElement.props.onOpenFullScreen, 'function');
   assert.equal(findElements(gallery, (element) => element.type?.name === 'FeedImage').length, 0);
   feedVideoElement.type(feedVideoElement.props);
   assert.equal(feedVideoCalls.length, 1);
+});
+
+test('feed videos expose full-screen preview state and render a native-controls modal', () => {
+  const source = fs.readFileSync(path.resolve(__dirname, '../src/components/feed/FeedMediaGallery.tsx'), 'utf8');
+  assert.match(source, /previewVideoIndex/);
+  assert.match(source, /onOpenFullScreen=\{\(\) => setPreviewVideoIndex\(index\)\}/);
+  assert.match(source, /isActive=\{isActive && previewVideoIndex === null\}/);
+  assert.match(source, /<Modal[\s\S]*visible=\{visible\}/);
+  assert.match(source, /<VideoView[\s\S]*contentFit="contain"[\s\S]*nativeControls/);
+  assert.match(source, /player\.pause\(\)/);
+  assert.match(source, /onClose=\{\(\) => setPreviewVideoIndex\(null\)\}/);
+});
+
+test('feed video keeps play and mute controls separate from the full-screen affordance', () => {
+  const source = fs.readFileSync(path.resolve(__dirname, '../src/components/feed/FeedVideo.tsx'), 'utf8');
+  assert.match(source, /onOpenFullScreen\?: \(\) => void/);
+  assert.match(source, /accessibilityLabel="Open video full screen"/);
+  assert.match(source, /onPress=\{togglePlayback\}/);
+  assert.match(source, /setIsMuted\(\(current\) => !current\)/);
+  assert.match(source, /name="arrow-expand"/);
 });
 
 test('two-, four-, and five-image posts use compact cover-image collages', () => {
