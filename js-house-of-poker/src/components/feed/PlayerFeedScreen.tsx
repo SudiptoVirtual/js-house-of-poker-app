@@ -895,22 +895,32 @@ export function PlayerFeedScreen({ navigation, route }: PlayerFeedScreenProps) {
       });
     }
 
-    await saveFeedShare(
-      targetPost,
-      destination,
-      {
-        metadata: { deepLink, postUrl, sharedVia: destination },
-        targetId: targetPost.id,
-        targetType: 'feed-post',
-      },
-      sessionToken,
-    );
-    setFeedToast({
-      tone: 'success',
-      message: destination === 'facebook'
-        ? 'Facebook share recorded.'
-        : 'External share recorded.',
-    });
+    try {
+      await saveFeedShare(
+        targetPost,
+        destination,
+        {
+          metadata: { deepLink, postUrl, sharedVia: destination },
+          targetId: targetPost.id,
+          targetType: 'feed-post',
+        },
+        sessionToken,
+      );
+      setFeedToast({
+        tone: 'success',
+        message: destination === 'facebook'
+          ? 'Facebook share recorded.'
+          : 'External share recorded.',
+      });
+    } catch (error) {
+      const details = getApiErrorDetails(
+        error,
+        destination === 'facebook'
+          ? 'Facebook share could not be recorded.'
+          : 'External share could not be recorded.',
+      );
+      setFeedToast({ tone: 'error', message: details.message });
+    }
   }
 
   async function handleShare(selection: ShareSelection) {

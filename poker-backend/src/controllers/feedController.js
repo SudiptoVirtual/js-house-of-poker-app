@@ -1434,12 +1434,12 @@ async function createShare(req, res) {
       userId: req.user._id,
     });
     if (existingShare) {
-      return res.status(409).json({ message: "This post has already been shared to that destination" });
+      return res.status(409).json({ code: "DUPLICATE_FEED_SHARE", message: "This post has already been shared to that destination" });
     }
 
     const recentShare = await findRecentShare({ destination, postId, userId: req.user._id });
     if (recentShare) {
-      return res.status(429).json({ message: "Please wait before sharing this post to that destination again" });
+      return res.status(429).json({ code: "FEED_SHARE_RATE_LIMITED", message: "Please wait before sharing this post to that destination again" });
     }
 
     const share = await FeedShare.create({ ...shareInput, postId, userId: req.user._id });
@@ -1466,7 +1466,11 @@ async function createShare(req, res) {
     return res.status(201).json(eventPayload);
   } catch (error) {
     if (error?.code === 11000) {
-      return res.status(409).json({ message: "This post has already been shared to that destination" });
+      return res.status(409).json({ code: "DUPLICATE_FEED_SHARE", message: "This post has already been shared to that destination" });
+    }
+
+    if (error?.name === "ValidationError") {
+      return res.status(400).json({ code: "INVALID_FEED_SHARE", message: "Invalid share payload" });
     }
 
     return sendServerError(res, error, "Unable to share feed post");
