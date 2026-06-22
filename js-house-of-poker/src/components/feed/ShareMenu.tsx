@@ -12,13 +12,11 @@ type BackendShareDestination = {
 };
 
 const shareDestinations: BackendShareDestination[] = [
-  { icon: 'link-variant', id: 'copy-link', label: 'Copy Link' },
-  { icon: 'account-circle-outline', id: 'profile', label: 'Share to Profile' },
+  { icon: 'link-variant', id: 'copy-link', label: 'Copy link' },
   { icon: 'newspaper-variant-outline', id: 'feed', label: 'Share to Feed' },
   { icon: 'forum-outline', id: 'chat-room', label: 'Share to Chat Room' },
-  { icon: 'poker-chip', id: 'table', label: 'Share to Table' },
+  { icon: 'account-multiple-outline', id: 'friends', label: 'Share with friends' },
   { icon: 'facebook', id: 'facebook', label: 'Share to Facebook' },
-  { icon: 'share-variant-outline', id: 'external', label: 'Share Externally' },
 ];
 
 type ShareTargetOption = {
@@ -41,7 +39,6 @@ type ShareMenuProps = {
   friendOptions: ShareTargetOption[];
   onShare: (selection: ShareSelection) => void | Promise<void>;
   post: FeedPost | null;
-  tableOptions: ShareTargetOption[];
   visible: boolean;
 };
 
@@ -52,7 +49,6 @@ export function ShareMenu({
   onPromote,
   onShare,
   post,
-  tableOptions,
   visible,
 }: ShareMenuProps) {
   const [loadingSelectionKey, setLoadingSelectionKey] = useState<string | null>(null);
@@ -82,7 +78,7 @@ export function ShareMenu({
   }
 
   function handleDestinationPress(destination: BackendShareDestination) {
-    if (destination.id === 'chat-room' || destination.id === 'table') {
+    if (destination.id === 'chat-room' || destination.id === 'friends') {
       return;
     }
 
@@ -136,62 +132,14 @@ export function ShareMenu({
             Share increases visibility. Promote for Creator is a separate paid
             sponsorship placeholder.
           </Text>
-          <View style={styles.friendsSection}>
-            <View style={styles.friendsHeaderRow}>
-              <MaterialCommunityIcons
-                color={colors.secondary}
-                name="account-multiple-outline"
-                size={18}
-              />
-              <Text style={styles.friendsTitle}>Send to friends</Text>
-            </View>
-            {friendOptions.length > 0 ? (
-              <View style={styles.friendButtonWrap}>
-                {friendOptions.map((friend) => {
-                  const selection = { destinationId: 'friends' as const, targetUserId: friend.id };
-                  const isFriendLoading = loadingSelectionKey === getSelectionKey(selection);
-
-                  return (
-                    <Pressable
-                      accessibilityRole="button"
-                      disabled={Boolean(loadingSelectionKey)}
-                      key={friend.id}
-                      onPress={() => { void handleShare(selection); }}
-                      style={({ pressed }) => [
-                        styles.friendButton,
-                        pressed ? styles.destinationPressed : null,
-                      ]}
-                    >
-                      {isFriendLoading ? (
-                        <ActivityIndicator color={colors.secondary} size="small" />
-                      ) : (
-                        <MaterialCommunityIcons
-                          color={colors.secondary}
-                          name="account-outline"
-                          size={16}
-                        />
-                      )}
-                      <Text numberOfLines={1} style={styles.friendButtonText}>
-                        {friend.label}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
-            ) : (
-              <Text style={styles.emptyTargetText}>
-                Add friends to share posts directly.
-              </Text>
-            )}
-          </View>
           <View style={styles.destinationStack}>
             {shareDestinations.map((destination) => {
               const isChatRoomDestination = destination.id === 'chat-room';
-              const isTableDestination = destination.id === 'table';
+              const isFriendsDestination = destination.id === 'friends';
               const targetOptions = isChatRoomDestination
                 ? chatRoomOptions
-                : isTableDestination
-                  ? tableOptions
+                : isFriendsDestination
+                  ? friendOptions
                   : [];
               const destinationSelectionKey = getSelectionKey({ destinationId: destination.id });
               const isDestinationLoading = loadingSelectionKey === destinationSelectionKey;
@@ -200,11 +148,11 @@ export function ShareMenu({
                 <View key={destination.id} style={styles.destinationGroup}>
                   <Pressable
                     accessibilityRole="button"
-                    disabled={Boolean(loadingSelectionKey) || isChatRoomDestination || isTableDestination}
+                    disabled={Boolean(loadingSelectionKey) || isChatRoomDestination || isFriendsDestination}
                     onPress={() => handleDestinationPress(destination)}
                     style={({ pressed }) => [
                       styles.destination,
-                      isChatRoomDestination || isTableDestination
+                      isChatRoomDestination || isFriendsDestination
                         ? styles.destinationHeader
                         : null,
                       pressed ? styles.destinationPressed : null,
@@ -223,13 +171,13 @@ export function ShareMenu({
                       {destination.label}
                     </Text>
                   </Pressable>
-                  {isChatRoomDestination || isTableDestination ? (
+                  {isChatRoomDestination || isFriendsDestination ? (
                     targetOptions.length > 0 ? (
                       <View style={styles.targetStack}>
                         {targetOptions.map((option) => {
                           const selection = isChatRoomDestination
                             ? { destinationId: 'chat-room' as const, roomId: option.id }
-                            : { destinationId: 'table' as const, tableId: option.id };
+                            : { destinationId: 'friends' as const, targetUserId: option.id };
                           const isTargetLoading = loadingSelectionKey === getSelectionKey(selection);
 
                           return <Pressable
@@ -268,7 +216,7 @@ export function ShareMenu({
                       <Text style={styles.emptyTargetText}>
                         {isChatRoomDestination
                           ? 'No chat rooms are available to share into right now.'
-                          : 'No active or post table is available to share into right now.'}
+                          : 'Add friends to share posts directly.'}
                       </Text>
                     )
                   ) : null}

@@ -403,39 +403,6 @@ export function PlayerFeedScreen({ navigation, route }: PlayerFeedScreenProps) {
     [friends],
   );
 
-  const tableShareOptions = useMemo<ShareTargetOption[]>(() => {
-    const options = new Map<string, ShareTargetOption>();
-
-    if (activeTableId) {
-      options.set(activeTableId, {
-        helperText: 'Your current live table',
-        id: activeTableId,
-        label: `Active table ${activeTableCode ?? activeTableId}`,
-      });
-    }
-
-    if (sharePost?.tableContext?.tableId) {
-      options.set(sharePost.tableContext.tableId, {
-        helperText: sharePost.tableContext.gameLabel,
-        id: sharePost.tableContext.tableId,
-        label: sharePost.tableContext.tableName,
-      });
-    }
-
-    if (
-      sharePost?.tableContext?.tableCode &&
-      !options.has(sharePost.tableContext.tableCode)
-    ) {
-      options.set(sharePost.tableContext.tableCode, {
-        helperText: sharePost.tableContext.gameLabel,
-        id: sharePost.tableContext.tableCode,
-        label: sharePost.tableContext.tableName,
-      });
-    }
-
-    return [...options.values()];
-  }, [activeTableCode, activeTableId, sharePost]);
-
   async function handleCreatePost(input: ComposeFeedPostInput) {
     if (!token || !currentUser) {
       const error = new Error('Sign in to publish posts to the player feed.') as ToastAwareError;
@@ -1337,7 +1304,6 @@ export function PlayerFeedScreen({ navigation, route }: PlayerFeedScreenProps) {
         onPromote={() => setPromotePost(sharePost)}
         onShare={handleShare}
         post={sharePost}
-        tableOptions={tableShareOptions}
         visible={Boolean(sharePost)}
       />
       <GiftClipsModal
