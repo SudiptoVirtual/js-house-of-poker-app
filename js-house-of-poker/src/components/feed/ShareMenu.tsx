@@ -11,11 +11,14 @@ type BackendShareDestination = {
   label: string;
 };
 
+const INITIAL_VISIBLE_FRIEND_COUNT = 5;
+const FRIEND_COUNT_INCREMENT = 5;
+
 const shareDestinations: BackendShareDestination[] = [
   { icon: 'link-variant', id: 'copy-link', label: 'Copy link' },
   { icon: 'newspaper-variant-outline', id: 'feed', label: 'Share to Feed' },
   { icon: 'forum-outline', id: 'chat-room', label: 'Share to Chat Room' },
-  { icon: 'account-outline', id: 'friend', label: 'Share with friend' },
+  { icon: 'account-outline', id: 'friend', label: 'Share with friends' },
   { icon: 'facebook', id: 'facebook', label: 'Share to Facebook' },
 ];
 
@@ -53,13 +56,21 @@ export function ShareMenu({
 }: ShareMenuProps) {
   const [loadingSelectionKey, setLoadingSelectionKey] = useState<string | null>(null);
   const [isChatRoomsExpanded, setIsChatRoomsExpanded] = useState(false);
+  const [isFriendsExpanded, setIsFriendsExpanded] = useState(false);
+  const [visibleFriendCount, setVisibleFriendCount] = useState(INITIAL_VISIBLE_FRIEND_COUNT);
 
   useEffect(() => {
     if (!visible) {
       setLoadingSelectionKey(null);
       setIsChatRoomsExpanded(false);
+      setIsFriendsExpanded(false);
+      setVisibleFriendCount(INITIAL_VISIBLE_FRIEND_COUNT);
     }
   }, [visible]);
+
+  useEffect(() => {
+    setVisibleFriendCount(INITIAL_VISIBLE_FRIEND_COUNT);
+  }, [post?.id]);
 
   function getSelectionKey(selection: ShareSelection) {
     return `${selection.destinationId}:${selection.targetUserId ?? selection.roomId ?? selection.tableId ?? ''}`;
@@ -86,6 +97,7 @@ export function ShareMenu({
     }
 
     if (destination.id === 'friend') {
+      setIsFriendsExpanded((isExpanded) => !isExpanded);
       return;
     }
 
@@ -146,7 +158,7 @@ export function ShareMenu({
               const targetOptions = isChatRoomDestination
                 ? chatRoomOptions
                 : isFriendsDestination
-                  ? friendOptions
+                  ? friendOptions.slice(0, visibleFriendCount)
                   : [];
               const destinationSelectionKey = getSelectionKey({ destinationId: destination.id });
               const isDestinationLoading = loadingSelectionKey === destinationSelectionKey;
@@ -155,8 +167,14 @@ export function ShareMenu({
                 <View key={destination.id} style={styles.destinationGroup}>
                   <Pressable
                     accessibilityRole="button"
-                    accessibilityState={isChatRoomDestination ? { expanded: isChatRoomsExpanded } : undefined}
-                    disabled={Boolean(loadingSelectionKey) || isFriendsDestination}
+                    accessibilityState={
+                      isChatRoomDestination
+                        ? { expanded: isChatRoomsExpanded }
+                        : isFriendsDestination
+                          ? { expanded: isFriendsExpanded }
+                          : undefined
+                    }
+                    disabled={Boolean(loadingSelectionKey)}
                     onPress={() => handleDestinationPress(destination)}
                     style={({ pressed }) => [
                       styles.destination,
@@ -178,15 +196,20 @@ export function ShareMenu({
                     <Text style={styles.destinationLabel}>
                       {destination.label}
                     </Text>
-                    {isChatRoomDestination ? (
+                    {isChatRoomDestination || isFriendsDestination ? (
                       <MaterialCommunityIcons
                         color={colors.mutedText}
-                        name={isChatRoomsExpanded ? 'chevron-up' : 'chevron-down'}
+                        name={
+                          (isChatRoomDestination && isChatRoomsExpanded)
+                            || (isFriendsDestination && isFriendsExpanded)
+                            ? 'chevron-up'
+                            : 'chevron-down'
+                        }
                         size={20}
                       />
                     ) : null}
                   </Pressable>
-                  {(isChatRoomDestination && isChatRoomsExpanded) || isFriendsDestination ? (
+                  {(isChatRoomDestination && isChatRoomsExpanded) || (isFriendsDestination && isFriendsExpanded) ? (
                     targetOptions.length > 0 ? (
                       <View style={styles.targetStack}>
                         {targetOptions.map((option) => {
@@ -226,12 +249,27 @@ export function ShareMenu({
                             )}
                           </Pressable>
                         })}
+                        {isFriendsDestination && friendOptions.length > visibleFriendCount ? (
+                          <Pressable
+                            accessibilityRole="button"
+                            disabled={Boolean(loadingSelectionKey)}
+                            onPress={() => {
+                              setVisibleFriendCount((count) => count + FRIEND_COUNT_INCREMENT);
+                            }}
+                            style={({ pressed }) => [
+                              styles.loadMoreButton,
+                              pressed ? styles.destinationPressed : null,
+                            ]}
+                          >
+                            <Text style={styles.loadMoreButtonText}>Load more</Text>
+                          </Pressable>
+                        ) : null}
                       </View>
                     ) : (
                       <Text style={styles.emptyTargetText}>
                         {isChatRoomDestination
                           ? 'No chat rooms are available to share into right now.'
-                          : 'Add friends to share posts directly.'}
+                          : 'No friends available to share with yet.'}
                       </Text>
                     )
                   ) : null}
@@ -358,6 +396,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flexDirection: 'row',
     justifyContent: 'space-between',
+  },
+  loadMoreButton: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderColor: colors.border,
+    borderRadius: 14,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  loadMoreButtonText: {
+    color: colors.text,
+    fontSize: 13,
+    fontWeight: '900',
   },
   helperText: {
     color: colors.mutedText,
