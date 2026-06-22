@@ -3,6 +3,7 @@ import {
   AppState,
   Clipboard,
   FlatList,
+  Image,
   Keyboard,
   Linking,
   Platform,
@@ -196,6 +197,7 @@ export function PlayerFeedScreen({ mode = 'feed', navigation, route }: PlayerFee
   const { joinTable, roomState } = usePoker();
   const feedListRef = useRef<FlatList<FeedPost>>(null);
   const feedScrollOffsetRef = useRef(0);
+  const postsRef = useRef<FeedPost[]>([]);
   const isMountedRef = useRef(true);
   const [posts, setPosts] = useState<FeedPost[]>([]);
   const [feedLoadState, setFeedLoadState] = useState<FeedLoadState>('idle');
@@ -215,6 +217,10 @@ export function PlayerFeedScreen({ mode = 'feed', navigation, route }: PlayerFee
     AppState.currentState === 'active',
   );
   const [feedToast, setFeedToast] = useState<FeedToast>(null);
+
+  useEffect(() => {
+    postsRef.current = posts;
+  }, [posts]);
 
   const isProfileHistoryMode = mode === 'profile-history';
   const routeParams = route.name === routes.Feed ? route.params : undefined;
@@ -420,7 +426,7 @@ export function PlayerFeedScreen({ mode = 'feed', navigation, route }: PlayerFee
   }, []);
 
   const handleViewableItemsChanged = useRef(
-    ({ viewableItems }: { viewableItems: Array<{ isViewable: boolean; item: FeedPost }> }) => {
+    ({ viewableItems }: { viewableItems: Array<{ index: number | null; isViewable: boolean; item: FeedPost }> }) => {
       setActiveVideoPostId(
         selectActiveVideoPostId(
           viewableItems.map(({ isViewable, item }) => ({
@@ -430,9 +436,28 @@ export function PlayerFeedScreen({ mode = 'feed', navigation, route }: PlayerFee
           })),
         ),
       );
+
+      const visibleIndices = viewableItems
+        .filter(({ index, isViewable }) => isViewable && index != null)
+        .map(({ index }) => index as number);
+      const nearbyVideoThumbnailUrls = new Set<string>();
+
+      for (const visibleIndex of visibleIndices) {
+        for (let index = Math.max(0, visibleIndex - 1); index <= visibleIndex + 2; index += 1) {
+          const nearbyPost = postsRef.current[index];
+          nearbyPost?.media.forEach((media) => {
+            const thumbnailUrl = media.type === 'video' && typeof media.thumbnailUrl === 'string' ? media.thumbnailUrl.trim() : '';
+            if (thumbnailUrl) nearbyVideoThumbnailUrls.add(thumbnailUrl);
+          });
+        }
+      }
+
+      nearbyVideoThumbnailUrls.forEach((thumbnailUrl) => {
+        void Image.prefetch(thumbnailUrl);
+      });
     },
   ).current;
-  const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 10 }).current;
+  const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 50 }).current;
 
   const focusedNotification = useMemo(
     () => notifications.find((notification) => notification.id === focusedNotificationId) ?? null,
