@@ -38,6 +38,9 @@ type BackendFriendPlayer = {
   handle?: string;
   id?: BackendId;
   isOnline?: boolean;
+  lastActiveAt?: string | null;
+  lastInteractionAt?: string | null;
+  lastMessageAt?: string | null;
   name?: string;
   playerStatus?: string | { tier?: string; status?: string } | null;
   relationshipStatus?: BackendRelationshipStatus;
@@ -45,6 +48,7 @@ type BackendFriendPlayer = {
   requestId?: BackendId;
   status?: string;
   statusIcon?: string;
+  updatedAt?: string | null;
   userId?: BackendId;
   username?: string;
 };
@@ -143,6 +147,10 @@ function getPlayersFromResponse(response: FriendListResponse) {
   return response.friends ?? response.players ?? response.requests ?? response.users ?? response.results ?? [];
 }
 
+function getRecentActivityAt(player: BackendFriendPlayer): string | undefined {
+  return player.lastActiveAt ?? player.lastInteractionAt ?? player.lastMessageAt ?? player.updatedAt ?? undefined;
+}
+
 function toFriendsPlayer(player: BackendFriendPlayer, defaultRelationshipStatus: RelationshipStatus): FriendsPlayer | null {
   const id = normalizeIdentifier(player.userId ?? player.id ?? player._id);
 
@@ -158,6 +166,7 @@ function toFriendsPlayer(player: BackendFriendPlayer, defaultRelationshipStatus:
     displayName,
     id,
     isOnline: Boolean(player.isOnline),
+    recentActivityAt: getRecentActivityAt(player),
     relationshipStatus: player.relationshipStatus
       ? normalizeRelationshipStatus(player.relationshipStatus)
       : defaultRelationshipStatus,
