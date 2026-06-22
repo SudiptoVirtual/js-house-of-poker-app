@@ -52,10 +52,12 @@ export function ShareMenu({
   visible,
 }: ShareMenuProps) {
   const [loadingSelectionKey, setLoadingSelectionKey] = useState<string | null>(null);
+  const [isChatRoomsExpanded, setIsChatRoomsExpanded] = useState(false);
 
   useEffect(() => {
     if (!visible) {
       setLoadingSelectionKey(null);
+      setIsChatRoomsExpanded(false);
     }
   }, [visible]);
 
@@ -78,7 +80,12 @@ export function ShareMenu({
   }
 
   function handleDestinationPress(destination: BackendShareDestination) {
-    if (destination.id === 'chat-room' || destination.id === 'friends') {
+    if (destination.id === 'chat-room') {
+      setIsChatRoomsExpanded((isExpanded) => !isExpanded);
+      return;
+    }
+
+    if (destination.id === 'friends') {
       return;
     }
 
@@ -148,7 +155,8 @@ export function ShareMenu({
                 <View key={destination.id} style={styles.destinationGroup}>
                   <Pressable
                     accessibilityRole="button"
-                    disabled={Boolean(loadingSelectionKey) || isChatRoomDestination || isFriendsDestination}
+                    accessibilityState={isChatRoomDestination ? { expanded: isChatRoomsExpanded } : undefined}
+                    disabled={Boolean(loadingSelectionKey) || isFriendsDestination}
                     onPress={() => handleDestinationPress(destination)}
                     style={({ pressed }) => [
                       styles.destination,
@@ -170,8 +178,15 @@ export function ShareMenu({
                     <Text style={styles.destinationLabel}>
                       {destination.label}
                     </Text>
+                    {isChatRoomDestination ? (
+                      <MaterialCommunityIcons
+                        color={colors.mutedText}
+                        name={isChatRoomsExpanded ? 'chevron-up' : 'chevron-down'}
+                        size={20}
+                      />
+                    ) : null}
                   </Pressable>
-                  {isChatRoomDestination || isFriendsDestination ? (
+                  {(isChatRoomDestination && isChatRoomsExpanded) || isFriendsDestination ? (
                     targetOptions.length > 0 ? (
                       <View style={styles.targetStack}>
                         {targetOptions.map((option) => {
