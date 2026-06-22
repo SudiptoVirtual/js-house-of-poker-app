@@ -133,6 +133,36 @@ type ShareTargetOption = {
   label: string;
 };
 
+function getRecentActivityTime(friend: FriendsPlayer) {
+  if (!friend.recentActivityAt) {
+    return 0;
+  }
+
+  const time = new Date(friend.recentActivityAt).getTime();
+
+  return Number.isNaN(time) ? 0 : time;
+}
+
+function sortShareFriendsByRecentActivity(friends: FriendsPlayer[]) {
+  return [...friends].sort((left, right) => {
+    const activityDifference = getRecentActivityTime(right) - getRecentActivityTime(left);
+
+    if (activityDifference !== 0) {
+      return activityDifference;
+    }
+
+    if (left.isOnline !== right.isOnline) {
+      return left.isOnline ? -1 : 1;
+    }
+
+    const leftName = left.displayName || left.username || `Player ${left.id.slice(-6)}`;
+    const rightName = right.displayName || right.username || `Player ${right.id.slice(-6)}`;
+    const nameDifference = leftName.localeCompare(rightName, undefined, { sensitivity: 'base' });
+
+    return nameDifference || left.id.localeCompare(right.id);
+  });
+}
+
 function getFriendShareHelperText(friend: FriendsPlayer) {
   if (friend.activityStatus === 'at_table') {
     return 'At a table';
@@ -417,8 +447,7 @@ export function PlayerFeedScreen({ navigation, route }: PlayerFeedScreenProps) {
 
   const friendShareOptions = useMemo<ShareTargetOption[]>(
     () =>
-      shareFriends
-        .filter((friend) => friend.relationshipStatus === 'friend')
+      sortShareFriendsByRecentActivity(shareFriends.filter((friend) => friend.relationshipStatus === 'friend'))
         .map((friend) => ({
           helperText: getFriendShareHelperText(friend),
           id: friend.id,

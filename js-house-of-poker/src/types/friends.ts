@@ -20,5 +20,6 @@ export type FriendsPlayer = {
   isOnline: boolean;
   activityStatus: PlayerActivityStatus;
   relationshipStatus: RelationshipStatus;
+  recentActivityAt?: string;
   requestId?: string;
 };

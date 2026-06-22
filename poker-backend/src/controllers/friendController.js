@@ -153,6 +153,7 @@ function serializeFriend(user) {
     status: user.status,
     playerStatus: user.playerStatus?.tier || "NO_STATUS",
     statusIcon: user.playerStatus?.iconKey || "badge-no-status",
+    lastActiveAt: user.lastLoginAt || user.updatedAt || null,
   };
 }
 
@@ -709,7 +710,7 @@ const getFriendList = async (req, res) => {
       .populate({
         path: "friends",
         match: { isBlocked: { $ne: true }, status: { $nin: ["blocked", "suspended"] } },
-        select: "name email avatar isOnline status playerStatus",
+        select: "name email avatar isOnline status playerStatus lastLoginAt updatedAt",
       });
 
     const friends = (user?.friends || []).filter(Boolean).map(serializeFriend);
