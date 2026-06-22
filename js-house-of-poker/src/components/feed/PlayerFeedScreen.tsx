@@ -84,8 +84,9 @@ type FeedToast = { tone: 'success' | 'error'; message: string } | null;
 type ToastAwareError = Error & { feedToastShown?: boolean };
 
 type PlayerFeedScreenProps = {
-  navigation: NativeStackNavigationProp<RootStackParamList, 'Feed'>;
-  route: RouteProp<RootStackParamList, 'Feed'>;
+  mode?: 'feed' | 'profile-history';
+  navigation: NativeStackNavigationProp<RootStackParamList, 'Feed' | 'MyFeed'>;
+  route: RouteProp<RootStackParamList, 'Feed' | 'MyFeed'>;
 };
 
 function buildCurrentUserHandle(user: {
@@ -187,7 +188,7 @@ function getFriendShareHelperText(friend: FriendsPlayer) {
   return friend.username || 'Friend';
 }
 
-export function PlayerFeedScreen({ navigation, route }: PlayerFeedScreenProps) {
+export function PlayerFeedScreen({ mode = 'feed', navigation, route }: PlayerFeedScreenProps) {
   const { currentUser, token } = useAuth();
   const insets = useSafeAreaInsets();
   const isKeyboardVisible = useKeyboardVisible();
@@ -215,8 +216,10 @@ export function PlayerFeedScreen({ navigation, route }: PlayerFeedScreenProps) {
   );
   const [feedToast, setFeedToast] = useState<FeedToast>(null);
 
-  const focusedNotificationId = route.params?.notificationId ?? null;
-  const focusedPostId = route.params?.postId ?? null;
+  const isProfileHistoryMode = mode === 'profile-history';
+  const routeParams = route.name === routes.Feed ? route.params : undefined;
+  const focusedNotificationId = routeParams?.notificationId ?? null;
+  const focusedPostId = routeParams?.postId ?? null;
   const activeTableCode = roomState?.roomId ?? null;
   const activeTableId = roomState?.tableId ?? roomState?.roomId ?? null;
   const currentPlayer = useMemo<FeedPlayer | undefined>(
@@ -286,8 +289,20 @@ export function PlayerFeedScreen({ navigation, route }: PlayerFeedScreenProps) {
     }
 
     try {
+      if (isProfileHistoryMode && !currentUser?.id) {
+        setPosts([]);
+        setFeedLoadState('session-expired');
+        setFeedLoadMessage('Sign in to view your feed history.');
+        return;
+      }
+
       const session = await getAuthSession();
-      const response = await fetchFeedPosts(session?.token ?? null);
+      const response = await fetchFeedPosts(
+        session?.token ?? null,
+        isProfileHistoryMode && currentUser?.id
+          ? { authorUserId: currentUser.id }
+          : {},
+      );
 
       if (!isMountedRef.current) {
         return;
@@ -322,7 +337,7 @@ export function PlayerFeedScreen({ navigation, route }: PlayerFeedScreenProps) {
         setIsRefreshingFeed(false);
       }
     }
-  }, []);
+  }, [currentUser?.id, isProfileHistoryMode]);
 
   useEffect(() => {
     isMountedRef.current = true;
@@ -428,11 +443,16 @@ export function PlayerFeedScreen({ navigation, route }: PlayerFeedScreenProps) {
   );
 
   const feedSubtitle = useMemo(
-    () =>
-      activeTableCode
+    () => {
+      if (isProfileHistoryMode) {
+        return 'Review your published posts with owner controls for editing or deleting your history.';
+      }
+
+      return activeTableCode
         ? `Discover players, support creators, and route invites through active table ${activeTableCode}.`
-        : 'Discover players, support creators, and turn table talk into future invites.',
-    [activeTableCode],
+        : 'Discover players, support creators, and turn table talk into future invites.';
+    },
+    [activeTableCode, isProfileHistoryMode],
   );
 
   const chatRoomShareOptions = useMemo<ShareTargetOption[]>(
@@ -1229,30 +1249,42 @@ export function PlayerFeedScreen({ navigation, route }: PlayerFeedScreenProps) {
             <View style={styles.emptyState}>
               <Text style={styles.emptyTitle}>
                 {feedLoadState === 'loading'
-                  ? 'Loading feed…'
+                  ? isProfileHistoryMode
+                    ? 'Loading your posts…'
+                    : 'Loading feed…'
                   : feedLoadState === 'session-expired'
                     ? 'Session expired'
                     : feedLoadState === 'error'
                       ? 'Feed unavailable'
-                      : 'No feed posts yet'}
+                      : isProfileHistoryMode
+                        ? 'No posts in your history yet'
+                        : 'No feed posts yet'}
               </Text>
               <Text style={styles.emptyText}>
                 {feedLoadState === 'loading'
-                  ? 'Fetching the latest persisted posts from the backend.'
+                  ? isProfileHistoryMode
+                    ? 'Fetching your latest persisted posts from the backend.'
+                    : 'Fetching the latest persisted posts from the backend.'
                   : feedLoadState === 'session-expired'
                     ? 'Sign in again to refresh your player feed and publish new posts.'
                     : feedLoadState === 'error'
                       ? feedLoadMessage ||
                         'Unable to load feed posts right now. Pull back later after the backend is reachable.'
-                      : 'The backend feed is empty. Be the first to start table talk by publishing a post.'}
+                      : isProfileHistoryMode
+                        ? 'Publish posts from the main feed to build your profile history.'
+                        : 'The backend feed is empty. Be the first to start table talk by publishing a post.'}
               </Text>
             </View>
           }
           ListHeaderComponent={
             <View style={styles.headerStack}>
               <View style={styles.screenHeader}>
-                <Text style={styles.eyebrow}>Player Feed</Text>
-                <Text style={styles.title}>Table Talk</Text>
+                <Text style={styles.eyebrow}>
+                  {isProfileHistoryMode ? 'Profile history' : 'Player Feed'}
+                </Text>
+                <Text style={styles.title}>
+                  {isProfileHistoryMode ? 'My Feed' : 'Table Talk'}
+                </Text>
                 <Text style={styles.subtitle}>{feedSubtitle}</Text>
                 {focusedNotification ? (
                   <View style={styles.notificationCallout}>
@@ -1266,20 +1298,22 @@ export function PlayerFeedScreen({ navigation, route }: PlayerFeedScreenProps) {
                   </View>
                 ) : null}
               </View>
-              <FeedPostBox
-                canInviteToTable={Boolean(activeTableCode && activeTableId)}
-                currentPlayer={currentPlayer}
-                isAuthenticated={Boolean(token && currentUser)}
-                onCreatePost={handleCreatePost}
-                onToast={setFeedToast}
-                onUploadAttachment={(attachment) => {
-                  if (!token) throw new Error('Sign in to upload attachments.');
-                  return uploadFeedMedia(attachment, token);
-                }}
-                onOpenProfile={(player: FeedPostBoxProfile) =>
-                  handleOpenProfile(player.id)
-                }
-              />
+              {!isProfileHistoryMode ? (
+                <FeedPostBox
+                  canInviteToTable={Boolean(activeTableCode && activeTableId)}
+                  currentPlayer={currentPlayer}
+                  isAuthenticated={Boolean(token && currentUser)}
+                  onCreatePost={handleCreatePost}
+                  onToast={setFeedToast}
+                  onUploadAttachment={(attachment) => {
+                    if (!token) throw new Error('Sign in to upload attachments.');
+                    return uploadFeedMedia(attachment, token);
+                  }}
+                  onOpenProfile={(player: FeedPostBoxProfile) =>
+                    handleOpenProfile(player.id)
+                  }
+                />
+              ) : null}
             </View>
           }
           refreshControl={
@@ -1295,6 +1329,7 @@ export function PlayerFeedScreen({ navigation, route }: PlayerFeedScreenProps) {
           }
           renderItem={({ item }) => (
             <FeedPostCard
+              actionMode={isProfileHistoryMode ? 'owner-only' : 'full'}
               actionsDisabled={Boolean(getPostActionDisabledMessage(item))}
               actionsDisabledMessage={getPostActionDisabledMessage(item)}
               currentUserId={currentUser?.id}

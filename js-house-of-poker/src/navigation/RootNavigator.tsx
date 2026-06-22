@@ -14,6 +14,7 @@ import { FriendsScreen } from '../screens/FriendsScreen';
 import { GameScreen } from '../screens/GameScreen';
 import { HomeScreen } from '../screens/HomeScreen';
 import { LoginScreen } from '../screens/LoginScreen';
+import { MyFeedScreen } from '../screens/MyFeedScreen';
 import { PlayerDirectoryScreen } from '../screens/PlayerDirectoryScreen';
 import { ProfileScreen } from '../screens/ProfileScreen';
 import { UserProfileScreen } from '../screens/UserProfileScreen';
@@ -115,6 +116,11 @@ export function RootNavigator() {
           name={routes.Feed}
           component={FeedScreen}
           options={{ title: 'Feed' }}
+        />
+        <Stack.Screen
+          name={routes.MyFeed}
+          component={MyFeedScreen}
+          options={{ title: 'My Feed' }}
         />
         <Stack.Screen
           name={routes.PlayerDirectory}

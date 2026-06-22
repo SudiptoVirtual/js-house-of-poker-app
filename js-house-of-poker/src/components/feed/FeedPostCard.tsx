@@ -47,6 +47,7 @@ type FeedCommentDeleteResult = {
 };
 
 type FeedPostCardProps = {
+  actionMode?: "full" | "owner-only";
   actionsDisabled?: boolean;
   isActive?: boolean;
   actionsDisabledMessage?: string;
@@ -88,6 +89,7 @@ type FeedPostCardProps = {
 };
 
 export function FeedPostCard({
+  actionMode = "full",
   actionsDisabled = false,
   actionsDisabledMessage = "Sign in and refresh the feed before using post actions.",
   currentUserId,
@@ -138,6 +140,7 @@ export function FeedPostCard({
     currentUserId &&
       (post.authorUserId === currentUserId || post.player.id === currentUserId),
   );
+  const showFeedActions = actionMode === "full";
 
   const statsLine = useMemo(() => {
     const stats = [
@@ -520,23 +523,25 @@ export function FeedPostCard({
         </View>
       ) : null}
 
-      <FeedActionBar
-        actionsDisabled={actionsDisabled}
-        commentLoading={commentPanelLoadState === "loading"}
-        inviteLoading={isInvitingToTable}
-        isSupported={Boolean(post.supportedByCurrentPlayer)}
-        isTableRelated={post.postKind === "table-invite"}
-        supportersCount={post.supportersCount}
-        onComment={handleToggleCommentPanel}
-        onGiftClips={() => guardAction(() => onGiftClips(post))}
-        onJoinTable={() => guardAction(() => { void handleInviteToTable(); })}
-        onPromote={() => guardAction(() => onPromote(post))}
-        onShare={() => guardAction(() => onShare(post))}
-        onSupport={() => guardAction(() => { void handleSupport(); })}
-        supportLoading={isSupporting}
-      />
+      {showFeedActions ? (
+        <FeedActionBar
+          actionsDisabled={actionsDisabled}
+          commentLoading={commentPanelLoadState === "loading"}
+          inviteLoading={isInvitingToTable}
+          isSupported={Boolean(post.supportedByCurrentPlayer)}
+          isTableRelated={post.postKind === "table-invite"}
+          supportersCount={post.supportersCount}
+          onComment={handleToggleCommentPanel}
+          onGiftClips={() => guardAction(() => onGiftClips(post))}
+          onJoinTable={() => guardAction(() => { void handleInviteToTable(); })}
+          onPromote={() => guardAction(() => onPromote(post))}
+          onShare={() => guardAction(() => onShare(post))}
+          onSupport={() => guardAction(() => { void handleSupport(); })}
+          supportLoading={isSupporting}
+        />
+      ) : null}
 
-      {isCommentPanelVisible ? (
+      {showFeedActions && isCommentPanelVisible ? (
         <View style={styles.commentStack}>
           <View style={styles.persistedComments}>
             {commentPanelLoadState === "loading" ? (

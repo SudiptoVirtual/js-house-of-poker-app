@@ -23,6 +23,7 @@ export type RootStackParamList = {
         postId?: string;
       }
     | undefined;
+  MyFeed: undefined;
   PlayerDirectory: undefined;
   Game:
     | {

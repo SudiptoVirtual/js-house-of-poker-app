@@ -271,6 +271,13 @@ export function ProfileScreen({ navigation }: Props) {
           />
           <ActionButton
             fullWidth
+            icon="account-box-outline"
+            label="My Feed"
+            onPress={() => navigation.navigate(routes.MyFeed)}
+            variant="secondary"
+          />
+          <ActionButton
+            fullWidth
             icon="account-search-outline"
             label="Player directory"
             onPress={() => navigation.navigate(routes.PlayerDirectory)}

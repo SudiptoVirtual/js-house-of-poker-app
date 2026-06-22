@@ -9,6 +9,7 @@ export const routes = {
   UserProfile: 'UserProfile',
   Friends: 'Friends',
   Feed: 'Feed',
+  MyFeed: 'MyFeed',
   PlayerDirectory: 'PlayerDirectory',
   Game: 'Game',
 } as const;

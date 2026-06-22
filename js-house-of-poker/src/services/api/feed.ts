@@ -258,8 +258,28 @@ async function feedApiRequest<T>(path: string, options: FeedApiRequestOptions = 
   }
 }
 
-export async function fetchFeedPosts(token?: string | null) {
-  return feedApiRequest<FeedPostsResponse>('/api/feed', { token });
+export type FetchFeedPostsOptions = {
+  authorUserId?: string;
+  limit?: number;
+};
+
+export async function fetchFeedPosts(
+  token?: string | null,
+  options: FetchFeedPostsOptions = {},
+) {
+  const params = new URLSearchParams();
+
+  if (options.authorUserId) {
+    params.set('authorUserId', options.authorUserId);
+  }
+
+  if (options.limit) {
+    params.set('limit', String(options.limit));
+  }
+
+  const query = params.toString();
+
+  return feedApiRequest<FeedPostsResponse>(`/api/feed${query ? `?${query}` : ''}`, { token });
 }
 
 export type UploadFeedMediaInput = {
