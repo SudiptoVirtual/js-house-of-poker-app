@@ -32,7 +32,9 @@ export function FeedVideo({ isActive, media, onOpenFullScreen, onRequestActive, 
   const [measuredWidth, setMeasuredWidth] = useState(targetWidth ?? DEFAULT_FEED_VIDEO_WIDTH);
   const [isManuallyPaused, setIsManuallyPaused] = useState(false);
   const [isMuted, setIsMuted] = useState(true);
-  const player = useVideoPlayer(media.url, (nextPlayer) => {
+  const playbackUrl = media.playableUrl || media.url;
+  const isReady = media.processingStatus == null || media.processingStatus === 'ready';
+  const player = useVideoPlayer(isReady ? playbackUrl : '', (nextPlayer) => {
     nextPlayer.loop = true;
     nextPlayer.muted = true;
   });
@@ -58,6 +60,7 @@ export function FeedVideo({ isActive, media, onOpenFullScreen, onRequestActive, 
   }, [isActive]);
 
   function togglePlayback() {
+    if (!isReady) return;
     if (!isActive) {
       setIsManuallyPaused(false);
       onRequestActive?.();
@@ -75,16 +78,22 @@ export function FeedVideo({ isActive, media, onOpenFullScreen, onRequestActive, 
           <MaterialCommunityIcons color={colors.secondary} name="video-outline" size={42} />
         </View>
       )}
-      {isActive ? <VideoView accessibilityLabel={media.altText} accessibilityRole="image" contentFit="contain" nativeControls={false} player={player} style={StyleSheet.absoluteFillObject} /> : null}
+      {isActive && isReady ? <VideoView accessibilityLabel={media.altText} accessibilityRole="image" contentFit="contain" nativeControls={false} player={player} style={StyleSheet.absoluteFillObject} /> : null}
+      {!isReady ? (
+        <View accessibilityLabel="Video is processing" accessibilityRole="text" style={styles.processingOverlay}>
+          <MaterialCommunityIcons color={colors.gold} name={media.processingStatus === 'failed' ? 'alert-circle-outline' : 'progress-clock'} size={30} />
+          <Text style={styles.processingText}>{media.processingStatus === 'failed' ? 'Video unavailable' : 'Processing video'}</Text>
+        </View>
+      ) : null}
       <View style={styles.controls}>
-        <Pressable accessibilityLabel={isPlaying ? 'Pause video' : 'Play video'} accessibilityRole="button" onPress={togglePlayback} style={styles.controlButton}>
-          <MaterialCommunityIcons color={colors.white} name={isPlaying ? 'pause' : 'play'} size={24} />
+        <Pressable accessibilityLabel={isPlaying ? 'Pause video' : 'Play video'} accessibilityRole="button" disabled={!isReady} onPress={togglePlayback} style={[styles.controlButton, !isReady && styles.disabledControlButton]}>
+          <MaterialCommunityIcons color={colors.white} name={isReady ? (isPlaying ? 'pause' : 'play') : 'progress-clock'} size={24} />
         </Pressable>
-        <Pressable accessibilityLabel={isMuted ? 'Enable video sound' : 'Mute video'} accessibilityRole="button" onPress={() => setIsMuted((current) => !current)} style={styles.controlButton}>
+        <Pressable accessibilityLabel={isMuted ? 'Enable video sound' : 'Mute video'} accessibilityRole="button" disabled={!isReady} onPress={() => setIsMuted((current) => !current)} style={[styles.controlButton, !isReady && styles.disabledControlButton]}>
           <MaterialCommunityIcons color={colors.white} name={isMuted ? 'volume-off' : 'volume-high'} size={20} />
         </Pressable>
         {onOpenFullScreen ? (
-          <Pressable accessibilityHint="Opens a full-screen video player" accessibilityLabel="Open video full screen" accessibilityRole="button" onPress={onOpenFullScreen} style={styles.controlButton}>
+          <Pressable accessibilityHint="Opens a full-screen video player" accessibilityLabel="Open video full screen" accessibilityRole="button" disabled={!isReady} onPress={onOpenFullScreen} style={[styles.controlButton, !isReady && styles.disabledControlButton]}>
             <MaterialCommunityIcons color={colors.white} name="arrow-expand" size={20} />
           </Pressable>
         ) : null}
@@ -112,6 +121,9 @@ const styles = StyleSheet.create({
     position: 'absolute',
     right: 10,
   },
+  disabledControlButton: {
+    opacity: 0.55,
+  },
   duration: {
     backgroundColor: 'rgba(6,3,20,0.78)',
     borderRadius: 999,
@@ -122,6 +134,19 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     paddingHorizontal: 9,
     paddingVertical: 6,
+  },
+  processingOverlay: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(6,3,20,0.72)',
+    gap: 8,
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'center',
+  },
+  processingText: {
+    color: colors.white,
+    fontSize: 13,
+    fontWeight: '900',
+    letterSpacing: 0.2,
   },
   placeholder: {
     alignItems: 'center',
