@@ -31,12 +31,14 @@ export type ShareSelection = {
   destinationId: BackendShareDestinationId;
   roomId?: string;
   tableId?: string;
+  targetUserId?: string;
 };
 
 type ShareMenuProps = {
   onClose: () => void;
   onPromote: () => void;
   chatRoomOptions: ShareTargetOption[];
+  friendOptions: ShareTargetOption[];
   onShare: (selection: ShareSelection) => void | Promise<void>;
   post: FeedPost | null;
   tableOptions: ShareTargetOption[];
@@ -45,6 +47,7 @@ type ShareMenuProps = {
 
 export function ShareMenu({
   chatRoomOptions,
+  friendOptions,
   onClose,
   onPromote,
   onShare,
@@ -61,7 +64,7 @@ export function ShareMenu({
   }, [visible]);
 
   function getSelectionKey(selection: ShareSelection) {
-    return `${selection.destinationId}:${selection.roomId ?? selection.tableId ?? ''}`;
+    return `${selection.destinationId}:${selection.targetUserId ?? selection.roomId ?? selection.tableId ?? ''}`;
   }
 
   async function handleShare(selection: ShareSelection) {
@@ -133,6 +136,54 @@ export function ShareMenu({
             Share increases visibility. Promote for Creator is a separate paid
             sponsorship placeholder.
           </Text>
+          <View style={styles.friendsSection}>
+            <View style={styles.friendsHeaderRow}>
+              <MaterialCommunityIcons
+                color={colors.secondary}
+                name="account-multiple-outline"
+                size={18}
+              />
+              <Text style={styles.friendsTitle}>Friends</Text>
+            </View>
+            {friendOptions.length > 0 ? (
+              <View style={styles.friendButtonWrap}>
+                {friendOptions.map((friend) => {
+                  const selection = { destinationId: 'friends' as const, targetUserId: friend.id };
+                  const isFriendLoading = loadingSelectionKey === getSelectionKey(selection);
+
+                  return (
+                    <Pressable
+                      accessibilityRole="button"
+                      disabled={Boolean(loadingSelectionKey)}
+                      key={friend.id}
+                      onPress={() => { void handleShare(selection); }}
+                      style={({ pressed }) => [
+                        styles.friendButton,
+                        pressed ? styles.destinationPressed : null,
+                      ]}
+                    >
+                      {isFriendLoading ? (
+                        <ActivityIndicator color={colors.secondary} size="small" />
+                      ) : (
+                        <MaterialCommunityIcons
+                          color={colors.secondary}
+                          name="account-outline"
+                          size={16}
+                        />
+                      )}
+                      <Text numberOfLines={1} style={styles.friendButtonText}>
+                        {friend.label}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            ) : (
+              <Text style={styles.emptyTargetText}>
+                No accepted friends are available to share with right now.
+              </Text>
+            )}
+          </View>
           <View style={styles.destinationStack}>
             {shareDestinations.map((destination) => {
               const isChatRoomDestination = destination.id === 'chat-room';
@@ -303,6 +354,42 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     letterSpacing: 0.9,
     textTransform: 'uppercase',
+  },
+  friendButton: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderColor: colors.border,
+    borderRadius: 999,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 6,
+    maxWidth: '48%',
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+  },
+  friendButtonText: {
+    color: colors.text,
+    fontSize: 12,
+    fontWeight: '800',
+    maxWidth: 120,
+  },
+  friendButtonWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  friendsHeaderRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 7,
+  },
+  friendsSection: {
+    gap: 8,
+  },
+  friendsTitle: {
+    color: colors.text,
+    fontSize: 13,
+    fontWeight: '900',
   },
   headerRow: {
     alignItems: 'center',

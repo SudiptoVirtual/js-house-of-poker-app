@@ -47,6 +47,7 @@ import {
   type CreateFeedShareInput,
 } from '../../services/api';
 import { fetchChatRooms } from '../../services/api/chatRooms';
+import { fetchFriends } from '../../services/api/friends';
 import { getAuthSession } from '../../services/storage/sessionStorage';
 import { env } from '../../config/env';
 import type { RootStackParamList } from '../../types/navigation';
@@ -65,6 +66,7 @@ import {
   type FeedPost,
 } from '../../types/feed';
 import type { ChatRoom } from '../../types/chatRooms';
+import type { FriendsPlayer } from '../../types/friends';
 import { mergeRealtimePostList } from './mergeRealtimePostList';
 import { selectActiveVideoPostId } from './feedVideoSelection';
 
@@ -151,6 +153,7 @@ export function PlayerFeedScreen({ navigation, route }: PlayerFeedScreenProps) {
     useState<PromotionPaymentState>('idle');
   const [sharePost, setSharePost] = useState<FeedPost | null>(null);
   const [chatRooms, setChatRooms] = useState<ChatRoom[]>([]);
+  const [friends, setFriends] = useState<FriendsPlayer[]>([]);
   const [activeVideoPostId, setActiveVideoPostId] = useState<string | null>(null);
   const [isFeedFocused, setIsFeedFocused] = useState(false);
   const [isAppActive, setIsAppActive] = useState(
@@ -282,14 +285,19 @@ export function PlayerFeedScreen({ navigation, route }: PlayerFeedScreenProps) {
     async function loadShareTargets() {
       try {
         const session = await getAuthSession();
-        const rooms = await fetchChatRooms(session?.token ?? null);
+        const [rooms, acceptedFriends] = await Promise.all([
+          fetchChatRooms(session?.token ?? null),
+          session?.token ? fetchFriends(session.token) : Promise.resolve([]),
+        ]);
 
         if (isMounted) {
           setChatRooms(rooms);
+          setFriends(acceptedFriends);
         }
       } catch {
         if (isMounted) {
           setChatRooms([]);
+          setFriends([]);
         }
       }
     }
@@ -381,6 +389,18 @@ export function PlayerFeedScreen({ navigation, route }: PlayerFeedScreenProps) {
         label: room.title,
       })),
     [chatRooms],
+  );
+
+  const friendShareOptions = useMemo<ShareTargetOption[]>(
+    () =>
+      friends
+        .filter((friend) => friend.relationshipStatus === 'friend')
+        .map((friend) => ({
+          helperText: friend.username,
+          id: friend.id,
+          label: friend.displayName || friend.username || `Player ${friend.id.slice(-6)}`,
+        })),
+    [friends],
   );
 
   const tableShareOptions = useMemo<ShareTargetOption[]>(() => {
@@ -907,6 +927,30 @@ export function PlayerFeedScreen({ navigation, route }: PlayerFeedScreenProps) {
           selection.destinationId,
           session.token,
         );
+      } else if (selection.destinationId === 'friends') {
+        if (!selection.targetUserId) {
+          setFeedToast({
+            tone: 'error',
+            message: 'Select a friend before sharing this post.',
+          });
+          return;
+        }
+
+        await saveFeedShare(
+          targetPost,
+          'friends',
+          {
+            metadata: {
+              deepLink: buildFeedPostDeepLink(targetPost.id),
+              postUrl: buildFeedPostUrl(targetPost.id),
+            },
+            targetId: selection.targetUserId,
+            targetType: 'friend',
+            targetUserId: selection.targetUserId,
+          },
+          session.token,
+        );
+        setFeedToast({ tone: 'success', message: 'Shared with friend.' });
       } else if (selection.destinationId === 'chat-room') {
         if (!selection.roomId) {
           setFeedToast({
@@ -1288,6 +1332,7 @@ export function PlayerFeedScreen({ navigation, route }: PlayerFeedScreenProps) {
       ) : null}
       <ShareMenu
         chatRoomOptions={chatRoomShareOptions}
+        friendOptions={friendShareOptions}
         onClose={() => setSharePost(null)}
         onPromote={() => setPromotePost(sharePost)}
         onShare={handleShare}
