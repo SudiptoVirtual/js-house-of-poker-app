@@ -113,7 +113,8 @@ test('two-, four-, and five-image posts use compact cover-image collages', () =>
   const source = fs.readFileSync(path.resolve(__dirname, '../src/components/feed/FeedMediaGallery.tsx'), 'utf8');
   assert.match(source, /images\.length === 2 \|\| images\.length === 4/);
   assert.match(source, /images\.slice\(1\)/);
-  assert.match(source, /height: 240/);
+  assert.match(source, /COLLAGE_HEIGHT_RATIO/);
+  assert.match(source, /height: collageHeight/);
   assert.match(source, /resizeMode=\{collage \? 'cover' : 'contain'\}/);
 });
 
