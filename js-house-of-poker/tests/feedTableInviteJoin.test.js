@@ -23,9 +23,24 @@ test('Join Table CTA uses the preserved post table code and existing join-table 
   ]);
 });
 
-test('Join Table CTA rejects signed-out, full, and invalid-code invitations', async () => {
+
+test('Join Table CTA can fall back to a backend-provided table id', async () => {
+  const calls = [];
+  await joinFeedTableInvite({
+    joinTable: async (input) => calls.push({ input, type: 'join' }),
+    navigateToGame: (tableCode) => calls.push({ tableCode, type: 'navigate' }),
+    playerName: 'Viewer',
+    post: { postKind: 'table-invite', tableContext: { tableId: '64f111111111111111111111', seatsOpen: 3 } },
+  });
+  assert.deepEqual(calls, [
+    { input: { name: 'Viewer', tableId: '64f111111111111111111111' }, type: 'join' },
+    { tableCode: '64f111111111111111111111', type: 'navigate' },
+  ]);
+});
+
+test('Join Table CTA rejects signed-out, full, and invalid-reference invitations', async () => {
   const base = { joinTable: async () => {}, navigateToGame: () => {}, post: { postKind: 'table-invite', tableContext: { tableCode: 'JOIN42', seatsOpen: 1 } } };
   await assert.rejects(() => joinFeedTableInvite(base), /Sign in/);
   await assert.rejects(() => joinFeedTableInvite({ ...base, playerName: 'Viewer', post: { ...base.post, tableContext: { tableCode: 'JOIN42', seatsOpen: 0 } } }), /full/);
-  await assert.rejects(() => joinFeedTableInvite({ ...base, playerName: 'Viewer', post: { ...base.post, tableContext: {} } }), /valid table code/);
+  await assert.rejects(() => joinFeedTableInvite({ ...base, playerName: 'Viewer', post: { ...base.post, tableContext: {} } }), /valid table reference/);
 });

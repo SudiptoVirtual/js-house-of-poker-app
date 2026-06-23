@@ -146,6 +146,7 @@ export function FeedPostCard({
       (post.authorUserId === currentUserId || post.player.id === currentUserId),
   );
   const isOwnerHistoryMode = variant === "ownerHistory" || actionMode === "owner-only";
+  const isTableInvite = post.postKind === "table-invite" && Boolean(post.tableContext);
   const canInviteToTable = Boolean(post.tableContext);
   const isInviteToTableLoading = isInvitingToTable || inviteToTableLoading;
   const showSocialActions = !isOwnerHistoryMode;
@@ -438,7 +439,7 @@ export function FeedPostCard({
       />
 
       {post.tableContext ? (
-        <View style={styles.tableContext}>
+        <View style={[styles.tableContext, isTableInvite ? styles.tableInviteContext : null]}>
           <View style={styles.tableIconShell}>
             <MaterialCommunityIcons
               color={colors.gold}
@@ -447,6 +448,9 @@ export function FeedPostCard({
             />
           </View>
           <View style={styles.tableCopy}>
+            {isTableInvite ? (
+              <Text style={styles.tableInviteEyebrow}>Live table invite</Text>
+            ) : null}
             <Text style={styles.tableName}>{post.tableContext.tableName}</Text>
             <Text style={styles.tableMeta}>
               {post.tableContext.gameLabel}
@@ -457,6 +461,9 @@ export function FeedPostCard({
                 ? ` · ${post.tableContext.tableCode}`
                 : ""}
             </Text>
+            {isTableInvite ? (
+              <Text style={styles.tableInviteHint}>Tap Join Table to take a seat.</Text>
+            ) : null}
           </View>
         </View>
       ) : null}
@@ -538,7 +545,7 @@ export function FeedPostCard({
           actionsDisabled={actionsDisabled}
           commentLoading={commentPanelLoadState === "loading"}
           canInviteToTable={canInviteToTable}
-          canJoinTable={post.postKind === "table-invite"}
+          canJoinTable={isTableInvite}
           inviteLoading={isInviteToTableLoading}
           isSupported={Boolean(post.supportedByCurrentPlayer)}
           joinLoading={isJoiningTable}
@@ -1053,6 +1060,22 @@ const styles = StyleSheet.create({
     height: 42,
     justifyContent: "center",
     width: 42,
+  },
+  tableInviteContext: {
+    backgroundColor: "rgba(255,201,94,0.14)",
+    borderColor: "rgba(255,201,94,0.48)",
+  },
+  tableInviteEyebrow: {
+    color: colors.gold,
+    fontSize: 11,
+    fontWeight: "900",
+    letterSpacing: 0.4,
+    textTransform: "uppercase",
+  },
+  tableInviteHint: {
+    color: colors.gold,
+    fontSize: 12,
+    fontWeight: "800",
   },
   tableMeta: {
     color: colors.mutedText,
