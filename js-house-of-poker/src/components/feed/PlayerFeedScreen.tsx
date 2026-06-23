@@ -40,6 +40,7 @@ import {
   fetchFeedPosts,
   getApiErrorDetails,
   sendFeedGiftClip,
+  sendFeedTableInvite,
   toggleFeedSupport,
   updateFeedComment,
   updateFeedPost,
@@ -1280,6 +1281,55 @@ export function PlayerFeedScreen({ mode = 'feed', navigation, route }: PlayerFee
     }
   }
 
+  async function handleInviteToTable(post: FeedPost) {
+    if (!isBackendFeedPostId(post.id)) {
+      setFeedToast({
+        tone: 'error',
+        message: 'Refresh the feed before sending a table invite.',
+      });
+      return;
+    }
+
+    if (!token || !currentUser) {
+      setFeedToast({ tone: 'error', message: 'Sign in before inviting players to a table.' });
+      return;
+    }
+
+    if (!post.tableContext) {
+      setFeedToast({ tone: 'error', message: 'This post is not linked to a table.' });
+      return;
+    }
+
+    const recipientUserId = post.authorUserId ?? post.player.id;
+    if (recipientUserId === currentUser.id) {
+      setFeedToast({ tone: 'error', message: 'You cannot invite yourself to a table.' });
+      return;
+    }
+
+    try {
+      const response = await sendFeedTableInvite(
+        post.id,
+        {
+          message: `Join ${post.tableContext.tableName} from the feed.`,
+          recipientUserId,
+          ...(post.tableContext.tableCode ? { tableCode: post.tableContext.tableCode } : {}),
+          ...(post.tableContext.tableId ? { tableId: post.tableContext.tableId } : {}),
+        },
+        token,
+      );
+
+      setPosts((currentPosts) =>
+        currentPosts.map((currentPost) =>
+          currentPost.id === post.id ? response.post : currentPost,
+        ),
+      );
+      setFeedToast({ tone: 'success', message: 'Table invite sent.' });
+    } catch (error) {
+      const details = getApiErrorDetails(error, 'Unable to send this table invite right now.');
+      setFeedToast({ tone: 'error', message: details.message });
+    }
+  }
+
   return (
     <View style={styles.root}>
       <KeyboardSafeView>
@@ -1392,6 +1442,7 @@ export function PlayerFeedScreen({ mode = 'feed', navigation, route }: PlayerFee
               onDeletePost={handleDeletePost}
               onFetchComments={handleFetchComments}
               onGiftClips={setGiftPost}
+              onInviteToTable={handleInviteToTable}
               onJoinTable={handleJoinTable}
               onOpenProfile={handleOpenProfile}
               onPromote={setPromotePost}

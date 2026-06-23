@@ -1,25 +1,38 @@
+import type React from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 
 import { colors } from '../../theme/colors';
-type JoinTableButtonProps = {
+type TableActionButtonProps = {
   disabled?: boolean;
+  iconName: React.ComponentProps<typeof MaterialCommunityIcons>['name'];
+  label: string;
   loading?: boolean;
   onPress: () => void;
 };
 
-export function JoinTableButton({ disabled = false, loading = false, onPress }: JoinTableButtonProps) {
+function TableActionButton({ disabled = false, iconName, label, loading = false, onPress }: TableActionButtonProps) {
   return (
     <Pressable accessibilityRole="button" disabled={disabled || loading} onPress={onPress} style={({ pressed }) => [styles.button, disabled ? styles.disabled : null, pressed ? styles.pressed : null]}>
       {loading ? (
         <ActivityIndicator color={colors.gold} size="small" />
       ) : (
-        <MaterialCommunityIcons color={colors.gold} name="login-variant" size={17} />
+        <MaterialCommunityIcons color={colors.gold} name={iconName} size={17} />
       )}
-      <Text style={styles.label}>Join Table</Text>
+      <Text style={styles.label}>{label}</Text>
     </Pressable>
   );
+}
+
+type TableButtonProps = Omit<TableActionButtonProps, 'iconName' | 'label'>;
+
+export function JoinTableButton(props: TableButtonProps) {
+  return <TableActionButton {...props} iconName="login-variant" label="Join Table" />;
+}
+
+export function InviteToTableButton(props: TableButtonProps) {
+  return <TableActionButton {...props} iconName="account-plus-outline" label="Invite to Table" />;
 }
 
 const styles = StyleSheet.create({

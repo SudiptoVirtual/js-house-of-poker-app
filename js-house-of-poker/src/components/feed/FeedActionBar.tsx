@@ -2,7 +2,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 import { CommentButton } from './CommentButton';
-import { JoinTableButton } from './InviteToTableButton';
+import { InviteToTableButton, JoinTableButton } from './InviteToTableButton';
 import { SupportButton } from './SupportButton';
 
 import { colors } from '../../theme/colors';
@@ -10,11 +10,14 @@ type FeedActionBarProps = {
   actionsDisabled?: boolean;
   commentLoading?: boolean;
   inviteLoading?: boolean;
+  joinLoading?: boolean;
   isSupported: boolean;
-  isTableRelated?: boolean;
+  canInviteToTable?: boolean;
+  canJoinTable?: boolean;
   supportersCount: number;
   onComment: () => void;
   onGiftClips: () => void;
+  onInviteToTable: () => void;
   onJoinTable: () => void;
   onPromote: () => void;
   onShare: () => void;
@@ -26,10 +29,13 @@ export function FeedActionBar({
   actionsDisabled = false,
   commentLoading = false,
   inviteLoading = false,
+  joinLoading = false,
   isSupported,
-  isTableRelated = false,
+  canInviteToTable = false,
+  canJoinTable = false,
   onComment,
   onGiftClips,
+  onInviteToTable,
   onJoinTable,
   onPromote,
   onShare,
@@ -72,7 +78,16 @@ export function FeedActionBar({
           <Text style={styles.secondaryLabel}>Promote</Text>
         </Pressable>
       </View>
-      {isTableRelated ? <JoinTableButton disabled={actionsDisabled} loading={inviteLoading} onPress={onJoinTable} /> : null}
+      {canJoinTable || canInviteToTable ? (
+        <View style={styles.tableActionRow}>
+          {canJoinTable ? (
+            <JoinTableButton disabled={actionsDisabled} loading={joinLoading} onPress={onJoinTable} />
+          ) : null}
+          {canInviteToTable ? (
+            <InviteToTableButton disabled={actionsDisabled} loading={inviteLoading} onPress={onInviteToTable} />
+          ) : null}
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -126,6 +141,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 10,
     paddingVertical: colors.spacing[8],
+  },
+  tableActionRow: {
+    gap: colors.spacing[8],
   },
   secondaryLabel: {
     color: colors.secondary,
