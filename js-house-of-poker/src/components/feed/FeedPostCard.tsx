@@ -68,6 +68,7 @@ type FeedPostCardProps = {
   ) => Promise<FeedCommentsPanelResult | void> | FeedCommentsPanelResult | void;
   onGiftClips: (post: FeedPost) => void;
   onInviteToTable: (post: FeedPost) => Promise<void> | void;
+  inviteToTableLoading?: boolean;
   onJoinTable: (post: FeedPost) => Promise<void> | void;
   onOpenProfile: (playerId: string) => void;
   onPromote: (post: FeedPost) => void;
@@ -103,6 +104,7 @@ export function FeedPostCard({
   onFetchComments,
   onGiftClips,
   onInviteToTable,
+  inviteToTableLoading = false,
   onJoinTable,
   onOpenProfile,
   onPromote,
@@ -146,10 +148,8 @@ export function FeedPostCard({
       (post.authorUserId === currentUserId || post.player.id === currentUserId),
   );
   const isOwnerHistoryMode = variant === "ownerHistory" || actionMode === "owner-only";
-  const canInviteToTable = Boolean(
-    post.tableContext &&
-      (!currentUserId || (post.authorUserId ?? post.player.id) !== currentUserId),
-  );
+  const canInviteToTable = Boolean(post.tableContext);
+  const isInviteToTableLoading = isInvitingToTable || inviteToTableLoading;
   const showSocialActions = !isOwnerHistoryMode;
   const allowCommentComposer = showSocialActions;
 
@@ -355,8 +355,8 @@ export function FeedPostCard({
     }
   }
 
-  async function handleSendTableInvite() {
-    if (isInvitingToTable) {
+  async function handleInviteToTableFromPost() {
+    if (isInviteToTableLoading) {
       return;
     }
 
@@ -541,13 +541,13 @@ export function FeedPostCard({
           commentLoading={commentPanelLoadState === "loading"}
           canInviteToTable={canInviteToTable}
           canJoinTable={post.postKind === "table-invite"}
-          inviteLoading={isInvitingToTable}
+          inviteLoading={isInviteToTableLoading}
           isSupported={Boolean(post.supportedByCurrentPlayer)}
           joinLoading={isJoiningTable}
           supportersCount={post.supportersCount}
           onComment={handleToggleCommentPanel}
           onGiftClips={() => guardAction(() => onGiftClips(post))}
-          onInviteToTable={() => guardAction(() => { void handleSendTableInvite(); })}
+          onInviteToTable={() => guardAction(() => { void handleInviteToTableFromPost(); })}
           onJoinTable={() => guardAction(() => { void handleJoinTable(); })}
           onPromote={() => guardAction(() => onPromote(post))}
           onShare={() => guardAction(() => onShare(post))}

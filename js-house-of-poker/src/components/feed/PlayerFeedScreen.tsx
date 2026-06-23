@@ -1561,6 +1561,7 @@ export function PlayerFeedScreen({ mode = 'feed', navigation, route }: PlayerFee
               onFetchComments={handleFetchComments}
               onGiftClips={setGiftPost}
               onInviteToTable={openInviteToTableSheet}
+              inviteToTableLoading={isSendingTableInvite && invitePost?.id === item.id}
               onJoinTable={handleJoinTable}
               onOpenProfile={handleOpenProfile}
               onPromote={setPromotePost}
