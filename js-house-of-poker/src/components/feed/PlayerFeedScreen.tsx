@@ -47,7 +47,7 @@ import {
   type CreateFeedPostInput,
   type CreateFeedShareInput,
 } from '../../services/api';
-import { fetchChatRooms } from '../../services/api/chatRooms';
+import { createOrGetDirectChatRoom, fetchChatRooms } from '../../services/api/chatRooms';
 import { fetchFriends } from '../../services/api/friends';
 import { getAuthSession } from '../../services/storage/sessionStorage';
 import { env } from '../../config/env';
@@ -1023,6 +1023,33 @@ export function PlayerFeedScreen({ mode = 'feed', navigation, route }: PlayerFee
           session.token,
         );
         setFeedToast({ tone: 'success', message: 'Shared with friend.' });
+      } else if (selection.destinationId === 'direct-message') {
+        if (!selection.targetUserId) {
+          setFeedToast({
+            tone: 'error',
+            message: 'Select a friend before sharing this post by direct message.',
+          });
+          return;
+        }
+
+        const directRoom = await createOrGetDirectChatRoom(selection.targetUserId, session.token);
+
+        await saveFeedShare(
+          targetPost,
+          'direct-message',
+          {
+            metadata: {
+              deepLink: buildFeedPostDeepLink(targetPost.id),
+              postUrl: buildFeedPostUrl(targetPost.id),
+            },
+            roomId: directRoom.id,
+            targetId: directRoom.id,
+            targetType: 'direct-message',
+            targetUserId: selection.targetUserId,
+          },
+          session.token,
+        );
+        setFeedToast({ tone: 'success', message: 'Shared by direct message.' });
       } else if (selection.destinationId === 'chat-room') {
         if (!selection.roomId) {
           setFeedToast({

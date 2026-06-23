@@ -184,7 +184,7 @@ export type FeedCommentSubmitResult = {
   post?: FeedPost;
 };
 
-export type BackendShareDestinationId = 'copy-link' | 'profile' | 'feed' | 'chat-room' | 'table' | 'friend' | 'friends' | 'facebook' | 'external';
+export type BackendShareDestinationId = 'copy-link' | 'profile' | 'feed' | 'chat-room' | 'direct-message' | 'table' | 'friend' | 'friends' | 'facebook' | 'external';
 export type ShareMenuActionId = 'promote';
 export type ShareDestinationId = BackendShareDestinationId | ShareMenuActionId;
 
@@ -199,6 +199,7 @@ export const backendShareDestinations: readonly BackendShareDestinationId[] = [
   'profile',
   'feed',
   'chat-room',
+  'direct-message',
   'table',
   'friend',
   'friends',

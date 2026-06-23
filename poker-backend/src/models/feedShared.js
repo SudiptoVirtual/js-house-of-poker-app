@@ -10,7 +10,7 @@ const PROMOTION_STATES = ["none", "pending", "active", "paused", "expired", "rej
 const MEDIA_TYPES = ["image", "video", "clip", "link"];
 const MEDIA_PROCESSING_STATUSES = ["pending", "processing", "ready", "failed"];
 const REACTION_TYPES = ["support"];
-const SHARE_DESTINATIONS = ["copy-link", "profile", "feed", "chat-room", "table", "friend", "friends", "facebook", "external"];
+const SHARE_DESTINATIONS = ["copy-link", "profile", "feed", "chat-room", "direct-message", "table", "friend", "friends", "facebook", "external"];
 const SHARE_DESTINATION_ALIASES = new Map([
   ["copy", "copy-link"],
   ["link", "copy-link"],
@@ -19,8 +19,10 @@ const SHARE_DESTINATION_ALIASES = new Map([
   ["chatroom", "chat-room"],
   ["room", "chat-room"],
   ["friends", "friend"],
-  ["direct", "friend"],
-  ["dm", "friend"],
+  ["direct", "direct-message"],
+  ["dm", "direct-message"],
+  ["direct-message", "direct-message"],
+  ["direct-room", "direct-message"],
   ["friend-chat", "friend"],
   ["direct-friend", "friend"],
   ["direct-friends", "friend"],
