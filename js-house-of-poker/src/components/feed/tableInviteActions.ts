@@ -1,5 +1,8 @@
 import type { FeedPost } from '../../types/feed';
 
+export const FEED_TABLE_INVITES_REQUIRE_SOCKET_MESSAGE =
+  'Feed table invites require the live poker connection. Set EXPO_PUBLIC_POKER_TRANSPORT=socket and restart Expo.';
+
 export type JoinFeedTableInviteInput = {
   joinTable: (input: { name: string; tableId: string }) => void | Promise<void>;
   playerName?: string | null;

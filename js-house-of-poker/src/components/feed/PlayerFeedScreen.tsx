@@ -55,7 +55,11 @@ import { env } from '../../config/env';
 import type { RootStackParamList } from '../../types/navigation';
 import { FeedPostBox, type ComposeFeedPostInput, type FeedPostBoxProfile } from './FeedPostBox';
 import { FeedPostCard } from './FeedPostCard';
-import { getJoinTableErrorMessage, joinFeedTableInvite } from './tableInviteActions';
+import {
+  FEED_TABLE_INVITES_REQUIRE_SOCKET_MESSAGE,
+  getJoinTableErrorMessage,
+  joinFeedTableInvite,
+} from './tableInviteActions';
 import { PromoteForCreatorPanel } from './PromoteForCreatorPanel';
 import { ShareMenu, type ShareSelection } from './ShareMenu';
 import { FeedTableInviteSheet, type FeedInviteTableSelection } from './FeedTableInviteSheet';
@@ -288,7 +292,7 @@ export function PlayerFeedScreen({ mode = 'feed', navigation, route }: PlayerFee
   const insets = useSafeAreaInsets();
   const isKeyboardVisible = useKeyboardVisible();
   const { markFeedNotificationsRead, notifications } = useFeedNotifications();
-  const { errorMessage: pokerErrorMessage, joinTable, roomState } = usePoker();
+  const { errorMessage: pokerErrorMessage, joinTable, roomState, transportKind } = usePoker();
   const feedListRef = useRef<FlatList<FeedPost>>(null);
   const feedScrollOffsetRef = useRef(0);
   const pendingFeedTableJoinRef = useRef<PendingFeedTableJoin | null>(null);
@@ -1429,6 +1433,14 @@ export function PlayerFeedScreen({ mode = 'feed', navigation, route }: PlayerFee
 
   async function handleJoinTable(post: FeedPost) {
     if (pendingFeedTableJoin) {
+      return;
+    }
+
+    if (transportKind !== 'socket') {
+      setFeedToast({
+        tone: 'error',
+        message: FEED_TABLE_INVITES_REQUIRE_SOCKET_MESSAGE,
+      });
       return;
     }
 
