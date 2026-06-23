@@ -543,18 +543,12 @@ export function PlayerFeedScreen({ mode = 'feed', navigation, route }: PlayerFee
       }
       const request: CreateFeedPostInput = input.postType === 'table_invite'
         ? {
-            content: input.content,
-            media: input.media,
+            ...(input.content ? { content: input.content } : {}),
+            ...(input.media && input.media.length > 0 ? { media: input.media } : {}),
             postType: 'table_invite',
             ...(activeTableCode ? { tableCode: activeTableCode } : { tableId: activeTableId as string }),
             ...(activeTableId ? { tableId: activeTableId } : {}),
-            tableContext: {
-              gameLabel: roomState?.gameSettings.game === '357' ? '3-5-7' : "Texas Hold'em",
-              seatsOpen: Math.max(0, (roomState?.maxSeats ?? 0) - (roomState?.players.length ?? 0)),
-              ...(activeTableCode ? { tableCode: activeTableCode } : {}),
-              ...(activeTableId ? { tableId: activeTableId } : {}),
-              tableName: roomState?.tableName ?? activeTableCode ?? 'Poker table',
-            },
+            ...(activeTableContext ? { tableContext: activeTableContext } : {}),
           }
         : input.postType === 'media'
           ? { content: input.content, media: input.media, postType: 'media' }
