@@ -52,6 +52,7 @@ type FeedPostCardProps = {
   actionsDisabled?: boolean;
   isActive?: boolean;
   actionsDisabledMessage?: string;
+  canInviteToTable?: boolean;
   currentUserId?: string;
   onComment: (
     post: FeedPost,
@@ -94,6 +95,7 @@ export function FeedPostCard({
   actionMode,
   actionsDisabled = false,
   actionsDisabledMessage = "Sign in and refresh the feed before using post actions.",
+  canInviteToTable = false,
   currentUserId,
   isActive = false,
   onComment,
@@ -147,7 +149,7 @@ export function FeedPostCard({
   );
   const isOwnerHistoryMode = variant === "ownerHistory" || actionMode === "owner-only";
   const isTableInvite = post.postKind === "table-invite" && Boolean(post.tableContext);
-  const canInviteToTable = Boolean(post.tableContext);
+  const showInviteToTableAction = canInviteToTable || Boolean(post.tableContext);
   const isInviteToTableLoading = isInvitingToTable || inviteToTableLoading;
   const showSocialActions = !isOwnerHistoryMode;
   const allowCommentComposer = showSocialActions;
@@ -544,7 +546,7 @@ export function FeedPostCard({
         <FeedActionBar
           actionsDisabled={actionsDisabled}
           commentLoading={commentPanelLoadState === "loading"}
-          canInviteToTable={canInviteToTable}
+          canInviteToTable={showInviteToTableAction}
           canJoinTable={isTableInvite}
           inviteLoading={isInviteToTableLoading}
           isSupported={Boolean(post.supportedByCurrentPlayer)}

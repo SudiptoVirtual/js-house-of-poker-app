@@ -575,11 +575,11 @@ export function PlayerFeedScreen({ mode = 'feed', navigation, route }: PlayerFee
 
   function getPostActionDisabledMessage(post: FeedPost) {
     if (!isBackendFeedPostId(post.id)) {
-      return 'This post must be saved to the backend before support, comments, shares, gifts, invites, or promotions are available.';
+      return 'This post must be saved to the backend before support, comments, shares, table invites, or promotions are available.';
     }
 
     if (!token || !currentUser) {
-      return 'Sign in to use support, comments, shares, gifts, table invites, and promotion actions.';
+      return 'Sign in to use support, comments, shares, table invites, and promotion actions.';
     }
 
     return undefined;
@@ -1491,6 +1491,7 @@ export function PlayerFeedScreen({ mode = 'feed', navigation, route }: PlayerFee
               variant={isProfileHistoryMode ? 'ownerHistory' : 'feed'}
               actionsDisabled={Boolean(getPostActionDisabledMessage(item))}
               actionsDisabledMessage={getPostActionDisabledMessage(item)}
+              canInviteToTable={!isProfileHistoryMode}
               currentUserId={currentUser?.id}
               isActive={isFeedFocused && isAppActive && activeVideoPostId === item.id}
               onComment={handleComment}

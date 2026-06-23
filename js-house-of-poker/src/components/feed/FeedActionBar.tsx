@@ -1,8 +1,8 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 import { CommentButton } from './CommentButton';
-import { InviteToTableButton, JoinTableButton } from './InviteToTableButton';
+import { JoinTableButton } from './InviteToTableButton';
 import { SupportButton } from './SupportButton';
 
 import { colors } from '../../theme/colors';
@@ -66,15 +66,25 @@ export function FeedActionBar({
           <MaterialCommunityIcons color={colors.secondary} name="bullhorn-outline" size={17} />
           <Text style={styles.secondaryLabel}>Promote</Text>
         </Pressable>
+        {canInviteToTable ? (
+          <Pressable
+            accessibilityRole="button"
+            disabled={actionsDisabled || inviteLoading}
+            onPress={onInviteToTable}
+            style={({ pressed }) => [styles.secondaryButton, actionsDisabled ? styles.disabled : null, pressed ? styles.pressed : null]}
+          >
+            {inviteLoading ? (
+              <ActivityIndicator color={colors.secondary} size="small" />
+            ) : (
+              <MaterialCommunityIcons color={colors.secondary} name="account-plus-outline" size={17} />
+            )}
+            <Text style={styles.secondaryLabel}>{inviteLoading ? 'Inviting' : 'Invite to Table'}</Text>
+          </Pressable>
+        ) : null}
       </View>
-      {canJoinTable || canInviteToTable ? (
+      {canJoinTable ? (
         <View style={styles.tableActionRow}>
-          {canJoinTable ? (
-            <JoinTableButton disabled={actionsDisabled} loading={joinLoading} onPress={onJoinTable} />
-          ) : null}
-          {canInviteToTable ? (
-            <InviteToTableButton disabled={actionsDisabled} loading={inviteLoading} onPress={onInviteToTable} />
-          ) : null}
+          <JoinTableButton disabled={actionsDisabled} loading={joinLoading} onPress={onJoinTable} />
         </View>
       ) : null}
     </View>

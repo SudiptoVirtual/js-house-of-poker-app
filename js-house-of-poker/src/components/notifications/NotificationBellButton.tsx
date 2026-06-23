@@ -22,7 +22,7 @@ export function NotificationBellButton({ onPress }: NotificationBellButtonProps)
       onPress={onPress}
       style={({ pressed }) => [styles.button, pressed ? styles.pressed : null]}
     >
-      <MaterialCommunityIcons color={colors.gold} name="bell-outline" size={24} />
+      <MaterialCommunityIcons color={colors.gold} name="bell-outline" size={19} />
       {unreadCount > 0 ? (
         <View style={styles.badge}>
           <Text style={styles.badgeText}>{formatBadgeCount(unreadCount)}</Text>
