@@ -15,6 +15,7 @@ import {
   type UserGameHistoryRecord,
 } from '../services/api/auth';
 import { useAuth } from '../context/AuthProvider';
+import { disableBiometricLogin, enableBiometricLogin, hasBiometricSession } from '../services/storage/biometricAuth';
 import { usePoker } from '../context/PokerProvider';
 import { colors } from '../theme/colors';
 import type { RootStackParamList } from '../types/navigation';
@@ -93,6 +94,8 @@ export function ProfileScreen({ navigation }: Props) {
   const [refreshError, setRefreshError] = useState<string | null>(null);
   const [signOutError, setSignOutError] = useState<string | null>(null);
   const [profile, setProfile] = useState(currentUser);
+  const [biometricEnabled, setBiometricEnabled] = useState(false);
+  const [biometricMessage, setBiometricMessage] = useState<string | null>(null);
   const [gameHistory, setGameHistory] = useState<UserGameHistoryRecord[]>([]);
   const activeTableCode = roomState?.roomId ?? null;
   const displayName = currentUser?.name?.trim() || 'Player';
@@ -153,6 +156,31 @@ export function ProfileScreen({ navigation }: Props) {
       setIsRefreshingProfile(false);
     }
   }, [loadProfileData, refreshCurrentUser]);
+
+  useEffect(() => {
+    void hasBiometricSession().then(setBiometricEnabled).catch(() => setBiometricEnabled(false));
+  }, []);
+
+  const handleEnableBiometrics = useCallback(async () => {
+    if (!token || !currentUser) {
+      setBiometricMessage('Sign in before enabling biometric login.');
+      return;
+    }
+
+    try {
+      await enableBiometricLogin({ token, user: currentUser });
+      setBiometricEnabled(true);
+      setBiometricMessage('Biometric login is enabled for this device.');
+    } catch (error) {
+      setBiometricMessage(error instanceof Error ? error.message : 'Unable to enable biometric login.');
+    }
+  }, [currentUser, token]);
+
+  const handleDisableBiometrics = useCallback(async () => {
+    await disableBiometricLogin();
+    setBiometricEnabled(false);
+    setBiometricMessage('Biometric login is disabled for this device.');
+  }, []);
 
   const handleSignOut = useCallback(async () => {
     setIsSigningOut(true);
@@ -250,6 +278,22 @@ export function ProfileScreen({ navigation }: Props) {
             navigation.navigate(activeTableCode ? routes.Game : routes.Home)
           }
           tone="primary"
+        />
+      </SectionCard>
+
+      <SectionCard title="Security preferences">
+        <Text style={styles.bodyText}>
+          {biometricEnabled
+            ? 'Biometric login is enabled on this device. Your password is never stored locally.'
+            : 'Enable fingerprint or face unlock after signing in to use a secure stored session token next time.'}
+        </Text>
+        {biometricMessage ? <Text style={styles.metaLine}>{biometricMessage}</Text> : null}
+        <ActionButton
+          fullWidth
+          icon={biometricEnabled ? 'fingerprint-off' : 'fingerprint'}
+          label={biometricEnabled ? 'Disable biometric login' : 'Enable biometric login'}
+          onPress={() => { void (biometricEnabled ? handleDisableBiometrics() : handleEnableBiometrics()); }}
+          variant="secondary"
         />
       </SectionCard>
 
