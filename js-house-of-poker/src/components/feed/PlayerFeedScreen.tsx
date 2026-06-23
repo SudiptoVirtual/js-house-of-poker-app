@@ -39,7 +39,6 @@ import {
   fetchFeedComments,
   fetchFeedPosts,
   getApiErrorDetails,
-  sendFeedGiftClip,
   sendFeedTableInvite,
   toggleFeedSupport,
   updateFeedComment,
@@ -56,7 +55,6 @@ import type { RootStackParamList } from '../../types/navigation';
 import { FeedPostBox, type ComposeFeedPostInput, type FeedPostBoxProfile } from './FeedPostBox';
 import { FeedPostCard } from './FeedPostCard';
 import { getJoinTableErrorMessage, joinFeedTableInvite } from './tableInviteActions';
-import { GiftClipsModal } from './GiftClipsModal';
 import { PromoteForCreatorPanel } from './PromoteForCreatorPanel';
 import { ShareMenu, type ShareSelection } from './ShareMenu';
 import { FeedTableInviteSheet, type FeedInviteTableSelection } from './FeedTableInviteSheet';
@@ -206,8 +204,6 @@ export function PlayerFeedScreen({ mode = 'feed', navigation, route }: PlayerFee
   const [feedLoadState, setFeedLoadState] = useState<FeedLoadState>('idle');
   const [feedLoadMessage, setFeedLoadMessage] = useState('');
   const [isRefreshingFeed, setIsRefreshingFeed] = useState(false);
-  const [giftPost, setGiftPost] = useState<FeedPost | null>(null);
-  const [isSendingGift, setIsSendingGift] = useState(false);
   const [promotePost, setPromotePost] = useState<FeedPost | null>(null);
   const [promotionPaymentState, setPromotionPaymentState] =
     useState<PromotionPaymentState>('idle');
@@ -1159,57 +1155,6 @@ export function PlayerFeedScreen({ mode = 'feed', navigation, route }: PlayerFee
     }
   }
 
-  async function handleSendGift(amount: number, message: string) {
-    if (!giftPost || isSendingGift) {
-      return;
-    }
-
-    const targetPost = giftPost;
-    const session = await getAuthSession();
-
-    if (!isBackendFeedPostId(targetPost.id)) {
-      setFeedToast({
-        tone: 'error',
-        message: 'Refresh the feed before sending Gift Clips.',
-      });
-      return;
-    }
-
-    if (!session?.token) {
-      setFeedToast({ tone: 'error', message: 'Sign in before sending Gift Clips.' });
-      return;
-    }
-
-    setIsSendingGift(true);
-
-    try {
-      const response = await sendFeedGiftClip(
-        targetPost.id,
-        { amount, message },
-        session.token,
-      );
-
-      setPosts((currentPosts) =>
-        currentPosts.map((post) =>
-          post.id === targetPost.id ? response.post : post,
-        ),
-      );
-      setFeedToast({
-        tone: 'success',
-        message: `${amount.toLocaleString()} clips sent to ${targetPost.player.name}.`,
-      });
-      setGiftPost(null);
-    } catch (error) {
-      const details = getApiErrorDetails(
-        error,
-        'Unable to send Gift Clips right now.',
-      );
-      setFeedToast({ tone: 'error', message: details.message });
-    } finally {
-      setIsSendingGift(false);
-    }
-  }
-
   async function handlePromote() {
     if (!promotePost) {
       return;
@@ -1553,7 +1498,6 @@ export function PlayerFeedScreen({ mode = 'feed', navigation, route }: PlayerFee
               onDeleteComment={handleDeleteComment}
               onDeletePost={handleDeletePost}
               onFetchComments={handleFetchComments}
-              onGiftClips={setGiftPost}
               onInviteToTable={openInviteToTableSheet}
               inviteToTableLoading={isSendingTableInvite && invitePost?.id === item.id}
               onJoinTable={handleJoinTable}
@@ -1638,15 +1582,6 @@ export function PlayerFeedScreen({ mode = 'feed', navigation, route }: PlayerFee
         selectedStakesOption={inviteStakesOption}
         selectedTable={selectedInviteTable}
         visible={Boolean(invitePost)}
-      />
-      <GiftClipsModal
-        disabled={isSendingGift}
-        loading={isSendingGift}
-        onClose={() => setGiftPost(null)}
-        onSendGift={handleSendGift}
-        post={giftPost}
-        sendLabelPrefix={isSendingGift ? 'Sending' : 'Send'}
-        visible={Boolean(giftPost)}
       />
       <PromoteForCreatorPanel
         onClose={() => {

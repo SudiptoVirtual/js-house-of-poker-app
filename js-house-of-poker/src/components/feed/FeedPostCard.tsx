@@ -66,7 +66,6 @@ type FeedPostCardProps = {
   onFetchComments: (
     post: FeedPost,
   ) => Promise<FeedCommentsPanelResult | void> | FeedCommentsPanelResult | void;
-  onGiftClips: (post: FeedPost) => void;
   onInviteToTable: (post: FeedPost) => Promise<void> | void;
   inviteToTableLoading?: boolean;
   onJoinTable: (post: FeedPost) => Promise<void> | void;
@@ -102,7 +101,6 @@ export function FeedPostCard({
   onDeleteComment,
   onDeletePost,
   onFetchComments,
-  onGiftClips,
   onInviteToTable,
   inviteToTableLoading = false,
   onJoinTable,
@@ -546,7 +544,6 @@ export function FeedPostCard({
           joinLoading={isJoiningTable}
           supportersCount={post.supportersCount}
           onComment={handleToggleCommentPanel}
-          onGiftClips={() => guardAction(() => onGiftClips(post))}
           onInviteToTable={() => guardAction(() => { void handleInviteToTableFromPost(); })}
           onJoinTable={() => guardAction(() => { void handleJoinTable(); })}
           onPromote={() => guardAction(() => onPromote(post))}
