@@ -15,11 +15,11 @@ const INITIAL_VISIBLE_FRIEND_COUNT = 5;
 const FRIEND_COUNT_INCREMENT = 5;
 
 const shareDestinations: BackendShareDestination[] = [
-  { icon: 'link-variant', id: 'copy-link', label: 'Copy link' },
-  { icon: 'newspaper-variant-outline', id: 'feed', label: 'Share to Feed' },
+  { icon: 'account-group-outline', id: 'friend', label: 'Share to Friends' },
   { icon: 'forum-outline', id: 'chat-room', label: 'Share to Chat Room' },
-  { icon: 'account-outline', id: 'friend', label: 'Share with friends' },
-  { icon: 'facebook', id: 'facebook', label: 'Share to Facebook' },
+  { icon: 'message-text-outline', id: 'direct-message', label: 'Share to Direct Message' },
+  { icon: 'newspaper-variant-outline', id: 'feed', label: 'Share to Feed' },
+  { icon: 'link-variant', id: 'copy-link', label: 'Copy Link' },
 ];
 
 type ShareTargetOption = {
@@ -57,6 +57,7 @@ export function ShareMenu({
   const [loadingSelectionKey, setLoadingSelectionKey] = useState<string | null>(null);
   const [isChatRoomsExpanded, setIsChatRoomsExpanded] = useState(false);
   const [isFriendsExpanded, setIsFriendsExpanded] = useState(false);
+  const [isDirectMessagesExpanded, setIsDirectMessagesExpanded] = useState(false);
   const [visibleFriendCount, setVisibleFriendCount] = useState(INITIAL_VISIBLE_FRIEND_COUNT);
 
   useEffect(() => {
@@ -64,6 +65,7 @@ export function ShareMenu({
       setLoadingSelectionKey(null);
       setIsChatRoomsExpanded(false);
       setIsFriendsExpanded(false);
+      setIsDirectMessagesExpanded(false);
       setVisibleFriendCount(INITIAL_VISIBLE_FRIEND_COUNT);
     }
   }, [visible]);
@@ -98,6 +100,11 @@ export function ShareMenu({
 
     if (destination.id === 'friend') {
       setIsFriendsExpanded((isExpanded) => !isExpanded);
+      return;
+    }
+
+    if (destination.id === 'direct-message') {
+      setIsDirectMessagesExpanded((isExpanded) => !isExpanded);
       return;
     }
 
@@ -155,9 +162,10 @@ export function ShareMenu({
             {shareDestinations.map((destination) => {
               const isChatRoomDestination = destination.id === 'chat-room';
               const isFriendsDestination = destination.id === 'friend';
+              const isDirectMessageDestination = destination.id === 'direct-message';
               const targetOptions = isChatRoomDestination
                 ? chatRoomOptions
-                : isFriendsDestination
+                : isFriendsDestination || isDirectMessageDestination
                   ? friendOptions.slice(0, visibleFriendCount)
                   : [];
               const destinationSelectionKey = getSelectionKey({ destinationId: destination.id });
@@ -172,13 +180,15 @@ export function ShareMenu({
                         ? { expanded: isChatRoomsExpanded }
                         : isFriendsDestination
                           ? { expanded: isFriendsExpanded }
-                          : undefined
+                          : isDirectMessageDestination
+                            ? { expanded: isDirectMessagesExpanded }
+                            : undefined
                     }
                     disabled={Boolean(loadingSelectionKey)}
                     onPress={() => handleDestinationPress(destination)}
                     style={({ pressed }) => [
                       styles.destination,
-                      isChatRoomDestination || isFriendsDestination
+                      isChatRoomDestination || isFriendsDestination || isDirectMessageDestination
                         ? styles.destinationHeader
                         : null,
                       pressed ? styles.destinationPressed : null,
@@ -196,12 +206,13 @@ export function ShareMenu({
                     <Text style={styles.destinationLabel}>
                       {destination.label}
                     </Text>
-                    {isChatRoomDestination || isFriendsDestination ? (
+                    {isChatRoomDestination || isFriendsDestination || isDirectMessageDestination ? (
                       <MaterialCommunityIcons
                         color={colors.mutedText}
                         name={
                           (isChatRoomDestination && isChatRoomsExpanded)
                             || (isFriendsDestination && isFriendsExpanded)
+                            || (isDirectMessageDestination && isDirectMessagesExpanded)
                             ? 'chevron-up'
                             : 'chevron-down'
                         }
@@ -209,13 +220,15 @@ export function ShareMenu({
                       />
                     ) : null}
                   </Pressable>
-                  {(isChatRoomDestination && isChatRoomsExpanded) || (isFriendsDestination && isFriendsExpanded) ? (
+                  {(isChatRoomDestination && isChatRoomsExpanded) || (isFriendsDestination && isFriendsExpanded) || (isDirectMessageDestination && isDirectMessagesExpanded) ? (
                     targetOptions.length > 0 ? (
                       <View style={styles.targetStack}>
                         {targetOptions.map((option) => {
                           const selection = isChatRoomDestination
                             ? { destinationId: 'chat-room' as const, roomId: option.id }
-                            : { destinationId: 'friend' as const, targetUserId: option.id };
+                            : isDirectMessageDestination
+                              ? { destinationId: 'direct-message' as const, targetUserId: option.id }
+                              : { destinationId: 'friend' as const, targetUserId: option.id };
                           const isTargetLoading = loadingSelectionKey === getSelectionKey(selection);
 
                           return <Pressable
@@ -249,7 +262,7 @@ export function ShareMenu({
                             )}
                           </Pressable>
                         })}
-                        {isFriendsDestination && friendOptions.length > visibleFriendCount ? (
+                        {(isFriendsDestination || isDirectMessageDestination) && friendOptions.length > visibleFriendCount ? (
                           <Pressable
                             accessibilityRole="button"
                             disabled={Boolean(loadingSelectionKey)}
@@ -269,7 +282,9 @@ export function ShareMenu({
                       <Text style={styles.emptyTargetText}>
                         {isChatRoomDestination
                           ? 'No chat rooms are available to share into right now.'
-                          : 'No friends available to share with yet.'}
+                          : isDirectMessageDestination
+                            ? 'No friends available to message yet.'
+                            : 'No friends available to share with yet.'}
                       </Text>
                     )
                   ) : null}
