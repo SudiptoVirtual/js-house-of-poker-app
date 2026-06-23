@@ -89,31 +89,53 @@ async function resolveFeedPostTable({ payload = {}, post }) {
   return table;
 }
 
+function normalizeFriendId(friend) {
+  const candidate = friend?._id || friend?.id || friend;
+  return isValidObjectId(candidate) ? String(candidate) : null;
+}
+
+async function getSenderFriendIds(sender) {
+  if (Array.isArray(sender?.friends)) {
+    return sender.friends.map(normalizeFriendId).filter(Boolean);
+  }
+
+  const senderWithFriends = await User.findById(sender?._id).select("friends");
+  return Array.isArray(senderWithFriends?.friends) ? senderWithFriends.friends.map(normalizeFriendId).filter(Boolean) : [];
+}
+
 async function buildFeedInviteRecipients({ payload = {}, post, sender }) {
-  const recipientIds = [
+  const requestedRecipientIds = [
     payload.recipientUserId,
     ...(Array.isArray(payload.recipientUserIds) ? payload.recipientUserIds : []),
-    post.authorUserId,
   ]
     .filter(Boolean)
     .map(String)
     .filter(isValidObjectId);
-  const uniqueRecipientIds = [...new Set(recipientIds)]
-    .filter((id) => id !== String(sender._id))
-    .slice(0, MAX_INVITE_RECIPIENTS);
 
-  if (uniqueRecipientIds.length === 0) {
+  const uniqueRequestedRecipientIds = [...new Set(requestedRecipientIds)]
+    .filter((id) => id !== String(sender._id));
+
+  if (uniqueRequestedRecipientIds.length === 0) {
     throw new Error("At least one recipient is required.");
   }
 
+  const senderFriendIds = new Set(await getSenderFriendIds(sender));
+  const eligibleFriendRecipientIds = uniqueRequestedRecipientIds
+    .filter((id) => senderFriendIds.has(id))
+    .slice(0, MAX_INVITE_RECIPIENTS);
+
+  if (eligibleFriendRecipientIds.length === 0) {
+    throw new Error("Only friends can receive feed table invites.");
+  }
+
   const recipients = await User.find({
-    _id: { $in: uniqueRecipientIds },
+    _id: { $in: eligibleFriendRecipientIds },
     isBlocked: { $ne: true },
     status: { $ne: "blocked" },
   });
 
   if (recipients.length === 0) {
-    throw new Error("No eligible invite recipients were found.");
+    throw new Error("Only friends can receive feed table invites.");
   }
 
   return recipients;
@@ -196,6 +218,7 @@ function emitFeedTableInviteRecipientEvents(io, { invites = [], post, sender, ta
 }
 
 module.exports = {
+  buildFeedInviteRecipients,
   buildFeedTableInviteEventPayload,
   createFeedTableInvite,
   emitFeedTableInviteRecipientEvents,
