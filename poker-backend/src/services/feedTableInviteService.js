@@ -112,21 +112,25 @@ async function buildFeedInviteRecipients({ payload = {}, post, sender }) {
     .map(String)
     .filter(isValidObjectId);
 
-  const uniqueRequestedRecipientIds = [...new Set(requestedRecipientIds)]
-    .filter((id) => id !== String(sender._id));
+  const uniqueRequestedRecipientIds = [...new Set(requestedRecipientIds)];
+  const senderId = String(sender._id);
 
   if (uniqueRequestedRecipientIds.length === 0) {
-    throw new Error("At least one recipient is required.");
+    throw new Error("Select at least one friend to invite.");
+  }
+
+  if (uniqueRequestedRecipientIds.includes(senderId)) {
+    throw new Error("You cannot invite yourself to a feed table.");
   }
 
   const senderFriendIds = new Set(await getSenderFriendIds(sender));
-  const eligibleFriendRecipientIds = uniqueRequestedRecipientIds
-    .filter((id) => senderFriendIds.has(id))
-    .slice(0, MAX_INVITE_RECIPIENTS);
+  const nonFriendRecipientIds = uniqueRequestedRecipientIds.filter((id) => !senderFriendIds.has(id));
 
-  if (eligibleFriendRecipientIds.length === 0) {
+  if (nonFriendRecipientIds.length > 0) {
     throw new Error("Only friends can receive feed table invites.");
   }
+
+  const eligibleFriendRecipientIds = uniqueRequestedRecipientIds.slice(0, MAX_INVITE_RECIPIENTS);
 
   const recipients = await User.find({
     _id: { $in: eligibleFriendRecipientIds },
@@ -135,7 +139,7 @@ async function buildFeedInviteRecipients({ payload = {}, post, sender }) {
   });
 
   if (recipients.length === 0) {
-    throw new Error("Only friends can receive feed table invites.");
+    throw new Error("Select at least one friend to invite.");
   }
 
   return recipients;

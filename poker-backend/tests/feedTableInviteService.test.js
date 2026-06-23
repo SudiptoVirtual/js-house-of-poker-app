@@ -115,7 +115,7 @@ test('buildFeedInviteRecipients rejects blocked friend recipients', async (t) =>
       post: { authorUserId: AUTHOR_ID },
       sender: { _id: SENDER_ID, friends: [BLOCKED_FRIEND_ID] },
     }),
-    /Only friends can receive feed table invites\./,
+    /Select at least one friend to invite\./,
   );
   assert.deepEqual(userFindQuery, {
     _id: { $in: [BLOCKED_FRIEND_ID] },
@@ -139,9 +139,32 @@ test('buildFeedInviteRecipients rejects self-invites', async (t) => {
       post: { authorUserId: AUTHOR_ID },
       sender: { _id: SENDER_ID, friends: [SENDER_ID] },
     }),
-    /At least one recipient is required\./,
+    /You cannot invite yourself to a feed table\./,
   );
   assert.equal(userFindCalled, false);
+});
+
+test('buildFeedInviteRecipients preserves eligible friends when other requested friends are blocked', async (t) => {
+  let userFindQuery;
+  await withUserMocks(t, {
+    find(query) {
+      userFindQuery = query;
+      return [buildRecipient(FRIEND_ONE_ID)];
+    },
+  });
+
+  const recipients = await buildFeedInviteRecipients({
+    payload: { recipientUserIds: [FRIEND_ONE_ID, BLOCKED_FRIEND_ID] },
+    post: { authorUserId: AUTHOR_ID },
+    sender: { _id: SENDER_ID, friends: [FRIEND_ONE_ID, BLOCKED_FRIEND_ID] },
+  });
+
+  assert.deepEqual(userFindQuery, {
+    _id: { $in: [FRIEND_ONE_ID, BLOCKED_FRIEND_ID] },
+    isBlocked: { $ne: true },
+    status: { $ne: 'blocked' },
+  });
+  assert.deepEqual(recipients.map((recipient) => String(recipient._id)), [FRIEND_ONE_ID]);
 });
 
 test('buildFeedInviteRecipients caps eligible friend recipients at ten', async (t) => {
