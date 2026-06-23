@@ -1022,7 +1022,10 @@ export function PlayerFeedScreen({ mode = 'feed', navigation, route }: PlayerFee
           },
           session.token,
         );
-        setFeedToast({ tone: 'success', message: 'Shared with friend.' });
+        setFeedToast({
+          tone: 'success',
+          message: 'Shared with friend.',
+        });
       } else if (selection.destinationId === 'direct-message') {
         if (!selection.targetUserId) {
           setFeedToast({
