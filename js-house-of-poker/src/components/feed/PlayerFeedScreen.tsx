@@ -6,15 +6,12 @@ import {
   Image,
   Keyboard,
   Linking,
-  Modal,
   Platform,
   Pressable,
   RefreshControl,
-  ScrollView,
   Share,
   StyleSheet,
   Text,
-  TextInput,
   UIManager,
   View,
 } from 'react-native';
@@ -62,6 +59,7 @@ import { getJoinTableErrorMessage, joinFeedTableInvite } from './tableInviteActi
 import { GiftClipsModal } from './GiftClipsModal';
 import { PromoteForCreatorPanel } from './PromoteForCreatorPanel';
 import { ShareMenu, type ShareSelection } from './ShareMenu';
+import { FeedTableInviteSheet, type FeedInviteTableSelection } from './FeedTableInviteSheet';
 import {
   isBackendShareDestination,
   type BackendShareDestinationId,
@@ -69,6 +67,7 @@ import {
   type FeedNavigationRoute,
   type FeedPlayer,
   type FeedPost,
+  type FeedTableContext,
 } from '../../types/feed';
 import type { ChatRoom } from '../../types/chatRooms';
 import type { FriendsPlayer } from '../../types/friends';
@@ -87,7 +86,6 @@ type FeedLoadState =
 type PromotionPaymentState = 'idle' | 'creating' | 'pending-payment';
 type FeedToast = { tone: 'success' | 'error'; message: string } | null;
 type ToastAwareError = Error & { feedToastShown?: boolean };
-type InviteTableSelection = 'active' | 'post';
 
 type PlayerFeedScreenProps = {
   mode?: 'feed' | 'profile-history';
@@ -217,7 +215,7 @@ export function PlayerFeedScreen({ mode = 'feed', navigation, route }: PlayerFee
   const [invitePost, setInvitePost] = useState<FeedPost | null>(null);
   const [selectedInviteFriendIds, setSelectedInviteFriendIds] = useState<string[]>([]);
   const [selectedInviteTable, setSelectedInviteTable] =
-    useState<InviteTableSelection>('post');
+    useState<FeedInviteTableSelection>('post');
   const [inviteGameOption, setInviteGameOption] = useState('');
   const [inviteStakesOption, setInviteStakesOption] = useState('');
   const [inviteMessage, setInviteMessage] = useState('');
@@ -241,6 +239,19 @@ export function PlayerFeedScreen({ mode = 'feed', navigation, route }: PlayerFee
   const focusedPostId = routeParams?.postId ?? null;
   const activeTableCode = roomState?.roomId ?? null;
   const activeTableId = roomState?.tableId ?? roomState?.roomId ?? null;
+  const activeTableContext = useMemo<FeedTableContext | null>(() => {
+    if (!activeTableCode && !activeTableId) {
+      return null;
+    }
+
+    return {
+      gameLabel: roomState?.gameSettings.game === '357' ? '3-5-7' : "Texas Hold'em",
+      seatsOpen: Math.max(0, (roomState?.maxSeats ?? 0) - (roomState?.players.length ?? 0)),
+      ...(activeTableCode ? { tableCode: activeTableCode } : {}),
+      ...(activeTableId ? { tableId: activeTableId } : {}),
+      tableName: roomState?.tableName ?? activeTableCode ?? activeTableId ?? 'Current table',
+    };
+  }, [activeTableCode, activeTableId, roomState?.gameSettings.game, roomState?.maxSeats, roomState?.players.length, roomState?.tableName]);
   const currentPlayer = useMemo<FeedPlayer | undefined>(
     () =>
       currentUser
@@ -1614,145 +1625,25 @@ export function PlayerFeedScreen({ mode = 'feed', navigation, route }: PlayerFee
         post={sharePost}
         visible={Boolean(sharePost)}
       />
-      <Modal
-        animationType="slide"
-        onRequestClose={closeInviteToTableSheet}
-        transparent
+      <FeedTableInviteSheet
+        activeTableContext={activeTableContext}
+        friendOptions={friendShareOptions}
+        gameOption={inviteGameOption}
+        loading={isSendingTableInvite}
+        message={inviteMessage}
+        onClose={closeInviteToTableSheet}
+        onSelectTable={setSelectedInviteTable}
+        onSetGameOption={setInviteGameOption}
+        onSetMessage={setInviteMessage}
+        onSetStakesOption={setInviteStakesOption}
+        onSubmit={() => void handleSubmitTableInvite()}
+        onToggleFriend={toggleInviteFriend}
+        post={invitePost}
+        selectedFriendIds={selectedInviteFriendIds}
+        selectedStakesOption={inviteStakesOption}
+        selectedTable={selectedInviteTable}
         visible={Boolean(invitePost)}
-      >
-        <View style={styles.inviteBackdrop}>
-          <View style={styles.inviteSheet}>
-            <View style={styles.sheetHandle} />
-            <Text style={styles.inviteTitle}>Invite friends to table</Text>
-            <Text style={styles.inviteSubtitle}>
-              Choose the friends and table details to send through the feed action.
-            </Text>
-
-            <ScrollView
-              contentContainerStyle={styles.inviteScrollContent}
-              showsVerticalScrollIndicator={false}
-            >
-              <Text style={styles.inviteSectionLabel}>Friends</Text>
-              {inviteFriendOptions.length ? (
-                <View style={styles.inviteOptionStack}>
-                  {inviteFriendOptions.map((friend) => {
-                    const selected = selectedInviteFriendIds.includes(friend.id);
-                    const label = friend.displayName || friend.username || `Player ${friend.id.slice(-6)}`;
-
-                    return (
-                      <Pressable
-                        accessibilityRole="checkbox"
-                        accessibilityState={{ checked: selected, disabled: isSendingTableInvite }}
-                        key={friend.id}
-                        onPress={() => toggleInviteFriend(friend.id)}
-                        style={[
-                          styles.inviteOption,
-                          selected ? styles.inviteOptionSelected : null,
-                        ]}
-                        disabled={isSendingTableInvite}
-                      >
-                        <View>
-                          <Text style={styles.inviteOptionText}>{label}</Text>
-                          <Text style={styles.inviteOptionHelper}>{getFriendShareHelperText(friend)}</Text>
-                        </View>
-                        <Text style={styles.inviteCheckmark}>{selected ? '✓' : '+'}</Text>
-                      </Pressable>
-                    );
-                  })}
-                </View>
-              ) : (
-                <Text style={styles.inviteEmptyText}>
-                  Add friends before sending table invites from the feed.
-                </Text>
-              )}
-
-              <Text style={styles.inviteSectionLabel}>Table</Text>
-              <View style={styles.inviteSegmentRow}>
-                {invitePost?.tableContext ? (
-                  <Pressable
-                    accessibilityRole="button"
-                    disabled={isSendingTableInvite}
-                    onPress={() => setSelectedInviteTable('post')}
-                    style={[
-                      styles.inviteSegment,
-                      selectedInviteTable === 'post' ? styles.inviteSegmentSelected : null,
-                    ]}
-                  >
-                    <Text style={styles.inviteSegmentText}>Post table</Text>
-                  </Pressable>
-                ) : null}
-                {activeTableCode || activeTableId ? (
-                  <Pressable
-                    accessibilityRole="button"
-                    disabled={isSendingTableInvite}
-                    onPress={() => setSelectedInviteTable('active')}
-                    style={[
-                      styles.inviteSegment,
-                      selectedInviteTable === 'active' ? styles.inviteSegmentSelected : null,
-                    ]}
-                  >
-                    <Text style={styles.inviteSegmentText}>Current table</Text>
-                  </Pressable>
-                ) : null}
-              </View>
-
-              <TextInput
-                accessibilityLabel="Invite game option"
-                editable={!isSendingTableInvite}
-                onChangeText={setInviteGameOption}
-                placeholder="Game, e.g. Texas Hold'em"
-                placeholderTextColor={colors.mutedText}
-                style={styles.inviteInput}
-                value={inviteGameOption}
-              />
-              <TextInput
-                accessibilityLabel="Invite stakes option"
-                editable={!isSendingTableInvite}
-                onChangeText={setInviteStakesOption}
-                placeholder="Stakes, e.g. 25/50 clips"
-                placeholderTextColor={colors.mutedText}
-                style={styles.inviteInput}
-                value={inviteStakesOption}
-              />
-              <TextInput
-                accessibilityLabel="Invite message"
-                editable={!isSendingTableInvite}
-                multiline
-                onChangeText={setInviteMessage}
-                placeholder="Add a message"
-                placeholderTextColor={colors.mutedText}
-                style={[styles.inviteInput, styles.inviteMessageInput]}
-                value={inviteMessage}
-              />
-            </ScrollView>
-
-            <View style={styles.inviteActions}>
-              <Pressable
-                accessibilityRole="button"
-                disabled={isSendingTableInvite}
-                onPress={closeInviteToTableSheet}
-                style={[styles.inviteButton, styles.inviteSecondaryButton]}
-              >
-                <Text style={styles.inviteSecondaryButtonText}>Cancel</Text>
-              </Pressable>
-              <Pressable
-                accessibilityRole="button"
-                disabled={isSendingTableInvite}
-                onPress={() => void handleSubmitTableInvite()}
-                style={[
-                  styles.inviteButton,
-                  styles.invitePrimaryButton,
-                  isSendingTableInvite ? styles.inviteButtonDisabled : null,
-                ]}
-              >
-                <Text style={styles.invitePrimaryButtonText}>
-                  {isSendingTableInvite ? 'Sending…' : 'Send invite'}
-                </Text>
-              </Pressable>
-            </View>
-          </View>
-        </View>
-      </Modal>
+      />
       <GiftClipsModal
         disabled={isSendingGift}
         loading={isSendingGift}
@@ -1821,155 +1712,6 @@ const styles = StyleSheet.create({
   headerStack: {
     gap: colors.spacing[16],
   },
-  inviteActions: {
-    flexDirection: 'row',
-    gap: 12,
-    paddingTop: 14,
-  },
-  inviteBackdrop: {
-    backgroundColor: 'rgba(0,0,0,0.64)',
-    flex: 1,
-    justifyContent: 'flex-end',
-  },
-  inviteButton: {
-    alignItems: 'center',
-    borderRadius: 16,
-    flex: 1,
-    justifyContent: 'center',
-    minHeight: 48,
-    paddingHorizontal: 14,
-  },
-  inviteButtonDisabled: {
-    opacity: 0.65,
-  },
-  inviteCheckmark: {
-    color: colors.secondary,
-    fontSize: 18,
-    fontWeight: '900',
-  },
-  inviteEmptyText: {
-    color: colors.mutedText,
-    fontSize: 13,
-    fontWeight: '700',
-    lineHeight: 19,
-  },
-  inviteInput: {
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    borderColor: colors.border,
-    borderRadius: 16,
-    borderWidth: 1,
-    color: colors.text,
-    fontSize: 14,
-    fontWeight: '700',
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-  },
-  inviteMessageInput: {
-    minHeight: 92,
-    textAlignVertical: 'top',
-  },
-  inviteOption: {
-    alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    borderColor: colors.border,
-    borderRadius: 16,
-    borderWidth: 1,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    padding: 12,
-  },
-  inviteOptionHelper: {
-    color: colors.mutedText,
-    fontSize: 12,
-    fontWeight: '700',
-    marginTop: 3,
-  },
-  inviteOptionSelected: {
-    backgroundColor: 'rgba(54,231,255,0.12)',
-    borderColor: colors.secondary,
-  },
-  inviteOptionStack: {
-    gap: 10,
-  },
-  inviteOptionText: {
-    color: colors.text,
-    fontSize: 14,
-    fontWeight: '900',
-  },
-  invitePrimaryButton: {
-    backgroundColor: colors.primary,
-  },
-  invitePrimaryButtonText: {
-    color: colors.background,
-    fontSize: 14,
-    fontWeight: '900',
-  },
-  inviteScrollContent: {
-    gap: 12,
-    paddingBottom: 8,
-  },
-  inviteSecondaryButton: {
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    borderColor: colors.border,
-    borderWidth: 1,
-  },
-  inviteSecondaryButtonText: {
-    color: colors.text,
-    fontSize: 14,
-    fontWeight: '900',
-  },
-  inviteSectionLabel: {
-    color: colors.secondary,
-    fontSize: 12,
-    fontWeight: '900',
-    letterSpacing: 0.7,
-    textTransform: 'uppercase',
-  },
-  inviteSegment: {
-    alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    borderColor: colors.border,
-    borderRadius: 999,
-    borderWidth: 1,
-    flex: 1,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-  },
-  inviteSegmentRow: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  inviteSegmentSelected: {
-    backgroundColor: 'rgba(179,136,255,0.22)',
-    borderColor: colors.primary,
-  },
-  inviteSegmentText: {
-    color: colors.text,
-    fontSize: 13,
-    fontWeight: '900',
-  },
-  inviteSheet: {
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    borderWidth: 1,
-    maxHeight: '88%',
-    padding: 20,
-  },
-  inviteSubtitle: {
-    color: colors.mutedText,
-    fontSize: 13,
-    fontWeight: '700',
-    lineHeight: 19,
-    marginBottom: 14,
-  },
-  inviteTitle: {
-    color: colors.text,
-    fontSize: 22,
-    fontWeight: '900',
-    marginBottom: 6,
-  },
   notificationCallout: {
     backgroundColor: 'rgba(54,231,255,0.12)',
     borderColor: colors.secondary,
@@ -2001,14 +1743,6 @@ const styles = StyleSheet.create({
   },
   screenHeader: {
     gap: 8,
-  },
-  sheetHandle: {
-    alignSelf: 'center',
-    backgroundColor: colors.border,
-    borderRadius: 999,
-    height: 4,
-    marginBottom: 14,
-    width: 48,
   },
   subtitle: {
     color: colors.mutedText,
