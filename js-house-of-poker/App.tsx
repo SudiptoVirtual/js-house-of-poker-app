@@ -4,6 +4,7 @@ import { AuthProvider } from './src/context/AuthProvider';
 import { ChatNotificationProvider } from './src/context/ChatNotificationProvider';
 import { FeedNotificationProvider } from './src/context/FeedNotificationProvider';
 import { FriendNotificationProvider } from './src/context/FriendNotificationProvider';
+import { NotificationCenterProvider } from './src/context/NotificationCenterProvider';
 import { PokerProvider } from './src/context/PokerProvider';
 import { RootNavigator } from './src/navigation/RootNavigator';
 
@@ -15,7 +16,9 @@ export default function App() {
           <FeedNotificationProvider>
             <FriendNotificationProvider>
               <ChatNotificationProvider>
-                <RootNavigator />
+                <NotificationCenterProvider>
+                  <RootNavigator />
+                </NotificationCenterProvider>
               </ChatNotificationProvider>
             </FriendNotificationProvider>
           </FeedNotificationProvider>

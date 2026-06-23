@@ -19,6 +19,7 @@ const adminLiveRoutes = require("./routes/adminLiveRoutes");
 const chatRoomRoutes = require("./routes/chatRoomRoutes");
 const feedRoutes = require("./routes/feedRoutes");
 const friendRoutes = require("./routes/friendRoutes");
+const notificationRoutes = require("./routes/notificationRoutes");
 
 const { setIO } = require("./sockets/socketRegistry");
 const { initAdminLiveSocket } = require("./sockets/adminLiveSocket");
@@ -122,6 +123,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/chat-rooms", chatRoomRoutes);
 app.use("/api/feed", feedRoutes);
 app.use("/api/friends", friendRoutes);
+app.use("/api/notifications", notificationRoutes);
 app.use("/friends", friendRoutes);
 
 /*

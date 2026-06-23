@@ -25,6 +25,7 @@ export type RootStackParamList = {
     | undefined;
   MyFeed: undefined;
   PlayerDirectory: undefined;
+  Notifications: undefined;
   Game:
     | {
         gameId?: string;
