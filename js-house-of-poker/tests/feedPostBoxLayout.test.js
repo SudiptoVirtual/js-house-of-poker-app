@@ -101,7 +101,7 @@ test('feed composer exposes an explicit table invite CTA with clearer helper cop
 
   assert.equal(tableInvite.props.accessibilityRole, 'button');
   assert.equal(tableInvite.props.disabled, false);
-  assert.ok(findElements(tableInvite, (element) => element.type === 'Text' && element.props.children === 'Post active table invite').length);
+  assert.ok(findElements(tableInvite, (element) => element.type === 'Text' && element.props.children === 'Publish live table invite').length);
 });
 
 test('feed composer disables table invites without an authenticated current player', () => {
@@ -118,9 +118,21 @@ test('feed composer disables table invites without an authenticated current play
   assert.equal(authenticatedInvite.props.disabled, false);
 });
 
+test('feed composer replaces gift clips with live table invite copy', () => {
+  const source = fs.readFileSync(path.resolve(__dirname, '../src/components/feed/FeedPostBox.tsx'), 'utf8');
+
+  assert.doesNotMatch(source, /gift-outline/);
+  assert.doesNotMatch(source, /Gift clips/);
+  assert.doesNotMatch(source, /Fans tip after post/);
+  assert.match(source, /Publish live table invite/);
+  assert.match(source, /Creates a feed post with a live poker table joining link\./);
+});
+
 test('feed composer keeps table invite posts on the existing submit path', () => {
   const source = fs.readFileSync(path.resolve(__dirname, '../src/components/feed/FeedPostBox.tsx'), 'utf8');
 
   assert.match(source, /onPress=\{\(\) => setIsTableInvite\(true\)\}/);
+  assert.match(source, /const canSubmitTableInvite = isTableInvite && canUseTableInvite/);
+  assert.match(source, /!trimmedContent && attachments\.length === 0 && !\(isTableInvite && canUseTableInvite\)/);
   assert.match(source, /onCreatePost\(isTableInvite \? \{ \.\.\.input, postType: 'table_invite' \}/);
 });
