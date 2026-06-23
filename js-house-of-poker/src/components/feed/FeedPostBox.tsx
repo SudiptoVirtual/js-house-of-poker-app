@@ -45,6 +45,7 @@ export function FeedPostBox({ canInviteToTable = false, currentPlayer, isAuthent
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isTableInvite, setIsTableInvite] = useState(false);
   const player = currentPlayer ?? placeholderPlayer;
+  const canUseTableInvite = Boolean(isAuthenticated && currentPlayer && canInviteToTable) && !isSubmitting;
   const canSubmit = Boolean(currentPlayer && isAuthenticated) && (content.trim().length > 0 || attachments.length > 0) && !isSubmitting;
   const statusMessage = useMemo(() => isSubmitting ? 'Uploading attachments and publishing post...' : !currentPlayer || !isAuthenticated ? 'Sign in to publish posts to the player feed.' : `Posting as ${player.name}`, [currentPlayer, isAuthenticated, isSubmitting, player.name]);
 
@@ -100,7 +101,7 @@ export function FeedPostBox({ canInviteToTable = false, currentPlayer, isAuthent
     </View>
     <View style={styles.toolRow}>
       <Pressable accessibilityRole="button" disabled={!currentPlayer || !isAuthenticated || isSubmitting || attachments.length >= MAX_FEED_ATTACHMENTS} onPress={() => setIsAttachmentSheetOpen(true)} style={styles.toolButton}><MaterialCommunityIcons color={colors.secondary} name="image-multiple-outline" size={18} /><Text style={styles.toolTitle}>Media drop</Text><Text style={styles.toolMeta}>{attachments.length}/{MAX_FEED_ATTACHMENTS}</Text></Pressable>
-      {canInviteToTable ? <Pressable accessibilityRole="button" onPress={() => setIsTableInvite((current) => !current)} style={[styles.toolButton, isTableInvite ? styles.inviteOptionSelected : null]}><MaterialCommunityIcons color={colors.gold} name="poker-chip" size={18} /><Text style={styles.toolTitle}>{isTableInvite ? 'Table linked' : 'Invite table'}</Text><Text style={styles.toolMeta}>Seats + code</Text></Pressable> : null}
+      {canInviteToTable ? <Pressable accessibilityRole="button" disabled={!canUseTableInvite} onPress={() => setIsTableInvite(true)} style={[styles.toolButton, !canUseTableInvite ? styles.toolButtonDisabled : null, isTableInvite ? styles.inviteOptionSelected : null]}><MaterialCommunityIcons color={isTableInvite ? colors.gold : colors.secondary} name="poker-chip" size={18} /><Text style={styles.toolTitle}>Invite to Table</Text><Text style={styles.toolMeta}>{isTableInvite ? 'Table invite selected' : 'Post active table invite'}</Text></Pressable> : null}
       <View style={styles.toolButton}><MaterialCommunityIcons color={colors.accent} name="gift-outline" size={18} /><Text style={styles.toolTitle}>Gift clips</Text><Text style={styles.toolMeta}>Fans tip after post</Text></View>
     </View>
     <View style={styles.footerRow}><Text style={styles.helperText}>{statusMessage}</Text><ActionButton compact disabled={!canSubmit} icon="send-outline" label={isSubmitting ? 'Posting' : 'Post'} loading={isSubmitting} onPress={handleSubmit} /></View>
@@ -136,6 +137,7 @@ const styles = StyleSheet.create({
   sheetTitle: { color: colors.text, fontSize: 18, fontWeight: '800', marginBottom: 6 },
   textboxArea: { backgroundColor: 'rgba(5,3,11,0.34)', borderColor: 'rgba(255,255,255,0.12)', borderRadius: colors.radii.lg, borderWidth: 1, overflow: 'hidden', position: 'relative' },
   toolButton: { backgroundColor: 'rgba(255,255,255,0.06)', borderColor: 'rgba(255,255,255,0.10)', borderRadius: colors.radii.lg, borderWidth: 1, flex: 1, gap: colors.spacing[4], minWidth: 104, padding: colors.spacing[12] },
+  toolButtonDisabled: { opacity: 0.5 },
   toolMeta: { color: colors.mutedText, fontSize: 11, fontWeight: '700' },
   toolRow: { flexDirection: 'row', flexWrap: 'wrap', gap: colors.spacing[8] },
   toolTitle: { color: colors.text, fontSize: 12, fontWeight: '900' },

@@ -4,6 +4,7 @@ const fs = require('node:fs');
 const Module = require('node:module');
 const path = require('node:path');
 const ts = require('typescript');
+const { mockColors } = require('./mockTheme');
 
 function compileComponent(relativePath, mocks) {
   const filename = path.resolve(__dirname, relativePath);
@@ -42,24 +43,26 @@ const reactNativeMock = {
   View: 'View',
 };
 
-function renderFeedPostBox() {
+function renderFeedPostBox(props = {}) {
   const { FeedPostBox } = compileComponent('../src/components/feed/FeedPostBox.tsx', {
     react: { ...require('react'), useMemo: (factory) => factory(), useState: (initial) => [initial, () => {}] },
     'react-native': reactNativeMock,
     '@expo/vector-icons': { MaterialCommunityIcons: () => null },
     'expo-image-picker': {},
     '../ActionButton': { ActionButton },
-    '../../theme/colors': { colors: {} },
+    '../../theme/colors': { colors: mockColors },
     './FeedAvatar': { FeedAvatar },
     './attachmentWorkflow': {
       appendFeedAttachments: () => [],
+      isFeedAttachmentOversized: () => false,
       MAX_FEED_ATTACHMENTS: 5,
+      MAX_FEED_ATTACHMENT_SIZE_LABEL: '10 MB',
       removeFeedAttachment: () => [],
       uploadAttachmentsAndCreatePost: async () => {},
     },
   });
 
-  return FeedPostBox({ onCreatePost: async () => ({}), onToast: () => {}, onUploadAttachment: async () => ({}) });
+  return FeedPostBox({ onCreatePost: async () => ({}), onToast: () => {}, onUploadAttachment: async () => ({}), ...props });
 }
 
 test('feed composer displays its heading and updated prompt', () => {
@@ -85,4 +88,39 @@ test('feed composer keeps explicit accessible labels for composer controls', () 
 
   assert.equal(textbox.props.accessibilityLabel, 'Post content');
   assert.equal(attachment.props.accessibilityRole, 'button');
+});
+
+
+test('feed composer exposes an explicit table invite CTA with clearer helper copy', () => {
+  const composer = renderFeedPostBox({
+    canInviteToTable: true,
+    currentPlayer: { id: 'player-1', name: 'Ada Lovelace', handle: '@ada' },
+    isAuthenticated: true,
+  });
+  const tableInvite = findElements(composer, (element) => element.type === 'Pressable' && findElements(element, (child) => child.type === 'Text' && child.props.children === 'Invite to Table').length > 0)[0];
+
+  assert.equal(tableInvite.props.accessibilityRole, 'button');
+  assert.equal(tableInvite.props.disabled, false);
+  assert.ok(findElements(tableInvite, (element) => element.type === 'Text' && element.props.children === 'Post active table invite').length);
+});
+
+test('feed composer disables table invites without an authenticated current player', () => {
+  const unauthenticatedComposer = renderFeedPostBox({ canInviteToTable: true });
+  const unauthenticatedInvite = findElements(unauthenticatedComposer, (element) => element.type === 'Pressable' && findElements(element, (child) => child.type === 'Text' && child.props.children === 'Invite to Table').length > 0)[0];
+  const authenticatedComposer = renderFeedPostBox({
+    canInviteToTable: true,
+    currentPlayer: { id: 'player-1', name: 'Ada Lovelace', handle: '@ada' },
+    isAuthenticated: true,
+  });
+  const authenticatedInvite = findElements(authenticatedComposer, (element) => element.type === 'Pressable' && findElements(element, (child) => child.type === 'Text' && child.props.children === 'Invite to Table').length > 0)[0];
+
+  assert.equal(unauthenticatedInvite.props.disabled, true);
+  assert.equal(authenticatedInvite.props.disabled, false);
+});
+
+test('feed composer keeps table invite posts on the existing submit path', () => {
+  const source = fs.readFileSync(path.resolve(__dirname, '../src/components/feed/FeedPostBox.tsx'), 'utf8');
+
+  assert.match(source, /onPress=\{\(\) => setIsTableInvite\(true\)\}/);
+  assert.match(source, /onCreatePost\(isTableInvite \? \{ \.\.\.input, postType: 'table_invite' \}/);
 });
