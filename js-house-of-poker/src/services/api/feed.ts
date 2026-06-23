@@ -113,6 +113,18 @@ export type FeedTableInviteResponse = {
   };
 };
 
+export type CreateFeedInviteTableInput = {
+  tableName?: string;
+};
+
+export type CreateFeedInviteTableResponse = {
+  table: FeedTableContext & {
+    id?: string;
+    phase?: string | null;
+    status?: string | null;
+  };
+};
+
 export type SendFeedTableInviteInput = {
   message?: string;
   recipientUserId?: string;
@@ -353,6 +365,14 @@ function formatFileSize(bytes: number) {
 
 export async function createFeedPost(input: CreateFeedPostInput, token: string): Promise<CreateFeedPostResponse> {
   return feedApiRequest<CreateFeedPostResponse>('/api/feed', {
+    body: input,
+    method: 'POST',
+    token,
+  });
+}
+
+export async function createFeedInviteTable(input: CreateFeedInviteTableInput, token: string): Promise<CreateFeedInviteTableResponse> {
+  return feedApiRequest<CreateFeedInviteTableResponse>('/api/feed/table-invite-table', {
     body: input,
     method: 'POST',
     token,

@@ -90,6 +90,57 @@ test('table invite authorization and update ownership/type validation are enforc
   assert.equal(res.statusCode, 400); assert.equal(res.payload.code, 'INVALID_POST_TYPE_PAYLOAD');
 });
 
+test('feed invite table creation returns a backend table reference for composer posts', async (t) => {
+  const originals = { create: GameTable.create, exists: GameTable.exists };
+  let createdInput;
+  GameTable.exists = async () => null;
+  GameTable.create = async (input) => {
+    createdInput = input;
+    return { ...input, _id: tableId, updatedAt: new Date('2026-01-01T00:00:00Z') };
+  };
+  delete require.cache[controllerPath];
+  t.after(() => {
+    GameTable.create = originals.create;
+    GameTable.exists = originals.exists;
+    delete require.cache[controllerPath];
+  });
+
+  const { createFeedInviteTable } = require('../src/controllers/feedController');
+  const res = response();
+  await createFeedInviteTable(
+    {
+      body: { tableName: 'Feed Table' },
+      user: {
+        _id: authorId,
+        avatar: 'https://cdn.example.com/author.jpg',
+        name: 'Author',
+        playerStatus: { iconKey: 'badge-author', tier: 'GOLD' },
+        referralCode: 'REF123',
+      },
+    },
+    res,
+  );
+
+  assert.equal(res.statusCode, 201, JSON.stringify(res.payload));
+  assert.match(createdInput.tableCode, /^[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{5}$/);
+  assert.equal(createdInput.tableName, 'Feed Table');
+  assert.equal(createdInput.status, 'waiting');
+  assert.equal(createdInput.phase, 'waiting');
+  assert.equal(createdInput.gameType, 'holdem');
+  assert.equal(createdInput.maxPlayers, 6);
+  assert.equal(String(createdInput.createdByUserId), String(authorId));
+  assert.equal(String(createdInput.hostUserId), String(authorId));
+  assert.equal(String(createdInput.players[0].userId), String(authorId));
+  assert.equal(createdInput.players[0].displayName, 'Author');
+  assert.equal(createdInput.players[0].playerStatus, 'GOLD');
+  assert.equal(createdInput.players[0].seatNumber, 0);
+  assert.equal(createdInput.players[0].statusIcon, 'badge-author');
+  assert.equal(res.payload.table.tableCode, createdInput.tableCode);
+  assert.equal(res.payload.table.tableId, String(tableId));
+  assert.equal(res.payload.table.tableName, 'Feed Table');
+  assert.equal(res.payload.table.seatsOpen, 5);
+});
+
 test('FeedPost serializes the postType discriminant', () => {
   const post = new FeedPost({ _id: postId, authorSnapshot: { handle: '@author', name: 'Author' }, authorUserId: authorId, body: 'hello', postType: 'text' });
   assert.equal(post.toClient().postType, 'text');

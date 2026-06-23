@@ -118,6 +118,36 @@ test('feed composer disables table invites without an authenticated current play
   assert.equal(authenticatedInvite.props.disabled, false);
 });
 
+test('feed composer keeps the table invite CTA visible when no active table exists', () => {
+  const composer = renderFeedPostBox({
+    canInviteToTable: true,
+    currentPlayer: { id: 'player-1', name: 'Ada Lovelace', handle: '@ada' },
+    hasActiveTable: false,
+    isAuthenticated: true,
+  });
+  const tableInvite = findElements(composer, (element) => element.type === 'Pressable' && findElements(element, (child) => child.type === 'Text' && child.props.children === 'Invite to Table').length > 0)[0];
+
+  assert.equal(tableInvite.props.accessibilityRole, 'button');
+  assert.equal(tableInvite.props.disabled, false);
+  assert.ok(findElements(tableInvite, (element) => element.type === 'Text' && element.props.children === 'Create a table invite link').length);
+});
+
+test('feed composer prepares a table when selecting invite without an active table', async () => {
+  let prepareCalls = 0;
+  const composer = renderFeedPostBox({
+    canInviteToTable: true,
+    currentPlayer: { id: 'player-1', name: 'Ada Lovelace', handle: '@ada' },
+    hasActiveTable: false,
+    isAuthenticated: true,
+    onPrepareTableInvite: async () => { prepareCalls += 1; },
+  });
+  const tableInvite = findElements(composer, (element) => element.type === 'Pressable' && findElements(element, (child) => child.type === 'Text' && child.props.children === 'Invite to Table').length > 0)[0];
+
+  await tableInvite.props.onPress();
+
+  assert.equal(prepareCalls, 1);
+});
+
 test('feed composer replaces gift clips with live table invite copy', () => {
   const source = fs.readFileSync(path.resolve(__dirname, '../src/components/feed/FeedPostBox.tsx'), 'utf8');
 
@@ -131,8 +161,9 @@ test('feed composer replaces gift clips with live table invite copy', () => {
 test('feed composer keeps table invite posts on the existing submit path', () => {
   const source = fs.readFileSync(path.resolve(__dirname, '../src/components/feed/FeedPostBox.tsx'), 'utf8');
 
-  assert.match(source, /onPress=\{\(\) => setIsTableInvite\(true\)\}/);
+  assert.match(source, /async function handleSelectTableInvite/);
+  assert.match(source, /await onPrepareTableInvite\(\)/);
   assert.match(source, /const canSubmitTableInvite = isTableInvite && canUseTableInvite/);
   assert.match(source, /!trimmedContent && attachments\.length === 0 && !\(isTableInvite && canUseTableInvite\)/);
-  assert.match(source, /onCreatePost\(isTableInvite \? \{ \.\.\.input, postType: 'table_invite' \}/);
+  assert.match(source, /postType: 'table_invite'/);
 });

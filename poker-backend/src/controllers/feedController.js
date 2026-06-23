@@ -42,6 +42,77 @@ const DEFAULT_POST_LIMIT = 20;
 const MAX_POST_LIMIT = 50;
 const DEFAULT_COMMENT_LIMIT = 25;
 const MAX_COMMENT_LIMIT = 100;
+const FEED_TABLE_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+const FEED_TABLE_MAX_PLAYERS = 6;
+const FEED_TABLE_MIN_PLAYERS = 2;
+const POKER_SMALL_BLIND = Math.max(
+  1,
+  Number.parseInt(process.env.POKER_SMALL_BLIND || "10", 10)
+);
+const POKER_BIG_BLIND = Math.max(
+  POKER_SMALL_BLIND,
+  Number.parseInt(process.env.POKER_BIG_BLIND || "20", 10)
+);
+const POKER_DEFAULT_BUY_IN = Math.max(
+  POKER_BIG_BLIND * 10,
+  Number.parseInt(process.env.POKER_DEFAULT_BUY_IN || "1000", 10)
+);
+
+function buildFeedTableCodeCandidate() {
+  return Array.from({ length: 5 }, () => {
+    const index = Math.floor(Math.random() * FEED_TABLE_CODE_ALPHABET.length);
+    return FEED_TABLE_CODE_ALPHABET[index];
+  }).join("");
+}
+
+async function generateUniqueFeedTableCode() {
+  for (let attempts = 0; attempts < 20; attempts += 1) {
+    const candidate = buildFeedTableCodeCandidate();
+    const existingTable = await GameTable.exists({ tableCode: candidate });
+
+    if (!existingTable) {
+      return candidate;
+    }
+  }
+
+  throw createFeedValidationError("Unable to generate a unique table code.", 500, "TABLE_CODE_GENERATION_FAILED");
+}
+
+function createDefaultFeedTableGameSettings() {
+  return {
+    game: "holdem",
+    locked: false,
+    lowRule: "8-or-better",
+    mode: "high-only",
+    stips: {
+      bestFiveCards: false,
+      hostestWithTheMostest: false,
+      suitedBeatsUnsuited: false,
+      wildCards: false,
+    },
+    wildCards: [],
+  };
+}
+
+function getUserDisplayName(user) {
+  return normalizeText(user?.name, 80) || normalizeText(user?.email, 80) || "Player";
+}
+
+function getUserStatusTier(user) {
+  const status = user?.playerStatus;
+  if (typeof status === "string") {
+    return normalizeText(status, 40) || "NO_STATUS";
+  }
+  return normalizeText(status?.tier, 40) || "NO_STATUS";
+}
+
+function getUserStatusIcon(user) {
+  const status = user?.playerStatus;
+  if (status && typeof status === "object") {
+    return normalizeText(status.iconKey, 80) || "badge-no-status";
+  }
+  return "badge-no-status";
+}
 
 
 function isChatRoomParticipant(room, userId) {
@@ -859,6 +930,60 @@ async function uploadMedia(req, res) {
     return res.status(201).json({ media });
   } catch (error) {
     return sendServerError(res, error, "Unable to upload attachment.");
+  }
+}
+
+async function createFeedInviteTable(req, res) {
+  try {
+    const tableCode = await generateUniqueFeedTableCode();
+    const displayName = getUserDisplayName(req.user);
+    const tableName =
+      normalizeText(req.body?.tableName, 80) ||
+      `${displayName}'s Feed Table`;
+    const gameSettings = createDefaultFeedTableGameSettings();
+
+    const table = await GameTable.create({
+      actionLog: [`${displayName} created feed invite table ${tableCode}.`],
+      bigBlind: POKER_BIG_BLIND,
+      buyInAmount: POKER_DEFAULT_BUY_IN,
+      chatMessages: [],
+      createdByUserId: req.user._id,
+      currentPot: 0,
+      gameSettings,
+      gameType: gameSettings.game,
+      handCount: 0,
+      hostUserId: req.user._id,
+      maxPlayers: FEED_TABLE_MAX_PLAYERS,
+      minPlayersToStart: FEED_TABLE_MIN_PLAYERS,
+      phase: "waiting",
+      players: [
+        {
+          avatar: req.user.avatar || req.user.profileImageUrl || "",
+          chipsOnTable: POKER_DEFAULT_BUY_IN,
+          displayName,
+          isAllIn: false,
+          isConnected: false,
+          isDealer: false,
+          isFolded: false,
+          pendingRemoval: false,
+          playerStatus: getUserStatusTier(req.user),
+          referralCode: req.user.referralCode || "",
+          seatNumber: 0,
+          statusIcon: getUserStatusIcon(req.user),
+          userId: req.user._id,
+        },
+      ],
+      smallBlind: POKER_SMALL_BLIND,
+      status: "waiting",
+      tableCode,
+      tableName,
+    });
+
+    return res.status(201).json({
+      table: serializeTableDiscoveryContext(table),
+    });
+  } catch (error) {
+    return sendServerError(res, error, "Unable to create feed invite table");
   }
 }
 
@@ -1806,6 +1931,7 @@ async function getDiscoveryPayload(req, res) {
 module.exports = {
   addComment,
   completePromotion,
+  createFeedInviteTable,
   createPost,
   createReaction,
   createShare,

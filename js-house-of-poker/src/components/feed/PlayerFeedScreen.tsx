@@ -31,6 +31,7 @@ import { useKeyboardVisible } from '../../hooks/useKeyboardVisible';
 import { createFeedRealtimeClient } from '../../services/feed/feedRealtimeClient';
 import {
   createFeedComment,
+  createFeedInviteTable,
   createFeedPost,
   createFeedPromotion,
   createFeedShare,
@@ -69,6 +70,7 @@ import {
 } from '../../types/feed';
 import type { ChatRoom } from '../../types/chatRooms';
 import type { FriendsPlayer } from '../../types/friends';
+import type { PokerRoomState } from '../../types/poker';
 import { mergeRealtimePostList } from './mergeRealtimePostList';
 import { selectActiveVideoPostId } from './feedVideoSelection';
 
@@ -84,6 +86,11 @@ type FeedLoadState =
 type PromotionPaymentState = 'idle' | 'creating' | 'pending-payment';
 type FeedToast = { tone: 'success' | 'error'; message: string } | null;
 type ToastAwareError = Error & { feedToastShown?: boolean };
+type PreparedFeedInviteTable = {
+  tableCode: string | null;
+  tableContext: FeedTableContext;
+  tableId: string | null;
+};
 
 type PlayerFeedScreenProps = {
   mode?: 'feed' | 'profile-history';
@@ -190,6 +197,61 @@ function getFriendShareHelperText(friend: FriendsPlayer) {
   return friend.username || 'Friend';
 }
 
+function buildFeedTableContextFromPokerRoom(roomState?: PokerRoomState | null): FeedTableContext | null {
+  const tableCode = roomState?.roomId ?? null;
+  const tableId = roomState?.tableId ?? tableCode;
+
+  if (!tableCode && !tableId) {
+    return null;
+  }
+
+  return {
+    gameLabel: roomState?.gameSettings.game === '357' ? '3-5-7' : "Texas Hold'em",
+    seatsOpen: Math.max(0, (roomState?.maxSeats ?? 0) - (roomState?.players.length ?? 0)),
+    ...(tableCode ? { tableCode } : {}),
+    ...(tableId ? { tableId } : {}),
+    tableName: roomState?.tableName ?? tableCode ?? tableId ?? 'Current table',
+  };
+}
+
+function buildPreparedFeedInviteTableFromPokerRoom(roomState?: PokerRoomState | null): PreparedFeedInviteTable | null {
+  const tableContext = buildFeedTableContextFromPokerRoom(roomState);
+  const tableCode = roomState?.roomId ?? null;
+  const tableId = roomState?.tableId ?? tableCode;
+
+  if (!tableContext || (!tableCode && !tableId)) {
+    return null;
+  }
+
+  return { tableCode, tableContext, tableId };
+}
+
+function buildPreparedFeedInviteTableFromContext(
+  tableContext?: (FeedTableContext & { id?: string | null }) | null,
+): PreparedFeedInviteTable | null {
+  if (!tableContext) {
+    return null;
+  }
+
+  const { id, ...feedTableContext } = tableContext;
+  const tableCode = tableContext.tableCode ?? null;
+  const tableId = tableContext.tableId ?? id ?? tableCode;
+
+  if (!tableCode && !tableId) {
+    return null;
+  }
+
+  return {
+    tableCode,
+    tableContext: {
+      ...feedTableContext,
+      ...(tableCode ? { tableCode } : {}),
+      ...(tableId ? { tableId } : {}),
+    },
+    tableId,
+  };
+}
+
 export function PlayerFeedScreen({ mode = 'feed', navigation, route }: PlayerFeedScreenProps) {
   const { currentUser, token } = useAuth();
   const insets = useSafeAreaInsets();
@@ -215,6 +277,8 @@ export function PlayerFeedScreen({ mode = 'feed', navigation, route }: PlayerFee
   const [inviteGameOption, setInviteGameOption] = useState('');
   const [inviteStakesOption, setInviteStakesOption] = useState('');
   const [inviteMessage, setInviteMessage] = useState('');
+  const [preparedFeedInviteTable, setPreparedFeedInviteTable] =
+    useState<PreparedFeedInviteTable | null>(null);
   const [isSendingTableInvite, setIsSendingTableInvite] = useState(false);
   const [chatRooms, setChatRooms] = useState<ChatRoom[]>([]);
   const [shareFriends, setShareFriends] = useState<FriendsPlayer[]>([]);
@@ -235,19 +299,7 @@ export function PlayerFeedScreen({ mode = 'feed', navigation, route }: PlayerFee
   const focusedPostId = routeParams?.postId ?? null;
   const activeTableCode = roomState?.roomId ?? null;
   const activeTableId = roomState?.tableId ?? roomState?.roomId ?? null;
-  const activeTableContext = useMemo<FeedTableContext | null>(() => {
-    if (!activeTableCode && !activeTableId) {
-      return null;
-    }
-
-    return {
-      gameLabel: roomState?.gameSettings.game === '357' ? '3-5-7' : "Texas Hold'em",
-      seatsOpen: Math.max(0, (roomState?.maxSeats ?? 0) - (roomState?.players.length ?? 0)),
-      ...(activeTableCode ? { tableCode: activeTableCode } : {}),
-      ...(activeTableId ? { tableId: activeTableId } : {}),
-      tableName: roomState?.tableName ?? activeTableCode ?? activeTableId ?? 'Current table',
-    };
-  }, [activeTableCode, activeTableId, roomState?.gameSettings.game, roomState?.maxSeats, roomState?.players.length, roomState?.tableName]);
+  const activeTableContext = useMemo(() => buildFeedTableContextFromPokerRoom(roomState), [roomState]);
   const currentPlayer = useMemo<FeedPlayer | undefined>(
     () =>
       currentUser
@@ -525,6 +577,53 @@ export function PlayerFeedScreen({ mode = 'feed', navigation, route }: PlayerFee
     [shareFriends],
   );
 
+  async function ensureFeedInviteTable(): Promise<PreparedFeedInviteTable> {
+    if (!currentUser) {
+      throw new Error('Sign in before creating a table invite.');
+    }
+
+    if (!token) {
+      throw new Error('Sign in before creating a table invite.');
+    }
+
+    if (preparedFeedInviteTable) {
+      return preparedFeedInviteTable;
+    }
+
+    const activeFeedInviteTable = buildPreparedFeedInviteTableFromPokerRoom(roomState);
+    if (activeFeedInviteTable) {
+      return activeFeedInviteTable;
+    }
+
+    const playerName = currentUser.name?.trim() || 'Player';
+    const response = await createFeedInviteTable(
+      { tableName: `${playerName}'s Feed Table` },
+      token,
+    );
+    const nextTable = buildPreparedFeedInviteTableFromContext(response.table);
+
+    if (!nextTable) {
+      throw new Error('Unable to create a joinable table for this invite.');
+    }
+
+    setPreparedFeedInviteTable(nextTable);
+    setFeedToast({
+      tone: 'success',
+      message: `Table ${nextTable.tableCode ?? nextTable.tableId} is ready. Publish the invite to share the joining link.`,
+    });
+    return nextTable;
+  }
+
+  async function handlePrepareTableInvite() {
+    try {
+      await ensureFeedInviteTable();
+    } catch (error) {
+      const details = getApiErrorDetails(error, 'Unable to create a table for this invite right now.');
+      setFeedToast({ tone: 'error', message: details.message });
+      throw error;
+    }
+  }
+
   async function handleCreatePost(input: ComposeFeedPostInput) {
     if (!token || !currentUser) {
       const error = new Error('Sign in to publish posts to the player feed.') as ToastAwareError;
@@ -534,22 +633,31 @@ export function PlayerFeedScreen({ mode = 'feed', navigation, route }: PlayerFee
     }
 
     try {
-      if (input.postType === 'table_invite' && !activeTableCode && !activeTableId) {
-        throw new Error('Select a joinable table before publishing a table invite.');
+      const inviteTable = input.postType === 'table_invite' ? await ensureFeedInviteTable() : null;
+      const inviteTableContext = inviteTable?.tableContext ?? null;
+      const inviteTableCode = inviteTable?.tableCode ?? null;
+      const inviteTableId = inviteTable?.tableId ?? inviteTableCode;
+
+      if (input.postType === 'table_invite' && !inviteTableCode && !inviteTableId) {
+        throw new Error('Unable to create a joinable table for this invite.');
       }
       const request: CreateFeedPostInput = input.postType === 'table_invite'
         ? {
             ...(input.content ? { content: input.content } : {}),
             ...(input.media && input.media.length > 0 ? { media: input.media } : {}),
             postType: 'table_invite',
-            ...(activeTableCode ? { tableCode: activeTableCode } : { tableId: activeTableId as string }),
-            ...(activeTableId ? { tableId: activeTableId } : {}),
-            ...(activeTableContext ? { tableContext: activeTableContext } : {}),
+            ...(inviteTableCode ? { tableCode: inviteTableCode } : { tableId: inviteTableId as string }),
+            ...(inviteTableId ? { tableId: inviteTableId } : {}),
+            ...(inviteTableContext ? { tableContext: inviteTableContext } : {}),
           }
         : input.postType === 'media'
           ? { content: input.content, media: input.media, postType: 'media' }
           : { content: input.content, postType: 'text' };
       const response = await createFeedPost(request, token);
+
+      if (input.postType === 'table_invite') {
+        setPreparedFeedInviteTable(null);
+      }
 
       setPosts((currentPosts) =>
         mergeRealtimePostList(currentPosts, response.post, {
@@ -1459,10 +1567,12 @@ export function PlayerFeedScreen({ mode = 'feed', navigation, route }: PlayerFee
               </View>
               {!isProfileHistoryMode ? (
                 <FeedPostBox
-                  canInviteToTable={Boolean(activeTableCode && activeTableId)}
+                  canInviteToTable
                   currentPlayer={currentPlayer}
+                  hasActiveTable={Boolean(activeTableCode || activeTableId || preparedFeedInviteTable)}
                   isAuthenticated={Boolean(token && currentUser)}
                   onCreatePost={handleCreatePost}
+                  onPrepareTableInvite={handlePrepareTableInvite}
                   onToast={setFeedToast}
                   onUploadAttachment={(attachment) => {
                     if (!token) throw new Error('Sign in to upload attachments.');

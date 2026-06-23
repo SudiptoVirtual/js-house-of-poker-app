@@ -27,9 +27,11 @@ type ToastAwareError = Error & { feedToastShown?: boolean };
 type FeedPostBoxProps = {
   currentPlayer?: FeedPostBoxProfile;
   canInviteToTable?: boolean;
+  hasActiveTable?: boolean;
   isAuthenticated?: boolean;
   onCreatePost: (input: ComposeFeedPostInput) => Promise<FeedPost>;
   onOpenProfile?: (player: FeedPostBoxProfile) => void;
+  onPrepareTableInvite?: () => Promise<void> | void;
   onToast: (toast: FeedToast) => void;
   onUploadAttachment: (attachment: UploadFeedMediaInput) => Promise<FeedMedia>;
 };
@@ -40,23 +42,33 @@ function toAttachment(asset: PickerAsset): LocalAttachment {
   return { fileSize: asset.fileSize, id: asset.assetId || `${asset.uri}-${Date.now()}`, mimeType: asset.mimeType || (type === 'video' ? 'video/mp4' : 'image/jpeg'), name: asset.fileName || `feed-${Date.now()}.${type === 'video' ? 'mp4' : 'jpg'}`, type, uri: asset.uri };
 }
 
-export function FeedPostBox({ canInviteToTable = false, currentPlayer, isAuthenticated = false, onCreatePost, onOpenProfile, onToast, onUploadAttachment }: FeedPostBoxProps) {
+export function FeedPostBox({ canInviteToTable = false, currentPlayer, hasActiveTable = canInviteToTable, isAuthenticated = false, onCreatePost, onOpenProfile, onPrepareTableInvite, onToast, onUploadAttachment }: FeedPostBoxProps) {
   const [attachments, setAttachments] = useState<LocalAttachment[]>([]);
   const [content, setContent] = useState('');
   const [isAttachmentSheetOpen, setIsAttachmentSheetOpen] = useState(false);
+  const [isPreparingTableInvite, setIsPreparingTableInvite] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isTableInvite, setIsTableInvite] = useState(false);
   const player = currentPlayer ?? placeholderPlayer;
-  const canUseTableInvite = Boolean(isAuthenticated && currentPlayer && canInviteToTable) && !isSubmitting;
+  const canPressTableInvite = Boolean(isAuthenticated && currentPlayer && canInviteToTable) && !isSubmitting && !isPreparingTableInvite;
+  const canUseTableInvite = Boolean(isAuthenticated && currentPlayer && canInviteToTable && hasActiveTable) && !isSubmitting && !isPreparingTableInvite;
   const hasPostContent = content.trim().length > 0 || attachments.length > 0;
   const canSubmitTableInvite = isTableInvite && canUseTableInvite;
   const canSubmit = Boolean(currentPlayer && isAuthenticated) && (hasPostContent || canSubmitTableInvite) && !isSubmitting;
   const statusMessage = useMemo(() => {
     if (isSubmitting) return 'Uploading attachments and publishing post...';
+    if (isPreparingTableInvite) return 'Creating a table and joining link for this invite...';
     if (!currentPlayer || !isAuthenticated) return 'Sign in to publish posts to the player feed.';
+    if (isTableInvite && !hasActiveTable) return 'A table will be created for this invite.';
     if (isTableInvite) return 'Creates a feed post with a live poker table joining link.';
     return `Posting as ${player.name}`;
-  }, [currentPlayer, isAuthenticated, isSubmitting, isTableInvite, player.name]);
+  }, [currentPlayer, hasActiveTable, isAuthenticated, isPreparingTableInvite, isSubmitting, isTableInvite, player.name]);
+  const tableInviteHelper = useMemo(() => {
+    if (isPreparingTableInvite) return 'Creating table invite...';
+    if (!currentPlayer || !isAuthenticated) return 'Sign in to publish invite';
+    if (!hasActiveTable) return 'Create a table invite link';
+    return isTableInvite ? 'Live invite post selected' : 'Publish live table invite';
+  }, [currentPlayer, hasActiveTable, isAuthenticated, isPreparingTableInvite, isTableInvite]);
 
   async function addAssets(source: 'gallery' | 'camera') {
     setIsAttachmentSheetOpen(false);
@@ -99,6 +111,20 @@ export function FeedPostBox({ canInviteToTable = false, currentPlayer, isAuthent
     } finally { setIsSubmitting(false); }
   }
 
+  async function handleSelectTableInvite() {
+    if (!canPressTableInvite) return;
+    setIsTableInvite(true);
+    if (hasActiveTable || !onPrepareTableInvite) return;
+    setIsPreparingTableInvite(true);
+    try {
+      await onPrepareTableInvite();
+    } catch {
+      setIsTableInvite(false);
+    } finally {
+      setIsPreparingTableInvite(false);
+    }
+  }
+
   return <View style={styles.card}>
     <View style={styles.composerHeader}>
       <View>
@@ -120,7 +146,7 @@ export function FeedPostBox({ canInviteToTable = false, currentPlayer, isAuthent
     </View>
     <View style={styles.toolRow}>
       <Pressable accessibilityRole="button" disabled={!currentPlayer || !isAuthenticated || isSubmitting || attachments.length >= MAX_FEED_ATTACHMENTS} onPress={() => setIsAttachmentSheetOpen(true)} style={styles.toolButton}><MaterialCommunityIcons color={colors.secondary} name="image-multiple-outline" size={18} /><Text style={styles.toolTitle}>Media drop</Text><Text style={styles.toolMeta}>{attachments.length}/{MAX_FEED_ATTACHMENTS}</Text></Pressable>
-      {canInviteToTable ? <Pressable accessibilityRole="button" disabled={!canUseTableInvite} onPress={() => setIsTableInvite(true)} style={[styles.toolButton, !canUseTableInvite ? styles.toolButtonDisabled : null, isTableInvite ? styles.inviteOptionSelected : null]}><MaterialCommunityIcons color={isTableInvite ? colors.gold : colors.secondary} name="poker-chip" size={18} /><Text style={styles.toolTitle}>Invite to Table</Text><Text style={styles.toolMeta}>{isTableInvite ? 'Live invite post selected' : 'Publish live table invite'}</Text></Pressable> : null}
+      {canInviteToTable ? <Pressable accessibilityRole="button" disabled={!canPressTableInvite} onPress={() => { void handleSelectTableInvite(); }} style={[styles.toolButton, !canPressTableInvite ? styles.toolButtonDisabled : null, isTableInvite ? styles.inviteOptionSelected : null]}><MaterialCommunityIcons color={isTableInvite ? colors.gold : colors.secondary} name="poker-chip" size={18} /><Text style={styles.toolTitle}>Invite to Table</Text><Text style={styles.toolMeta}>{tableInviteHelper}</Text></Pressable> : null}
     </View>
     <View style={styles.footerRow}><Text style={styles.helperText}>{statusMessage}</Text><ActionButton compact disabled={!canSubmit} icon="send-outline" label={isSubmitting ? 'Posting' : 'Post'} loading={isSubmitting} onPress={handleSubmit} /></View>
     <Modal animationType="slide" transparent visible={isAttachmentSheetOpen} onRequestClose={() => setIsAttachmentSheetOpen(false)}><Pressable style={styles.sheetBackdrop} onPress={() => setIsAttachmentSheetOpen(false)}><Pressable style={styles.sheet}><View style={styles.sheetHandle} /><Text style={styles.sheetTitle}>Attach media</Text><Pressable accessibilityRole="button" onPress={() => void addAssets('gallery')} style={styles.sheetAction}><MaterialCommunityIcons color={colors.secondary} name="image-multiple-outline" size={22} /><Text style={styles.sheetActionText}>Choose from gallery</Text></Pressable><Pressable accessibilityRole="button" onPress={() => void addAssets('camera')} style={styles.sheetAction}><MaterialCommunityIcons color={colors.secondary} name="camera-outline" size={22} /><Text style={styles.sheetActionText}>Take a snap</Text></Pressable></Pressable></Pressable></Modal>

@@ -3,6 +3,7 @@ const express = require("express");
 const {
   addComment,
   completePromotion,
+  createFeedInviteTable,
   createPost,
   createReaction,
   createShare,
@@ -53,6 +54,7 @@ router.get("/", optionalUser, listPosts);
 router.post("/promotions/webhook", verifyPromotionWebhook, promotionPaymentWebhook);
 router.post("/promotions/:promotionId/complete", protectUser, completePromotion);
 router.post("/media", protectUser, express.raw({ limit: MAX_MEDIA_BYTES, type: () => true }), uploadMedia);
+router.post("/table-invite-table", protectUser, createFeedInviteTable);
 router.post("/", protectUser, createPost);
 router.get("/discovery", optionalUser, getDiscoveryPayload);
 router.get("/:postId", optionalUser, getPost);
