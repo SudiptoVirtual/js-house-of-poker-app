@@ -13,21 +13,22 @@ export async function joinFeedTableInvite({ joinTable, navigateToGame, playerNam
   }
 
   const tableCode = post.tableContext?.tableCode?.trim().toUpperCase();
-  if (!tableCode) {
-    throw new Error('This table invitation does not include a valid table code.');
+  const tableIdentifier = tableCode || post.tableContext?.tableId?.trim();
+  if (!tableIdentifier) {
+    throw new Error('This table invitation does not include a valid table reference.');
   }
   if (post.tableContext?.seatsOpen === 0) {
     throw new Error('This table is full.');
   }
 
-  await joinTable({ name: playerName.trim(), tableId: tableCode });
-  navigateToGame(tableCode);
+  await joinTable({ name: playerName.trim(), tableId: tableIdentifier });
+  navigateToGame(tableIdentifier);
 }
 
 export function getJoinTableErrorMessage(error: unknown) {
   const message = error instanceof Error ? error.message : 'Unable to join this table right now.';
   if (/full|no (open|available) seats/i.test(message)) return 'This table is full.';
-  if (/not found|invalid.*code|valid table code/i.test(message)) return 'This table code is invalid.';
+  if (/not found|invalid.*code|valid table (code|reference)/i.test(message)) return 'This table invitation is invalid.';
   if (/unavailable|closed|paused|offline/i.test(message)) return 'This table is unavailable.';
   return message;
 }
