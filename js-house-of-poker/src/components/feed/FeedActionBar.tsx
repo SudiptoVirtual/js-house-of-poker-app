@@ -16,7 +16,6 @@ type FeedActionBarProps = {
   canJoinTable?: boolean;
   supportersCount: number;
   onComment: () => void;
-  onGiftClips: () => void;
   onInviteToTable: () => void;
   onJoinTable: () => void;
   onPromote: () => void;
@@ -34,7 +33,6 @@ export function FeedActionBar({
   canInviteToTable = false,
   canJoinTable = false,
   onComment,
-  onGiftClips,
   onInviteToTable,
   onJoinTable,
   onPromote,
@@ -59,15 +57,6 @@ export function FeedActionBar({
         </Pressable>
       </View>
       <View style={styles.secondaryRow}>
-        <Pressable
-          accessibilityRole="button"
-          disabled={actionsDisabled}
-          onPress={onGiftClips}
-          style={({ pressed }) => [styles.secondaryButton, actionsDisabled ? styles.disabled : null, pressed ? styles.pressed : null]}
-        >
-          <MaterialCommunityIcons color={colors.gold} name="gift-outline" size={17} />
-          <Text style={styles.giftLabel}>Gift Clips</Text>
-        </Pressable>
         <Pressable
           accessibilityRole="button"
           disabled={actionsDisabled}
@@ -117,10 +106,6 @@ const styles = StyleSheet.create({
   },
   disabled: {
     opacity: 0.45,
-  },
-  giftLabel: {
-    color: colors.gold,
-    ...colors.typography.chipLabel,
   },
   pressed: {
     opacity: 0.74,
