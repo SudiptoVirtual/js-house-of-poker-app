@@ -9,7 +9,9 @@ import type { UploadFeedMediaInput } from '../../services/api/feed';
 import { appendFeedAttachments, isFeedAttachmentOversized, MAX_FEED_ATTACHMENTS, MAX_FEED_ATTACHMENT_SIZE_LABEL, removeFeedAttachment, uploadAttachmentsAndCreatePost, type PendingFeedAttachment } from './attachmentWorkflow';
 
 import { colors } from '../../theme/colors';
-export type ComposeFeedPostInput = { content: string; media: FeedMedia[]; postType: 'text' | 'media' | 'table_invite' };
+export type ComposeFeedPostInput =
+  | { content: string; media: FeedMedia[]; postType: 'text' | 'media' }
+  | { content?: string; media?: FeedMedia[]; postType: 'table_invite' };
 export type FeedPostBoxProfile = Pick<FeedPlayer, 'avatarUrl' | 'handle' | 'id' | 'name'>;
 type LocalAttachment = PendingFeedAttachment;
 type PickerAsset = { assetId?: string | null; fileName?: string | null; fileSize?: number; mimeType?: string; type?: string; uri: string };
@@ -77,7 +79,17 @@ export function FeedPostBox({ canInviteToTable = false, currentPlayer, isAuthent
     if (!trimmedContent && attachments.length === 0 && !(isTableInvite && canUseTableInvite)) return;
     setIsSubmitting(true);
     try {
-      await uploadAttachmentsAndCreatePost(attachments, trimmedContent, onUploadAttachment, (input) => onCreatePost(isTableInvite ? { ...input, postType: 'table_invite' } : input.media.length > 0 ? { ...input, postType: 'media' } : { content: input.content, media: [], postType: 'text' }));
+      await uploadAttachmentsAndCreatePost(attachments, trimmedContent, onUploadAttachment, (input) => {
+        if (isTableInvite) {
+          return onCreatePost({
+            ...(input.content ? { content: input.content } : {}),
+            ...(input.media.length > 0 ? { media: input.media } : {}),
+            postType: 'table_invite',
+          });
+        }
+
+        return onCreatePost(input.media.length > 0 ? { ...input, postType: 'media' } : { content: input.content, media: [], postType: 'text' });
+      });
       setContent(''); setAttachments([]); setIsTableInvite(false);
       onToast({ tone: 'success', message: 'Post published to the feed.' });
     } catch (error) {
