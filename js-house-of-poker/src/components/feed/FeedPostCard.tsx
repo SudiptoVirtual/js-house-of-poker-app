@@ -67,7 +67,8 @@ type FeedPostCardProps = {
     post: FeedPost,
   ) => Promise<FeedCommentsPanelResult | void> | FeedCommentsPanelResult | void;
   onGiftClips: (post: FeedPost) => void;
-  onJoinTable: (post: FeedPost) => void;
+  onInviteToTable: (post: FeedPost) => Promise<void> | void;
+  onJoinTable: (post: FeedPost) => Promise<void> | void;
   onOpenProfile: (playerId: string) => void;
   onPromote: (post: FeedPost) => void;
   onRequestVideoActive?: (postId: string) => void;
@@ -101,6 +102,7 @@ export function FeedPostCard({
   onDeletePost,
   onFetchComments,
   onGiftClips,
+  onInviteToTable,
   onJoinTable,
   onOpenProfile,
   onPromote,
@@ -120,6 +122,7 @@ export function FeedPostCard({
     useState<CommentPanelLoadState>("idle");
   const [commentPanelError, setCommentPanelError] = useState("");
   const [isSubmittingComment, setIsSubmittingComment] = useState(false);
+  const [isJoiningTable, setIsJoiningTable] = useState(false);
   const [isInvitingToTable, setIsInvitingToTable] = useState(false);
   const [isSupporting, setIsSupporting] = useState(false);
   const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
@@ -143,6 +146,10 @@ export function FeedPostCard({
       (post.authorUserId === currentUserId || post.player.id === currentUserId),
   );
   const isOwnerHistoryMode = variant === "ownerHistory" || actionMode === "owner-only";
+  const canInviteToTable = Boolean(
+    post.tableContext &&
+      (!currentUserId || (post.authorUserId ?? post.player.id) !== currentUserId),
+  );
   const showSocialActions = !isOwnerHistoryMode;
   const allowCommentComposer = showSocialActions;
 
@@ -334,7 +341,21 @@ export function FeedPostCard({
     }
   }
 
-  async function handleInviteToTable() {
+  async function handleJoinTable() {
+    if (isJoiningTable) {
+      return;
+    }
+
+    setIsJoiningTable(true);
+
+    try {
+      await onJoinTable(post);
+    } finally {
+      setIsJoiningTable(false);
+    }
+  }
+
+  async function handleSendTableInvite() {
     if (isInvitingToTable) {
       return;
     }
@@ -342,7 +363,7 @@ export function FeedPostCard({
     setIsInvitingToTable(true);
 
     try {
-      await onJoinTable(post);
+      await onInviteToTable(post);
     } finally {
       setIsInvitingToTable(false);
     }
@@ -518,13 +539,16 @@ export function FeedPostCard({
         <FeedActionBar
           actionsDisabled={actionsDisabled}
           commentLoading={commentPanelLoadState === "loading"}
+          canInviteToTable={canInviteToTable}
+          canJoinTable={post.postKind === "table-invite"}
           inviteLoading={isInvitingToTable}
           isSupported={Boolean(post.supportedByCurrentPlayer)}
-          isTableRelated={post.postKind === "table-invite"}
+          joinLoading={isJoiningTable}
           supportersCount={post.supportersCount}
           onComment={handleToggleCommentPanel}
           onGiftClips={() => guardAction(() => onGiftClips(post))}
-          onJoinTable={() => guardAction(() => { void handleInviteToTable(); })}
+          onInviteToTable={() => guardAction(() => { void handleSendTableInvite(); })}
+          onJoinTable={() => guardAction(() => { void handleJoinTable(); })}
           onPromote={() => guardAction(() => onPromote(post))}
           onShare={() => guardAction(() => onShare(post))}
           onSupport={() => guardAction(() => { void handleSupport(); })}
