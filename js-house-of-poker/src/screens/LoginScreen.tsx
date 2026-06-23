@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { useEffect, useState } from "react";
+import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 
 import { ActionButton } from "../components/ActionButton";
@@ -16,6 +16,7 @@ import { useAuth } from "../context/AuthProvider";
 import { useGoogleAuth } from "../hooks/useGoogleAuth";
 import { authenticateWithGoogle, loginUser } from "../services/api/auth";
 import { getApiErrorDetails } from "../services/api/client";
+import { enableBiometricLogin, getBiometricUserLabel, loginWithBiometrics } from "../services/storage/biometricAuth";
 import { colors } from "../theme/colors";
 import type { RootStackParamList } from "../types/navigation";
 
@@ -33,6 +34,8 @@ export function LoginScreen({ navigation }: Props) {
   const [fieldErrors, setFieldErrors] = useState<LoginFieldErrors>({});
   const [errorMessage, setErrorMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isBiometricSubmitting, setIsBiometricSubmitting] = useState(false);
+  const [biometricLabel, setBiometricLabel] = useState<string | null>(null);
 
   async function completeAuth(
     token: string,
@@ -59,17 +62,46 @@ export function LoginScreen({ navigation }: Props) {
     setFieldErrors({});
   }
 
+  function promptForBiometricEnrollment(token: string, user: Parameters<typeof setAuthenticatedSession>[0]["user"]) {
+    Alert.alert(
+      "Enable biometric login?",
+      "Use this device's secure fingerprint or face unlock next time. Your password will not be stored.",
+      [
+        { text: "Not now", style: "cancel" },
+        {
+          text: "Enable",
+          onPress: () => {
+            void enableBiometricLogin({ token, user })
+              .then(() => setBiometricLabel(user.email || user.name))
+              .catch((biometricError) => {
+                setErrorMessage(
+                  biometricError instanceof Error
+                    ? biometricError.message
+                    : "Unable to enable biometric login on this device.",
+                );
+              });
+          },
+        },
+      ],
+    );
+  }
+
   const { beginGoogleAuth, isLoading: isGoogleLoading } = useGoogleAuth({
     onAuthenticated: async (firebaseIdToken) => {
       const response = await authenticateWithGoogle(firebaseIdToken);
       await completeAuth(response.token, response.user);
+      promptForBiometricEnrollment(response.token, response.user);
     },
     onError: (message) => {
       setErrorMessage(message);
     },
   });
 
-  const isBusy = isSubmitting || isGoogleLoading;
+  useEffect(() => {
+    void getBiometricUserLabel().then(setBiometricLabel).catch(() => setBiometricLabel(null));
+  }, []);
+
+  const isBusy = isSubmitting || isGoogleLoading || isBiometricSubmitting;
 
   async function handleLogin() {
     const trimmedEmail = email.trim();
@@ -101,6 +133,7 @@ export function LoginScreen({ navigation }: Props) {
       });
 
       await completeAuth(response.token, response.user);
+      promptForBiometricEnrollment(response.token, response.user);
     } catch (error) {
       const details = getApiErrorDetails(error, "Unable to login right now.");
 
@@ -111,6 +144,20 @@ export function LoginScreen({ navigation }: Props) {
       });
     } finally {
       setIsSubmitting(false);
+    }
+  }
+
+  async function handleBiometricLogin() {
+    clearError();
+    setIsBiometricSubmitting(true);
+
+    try {
+      const response = await loginWithBiometrics();
+      await completeAuth(response.token, response.user);
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : "Unable to sign in with biometrics.");
+    } finally {
+      setIsBiometricSubmitting(false);
     }
   }
 
@@ -169,6 +216,15 @@ export function LoginScreen({ navigation }: Props) {
           label="Login"
           loading={isSubmitting}
           onPress={() => void handleLogin()}
+        />
+        <ActionButton
+          disabled={isBusy}
+          fullWidth
+          icon="fingerprint"
+          label={biometricLabel ? `Sign in with biometrics (${biometricLabel})` : "Sign in with biometrics"}
+          loading={isBiometricSubmitting}
+          onPress={() => void handleBiometricLogin()}
+          variant="secondary"
         />
       </SectionCard>
 
