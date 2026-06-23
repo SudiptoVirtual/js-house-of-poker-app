@@ -12,4 +12,5 @@ export const routes = {
   MyFeed: 'MyFeed',
   PlayerDirectory: 'PlayerDirectory',
   Game: 'Game',
+  Notifications: 'Notifications',
 } as const;

@@ -14,6 +14,7 @@ import { FriendsScreen } from '../screens/FriendsScreen';
 import { GameScreen } from '../screens/GameScreen';
 import { HomeScreen } from '../screens/HomeScreen';
 import { LoginScreen } from '../screens/LoginScreen';
+import { NotificationCenterScreen } from '../components/notifications/NotificationCenterScreen';
 import { MyFeedScreen } from '../screens/MyFeedScreen';
 import { PlayerDirectoryScreen } from '../screens/PlayerDirectoryScreen';
 import { ProfileScreen } from '../screens/ProfileScreen';
@@ -126,6 +127,11 @@ export function RootNavigator() {
           name={routes.PlayerDirectory}
           component={PlayerDirectoryScreen}
           options={{ title: 'Player Directory' }}
+        />
+        <Stack.Screen
+          name={routes.Notifications}
+          component={NotificationCenterScreen}
+          options={{ title: 'Notifications' }}
         />
         <Stack.Screen
           name={routes.Game}

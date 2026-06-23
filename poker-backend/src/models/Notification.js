@@ -16,6 +16,8 @@ const NOTIFICATION_TYPES = [
   "friend_request",
   "friend_request_accepted",
   "friend_request_declined",
+  "gifted_buy_in",
+  "admin_message",
 ];
 
 const notificationSchema = new mongoose.Schema(
