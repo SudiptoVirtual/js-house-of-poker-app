@@ -2,18 +2,24 @@ import type { FeedPost } from '../../types/feed';
 
 export type JoinFeedTableInviteInput = {
   joinTable: (input: { name: string; tableId: string }) => void | Promise<void>;
-  navigateToGame: (tableCode: string) => void;
   playerName?: string | null;
   post: FeedPost;
 };
 
-export async function joinFeedTableInvite({ joinTable, navigateToGame, playerName, post }: JoinFeedTableInviteInput) {
+export type JoinFeedTableInviteResult = {
+  tableCode: string | null;
+  tableId: string | null;
+  tableIdentifier: string;
+};
+
+export async function joinFeedTableInvite({ joinTable, playerName, post }: JoinFeedTableInviteInput): Promise<JoinFeedTableInviteResult> {
   if (!playerName?.trim()) {
     throw new Error('Sign in before joining a table from the feed.');
   }
 
   const tableCode = post.tableContext?.tableCode?.trim().toUpperCase();
-  const tableIdentifier = tableCode || post.tableContext?.tableId?.trim();
+  const tableId = post.tableContext?.tableId?.trim();
+  const tableIdentifier = tableCode || tableId;
   if (!tableIdentifier) {
     throw new Error('This table invitation does not include a valid table reference.');
   }
@@ -22,7 +28,7 @@ export async function joinFeedTableInvite({ joinTable, navigateToGame, playerNam
   }
 
   await joinTable({ name: playerName.trim(), tableId: tableIdentifier });
-  navigateToGame(tableIdentifier);
+  return { tableCode: tableCode || null, tableId: tableId || null, tableIdentifier };
 }
 
 export function getJoinTableErrorMessage(error: unknown) {

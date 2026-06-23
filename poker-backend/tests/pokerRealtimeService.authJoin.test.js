@@ -1,6 +1,11 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const mongoose = require('mongoose');
 
+const GameEventLog = require('../src/models/GameEventLog');
+const GameTable = require('../src/models/GameTable');
+const Notification = require('../src/models/Notification');
+const User = require('../src/models/User');
 const { createPokerRealtimeService } = require('../src/services/pokerRealtimeService');
 
 function createSocketStub() {
@@ -82,6 +87,142 @@ test('Valid table code + no token is blocked with clear auth error (Option A)', 
       return true;
     },
   );
+});
+
+test('loadRoom accepts a backend table id from feed table invites', async (t) => {
+  const originalFindOne = GameTable.findOne;
+  const tableId = new mongoose.Types.ObjectId();
+  let findQuery = null;
+  GameTable.findOne = async (query) => {
+    findQuery = query;
+    return {
+      _id: tableId,
+      actionLog: [],
+      buyInAmount: 1000,
+      chatMessages: [],
+      currentHandId: null,
+      currentHandSnapshot: null,
+      gameSettings: { game: 'holdem', locked: false, lowRule: '8-or-better', mode: 'high-only', stips: {}, wildCards: [] },
+      handCount: 0,
+      hostUserId: new mongoose.Types.ObjectId(),
+      lastDealerPlayerId: null,
+      lastWinnerSummary: null,
+      maxPlayers: 6,
+      minPlayersToStart: 2,
+      phase: 'waiting',
+      players: [],
+      smallBlind: 10,
+      bigBlind: 20,
+      status: 'waiting',
+      tableCode: 'FEED7',
+      tableInvites: [],
+      tableName: 'Feed Table',
+      variantStateSnapshot: null,
+    };
+  };
+  t.after(() => {
+    GameTable.findOne = originalFindOne;
+  });
+
+  const service = createPokerRealtimeService(createIoStub());
+  const room = await service.loadRoom(String(tableId));
+
+  assert.deepEqual(findQuery, { $or: [{ tableCode: String(tableId).toUpperCase() }, { _id: String(tableId) }] });
+  assert.equal(room.id, 'FEED7');
+  assert.equal(room.tableDbId, String(tableId));
+  assert.equal(service.rooms.get('FEED7'), room);
+});
+
+test('joinRoom notifies the table host when another user joins', async (t) => {
+  const originalCreateEvent = GameEventLog.create;
+  const originalCreateNotification = Notification.create;
+  const originalFindById = User.findById;
+  const hostId = new mongoose.Types.ObjectId();
+  const joinerId = new mongoose.Types.ObjectId();
+  const tableId = new mongoose.Types.ObjectId();
+  const notificationDocs = [];
+  const hostEmits = [];
+  const joinerSocket = createConnectedSocket('socket-joiner');
+  joinerSocket.data.userId = String(joinerId);
+  const io = createIoStub();
+  io.sockets.sockets.set('host-socket', {
+    data: { userId: String(hostId) },
+    emit: (event, payload) => hostEmits.push({ event, payload }),
+  });
+  io.sockets.sockets.set(joinerSocket.id, joinerSocket);
+
+  GameEventLog.create = async () => ({});
+  Notification.create = async (doc) => {
+    notificationDocs.push(doc);
+    return {
+      ...doc,
+      _id: new mongoose.Types.ObjectId(),
+      createdAt: new Date('2026-06-23T12:00:00.000Z'),
+      readAt: null,
+    };
+  };
+  User.findById = async (id) => ({
+    _id: new mongoose.Types.ObjectId(id),
+    avatar: '',
+    chips: 5000,
+    isBlocked: false,
+    name: String(id) === String(joinerId) ? 'Joiner' : 'Host',
+    playerStatus: { iconKey: 'badge-no-status', tier: 'NO_STATUS' },
+    referralCode: '',
+    save: async function saveStub() { return this; },
+    status: 'active',
+  });
+  t.after(() => {
+    GameEventLog.create = originalCreateEvent;
+    Notification.create = originalCreateNotification;
+    User.findById = originalFindById;
+  });
+
+  const service = createPokerRealtimeService(io);
+  service.persistRoom = async () => undefined;
+  const room = {
+    actionLog: ['Host opened table.'],
+    buyInAmount: 1000,
+    chatMessages: [],
+    currentHandDbId: null,
+    gameSettings: {
+      game: 'holdem',
+      locked: false,
+      lowRule: '8-or-better',
+      mode: 'high-only',
+      stips: {},
+      wildCards: [],
+    },
+    hand: null,
+    handCount: 0,
+    hostId: String(hostId),
+    id: 'JOIN9',
+    lastDealerId: null,
+    lastWinnerSummary: null,
+    maxPlayers: 6,
+    minPlayersToStart: 2,
+    phase: 'waiting',
+    players: [create357Player({ id: String(hostId), name: 'Host', seatNumber: 0, socketId: 'host-socket' })],
+    smallBlind: 10,
+    bigBlind: 20,
+    status: 'waiting',
+    tableDbId: String(tableId),
+    tableInvites: [],
+    tableName: 'Host Table',
+    threeFiveSeven: null,
+  };
+  service.rooms.set(room.id, room);
+
+  await service.joinRoom(joinerSocket, { tableId: room.id });
+
+  assert.equal(notificationDocs.length, 1);
+  assert.equal(notificationDocs[0].type, 'table_player_joined');
+  assert.equal(String(notificationDocs[0].userId), String(hostId));
+  assert.equal(String(notificationDocs[0].actorUserId), String(joinerId));
+  assert.equal(notificationDocs[0].data.tableCode, 'JOIN9');
+  assert.equal(notificationDocs[0].body, 'Joiner joined Host Table.');
+  assert.ok(hostEmits.some((entry) => entry.event === 'notification:new' && entry.payload.notification.type === 'table_player_joined'));
+  assert.ok(hostEmits.some((entry) => entry.event === 'table:notification'));
 });
 
 test('357 solo GO resolution awards and persists configured legs for the solo GO player', async () => {

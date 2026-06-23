@@ -11,7 +11,8 @@ export type FeedNotificationType =
   | 'feed_share'
   | 'feed_gift_clip'
   | 'feed_promotion'
-  | 'feed_table_invite';
+  | 'feed_table_invite'
+  | 'table_player_joined';
 
 export type FeedNotificationNavigationTarget =
   | {
@@ -59,6 +60,8 @@ type RawNotificationRecord = NonNullable<FeedRealtimeNotificationPayload['notifi
       tableId?: string | null;
       tableName?: string | null;
     };
+    tableCode?: string | null;
+    tableName?: string | null;
   };
   tableId?: string | null;
   title?: string;
@@ -108,6 +111,11 @@ const TYPE_CONFIG: Record<FeedNotificationType, FeedNotificationTypeConfig> = {
     label: 'Table invite',
     title: 'Feed table invite',
   },
+  table_player_joined: {
+    ctaLabel: 'Open table',
+    label: 'Table joined',
+    title: 'Player joined your table',
+  },
 };
 
 function isFeedNotificationType(value: unknown): value is FeedNotificationType {
@@ -128,11 +136,16 @@ function getPostId(payload: FeedRealtimeNotificationPayload, notification: RawNo
 }
 
 function getTableCode(notification: RawNotificationRecord) {
-  return asStringOrNull(notification.data?.table?.tableCode);
+  return (
+    asStringOrNull(notification.data?.tableCode) ??
+    asStringOrNull(notification.data?.table?.tableCode) ??
+    asStringOrNull(notification.data?.table?.tableId) ??
+    asStringOrNull(notification.tableId)
+  );
 }
 
 function getTableName(notification: RawNotificationRecord) {
-  return asStringOrNull(notification.data?.table?.tableName);
+  return asStringOrNull(notification.data?.tableName) ?? asStringOrNull(notification.data?.table?.tableName);
 }
 
 function buildNavigationTarget(
@@ -141,12 +154,13 @@ function buildNavigationTarget(
   notificationId: string,
   tableCode: string | null,
 ): FeedNotificationNavigationTarget {
-  if (type === 'feed_table_invite' && tableCode) {
+  if ((type === 'feed_table_invite' || type === 'table_player_joined') && tableCode) {
     return {
       params: {
         gameId: tableCode,
+        tableCode,
         invitePreset: {
-          contextLabel: 'Feed table invite',
+          contextLabel: type === 'feed_table_invite' ? 'Feed table invite' : 'Table activity',
           requestId: notificationId,
           source: 'feed',
         },

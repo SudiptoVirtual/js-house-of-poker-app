@@ -10,6 +10,10 @@ const {
   appendTableInviteRecords: persistTableInviteRecords,
   buildTableInviteRecord: buildPersistentTableInviteRecord,
 } = require("./tableInviteService");
+const {
+  createTablePlayerJoinedNotification,
+  emitTableNotificationRecords,
+} = require("./tableNotificationService");
 const { Hand } = require("../utils/loadPokerSolver");
 const {
   THREE_FIVE_SEVEN_TABLE,
@@ -1705,9 +1709,10 @@ class PokerRealtimeService {
   }
 
   async loadRoom(roomId) {
-    const normalizedRoomId = String(roomId || "").trim().toUpperCase();
-    if (!normalizedRoomId) {
-      throw new Error("Table code is required.");
+    const requestedRoomId = String(roomId || "").trim();
+    const normalizedRoomId = requestedRoomId.toUpperCase();
+    if (!requestedRoomId) {
+      throw new Error("Table code or table id is required.");
     }
 
     const cached = this.rooms.get(normalizedRoomId);
@@ -1715,9 +1720,21 @@ class PokerRealtimeService {
       return cached;
     }
 
-    const table = await GameTable.findOne({ tableCode: normalizedRoomId });
+    const cachedByTableDbId = Array.from(this.rooms.values()).find(
+      (room) => String(room.tableDbId || "") === requestedRoomId
+    );
+    if (cachedByTableDbId) {
+      return cachedByTableDbId;
+    }
+
+    const tableFilters = [{ tableCode: normalizedRoomId }];
+    if (mongoose.Types.ObjectId.isValid(requestedRoomId)) {
+      tableFilters.push({ _id: requestedRoomId });
+    }
+
+    const table = await GameTable.findOne({ $or: tableFilters });
     if (!table) {
-      throw new Error("Invalid table code.");
+      throw new Error("Invalid table code or table id.");
     }
 
     const tableStatus = String(table.status || "").toLowerCase();
@@ -1735,7 +1752,7 @@ class PokerRealtimeService {
       hand: cloneValue(table.currentHandSnapshot),
       handCount: table.handCount || 0,
       hostId: table.hostUserId ? table.hostUserId.toString() : null,
-      id: table.tableCode,
+      id: table.tableCode || normalizedRoomId,
       lastDealerId: table.lastDealerPlayerId || null,
       lastWinnerSummary: table.lastWinnerSummary || null,
       maxPlayers: table.maxPlayers || maxPlayersForGame(table.gameSettings?.game),
@@ -1873,6 +1890,17 @@ class PokerRealtimeService {
       },
       tableId: room.tableDbId,
     });
+    const joinNotifications = await createTablePlayerJoinedNotification({
+      actor: user,
+      recipientUserId: room.hostId,
+      table: {
+        tableCode: room.id,
+        tableDbId: room.tableDbId,
+        tableId: room.tableDbId,
+        tableName: room.tableName,
+      },
+    });
+    emitTableNotificationRecords(this.io, [joinNotifications]);
     await this.emitRoomState(room);
     socket.emit("table:joined", {
       playerId: player.id,

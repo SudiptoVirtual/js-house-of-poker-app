@@ -91,6 +91,12 @@ type PreparedFeedInviteTable = {
   tableContext: FeedTableContext;
   tableId: string | null;
 };
+type PendingFeedTableJoin = {
+  errorMessageBefore: string | null;
+  tableCode: string | null;
+  tableId: string | null;
+  tableIdentifier: string;
+};
 
 type PlayerFeedScreenProps = {
   mode?: 'feed' | 'profile-history';
@@ -252,14 +258,41 @@ function buildPreparedFeedInviteTableFromContext(
   };
 }
 
+function normalizeTableReference(value?: string | null) {
+  return String(value || '').trim().toUpperCase();
+}
+
+function doesRoomStateMatchPendingFeedJoin(
+  roomState: PokerRoomState | null,
+  pendingJoin: PendingFeedTableJoin,
+) {
+  const roomReferences = [
+    normalizeTableReference(roomState?.roomId),
+    normalizeTableReference(roomState?.tableId),
+  ].filter(Boolean);
+  const pendingReferences = [
+    normalizeTableReference(pendingJoin.tableCode),
+    normalizeTableReference(pendingJoin.tableId),
+    normalizeTableReference(pendingJoin.tableIdentifier),
+  ].filter(Boolean);
+
+  if (!roomReferences.length || !pendingReferences.length) {
+    return false;
+  }
+
+  return pendingReferences.some((reference) => roomReferences.includes(reference));
+}
+
 export function PlayerFeedScreen({ mode = 'feed', navigation, route }: PlayerFeedScreenProps) {
   const { currentUser, token } = useAuth();
   const insets = useSafeAreaInsets();
   const isKeyboardVisible = useKeyboardVisible();
   const { markFeedNotificationsRead, notifications } = useFeedNotifications();
-  const { joinTable, roomState } = usePoker();
+  const { errorMessage: pokerErrorMessage, joinTable, roomState } = usePoker();
   const feedListRef = useRef<FlatList<FeedPost>>(null);
   const feedScrollOffsetRef = useRef(0);
+  const pendingFeedTableJoinRef = useRef<PendingFeedTableJoin | null>(null);
+  const pendingFeedTableJoinTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const postsRef = useRef<FeedPost[]>([]);
   const isMountedRef = useRef(true);
   const [posts, setPosts] = useState<FeedPost[]>([]);
@@ -279,6 +312,8 @@ export function PlayerFeedScreen({ mode = 'feed', navigation, route }: PlayerFee
   const [inviteMessage, setInviteMessage] = useState('');
   const [preparedFeedInviteTable, setPreparedFeedInviteTable] =
     useState<PreparedFeedInviteTable | null>(null);
+  const [pendingFeedTableJoin, setPendingFeedTableJoin] =
+    useState<PendingFeedTableJoin | null>(null);
   const [isSendingTableInvite, setIsSendingTableInvite] = useState(false);
   const [chatRooms, setChatRooms] = useState<ChatRoom[]>([]);
   const [shareFriends, setShareFriends] = useState<FriendsPlayer[]>([]);
@@ -292,6 +327,10 @@ export function PlayerFeedScreen({ mode = 'feed', navigation, route }: PlayerFee
   useEffect(() => {
     postsRef.current = posts;
   }, [posts]);
+
+  useEffect(() => {
+    pendingFeedTableJoinRef.current = pendingFeedTableJoin;
+  }, [pendingFeedTableJoin]);
 
   const isProfileHistoryMode = mode === 'profile-history';
   const routeParams = route.name === routes.Feed ? route.params : undefined;
@@ -315,6 +354,49 @@ export function PlayerFeedScreen({ mode = 'feed', navigation, route }: PlayerFee
         : undefined,
     [currentUser],
   );
+
+  const clearPendingFeedTableJoin = useCallback(() => {
+    if (pendingFeedTableJoinTimeoutRef.current) {
+      clearTimeout(pendingFeedTableJoinTimeoutRef.current);
+      pendingFeedTableJoinTimeoutRef.current = null;
+    }
+    setPendingFeedTableJoin(null);
+  }, []);
+
+  useEffect(() => {
+    if (!pendingFeedTableJoin || !doesRoomStateMatchPendingFeedJoin(roomState, pendingFeedTableJoin)) {
+      return;
+    }
+
+    const tableCode = pendingFeedTableJoin.tableCode ?? pendingFeedTableJoin.tableIdentifier;
+    clearPendingFeedTableJoin();
+    navigation.navigate(routes.Game, { tableCode });
+  }, [clearPendingFeedTableJoin, navigation, pendingFeedTableJoin, roomState]);
+
+  useEffect(() => {
+    if (
+      !pendingFeedTableJoin ||
+      !pokerErrorMessage ||
+      pokerErrorMessage === pendingFeedTableJoin.errorMessageBefore
+    ) {
+      return;
+    }
+
+    clearPendingFeedTableJoin();
+    setFeedToast({
+      tone: 'error',
+      message: getJoinTableErrorMessage(new Error(pokerErrorMessage)),
+    });
+  }, [clearPendingFeedTableJoin, pendingFeedTableJoin, pokerErrorMessage]);
+
+  useEffect(() => {
+    return () => {
+      if (pendingFeedTableJoinTimeoutRef.current) {
+        clearTimeout(pendingFeedTableJoinTimeoutRef.current);
+        pendingFeedTableJoinTimeoutRef.current = null;
+      }
+    };
+  }, []);
 
   const mergeRealtimePost = useCallback(
     (payload: { post?: FeedPost; userId?: string | null }) => {
@@ -1346,13 +1428,40 @@ export function PlayerFeedScreen({ mode = 'feed', navigation, route }: PlayerFee
   }
 
   async function handleJoinTable(post: FeedPost) {
+    if (pendingFeedTableJoin) {
+      return;
+    }
+
     try {
-      await joinFeedTableInvite({
+      const joinedTable = await joinFeedTableInvite({
         joinTable,
-        navigateToGame: (tableCode) => navigation.navigate(routes.Game, { tableCode }),
         playerName: currentUser?.name,
         post,
       });
+      const nextPendingJoin: PendingFeedTableJoin = {
+        errorMessageBefore: pokerErrorMessage ?? null,
+        tableCode: joinedTable.tableCode,
+        tableId: joinedTable.tableId,
+        tableIdentifier: joinedTable.tableIdentifier,
+      };
+
+      if (pendingFeedTableJoinTimeoutRef.current) {
+        clearTimeout(pendingFeedTableJoinTimeoutRef.current);
+      }
+      setPendingFeedTableJoin(nextPendingJoin);
+      pendingFeedTableJoinTimeoutRef.current = setTimeout(() => {
+        const currentPendingJoin = pendingFeedTableJoinRef.current;
+        if (currentPendingJoin?.tableIdentifier !== nextPendingJoin.tableIdentifier) {
+          return;
+        }
+
+        pendingFeedTableJoinTimeoutRef.current = null;
+        setPendingFeedTableJoin(null);
+        setFeedToast({
+          tone: 'error',
+          message: 'Unable to open this table. Try joining again from the feed.',
+        });
+      }, 12000);
     } catch (error) {
       setFeedToast({ tone: 'error', message: getJoinTableErrorMessage(error) });
     }

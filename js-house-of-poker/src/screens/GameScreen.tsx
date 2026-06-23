@@ -518,10 +518,11 @@ function parseSeatBurst(
   };
 }
 
-export function GameScreen({ navigation }: Props) {
+export function GameScreen({ navigation, route }: Props) {
   const {
     connection,
     errorMessage,
+    joinTable,
     leaveTable,
     rebuy,
     roomState,
@@ -567,8 +568,17 @@ export function GameScreen({ navigation }: Props) {
   const previousRoomRef = useRef<PokerRoomState | null>(null);
   const animationQueueRef = useRef(Promise.resolve());
   const latest357ResolutionKeyRef = useRef<string | null>(null);
+  const routeTableJoinErrorBeforeRef = useRef<string | null>(null);
+  const routeTableJoinTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const mountedRef = useRef(true);
   const timeoutsRef = useRef<Set<ReturnType<typeof setTimeout>>>(new Set());
+  const routeTableIdentifier = useMemo(() => {
+    const candidate = route.params?.tableCode || route.params?.gameId;
+    return String(candidate || '').trim();
+  }, [route.params?.gameId, route.params?.tableCode]);
+  const [routeTableJoinState, setRouteTableJoinState] =
+    useState<'idle' | 'joining' | 'error'>('idle');
+  const [routeTableJoinMessage, setRouteTableJoinMessage] = useState('');
 
   useEffect(() => {
     void getAuthSession().then((session) => {
@@ -589,8 +599,95 @@ export function GameScreen({ navigation }: Props) {
       mountedRef.current = false;
       timeoutsRef.current.forEach((timeoutId) => clearTimeout(timeoutId));
       timeoutsRef.current.clear();
+      if (routeTableJoinTimeoutRef.current) {
+        clearTimeout(routeTableJoinTimeoutRef.current);
+        routeTableJoinTimeoutRef.current = null;
+      }
     };
   }, []);
+
+  useEffect(() => {
+    setRouteTableJoinState('idle');
+    setRouteTableJoinMessage('');
+    routeTableJoinErrorBeforeRef.current = null;
+  }, [routeTableIdentifier]);
+
+  useEffect(() => {
+    if (!routeTableIdentifier || roomState?.roomId || routeTableJoinState !== 'idle') {
+      return;
+    }
+
+    let isActive = true;
+
+    async function joinRouteTable() {
+      routeTableJoinErrorBeforeRef.current = errorMessage ?? null;
+      setRouteTableJoinState('joining');
+      setRouteTableJoinMessage(`Opening table ${routeTableIdentifier}...`);
+
+      if (routeTableJoinTimeoutRef.current) {
+        clearTimeout(routeTableJoinTimeoutRef.current);
+      }
+      routeTableJoinTimeoutRef.current = setTimeout(() => {
+        if (!isActive) {
+          return;
+        }
+        setRouteTableJoinState('error');
+        setRouteTableJoinMessage('Unable to open this table. Try joining again from the feed.');
+      }, 12000);
+
+      try {
+        const session = await getAuthSession();
+        const playerName = session?.user.name?.trim() || 'Player';
+        await joinTable({ name: playerName, tableId: routeTableIdentifier });
+      } catch (error) {
+        if (!isActive) {
+          return;
+        }
+        if (routeTableJoinTimeoutRef.current) {
+          clearTimeout(routeTableJoinTimeoutRef.current);
+          routeTableJoinTimeoutRef.current = null;
+        }
+        setRouteTableJoinState('error');
+        setRouteTableJoinMessage(error instanceof Error ? error.message : 'Unable to open this table.');
+      }
+    }
+
+    void joinRouteTable();
+
+    return () => {
+      isActive = false;
+    };
+  }, [errorMessage, joinTable, roomState?.roomId, routeTableIdentifier, routeTableJoinState]);
+
+  useEffect(() => {
+    if (!roomState?.roomId) {
+      return;
+    }
+
+    if (routeTableJoinTimeoutRef.current) {
+      clearTimeout(routeTableJoinTimeoutRef.current);
+      routeTableJoinTimeoutRef.current = null;
+    }
+    setRouteTableJoinState('idle');
+    setRouteTableJoinMessage('');
+  }, [roomState?.roomId]);
+
+  useEffect(() => {
+    if (
+      routeTableJoinState !== 'joining' ||
+      !errorMessage ||
+      errorMessage === routeTableJoinErrorBeforeRef.current
+    ) {
+      return;
+    }
+
+    if (routeTableJoinTimeoutRef.current) {
+      clearTimeout(routeTableJoinTimeoutRef.current);
+      routeTableJoinTimeoutRef.current = null;
+    }
+    setRouteTableJoinState('error');
+    setRouteTableJoinMessage(errorMessage);
+  }, [errorMessage, routeTableJoinState]);
 
   useEffect(() => {
     if (!roomState?.roomId) {
@@ -1537,9 +1634,15 @@ export function GameScreen({ navigation }: Props) {
           style={StyleSheet.absoluteFillObject}
         />
         <View style={styles.emptyState}>
-          <Text style={styles.emptyTitle}>No active table</Text>
+          <Text style={styles.emptyTitle}>
+            {routeTableJoinState === 'joining' ? 'Opening table' : 'No active table'}
+          </Text>
           <Text style={styles.emptyText}>
-            Start a demo table from the lobby to enter the poker room.
+            {routeTableJoinState === 'joining'
+              ? routeTableJoinMessage || 'Joining the table...'
+              : routeTableJoinState === 'error' && routeTableJoinMessage
+                ? routeTableJoinMessage
+                : 'Start a demo table from the lobby to enter the poker room.'}
           </Text>
           <ActionButton
             icon="cards-playing-club-outline"

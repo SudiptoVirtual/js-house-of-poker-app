@@ -5,6 +5,7 @@ const NOTIFICATION_TYPES = [
   "chat_room_invite",
   "chat_room_gift_clip",
   "table_invite",
+  "table_player_joined",
   "table_launched_from_chat",
   "mention",
   "feed_comment",

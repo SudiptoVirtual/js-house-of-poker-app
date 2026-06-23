@@ -7,7 +7,7 @@ import { createSocketManager } from '../socket/socketManager';
 export type NotificationCenterType =
   | 'feed_comment' | 'feed_share' | 'feed_gift_clip' | 'feed_support' | 'feed_promotion'
   | 'friend_request' | 'friend_request_accepted' | 'friend_request_declined'
-  | 'table_invite' | 'feed_table_invite' | 'chat_message' | 'chat_room_invite'
+  | 'table_invite' | 'table_player_joined' | 'feed_table_invite' | 'chat_message' | 'chat_room_invite'
   | 'chat_room_gift_clip' | 'table_launched_from_chat' | 'mention' | 'gifted_buy_in' | 'admin_message';
 
 export type NotificationRecord = {
@@ -60,6 +60,7 @@ const TYPE_LABELS: Record<NotificationCenterType, { icon: string; label: string 
   gifted_buy_in: { icon: 'cash-plus', label: 'Gifted buy-in' },
   mention: { icon: 'at', label: 'Mention' },
   table_invite: { icon: 'cards-playing', label: 'Table invite' },
+  table_player_joined: { icon: 'account-arrow-right', label: 'Table joined' },
   table_launched_from_chat: { icon: 'rocket-launch', label: 'Table launched' },
 };
 
