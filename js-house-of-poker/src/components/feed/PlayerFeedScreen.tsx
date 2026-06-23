@@ -1594,7 +1594,7 @@ export function PlayerFeedScreen({ mode = 'feed', navigation, route }: PlayerFee
           pointerEvents="box-none"
           style={[
             styles.toastSafeArea,
-            { bottom: isKeyboardVisible ? 16 : insets.bottom + 84 },
+            { bottom: isKeyboardVisible ? 16 : insets.bottom + 76 },
           ]}
         >
           <View
@@ -1681,7 +1681,7 @@ const styles = StyleSheet.create({
   feedContent: {
     gap: colors.spacing[16],
     padding: colors.spacing[20],
-    paddingBottom: 116,
+    paddingBottom: 94,
   },
   emptyState: {
     alignItems: 'center',

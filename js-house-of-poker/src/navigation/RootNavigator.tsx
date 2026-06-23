@@ -6,6 +6,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { ChatNotificationBanner } from '../components/notifications/ChatNotificationBanner';
 import { FeedNotificationBanner } from '../components/notifications/FeedNotificationBanner';
 import { FriendRequestBanner } from '../components/notifications/FriendRequestBanner';
+import { NotificationBellButton } from '../components/notifications/NotificationBellButton';
 import { routes } from '../constants/routes';
 import { ChatRoomDetailScreen } from '../screens/ChatRoomDetailScreen';
 import { ChatRoomsScreen } from '../screens/ChatRoomsScreen';
@@ -26,6 +27,21 @@ import { colors } from '../theme/colors';
 import type { RootStackParamList } from '../types/navigation';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
+
+type NotificationNavigation = {
+  navigate: (routeName: typeof routes.Notifications) => void;
+};
+
+function buildNotificationHeaderOptions(title: string) {
+  return ({ navigation }: { navigation: NotificationNavigation }) => ({
+    headerRight: () => (
+      <View style={styles.notificationHeaderAction}>
+        <NotificationBellButton onPress={() => navigation.navigate(routes.Notifications)} />
+      </View>
+    ),
+    title,
+  });
+}
 
 const navigationTheme = {
   ...DefaultTheme,
@@ -86,47 +102,47 @@ export function RootNavigator() {
         <Stack.Screen
           name={routes.Home}
           component={HomeScreen}
-          options={{ title: 'Lobby' }}
+          options={buildNotificationHeaderOptions('Lobby')}
         />
         <Stack.Screen
           name={routes.ChatRooms}
           component={ChatRoomsScreen}
-          options={{ title: 'Chat Rooms' }}
+          options={buildNotificationHeaderOptions('Chat Rooms')}
         />
         <Stack.Screen
           name={routes.ChatRoomDetail}
           component={ChatRoomDetailScreen}
-          options={{ title: 'Chat Room' }}
+          options={buildNotificationHeaderOptions('Chat Room')}
         />
         <Stack.Screen
           name={routes.Profile}
           component={ProfileScreen}
-          options={{ title: 'Profile' }}
+          options={buildNotificationHeaderOptions('Profile')}
         />
         <Stack.Screen
           name={routes.UserProfile}
           component={UserProfileScreen}
-          options={{ title: 'Player Profile' }}
+          options={buildNotificationHeaderOptions('Player Profile')}
         />
         <Stack.Screen
           name={routes.Friends}
           component={FriendsScreen}
-          options={{ title: 'Friends' }}
+          options={buildNotificationHeaderOptions('Friends')}
         />
         <Stack.Screen
           name={routes.Feed}
           component={FeedScreen}
-          options={{ title: 'Feed' }}
+          options={buildNotificationHeaderOptions('Feed')}
         />
         <Stack.Screen
           name={routes.MyFeed}
           component={MyFeedScreen}
-          options={{ title: 'My Feed' }}
+          options={buildNotificationHeaderOptions('My Feed')}
         />
         <Stack.Screen
           name={routes.PlayerDirectory}
           component={PlayerDirectoryScreen}
-          options={{ title: 'Player Directory' }}
+          options={buildNotificationHeaderOptions('Player Directory')}
         />
         <Stack.Screen
           name={routes.Notifications}
@@ -152,5 +168,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
     flex: 1,
     justifyContent: 'center',
+  },
+  notificationHeaderAction: {
+    marginRight: 4,
   },
 });

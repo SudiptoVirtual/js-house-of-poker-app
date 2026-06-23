@@ -7,7 +7,6 @@ import { routes } from '../../constants/routes';
 import { useChatNotifications } from '../../context/ChatNotificationProvider';
 import { useFeedNotifications } from '../../context/FeedNotificationProvider';
 import { useFriendNotifications } from '../../context/FriendNotificationProvider';
-import { useNotificationCenter } from '../../context/NotificationCenterProvider';
 import { colors } from '../../theme/colors';
 import type { RootStackParamList } from '../../types/navigation';
 import { isPlatformRouteActive, type PlatformRouteName } from './platformNavigation';
@@ -62,25 +61,9 @@ export function MainPlatformNavigation() {
   const { totalUnreadMessageCount } = useChatNotifications();
   const { unreadCount } = useFeedNotifications();
   const { pendingRequestCount } = useFriendNotifications();
-  const { unreadCount: notificationUnreadCount } = useNotificationCenter();
 
   return (
     <View style={styles.outerShell}>
-      <View style={styles.topBar}>
-        <Text style={styles.topBarTitle}>J's House</Text>
-        <Pressable
-          accessibilityLabel="Open notifications"
-          onPress={() => navigation.navigate(routes.Notifications)}
-          style={({ pressed }) => [styles.bellButton, pressed ? styles.itemPressed : null]}
-        >
-          <MaterialCommunityIcons color={colors.gold} name="bell-outline" size={24} />
-          {notificationUnreadCount > 0 ? (
-            <View style={styles.bellBadge}>
-              <Text style={styles.badgeText}>{formatBadgeCount(notificationUnreadCount)}</Text>
-            </View>
-          ) : null}
-        </Pressable>
-      </View>
       <View accessibilityRole="tablist" style={styles.container}>
         {navigationItems.map((item) => {
           const isActive = isPlatformRouteActive(route.name, item.route);
@@ -183,30 +166,6 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     lineHeight: 13,
   },
-  bellBadge: {
-    alignItems: 'center',
-    backgroundColor: colors.accent,
-    borderColor: colors.white,
-    borderRadius: colors.radii.pill,
-    borderWidth: 1,
-    justifyContent: 'center',
-    minHeight: 18,
-    minWidth: 18,
-    paddingHorizontal: 5,
-    position: 'absolute',
-    right: -7,
-    top: -7,
-  },
-  bellButton: {
-    alignItems: 'center',
-    backgroundColor: colors.surfaces.glassPanel,
-    borderColor: colors.border,
-    borderRadius: colors.radii.pill,
-    borderWidth: 1,
-    height: 42,
-    justifyContent: 'center',
-    width: 42,
-  },
   container: {
     alignItems: 'stretch',
     backgroundColor: colors.roles.navigationBar,
@@ -261,22 +220,10 @@ const styles = StyleSheet.create({
   labelActive: {
     color: colors.text,
   },
-  topBar: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 6,
-    paddingHorizontal: 6,
-  },
-  topBarTitle: {
-    color: colors.text,
-    fontSize: 16,
-    fontWeight: '900',
-  },
   outerShell: {
     backgroundColor: colors.background,
     paddingBottom: 0,
     paddingHorizontal: 8,
-    paddingTop: 5,
+    paddingTop: 6,
   },
 });

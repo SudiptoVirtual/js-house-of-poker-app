@@ -24,7 +24,7 @@ import type { RootStackParamList } from '../types/navigation';
 
 import { colors } from '../theme/colors';
 
-const platformNavigationHeight = 96;
+const platformNavigationHeight = 78;
 
 type ScreenProps = PropsWithChildren<{
   bodyStyle?: StyleProp<ViewStyle>;
