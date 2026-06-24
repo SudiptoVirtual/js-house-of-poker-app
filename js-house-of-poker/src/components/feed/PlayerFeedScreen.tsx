@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  ActivityIndicator,
   AppState,
   Clipboard,
   FlatList,
@@ -82,6 +83,7 @@ import { selectActiveVideoPostId } from './feedVideoSelection';
 import { colors } from '../../theme/colors';
 
 const platformNavigationHeight = 78;
+const FEED_PAGE_SIZE = 10;
 type FeedLoadState =
   | 'idle'
   | 'loading'
@@ -306,6 +308,9 @@ export function PlayerFeedScreen({ mode = 'feed', navigation, route }: PlayerFee
   const [feedLoadState, setFeedLoadState] = useState<FeedLoadState>('idle');
   const [feedLoadMessage, setFeedLoadMessage] = useState('');
   const [isRefreshingFeed, setIsRefreshingFeed] = useState(false);
+  const [nextFeedCursor, setNextFeedCursor] = useState<string | null>(null);
+  const [isLoadingMoreFeed, setIsLoadingMoreFeed] = useState(false);
+  const [hasMoreFeedPosts, setHasMoreFeedPosts] = useState(false);
   const [promotePost, setPromotePost] = useState<FeedPost | null>(null);
   const [promotionPaymentState, setPromotionPaymentState] =
     useState<PromotionPaymentState>('idle');
@@ -458,21 +463,26 @@ export function PlayerFeedScreen({ mode = 'feed', navigation, route }: PlayerFee
     try {
       if (isProfileHistoryMode && !currentUser?.id) {
         setPosts([]);
+        setNextFeedCursor(null);
+        setHasMoreFeedPosts(false);
         setFeedLoadState('session-expired');
         setFeedLoadMessage('Sign in to view your feed history.');
         return;
       }
 
       const session = await getAuthSession();
-      const response = isProfileHistoryMode && currentUser?.id
-        ? await fetchFeedPosts(session?.token ?? null, { authorUserId: currentUser.id })
-        : await fetchFeedPosts(session?.token ?? null);
+      const response = await fetchFeedPosts(session?.token ?? null, {
+        limit: FEED_PAGE_SIZE,
+        ...(isProfileHistoryMode && currentUser?.id ? { authorUserId: currentUser.id } : {}),
+      });
 
       if (!isMountedRef.current) {
         return;
       }
 
       setPosts(response.posts);
+      setNextFeedCursor(response.pagination.nextCursor);
+      setHasMoreFeedPosts(response.pagination.hasMore);
       setFeedLoadState(response.posts.length > 0 ? 'ready' : 'empty');
       setFeedLoadMessage('');
     } catch (error) {
@@ -489,6 +499,8 @@ export function PlayerFeedScreen({ mode = 'feed', navigation, route }: PlayerFee
         setFeedToast({ tone: 'error', message: details.message });
       } else {
         setPosts([]);
+        setNextFeedCursor(null);
+        setHasMoreFeedPosts(false);
         setFeedLoadState(
           details.status === 401 || details.status === 403
             ? 'session-expired'
@@ -502,6 +514,65 @@ export function PlayerFeedScreen({ mode = 'feed', navigation, route }: PlayerFee
       }
     }
   }, [currentUser?.id, isProfileHistoryMode]);
+
+  const loadMoreFeedPosts = useCallback(async () => {
+    if (
+      isLoadingMoreFeed ||
+      isRefreshingFeed ||
+      feedLoadState === 'loading' ||
+      !hasMoreFeedPosts ||
+      !nextFeedCursor
+    ) {
+      return;
+    }
+
+    setIsLoadingMoreFeed(true);
+
+    try {
+      const session = await getAuthSession();
+      const response = await fetchFeedPosts(session?.token ?? null, {
+        limit: FEED_PAGE_SIZE,
+        cursor: nextFeedCursor,
+        ...(isProfileHistoryMode && currentUser?.id ? { authorUserId: currentUser.id } : {}),
+      });
+
+      if (!isMountedRef.current) {
+        return;
+      }
+
+      setPosts((currentPosts) => {
+        const existingPostIds = new Set(currentPosts.map((post) => post.id));
+        const newPosts = response.posts.filter((post) => !existingPostIds.has(post.id));
+
+        return [...currentPosts, ...newPosts];
+      });
+      setNextFeedCursor(response.pagination.nextCursor);
+      setHasMoreFeedPosts(response.pagination.hasMore);
+      setFeedLoadState('ready');
+      setFeedLoadMessage('');
+    } catch (error) {
+      const details = getApiErrorDetails(
+        error,
+        'Unable to load more feed posts right now.',
+      );
+
+      if (isMountedRef.current) {
+        setFeedToast({ tone: 'error', message: details.message });
+      }
+    } finally {
+      if (isMountedRef.current) {
+        setIsLoadingMoreFeed(false);
+      }
+    }
+  }, [
+    currentUser?.id,
+    feedLoadState,
+    hasMoreFeedPosts,
+    isLoadingMoreFeed,
+    isProfileHistoryMode,
+    isRefreshingFeed,
+    nextFeedCursor,
+  ]);
 
   useEffect(() => {
     isMountedRef.current = true;
@@ -1640,6 +1711,8 @@ export function PlayerFeedScreen({ mode = 'feed', navigation, route }: PlayerFee
           keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
           keyboardShouldPersistTaps="handled"
           keyExtractor={(item) => item.id}
+          onEndReached={loadMoreFeedPosts}
+          onEndReachedThreshold={0.4}
           onScroll={(event) => {
             feedScrollOffsetRef.current = event.nativeEvent.contentOffset.y;
           }}
@@ -1675,6 +1748,13 @@ export function PlayerFeedScreen({ mode = 'feed', navigation, route }: PlayerFee
                         : 'The backend feed is empty. Be the first to start table talk by publishing a post.'}
               </Text>
             </View>
+          }
+          ListFooterComponent={
+            isLoadingMoreFeed ? (
+              <View style={styles.feedFooterLoading}>
+                <ActivityIndicator color={colors.primary} size="small" />
+              </View>
+            ) : null
           }
           ListHeaderComponent={
             <View style={styles.headerStack}>
@@ -1854,6 +1934,10 @@ const styles = StyleSheet.create({
   feedContent: {
     gap: colors.spacing[16],
     padding: colors.spacing[20],
+  },
+  feedFooterLoading: {
+    alignItems: 'center',
+    paddingVertical: colors.spacing[16],
   },
   emptyState: {
     alignItems: 'center',
