@@ -24,6 +24,7 @@ const {
 const ChatRoom = require("../models/ChatRoom");
 const GameTable = require("../models/GameTable");
 const HandHistory = require("../models/HandHistory");
+const Transaction = require("../models/Transaction");
 const User = require("../models/User");
 const {
   PLAYER_STATUSES,
@@ -57,6 +58,90 @@ const POKER_DEFAULT_BUY_IN = Math.max(
   POKER_BIG_BLIND * 10,
   Number.parseInt(process.env.POKER_DEFAULT_BUY_IN || "1000", 10)
 );
+
+function parsePositiveIntegerEnv(name, fallback = 0) {
+  const value = Number.parseInt(process.env[name] || "", 10);
+  return Number.isFinite(value) && value > 0 ? value : fallback;
+}
+
+function isTruthyEnv(value) {
+  return /^(1|true|yes|on)$/i.test(String(value || "").trim());
+}
+
+function parseCsvEnv(name) {
+  return new Set(
+    String(process.env[name] || "")
+      .split(",")
+      .map((value) => value.trim().toLowerCase())
+      .filter(Boolean)
+  );
+}
+
+function isQaChipGrantEligible(user) {
+  const nodeEnv = String(process.env.NODE_ENV || "development").toLowerCase();
+  const nonProductionEnv = ["development", "dev", "test", "staging"].includes(nodeEnv);
+  const qaUserIds = parseCsvEnv("POKER_QA_USER_IDS");
+  const qaUserEmails = parseCsvEnv("POKER_QA_USER_EMAILS");
+  const userId = String(user?._id || "").toLowerCase();
+  const email = String(user?.email || "").toLowerCase();
+
+  return (
+    nonProductionEnv ||
+    Boolean(user?.isQaUser) ||
+    (userId && qaUserIds.has(userId)) ||
+    (email && qaUserEmails.has(email))
+  );
+}
+
+function getQaStartingChips() {
+  const startingClips = parsePositiveIntegerEnv("POKER_QA_STARTING_CLIPS", 0);
+  return startingClips * 40;
+}
+
+async function grantQaTableChipsIfAllowed(user, requiredChips, reason) {
+  if (!user || Number(user.chips) >= requiredChips || !isQaChipGrantEligible(user)) {
+    return null;
+  }
+
+  const disableRequirements = isTruthyEnv(process.env.DISABLE_TABLE_CLIP_REQUIREMENTS_FOR_QA);
+  const qaStartingChips = getQaStartingChips();
+  if (!disableRequirements && qaStartingChips <= 0) {
+    return null;
+  }
+
+  const targetBalance = disableRequirements
+    ? requiredChips
+    : Math.max(requiredChips, qaStartingChips);
+  const grantChips = targetBalance - Math.max(0, Number(user.chips) || 0);
+  if (grantChips <= 0) {
+    return null;
+  }
+
+  user.chips = (Number(user.chips) || 0) + grantChips;
+  await Transaction.create({
+    amount: grantChips,
+    meta: {
+      balanceField: "chips",
+      direction: "credit",
+      grantChips,
+      grantClipsEquivalent: grantChips / 40,
+      reason,
+    },
+    note: `QA table chip grant for ${reason}.`,
+    provider: "poker_qa",
+    status: "success",
+    type: "adjustment",
+    userId: user._id,
+  });
+  return grantChips;
+}
+
+async function ensureTableChipBalance(user, requiredChips, reason) {
+  await grantQaTableChipsIfAllowed(user, requiredChips, reason);
+  if (Number(user.chips) < requiredChips) {
+    throw createFeedValidationError(`At least ${requiredChips} chips are required to ${reason}.`, 400, "INSUFFICIENT_CHIPS");
+  }
+}
 
 function buildFeedTableCodeCandidate() {
   return Array.from({ length: 5 }, () => {
@@ -941,6 +1026,12 @@ async function createFeedInviteTable(req, res) {
       normalizeText(req.body?.tableName, 80) ||
       `${displayName}'s Feed Table`;
     const gameSettings = createDefaultFeedTableGameSettings();
+
+    await ensureTableChipBalance(req.user, POKER_DEFAULT_BUY_IN, "create a feed invite table");
+    req.user.chips -= POKER_DEFAULT_BUY_IN;
+    if (typeof req.user.save === "function") {
+      await req.user.save();
+    }
 
     const table = await GameTable.create({
       actionLog: [`${displayName} created feed invite table ${tableCode}.`],

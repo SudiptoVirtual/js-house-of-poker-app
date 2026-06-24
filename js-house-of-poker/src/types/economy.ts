@@ -3,6 +3,7 @@ export type PokerEconomyLedgerEntryType =
   | 'gift'
   | 'gift-buy-in'
   | 'purchase'
+  | 'qa-test-grant'
   | 'table-buy-in'
   | 'weekly-reload';
 
@@ -43,6 +44,10 @@ export type PokerEconomyState = {
   compliance: PokerEconomyComplianceState;
   defaultTableBuyInChips: number;
   gifting: PokerEconomyGiftingState;
+  qa: {
+    disableTableClipRequirements: boolean;
+    startingClips: number;
+  };
   weeklyReload: PokerEconomyWeeklyReloadState;
 };
 
@@ -68,6 +73,8 @@ export type PokerEconomyPolicy = {
   giftCooldownMs: number;
   maxGiftClipsPerDay: number;
   maxGiftsPerDay: number;
+  qaStartingClips: number;
+  disableTableClipRequirementsForQa: boolean;
   weeklyReloadClips: number;
   weeklyReloadWeekday: number;
   weeklyReloadWindowHour: number;
@@ -129,6 +136,15 @@ export type PokerEconomyService = {
     ledgerEntry: PokerEconomyLedgerEntry;
   };
   canAffordTableBuyIn: (accountId: string, chips?: number) => boolean;
+  ensureQaTableBuyInBalance: (input: {
+    accountId: string;
+    chips?: number;
+    metadata?: Record<string, unknown>;
+  }) => {
+    balance: PokerEconomyState;
+    grantedClips: number;
+    ledgerEntry: PokerEconomyLedgerEntry | null;
+  };
   getLedgerEntries: (accountId: string) => PokerEconomyLedgerEntry[];
   getPolicy: () => PokerEconomyPolicy;
   giftBuyIn: (input: {

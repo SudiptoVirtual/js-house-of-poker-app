@@ -3,6 +3,7 @@ const mongoose = require("mongoose");
 
 const GameTable = require("../models/GameTable");
 const HandHistory = require("../models/HandHistory");
+const Transaction = require("../models/Transaction");
 const User = require("../models/User");
 const { logTableEvent } = require("../utils/liveEmitter");
 const { joinUserRoom } = require("../sockets/friendSocket");
@@ -98,6 +99,90 @@ const VALID_WILD_CARDS = new Set([
 
 function cloneValue(value) {
   return value == null ? value : JSON.parse(JSON.stringify(value));
+}
+
+function parsePositiveIntegerEnv(name, fallback = 0) {
+  const value = Number.parseInt(process.env[name] || "", 10);
+  return Number.isFinite(value) && value > 0 ? value : fallback;
+}
+
+function isTruthyEnv(value) {
+  return /^(1|true|yes|on)$/i.test(String(value || "").trim());
+}
+
+function parseCsvEnv(name) {
+  return new Set(
+    String(process.env[name] || "")
+      .split(",")
+      .map((value) => value.trim().toLowerCase())
+      .filter(Boolean)
+  );
+}
+
+function isQaChipGrantEligible(user) {
+  const nodeEnv = String(process.env.NODE_ENV || "development").toLowerCase();
+  const nonProductionEnv = ["development", "dev", "test", "staging"].includes(nodeEnv);
+  const qaUserIds = parseCsvEnv("POKER_QA_USER_IDS");
+  const qaUserEmails = parseCsvEnv("POKER_QA_USER_EMAILS");
+  const userId = String(user?._id || "").toLowerCase();
+  const email = String(user?.email || "").toLowerCase();
+
+  return (
+    nonProductionEnv ||
+    Boolean(user?.isQaUser) ||
+    (userId && qaUserIds.has(userId)) ||
+    (email && qaUserEmails.has(email))
+  );
+}
+
+function getQaStartingChips() {
+  const startingClips = parsePositiveIntegerEnv("POKER_QA_STARTING_CLIPS", 0);
+  return startingClips * CLIP_TO_CHIP_RATE;
+}
+
+async function grantQaTableChipsIfAllowed(user, requiredChips, reason) {
+  if (!user || Number(user.chips) >= requiredChips || !isQaChipGrantEligible(user)) {
+    return null;
+  }
+
+  const disableRequirements = isTruthyEnv(process.env.DISABLE_TABLE_CLIP_REQUIREMENTS_FOR_QA);
+  const qaStartingChips = getQaStartingChips();
+  if (!disableRequirements && qaStartingChips <= 0) {
+    return null;
+  }
+
+  const targetBalance = disableRequirements
+    ? requiredChips
+    : Math.max(requiredChips, qaStartingChips);
+  const grantChips = targetBalance - Math.max(0, Number(user.chips) || 0);
+  if (grantChips <= 0) {
+    return null;
+  }
+
+  user.chips = (Number(user.chips) || 0) + grantChips;
+  await Transaction.create({
+    amount: grantChips,
+    meta: {
+      balanceField: "chips",
+      direction: "credit",
+      grantChips,
+      grantClipsEquivalent: grantChips / CLIP_TO_CHIP_RATE,
+      reason,
+    },
+    note: `QA table chip grant for ${reason}.`,
+    provider: "poker_qa",
+    status: "success",
+    type: "adjustment",
+    userId: user._id,
+  });
+  return grantChips;
+}
+
+async function ensureTableChipBalance(user, requiredChips, reason) {
+  await grantQaTableChipsIfAllowed(user, requiredChips, reason);
+  if (Number(user.chips) < requiredChips) {
+    throw new Error(`At least ${requiredChips} chips are required to ${reason}.`);
+  }
 }
 
 
@@ -1573,11 +1658,7 @@ class PokerRealtimeService {
   async createRoom(socket, payload = {}) {
     const user = await this.authenticateSocketUser(socket, payload);
 
-    if (user.chips < DEFAULT_BUY_IN) {
-      throw new Error(
-        `At least ${DEFAULT_BUY_IN} chips are required to create a table.`
-      );
-    }
+    await ensureTableChipBalance(user, DEFAULT_BUY_IN, "create a table");
 
     const tableLimit = getTableLimit(payload);
     assertTableLimitSupportsBlinds(tableLimit, BIG_BLIND);
@@ -1883,11 +1964,7 @@ class PokerRealtimeService {
       throw new Error("Table is full.");
     }
 
-    if (user.chips < room.buyInAmount) {
-      throw new Error(
-        `At least ${room.buyInAmount} chips are required to join this table.`
-      );
-    }
+    await ensureTableChipBalance(user, room.buyInAmount, "join this table");
 
     const requestedSeat = Number.isInteger(payload.seatIndex)
       ? payload.seatIndex
@@ -2484,9 +2561,7 @@ class PokerRealtimeService {
       throw new Error("Player account not found.");
     }
 
-    if (user.chips < room.buyInAmount) {
-      throw new Error(`At least ${room.buyInAmount} chips are required to rebuy.`);
-    }
+    await ensureTableChipBalance(user, room.buyInAmount, "rebuy");
 
     user.chips -= room.buyInAmount;
     await user.save();
