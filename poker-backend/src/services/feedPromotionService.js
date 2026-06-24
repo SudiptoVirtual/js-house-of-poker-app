@@ -46,11 +46,7 @@ function getStripeWebhookSecret() {
   return null;
 }
 
-function validateFeedPromotionProductionConfig() {
-  if (!isProductionEnvironment()) {
-    return;
-  }
-
+function getFeedPromotionProductionConfigError() {
   const missing = [];
   const provider = String(readRequiredEnv("FEED_PROMOTION_PAYMENT_PROVIDER") || "").toLowerCase();
 
@@ -73,10 +69,26 @@ function validateFeedPromotionProductionConfig() {
   }
 
   if (missing.length > 0) {
-    throw buildConfigError(
+    return buildConfigError(
       `Production feed promotions require explicit Stripe configuration: ${missing.join(", ")}.`,
     );
   }
+
+  return null;
+}
+
+function validateFeedPromotionProductionConfig({ throwOnError = true } = {}) {
+  if (!isProductionEnvironment()) {
+    return null;
+  }
+
+  const error = getFeedPromotionProductionConfigError();
+
+  if (error && throwOnError) {
+    throw error;
+  }
+
+  return error;
 }
 
 function normalizeInteger(value, fallback) {

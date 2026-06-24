@@ -38,7 +38,12 @@ const botTableManager = require("./services/botTableManager");
 
 
 dotenv.config();
-validateFeedPromotionProductionConfig();
+const feedPromotionConfigError = validateFeedPromotionProductionConfig({ throwOnError: false });
+if (feedPromotionConfigError) {
+  console.warn(
+    `${feedPromotionConfigError.message} Feed promotion checkout and Stripe webhook processing will remain disabled until the missing production environment variables are configured.`,
+  );
+}
 connectDB();
 
 const parseAllowedOrigins = (origins = "") =>

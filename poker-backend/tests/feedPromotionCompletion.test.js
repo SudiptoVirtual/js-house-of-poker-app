@@ -122,6 +122,20 @@ test('production config validation rejects missing Stripe feed promotion setting
   );
 });
 
+test('startup can report missing production feed promotion settings without throwing', () => {
+  process.env.NODE_ENV = 'production';
+  for (const key of productionConfigEnvKeys) {
+    delete process.env[key];
+  }
+
+  const error = validateFeedPromotionProductionConfig({ throwOnError: false });
+
+  assert.equal(error.statusCode, 500);
+  assert.equal(error.code, 'FEED_PROMOTION_CONFIG_ERROR');
+  assert.match(error.message, /FEED_PROMOTION_PAYMENT_PROVIDER=stripe/);
+  assert.match(error.message, /FEED_PROMOTION_STRIPE_WEBHOOK_SECRET or STRIPE_WEBHOOK_SECRET/);
+});
+
 test('production rejects manual feed promotion completion before activation', async () => {
   process.env.NODE_ENV = 'production';
   const promotion = createPromotion();
