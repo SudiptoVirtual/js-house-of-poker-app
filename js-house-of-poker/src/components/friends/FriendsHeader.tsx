@@ -39,7 +39,7 @@ export function FriendsHeader({
 
 const styles = StyleSheet.create({
   container: {
-    gap: 12,
+    gap: 8,
   },
   feedbackText: {
     backgroundColor: 'rgba(94,237,255,0.11)',
@@ -50,21 +50,21 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
     lineHeight: 19,
-    padding: 12,
+    padding: 8,
   },
   helperText: {
     color: colors.mutedText,
-    fontSize: 14,
-    lineHeight: 20,
+    fontSize: 12,
+    lineHeight: 17,
   },
   statCard: {
     backgroundColor: colors.surfaceMuted,
     borderColor: colors.border,
-    borderRadius: 16,
+    borderRadius: 12,
     borderWidth: 1,
     flex: 1,
     gap: 3,
-    padding: 12,
+    padding: 8,
   },
   statLabel: {
     color: colors.mutedText,
@@ -79,7 +79,7 @@ const styles = StyleSheet.create({
   },
   statValue: {
     color: colors.text,
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '900',
   },
 });
