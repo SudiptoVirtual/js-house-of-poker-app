@@ -5,6 +5,8 @@ import type { PokerGameSettingsUpdate } from '../../types/poker';
 
 export type CreatePokerTableInput = {
   gameSettings?: PokerGameSettingsUpdate;
+  maxBetChips?: number;
+  maxBetClips?: number;
   name: string;
   playerCount?: number;
   seatIndex?: number;

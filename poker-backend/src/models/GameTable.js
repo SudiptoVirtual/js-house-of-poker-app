@@ -29,6 +29,10 @@ const SUPPORTED_GAME_TYPES = [
   "in-between-the-sheets",
 ];
 
+const CLIP_TO_CHIP_RATE = 40;
+const ALLOWED_TABLE_TIER_CLIPS = [1, 5, 10, 20, 100, 500, 1000, 10000];
+const DEFAULT_MAX_BET_CLIPS = 100;
+const DEFAULT_MAX_BET_CHIPS = DEFAULT_MAX_BET_CLIPS * CLIP_TO_CHIP_RATE;
 const DEFAULT_MAX_PLAYERS = 6;
 const THREE_FIVE_SEVEN_MAX_PLAYERS = 7;
 
@@ -392,6 +396,16 @@ const gameTableSchema = new mongoose.Schema(
       default: 1000,
       min: 1,
     },
+    maxBetClips: {
+      type: Number,
+      enum: ALLOWED_TABLE_TIER_CLIPS,
+      default: DEFAULT_MAX_BET_CLIPS,
+    },
+    maxBetChips: {
+      type: Number,
+      default: DEFAULT_MAX_BET_CHIPS,
+      min: 1,
+    },
     ante: {
       type: Number,
       default: 0,
@@ -497,3 +511,7 @@ const gameTableSchema = new mongoose.Schema(
 );
 
 module.exports = mongoose.model("GameTable", gameTableSchema);
+module.exports.ALLOWED_TABLE_TIER_CLIPS = ALLOWED_TABLE_TIER_CLIPS;
+module.exports.CLIP_TO_CHIP_RATE = CLIP_TO_CHIP_RATE;
+module.exports.DEFAULT_MAX_BET_CHIPS = DEFAULT_MAX_BET_CHIPS;
+module.exports.DEFAULT_MAX_BET_CLIPS = DEFAULT_MAX_BET_CLIPS;

@@ -6,6 +6,7 @@ import { colors } from '../../theme/colors';
 export type TableTierOption = {
   id: string;
   label: string;
+  maxBetClips: number;
   rulesLabel: string;
   stakesLabel: string;
 };
@@ -17,24 +18,14 @@ type TableTierSelectorProps = {
 };
 
 export const defaultTableTierOptions: TableTierOption[] = [
-  {
-    id: 'free-training',
-    label: 'Free training',
-    stakesLabel: 'No-stakes practice',
-    rulesLabel: 'Visible table code and friendly pacing',
-  },
-  {
-    id: '5k-casual',
-    label: '5K casual',
-    stakesLabel: '5K play-chip buy-in',
-    rulesLabel: 'Standard blinds with room invite access',
-  },
-  {
-    id: 'private-study',
-    label: 'Private study',
-    stakesLabel: 'Free-play invite table',
-    rulesLabel: 'Host controls seats and launch timing',
-  },
+  { id: '1-table', label: '$1 Table', maxBetClips: 1, stakesLabel: 'Up to 1 clip per bet', rulesLabel: '40-chip maximum for each bet, raise, or all-in action' },
+  { id: '5-table', label: '$5 Table', maxBetClips: 5, stakesLabel: 'Up to 5 clips per bet', rulesLabel: '200-chip maximum for each bet, raise, or all-in action' },
+  { id: '10-table', label: '$10 Table', maxBetClips: 10, stakesLabel: 'Up to 10 clips per bet', rulesLabel: '400-chip maximum for each bet, raise, or all-in action' },
+  { id: '20-table', label: '$20 Table', maxBetClips: 20, stakesLabel: 'Up to 20 clips per bet', rulesLabel: '800-chip maximum for each bet, raise, or all-in action' },
+  { id: '100-table', label: '$100 Table', maxBetClips: 100, stakesLabel: 'Up to 100 clips per bet', rulesLabel: 'Not fixed increments — any amount through 4,000 chips per action' },
+  { id: '500-table', label: '$500 Table', maxBetClips: 500, stakesLabel: 'Up to 500 clips per bet', rulesLabel: '20,000-chip maximum for each bet, raise, or all-in action' },
+  { id: '1000-table', label: '$1,000 Table', maxBetClips: 1000, stakesLabel: 'Up to 1,000 clips per bet', rulesLabel: '40,000-chip maximum for each bet, raise, or all-in action' },
+  { id: '10000-table', label: '$10,000 Table', maxBetClips: 10000, stakesLabel: 'Up to 10,000 clips per bet', rulesLabel: '400,000-chip maximum for each bet, raise, or all-in action' },
 ];
 
 export function TableTierSelector({ onSelectTier, options, selectedTierId }: TableTierSelectorProps) {

@@ -21,6 +21,10 @@ const {
 const SMALL_BLIND = 10;
 const BIG_BLIND = 20;
 const DEFAULT_STACK = 1000;
+const CLIP_TO_CHIP_RATE = 40;
+const ALLOWED_TABLE_TIER_CLIPS = [1, 5, 10, 20, 100, 500, 1000, 10000];
+const DEFAULT_MAX_BET_CLIPS = 100;
+const DEFAULT_MAX_BET_CHIPS = DEFAULT_MAX_BET_CLIPS * CLIP_TO_CHIP_RATE;
 const DEFAULT_MAX_PLAYERS = 6;
 const THREE_FIVE_SEVEN_MAX_PLAYERS = 7;
 const MAX_PLAYERS = DEFAULT_MAX_PLAYERS;
@@ -171,6 +175,35 @@ const MOCK_STATUS_STATE_BY_TIER = Object.freeze({
     reputation: 72,
   }),
 });
+
+
+function normalizeMaxBetClips(value) {
+  const tierMatch = typeof value === 'string' ? value.replace(/,/g, '').match(/^(?:\$)?(1|5|10|20|100|500|1000|10000)(?:-table)?$/) : null;
+  const numeric = tierMatch ? Number(tierMatch[1]) : Number(value);
+  if (!Number.isFinite(numeric)) {
+    return DEFAULT_MAX_BET_CLIPS;
+  }
+  const clips = Math.floor(numeric);
+  return ALLOWED_TABLE_TIER_CLIPS.includes(clips) ? clips : DEFAULT_MAX_BET_CLIPS;
+}
+
+function getTableLimit(value = {}) {
+  const maxBetClips = normalizeMaxBetClips(value.maxBetClips ?? value.tableTier?.maxBetClips ?? value.tableTierClips ?? value.tableTierId);
+  return { maxBetClips, maxBetChips: maxBetClips * CLIP_TO_CHIP_RATE };
+}
+
+function assertTableLimitSupportsBlinds(limit, bigBlind) {
+  if (limit.maxBetChips < bigBlind) {
+    throw new Error(`Table max must be at least ${bigBlind / CLIP_TO_CHIP_RATE} clips to cover the big blind.`);
+  }
+}
+
+function enforceSingleActionLimit(room, actionLabel, chips) {
+  const limit = getTableLimit(room);
+  if (chips > limit.maxBetChips) {
+    throw new Error(`${actionLabel} exceeds this table's ${limit.maxBetClips}-clip (${limit.maxBetChips} chip) max per betting action.`);
+  }
+}
 
 function maxPlayersForGame(game) {
   return game === '357' ? THREE_FIVE_SEVEN_MAX_PLAYERS : DEFAULT_MAX_PLAYERS;
@@ -1423,6 +1456,8 @@ function advanceGame(room) {
 }
 
 function createRoom(rooms, socketId, name, options = {}) {
+  const tableLimit = getTableLimit(options);
+  assertTableLimitSupportsBlinds(tableLimit, BIG_BLIND);
   const player = createPlayer(socketId, name, options);
   const roomId = generateRoomId(rooms);
 
@@ -1436,6 +1471,8 @@ function createRoom(rooms, socketId, name, options = {}) {
     id: roomId,
     lastDealerId: null,
     lastWinnerSummary: null,
+    maxBetChips: tableLimit.maxBetChips,
+    maxBetClips: tableLimit.maxBetClips,
     maxPlayers: maxPlayersForGame('holdem'),
     players: [player],
     tableInvites: [],
@@ -1710,6 +1747,7 @@ function performAction(room, playerId, actionType, rawAmount) {
       throw new Error(`Bet must be at least ${BIG_BLIND}.`);
     }
 
+    enforceSingleActionLimit(room, 'Bet', target - handPlayer.betThisRound);
     commitChips(room, playerId, target - handPlayer.betThisRound);
     room.hand.currentBet = handPlayer.betThisRound;
     room.hand.minRaise = Math.max(BIG_BLIND, handPlayer.betThisRound);
@@ -1725,6 +1763,7 @@ function performAction(room, playerId, actionType, rawAmount) {
       throw new Error(`Minimum raise is to ${room.hand.currentBet + room.hand.minRaise}.`);
     }
 
+    enforceSingleActionLimit(room, 'Raise', target - handPlayer.betThisRound);
     commitChips(room, playerId, target - handPlayer.betThisRound);
     room.hand.currentBet = handPlayer.betThisRound;
     if (raiseSize >= room.hand.minRaise) {
@@ -1736,6 +1775,7 @@ function performAction(room, playerId, actionType, rawAmount) {
   } else if (actionType === 'all-in') {
     if (maxTotal <= handPlayer.betThisRound) throw new Error('You have no chips left.');
 
+    enforceSingleActionLimit(room, 'All-in', roomPlayer.chips);
     commitChips(room, playerId, roomPlayer.chips);
     if (handPlayer.betThisRound > room.hand.currentBet) {
       const raiseSize = handPlayer.betThisRound - room.hand.currentBet;
@@ -1983,6 +2023,8 @@ function buildRoomState(room, playerId) {
     pot: totalPot(room),
     roomId: room.id,
     selfId: playerId,
+    maxBetChips: getTableLimit(room).maxBetChips,
+    maxBetClips: getTableLimit(room).maxBetClips,
     maxPlayers: room.maxPlayers ?? maxPlayersForGame(gameSettings.game),
     smallBlind: is357 ? 0 : SMALL_BLIND,
     statusMessage,
@@ -2023,6 +2065,10 @@ function buildRoomState(room, playerId) {
 
 module.exports = {
   BIG_BLIND,
+  CLIP_TO_CHIP_RATE,
+  DEFAULT_MAX_BET_CHIPS,
+  DEFAULT_MAX_BET_CLIPS,
+  ALLOWED_TABLE_TIER_CLIPS,
   DEFAULT_STACK,
   MAX_PLAYERS,
   SMALL_BLIND,

@@ -96,6 +96,8 @@ type LegacyPokerRoomState = {
   hostId: string | null;
   inviteRecipients?: PokerInviteRecipient[] | null;
   lastWinnerSummary: string | null;
+  maxBetChips?: number | null;
+  maxBetClips?: number | null;
   maxPlayers?: number | null;
   phase: PokerPhase;
   players: LegacyPokerPlayerState[];
@@ -854,6 +856,8 @@ export function normalizePokerRoomState(
     dealerPosition: playerSeatIndex(players, (player) => player.isDealer),
     economy: normalizeEconomyState(roomState.economy, previousState),
     gameSettings,
+    maxBetChips: normalizeNumber(roomState.maxBetChips) || 4000,
+    maxBetClips: normalizeNumber(roomState.maxBetClips) || 100,
     maxSeats,
     minPlayersToStart: 2,
     inviteRecipients: normalizeInviteRecipients(
@@ -1236,6 +1240,8 @@ export const SEVEN_PLAYER_357_VISUAL_QA_ROOM_STATE: PokerRoomState = (() => {
     hostId: players[0].id,
     inviteRecipients: [],
     lastWinnerSummary: null,
+    maxBetChips: 4000,
+    maxBetClips: 100,
     maxSeats: THREE_FIVE_SEVEN_MAX_SEATS,
     minPlayersToStart: 2,
     phase: 'decide_3',
