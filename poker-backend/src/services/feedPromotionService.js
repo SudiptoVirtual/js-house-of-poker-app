@@ -446,7 +446,7 @@ async function activatePromotion(promotionId, options = {}) {
   return post;
 }
 
-async function completePromotionPayment({ paymentReference, promotionId, provider = "manual" }) {
+async function completePromotionPayment({ paymentReference, promotionId, provider = "manual", user, verifiedWebhook = false } = {}) {
   let promotion = null;
   if (promotionId && mongoose.Types.ObjectId.isValid(String(promotionId))) {
     promotion = await FeedPromotion.findById(promotionId);
@@ -463,8 +463,27 @@ async function completePromotionPayment({ paymentReference, promotionId, provide
     throw error;
   }
 
+  const isStripeWebhookCompletion = provider === "stripe" && verifiedWebhook;
+  if (isProductionEnvironment() && !isStripeWebhookCompletion) {
+    const error = new Error("Manual feed promotion completion is disabled in production.");
+    error.statusCode = 403;
+    error.code = "PROMOTION_MANUAL_COMPLETION_DISABLED";
+    throw error;
+  }
+
+  if (!isStripeWebhookCompletion && user?._id) {
+    const sponsorUserId = String(promotion.sponsorUserId || promotion.promotedByUserId || "");
+    if (sponsorUserId !== String(user._id)) {
+      const error = new Error("You can only complete your own feed promotion.");
+      error.statusCode = 403;
+      error.code = "PROMOTION_COMPLETION_FORBIDDEN";
+      throw error;
+    }
+  }
+
   const wasAlreadyActive = promotion.state === "active" && promotion.paymentStatus === "paid";
   const post = await activatePromotion(promotion._id, {
+    currentUserId: user?._id || promotion.sponsorUserId,
     paymentReference,
     provider,
     wasAlreadyActive,
@@ -529,7 +548,7 @@ async function handlePaymentWebhook(payload = {}) {
     return { ignored: true, reason: "Payment event is not a completion event." };
   }
 
-  return completePromotionPayment({ paymentReference, promotionId, provider: "stripe" });
+  return completePromotionPayment({ paymentReference, promotionId, provider: "stripe", verifiedWebhook: true });
 }
 
 module.exports = {

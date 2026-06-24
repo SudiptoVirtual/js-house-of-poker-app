@@ -1674,6 +1674,7 @@ async function completePromotion(req, res) {
       paymentReference: req.body?.paymentReference || req.body?.referenceId,
       promotionId,
       provider: req.body?.provider || "manual",
+      user: req.user,
     });
     return res.json(result);
   } catch (error) {
