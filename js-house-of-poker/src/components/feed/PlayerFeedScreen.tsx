@@ -76,6 +76,7 @@ import type { ChatRoom } from '../../types/chatRooms';
 import type { FriendsPlayer } from '../../types/friends';
 import type { PokerRoomState } from '../../types/poker';
 import { mergeRealtimePostList } from './mergeRealtimePostList';
+import { mergeSupportResponsePost } from './mergeSupportResponsePost';
 import { selectActiveVideoPostId } from './feedVideoSelection';
 
 import { colors } from '../../theme/colors';
@@ -839,7 +840,11 @@ export function PlayerFeedScreen({ mode = 'feed', navigation, route }: PlayerFee
       );
 
       setPosts((currentPosts) =>
-        currentPosts.map((post) => (post.id === postId ? response.post : post)),
+        currentPosts.map((post) =>
+          post.id === postId
+            ? mergeSupportResponsePost(post, response.post, nextSupportedState)
+            : post,
+        ),
       );
     } catch (error) {
       setPosts((currentPosts) =>
