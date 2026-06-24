@@ -340,7 +340,7 @@ export function ChatRoomDetailScreen({ navigation, route }: Props) {
   const [selectedRoomFriendIds, setSelectedRoomFriendIds] = useState<string[]>([]);
   const [isPrivate, setIsPrivate] = useState(true);
   const [selectedGameId, setSelectedGameId] = useState('texas-holdem');
-  const [selectedTierId, setSelectedTierId] = useState('free-training');
+  const [selectedTierId, setSelectedTierId] = useState('100-table');
   const [selectedRuleId, setSelectedRuleId] = useState('friendly-holdem');
   const [selectedRules, setSelectedRules] = useState<ChatRoomTableRules>({});
   const [isLaunchingTable, setIsLaunchingTable] = useState(false);
@@ -793,19 +793,21 @@ export function ChatRoomDetailScreen({ navigation, route }: Props) {
     };
   }, [route.params.roomId]);
 
+  const selectedTier = defaultTableTierOptions.find((option) => option.id === selectedTierId);
+  const selectedTierMaxBetClips = selectedTier?.maxBetClips ?? 100;
   const isolatedLaunchMetadata = useMemo(
     () => ({
       chatRoomId: room?.id ?? route.params.roomId,
       invitedPlayerIds,
       isPrivate,
       selectedPlayerIds,
+      maxBetClips: selectedTierMaxBetClips,
       tableTierId: selectedTierId,
       transportKind,
     }),
-    [invitedPlayerIds, isPrivate, room?.id, route.params.roomId, selectedPlayerIds, selectedTierId, transportKind],
+    [invitedPlayerIds, isPrivate, room?.id, route.params.roomId, selectedPlayerIds, selectedTierId, selectedTierMaxBetClips, transportKind],
   );
 
-  const selectedTier = defaultTableTierOptions.find((option) => option.id === selectedTierId);
   const selectedRule = defaultTableRulesOptions.find((option) => option.id === selectedRuleId);
   const rulesSummary = selectedRule?.label ?? selectedTier?.rulesLabel ?? room?.tableConfig.stakesLabel ?? 'Room table rules';
   const giftClipRecipients = useMemo<GiftClipsRecipientOption[]>(() => {
@@ -1322,6 +1324,7 @@ export function ChatRoomDetailScreen({ navigation, route }: Props) {
           name: currentUserName,
           playerCount: room.tableConfig.maxSeats,
           tableName: `${room.title} Table`,
+          maxBetClips: selectedTierMaxBetClips,
           tableTierId: selectedTierId,
           visibility: isPrivate ? 'private' : 'room',
         } satisfies Omit<CreateTableFromAiPrimeRequest, 'roomId' | 'token'>,

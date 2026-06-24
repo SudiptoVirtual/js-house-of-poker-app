@@ -111,6 +111,7 @@ export type AIPrimeActionRequest = ChatRoomIdRequest & {
   actionId?: string;
   body?: string;
   gameSettings?: PokerGameSettingsUpdate;
+  maxBetClips?: number;
   invitedPlayerIds?: string[];
   tableTierId?: string | Record<string, unknown> | null;
   visibility?: string;
@@ -168,6 +169,7 @@ export type ChatRoomNotificationsReadPayload = {
 
 export type CreateTableFromChatRoomRequest = ChatRoomIdRequest & {
   gameSettings?: PokerGameSettingsUpdate;
+  maxBetClips?: number;
   invitedPlayerIds?: string[];
   name?: string;
   playerCount?: number;

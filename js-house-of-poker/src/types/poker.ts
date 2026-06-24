@@ -311,6 +311,8 @@ export type PokerRoomState = {
   hostId: string | null;
   inviteRecipients: PokerInviteRecipient[];
   lastWinnerSummary: string | null;
+  maxBetChips: number;
+  maxBetClips: number;
   maxSeats: number;
   minPlayersToStart: number;
   phase: PokerPhase;

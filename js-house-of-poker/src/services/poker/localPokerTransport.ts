@@ -272,7 +272,7 @@ export function createLocalPokerTransport(): PokerTransport {
 
       const { room: nextRoom } = pokerGame.createRoom(rooms, `training-host-${trainingTable.id}`, `Bot Host ${trainingTable.game}`, {
         seedMockStatuses: true,
-      });
+      } as Parameters<typeof pokerGame.createRoom>[3]);
       nextRoom.id = trainingTable.id;
       rooms.delete(Array.from(rooms.keys()).find((id) => id !== trainingTable.id && rooms.get(id) === nextRoom) ?? '');
       rooms.set(trainingTable.id, nextRoom);
@@ -547,9 +547,12 @@ export function createLocalPokerTransport(): PokerTransport {
     releaseCurrentSeat();
 
     try {
-      const { player, room: nextRoom } = pokerGame.createRoom(rooms, 'local-human', playerName, {
+      const createRoomOptions = {
+        maxBetChips: input.maxBetChips,
+        maxBetClips: input.maxBetClips,
         seedMockStatuses: true,
-      });
+      } as Record<string, unknown>;
+      const { player, room: nextRoom } = pokerGame.createRoom(rooms, 'local-human', playerName, createRoomOptions);
       if (input.gameSettings) {
         pokerGame.updateGameSettings(nextRoom, player.id, input.gameSettings);
       }

@@ -39,6 +39,10 @@ const DISCONNECT_GRACE_PERIOD_MS = Math.max(
   0,
   Number.parseInt(process.env.POKER_DISCONNECT_GRACE_MS || "30000", 10)
 );
+const CLIP_TO_CHIP_RATE = 40;
+const ALLOWED_TABLE_TIER_CLIPS = [1, 5, 10, 20, 100, 500, 1000, 10000];
+const DEFAULT_MAX_BET_CLIPS = 100;
+const DEFAULT_MAX_BET_CHIPS = DEFAULT_MAX_BET_CLIPS * CLIP_TO_CHIP_RATE;
 const DEFAULT_MAX_PLAYERS = 6;
 const THREE_FIVE_SEVEN_MAX_PLAYERS = 7;
 const MAX_PLAYERS = DEFAULT_MAX_PLAYERS;
@@ -94,6 +98,35 @@ const VALID_WILD_CARDS = new Set([
 
 function cloneValue(value) {
   return value == null ? value : JSON.parse(JSON.stringify(value));
+}
+
+
+function normalizeMaxBetClips(value) {
+  const tierMatch = typeof value === 'string' ? value.replace(/,/g, '').match(/^(?:\$)?(1|5|10|20|100|500|1000|10000)(?:-table)?$/) : null;
+  const numeric = tierMatch ? Number(tierMatch[1]) : Number(value);
+  if (!Number.isFinite(numeric)) {
+    return DEFAULT_MAX_BET_CLIPS;
+  }
+  const clips = Math.floor(numeric);
+  return ALLOWED_TABLE_TIER_CLIPS.includes(clips) ? clips : DEFAULT_MAX_BET_CLIPS;
+}
+
+function getTableLimit(value = {}) {
+  const maxBetClips = normalizeMaxBetClips(value.maxBetClips ?? value.tableTier?.maxBetClips ?? value.tableTierClips ?? value.tableTierId);
+  return { maxBetClips, maxBetChips: maxBetClips * CLIP_TO_CHIP_RATE };
+}
+
+function assertTableLimitSupportsBlinds(limit, bigBlind) {
+  if (limit.maxBetChips < bigBlind) {
+    throw new Error(`Table max must be at least ${bigBlind / CLIP_TO_CHIP_RATE} clips to cover the big blind.`);
+  }
+}
+
+function enforceSingleActionLimit(room, actionLabel, chips) {
+  const limit = getTableLimit(room);
+  if (chips > limit.maxBetChips) {
+    throw new Error(`${actionLabel} exceeds this table's ${limit.maxBetClips}-clip (${limit.maxBetChips} chip) max per betting action.`);
+  }
 }
 
 function maxPlayersForGame(game) {
@@ -1546,6 +1579,9 @@ class PokerRealtimeService {
       );
     }
 
+    const tableLimit = getTableLimit(payload);
+    assertTableLimitSupportsBlinds(tableLimit, BIG_BLIND);
+
     const tableCode = await this.generateUniqueTableCode();
     const seatNumber = 0;
 
@@ -1570,6 +1606,8 @@ class PokerRealtimeService {
       id: tableCode,
       lastDealerId: null,
       lastWinnerSummary: null,
+      maxBetChips: tableLimit.maxBetChips,
+      maxBetClips: tableLimit.maxBetClips,
       maxPlayers: maxPlayersForGame("holdem"),
       minPlayersToStart: MIN_PLAYERS_TO_START,
       players: [player],
@@ -1601,6 +1639,8 @@ class PokerRealtimeService {
       gameType: room.gameSettings.game,
       handCount: 0,
       hostUserId: user._id,
+      maxBetChips: room.maxBetChips,
+      maxBetClips: room.maxBetClips,
       maxPlayers: room.maxPlayers,
       minPlayersToStart: MIN_PLAYERS_TO_START,
       phase: "waiting",
@@ -1755,6 +1795,8 @@ class PokerRealtimeService {
       id: table.tableCode || normalizedRoomId,
       lastDealerId: table.lastDealerPlayerId || null,
       lastWinnerSummary: table.lastWinnerSummary || null,
+      maxBetChips: getTableLimit(table).maxBetChips,
+      maxBetClips: getTableLimit(table).maxBetClips,
       maxPlayers: table.maxPlayers || maxPlayersForGame(table.gameSettings?.game),
       minPlayersToStart: table.minPlayersToStart || MIN_PLAYERS_TO_START,
       players: (table.players || []).map((player) => ({
@@ -2343,6 +2385,7 @@ class PokerRealtimeService {
         throw new Error(`Bet must be at least ${room.bigBlind}.`);
       }
 
+      enforceSingleActionLimit(room, "Bet", target - handPlayer.betThisRound);
       commitChips(room, session.playerId, target - handPlayer.betThisRound);
       room.hand.currentBet = handPlayer.betThisRound;
       room.hand.minRaise = Math.max(room.bigBlind, handPlayer.betThisRound);
@@ -2366,6 +2409,7 @@ class PokerRealtimeService {
         );
       }
 
+      enforceSingleActionLimit(room, "Raise", target - handPlayer.betThisRound);
       commitChips(room, session.playerId, target - handPlayer.betThisRound);
       room.hand.currentBet = handPlayer.betThisRound;
       if (raiseSize >= room.hand.minRaise) {
@@ -2378,6 +2422,7 @@ class PokerRealtimeService {
         throw new Error("You have no chips left.");
       }
 
+      enforceSingleActionLimit(room, "All-in", roomPlayer.chips);
       commitChips(room, session.playerId, roomPlayer.chips);
       if (handPlayer.betThisRound > room.hand.currentBet) {
         const raiseSize = handPlayer.betThisRound - room.hand.currentBet;
@@ -3030,6 +3075,8 @@ class PokerRealtimeService {
       pot: totalPot(room),
       roomId: room.id,
       selfId: playerId,
+      maxBetChips: getTableLimit(room).maxBetChips,
+      maxBetClips: getTableLimit(room).maxBetClips,
       maxPlayers: room.maxPlayers,
       smallBlind: is357 ? 0 : room.smallBlind,
       statusMessage,
@@ -3125,6 +3172,8 @@ class PokerRealtimeService {
       hostUserId: room.hostId || null,
       lastDealerPlayerId: room.lastDealerId || null,
       lastWinnerSummary: room.lastWinnerSummary || null,
+      maxBetChips: getTableLimit(room).maxBetChips,
+      maxBetClips: getTableLimit(room).maxBetClips,
       maxPlayers: room.maxPlayers,
       minPlayersToStart: room.minPlayersToStart,
       phase: room.hand?.phase || room.phase || "waiting",
@@ -3253,4 +3302,8 @@ module.exports = {
   DEFAULT_BUY_IN,
   BIG_BLIND,
   SMALL_BLIND,
+  ALLOWED_TABLE_TIER_CLIPS,
+  CLIP_TO_CHIP_RATE,
+  DEFAULT_MAX_BET_CHIPS,
+  DEFAULT_MAX_BET_CLIPS,
 };

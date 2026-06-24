@@ -406,6 +406,8 @@ export function createSocketPokerTransport(
 
     const payload = await withAuthToken({
       gameSettings: input.gameSettings,
+      maxBetChips: input.maxBetChips,
+      maxBetClips: input.maxBetClips,
       name: playerName,
       seatIndex: input.seatIndex,
       tableName: input.tableName,
@@ -450,6 +452,8 @@ export function createSocketPokerTransport(
       name: playerName,
       seatIndex: input.seatIndex,
       tableName: input.tableName,
+      maxBetChips: input.maxBetChips,
+      maxBetClips: input.maxBetClips,
       tableTierId: input.tableTierId,
       visibility: input.visibility,
     });
