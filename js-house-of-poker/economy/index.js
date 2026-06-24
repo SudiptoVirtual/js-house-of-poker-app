@@ -13,6 +13,7 @@ const LEDGER_ENTRY_TYPES = {
   PURCHASE: 'purchase',
   TABLE_BUY_IN: 'table-buy-in',
   WEEKLY_RELOAD: 'weekly-reload',
+  QA_TEST_GRANT: 'qa-test-grant',
 };
 
 function createEconomyError(message, code, details = {}) {
@@ -53,6 +54,8 @@ function normalizePolicy(overrides = {}) {
     maxGiftClipsPerDay:
       overrides.maxGiftClipsPerDay ?? DEFAULT_MAX_GIFT_CLIPS_PER_DAY,
     maxGiftsPerDay: overrides.maxGiftsPerDay ?? DEFAULT_MAX_GIFTS_PER_DAY,
+    qaStartingClips: overrides.qaStartingClips ?? 0,
+    disableTableClipRequirementsForQa: Boolean(overrides.disableTableClipRequirementsForQa),
     weeklyReloadClips:
       overrides.weeklyReloadClips ?? DEFAULT_WEEKLY_RELOAD_CLIPS,
     weeklyReloadWeekday:
@@ -440,6 +443,10 @@ function createEconomyService({
         maxClipsPerDay: policy.maxGiftClipsPerDay,
         maxGiftsPerDay: policy.maxGiftsPerDay,
       },
+      qa: {
+        disableTableClipRequirements: policy.disableTableClipRequirementsForQa,
+        startingClips: policy.qaStartingClips,
+      },
       weeklyReload: {
         amountClips: policy.weeklyReloadClips,
         lastAppliedAt: account.lastWeeklyReloadAt,
@@ -714,6 +721,47 @@ function createEconomyService({
     };
   }
 
+
+  function ensureQaTableBuyInBalance({ accountId, chips = policy.defaultTableBuyInChips, metadata = {} }) {
+    const now = clock();
+    const account = ensureAccount(accountId);
+    const normalizedChips = normalizePositiveInteger(chips, 'Chips');
+    const requiredClips = toClipCost(normalizedChips, policy);
+
+    if (account.clipBalance >= requiredClips) {
+      return {
+        balance: buildClientState(accountId),
+        grantedClips: 0,
+        ledgerEntry: null,
+      };
+    }
+
+    if (!policy.disableTableClipRequirementsForQa && policy.qaStartingClips <= 0) {
+      assertSufficientClips(account, requiredClips);
+    }
+
+    const targetClips = policy.disableTableClipRequirementsForQa
+      ? requiredClips
+      : Math.max(requiredClips, policy.qaStartingClips);
+    const grantedClips = targetClips - account.clipBalance;
+    const result = mutateAccountBalance(account, {
+      chipDelta: grantedClips * policy.clipToChipRate,
+      clipDelta: grantedClips,
+      metadata: {
+        ...metadata,
+        reason: 'qa-table-buy-in-balance',
+      },
+      now,
+      type: LEDGER_ENTRY_TYPES.QA_TEST_GRANT,
+    });
+
+    return {
+      balance: buildClientState(accountId),
+      grantedClips,
+      ledgerEntry: result.entry,
+    };
+  }
+
   function canAffordTableBuyIn(accountId, chips = policy.defaultTableBuyInChips) {
     const account = ensureAccount(accountId);
     const requiredClips = toClipCost(chips, policy);
@@ -739,6 +787,7 @@ function createEconomyService({
     },
     giftBuyIn,
     giftClips,
+    ensureQaTableBuyInBalance,
     grantClips,
     purchaseClips,
     recordTableInvite(tableId, invitedAccountId) {

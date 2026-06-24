@@ -411,3 +411,101 @@ test('appendTableInviteRecords validates table access and persists chat-room inv
     GameTable.findOne = originalFindOne;
   }
 });
+
+test('QA chip grants let new QA accounts create and join a table without manual balance changes', async (t) => {
+  const originalNodeEnv = process.env.NODE_ENV;
+  const originalQaStartingClips = process.env.POKER_QA_STARTING_CLIPS;
+  const originalCreateEvent = GameEventLog.create;
+  const originalCreateNotification = Notification.create;
+  const originalCreateTable = GameTable.create;
+  const originalExistsTable = GameTable.exists;
+  const originalFindById = User.findById;
+  const originalTransactionCreate = require('../src/models/Transaction').create;
+  const Transaction = require('../src/models/Transaction');
+
+  process.env.NODE_ENV = 'test';
+  process.env.POKER_QA_STARTING_CLIPS = '25';
+
+  const hostId = new mongoose.Types.ObjectId();
+  const joinerId = new mongoose.Types.ObjectId();
+  const tableId = new mongoose.Types.ObjectId();
+  const users = new Map();
+  const transactions = [];
+  const savedUsers = [];
+  const io = createIoStub();
+  const hostSocket = createConnectedSocket('qa-host-socket');
+  const joinerSocket = createConnectedSocket('qa-joiner-socket');
+  hostSocket.data.userId = String(hostId);
+  joinerSocket.data.userId = String(joinerId);
+  io.sockets.sockets.set(hostSocket.id, hostSocket);
+  io.sockets.sockets.set(joinerSocket.id, joinerSocket);
+
+  function createUser(id, name) {
+    return {
+      _id: new mongoose.Types.ObjectId(id),
+      avatar: '',
+      chips: 0,
+      email: `${name.toLowerCase()}@qa.local`,
+      isBlocked: false,
+      name,
+      playerStatus: { iconKey: 'badge-no-status', tier: 'NO_STATUS' },
+      referralCode: '',
+      save: async function saveStub() {
+        savedUsers.push({ id: String(this._id), chips: this.chips });
+        return this;
+      },
+      status: 'active',
+    };
+  }
+
+  users.set(String(hostId), createUser(hostId, 'QA Host'));
+  users.set(String(joinerId), createUser(joinerId, 'QA Joiner'));
+
+  GameEventLog.create = async () => ({});
+  Notification.create = async (doc) => ({ ...doc, _id: new mongoose.Types.ObjectId(), createdAt: new Date(), readAt: null });
+  Transaction.create = async (doc) => {
+    transactions.push(doc);
+    return { ...doc, _id: new mongoose.Types.ObjectId() };
+  };
+  User.findById = async (id) => users.get(String(id));
+  GameTable.exists = async () => null;
+  GameTable.create = async (doc) => ({
+    ...doc,
+    _id: tableId,
+    save: async function saveStub() { return this; },
+  });
+
+  t.after(() => {
+    if (originalNodeEnv == null) delete process.env.NODE_ENV;
+    else process.env.NODE_ENV = originalNodeEnv;
+    if (originalQaStartingClips == null) delete process.env.POKER_QA_STARTING_CLIPS;
+    else process.env.POKER_QA_STARTING_CLIPS = originalQaStartingClips;
+    GameEventLog.create = originalCreateEvent;
+    Notification.create = originalCreateNotification;
+    GameTable.create = originalCreateTable;
+    GameTable.exists = originalExistsTable;
+    User.findById = originalFindById;
+    Transaction.create = originalTransactionCreate;
+  });
+
+  const service = createPokerRealtimeService(io);
+  service.persistRoom = async () => undefined;
+
+  const room = await service.createRoom(hostSocket, {});
+  assert.equal(users.get(String(hostId)).chips, 0);
+  assert.equal(room.players[0].chips, 1000);
+
+  await service.joinRoom(joinerSocket, { tableId: room.id });
+
+  assert.equal(users.get(String(joinerId)).chips, 0);
+  assert.equal(room.players.length, 2);
+  assert.equal(room.players[1].chips, 1000);
+  assert.equal(transactions.length, 2);
+  assert.deepEqual(transactions.map((entry) => entry.type), ['adjustment', 'adjustment']);
+  assert.deepEqual(transactions.map((entry) => entry.provider), ['poker_qa', 'poker_qa']);
+  assert.equal(transactions[0].amount, 1000);
+  assert.equal(transactions[0].meta.balanceField, 'chips');
+  assert.equal(transactions[0].meta.grantClipsEquivalent, 25);
+  assert.ok(savedUsers.some((entry) => entry.id === String(hostId) && entry.chips === 0));
+  assert.ok(savedUsers.some((entry) => entry.id === String(joinerId) && entry.chips === 0));
+});
