@@ -27,7 +27,7 @@ const { initPlayerGameSocket } = require("./sockets/playerGameSocket");
 const { initChatRoomSocket } = require("./sockets/chatRoomSocket");
 const { initFeedSocket } = require("./sockets/feedSocket");
 const { initFriendSocket } = require("./sockets/friendSocket");
-// const { validateFeedPromotionProductionConfig } = require("./services/feedPromotionService");
+const { validateFeedPromotionProductionConfig } = require("./services/feedPromotionService");
 const botTableManager = require("./services/botTableManager");
 
 //const adminHandHistoryRoutes = require("./routes/adminHandHistoryRoutes");
@@ -38,7 +38,7 @@ const botTableManager = require("./services/botTableManager");
 
 
 dotenv.config();
-// validateFeedPromotionProductionConfig();
+validateFeedPromotionProductionConfig();
 connectDB();
 
 const parseAllowedOrigins = (origins = "") =>

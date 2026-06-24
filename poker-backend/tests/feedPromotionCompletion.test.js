@@ -6,7 +6,11 @@ const FeedPost = require('../src/models/FeedPost');
 const FeedPromotion = require('../src/models/FeedPromotion');
 const Transaction = require('../src/models/Transaction');
 const User = require('../src/models/User');
-const { completePromotionPayment, handlePaymentWebhook } = require('../src/services/feedPromotionService');
+const {
+  completePromotionPayment,
+  handlePaymentWebhook,
+  validateFeedPromotionProductionConfig,
+} = require('../src/services/feedPromotionService');
 
 function objectId(hex) {
   return new mongoose.Types.ObjectId(hex.padStart(24, '0'));
@@ -45,8 +49,20 @@ function createPromotion(overrides = {}) {
   return promotion;
 }
 
+const productionConfigEnvKeys = [
+  'FEED_PROMOTION_PAYMENT_PROVIDER',
+  'STRIPE_SECRET_KEY',
+  'FEED_PROMOTION_SUCCESS_URL',
+  'FEED_PROMOTION_CANCEL_URL',
+  'FEED_PROMOTION_STRIPE_WEBHOOK_SECRET',
+  'STRIPE_WEBHOOK_SECRET',
+];
+
 const originals = {
   env: process.env.NODE_ENV,
+  productionConfigEnv: Object.fromEntries(
+    productionConfigEnvKeys.map((key) => [key, process.env[key]]),
+  ),
   findById: FeedPromotion.findById,
   findOne: FeedPromotion.findOne,
   postFindByIdAndUpdate: FeedPost.findByIdAndUpdate,
@@ -56,6 +72,13 @@ const originals = {
 
 afterEach(() => {
   process.env.NODE_ENV = originals.env;
+  for (const key of productionConfigEnvKeys) {
+    if (originals.productionConfigEnv[key] === undefined) {
+      delete process.env[key];
+    } else {
+      process.env[key] = originals.productionConfigEnv[key];
+    }
+  }
   FeedPromotion.findById = originals.findById;
   FeedPromotion.findOne = originals.findOne;
   FeedPost.findByIdAndUpdate = originals.postFindByIdAndUpdate;
@@ -76,6 +99,28 @@ function stubActivationPersistence(promotion, activationCalls = []) {
   Transaction.findByIdAndUpdate = async () => null;
   User.findById = () => ({ select: async () => ({ _id: promotion.sponsorUserId }) });
 }
+
+
+test('production config validation rejects missing Stripe feed promotion settings', () => {
+  process.env.NODE_ENV = 'production';
+  for (const key of productionConfigEnvKeys) {
+    delete process.env[key];
+  }
+
+  assert.throws(
+    () => validateFeedPromotionProductionConfig(),
+    (error) => {
+      assert.equal(error.statusCode, 500);
+      assert.equal(error.code, 'FEED_PROMOTION_CONFIG_ERROR');
+      assert.match(error.message, /FEED_PROMOTION_PAYMENT_PROVIDER=stripe/);
+      assert.match(error.message, /STRIPE_SECRET_KEY/);
+      assert.match(error.message, /FEED_PROMOTION_SUCCESS_URL/);
+      assert.match(error.message, /FEED_PROMOTION_CANCEL_URL/);
+      assert.match(error.message, /FEED_PROMOTION_STRIPE_WEBHOOK_SECRET or STRIPE_WEBHOOK_SECRET/);
+      return true;
+    },
+  );
+});
 
 test('production rejects manual feed promotion completion before activation', async () => {
   process.env.NODE_ENV = 'production';
