@@ -80,6 +80,8 @@ import { mergeSupportResponsePost } from './mergeSupportResponsePost';
 import { selectActiveVideoPostId } from './feedVideoSelection';
 
 import { colors } from '../../theme/colors';
+
+const platformNavigationHeight = 78;
 type FeedLoadState =
   | 'idle'
   | 'loading'
@@ -1628,7 +1630,12 @@ export function PlayerFeedScreen({ mode = 'feed', navigation, route }: PlayerFee
           <StatusBar style="light" />
           <FlatList
           automaticallyAdjustKeyboardInsets
-          contentContainerStyle={styles.feedContent}
+          contentContainerStyle={[
+            styles.feedContent,
+            {
+              paddingBottom: insets.bottom + platformNavigationHeight + colors.spacing[20],
+            },
+          ]}
           data={posts}
           keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
           keyboardShouldPersistTaps="handled"
@@ -1847,7 +1854,6 @@ const styles = StyleSheet.create({
   feedContent: {
     gap: colors.spacing[16],
     padding: colors.spacing[20],
-    paddingBottom: 94,
   },
   emptyState: {
     alignItems: 'center',
