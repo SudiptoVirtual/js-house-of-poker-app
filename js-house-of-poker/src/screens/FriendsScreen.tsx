@@ -324,7 +324,12 @@ export function FriendsScreen({ navigation }: Props) {
       title="Friends"
       subtitle="Friends and player search"
     >
-      <SectionCard title="Find players">
+      <SectionCard
+        contentStyle={styles.findPlayersContent}
+        style={styles.findPlayersCard}
+        title="Find players"
+        titleStyle={styles.findPlayersTitle}
+      >
         <PlayerSearchInput onChangeText={setQuery} value={query} />
         <FriendsHeader
           activeTableCode={activeTableCode}
@@ -391,6 +396,17 @@ export function FriendsScreen({ navigation }: Props) {
 }
 
 const styles = StyleSheet.create({
+  findPlayersCard: {
+    gap: 8,
+    padding: 12,
+  },
+  findPlayersContent: {
+    gap: 8,
+  },
+  findPlayersTitle: {
+    fontSize: 17,
+    lineHeight: 22,
+  },
   helperText: {
     color: colors.mutedText,
     fontSize: 14,
