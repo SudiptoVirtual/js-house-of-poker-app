@@ -34,7 +34,6 @@ function createStatefulReact() {
   return {
     react: {
       ...require('react'),
-      useMemo: (factory) => factory(),
       useRef: (initial) => refs[refCursor++] ?? (refs[refCursor - 1] = { current: initial }),
       useState: (initial) => {
         const index = cursor++;
@@ -49,8 +48,14 @@ function createStatefulReact() {
   };
 }
 
+function renderFunctionElement(node) {
+  return typeof node?.type === 'function' ? node.type(node.props) : node;
+}
+
 function findElements(node, predicate, matches = []) {
   if (!node || typeof node !== 'object') return matches;
+  const renderedNode = renderFunctionElement(node);
+  if (renderedNode !== node) return findElements(renderedNode, predicate, matches);
   if (predicate(node)) matches.push(node);
   const children = Array.isArray(node.props?.children) ? node.props.children : [node.props?.children];
   for (const child of children) findElements(child, predicate, matches);
@@ -61,7 +66,10 @@ function textContent(node) {
   if (node == null || typeof node === 'boolean') return '';
   if (typeof node === 'string' || typeof node === 'number') return String(node);
   if (Array.isArray(node)) return node.map(textContent).join('');
-  if (typeof node === 'object') return textContent(node.props?.children);
+  if (typeof node === 'object') {
+    const renderedNode = renderFunctionElement(node);
+    return textContent(renderedNode === node ? node.props?.children : renderedNode);
+  }
   return '';
 }
 
@@ -78,12 +86,21 @@ function renderFeedPostCard(props) {
     TextInput: 'TextInput',
     View: 'View',
   };
+  const React = state.react;
   const { FeedPostCard } = compileComponent('../src/components/feed/FeedPostCard.tsx', {
-    react: state.react,
+    react: React,
     'react-native': rn,
     '@expo/vector-icons': { MaterialCommunityIcons: 'Icon' },
     '../../theme/colors': { colors: mockColors },
-    './FeedActionBar': { FeedActionBar: () => null },
+    './FeedActionBar': {
+      FeedActionBar: ({ onComment }) => React.createElement(
+        'View',
+        { testID: 'feed-action-bar' },
+        React.createElement('Text', null, 'Support'),
+        React.createElement('Pressable', { onPress: onComment }, React.createElement('Text', null, 'Comments')),
+        React.createElement('Text', null, 'Share'),
+      ),
+    },
     './FeedPlayerHeader': { FeedPlayerHeader: () => null },
     './FeedMediaGallery': { FeedMediaGallery: () => null },
   });
@@ -96,7 +113,7 @@ function renderFeedPostCard(props) {
   };
 }
 
-test('profile-history feed cards show social counts and open comments without poker metadata', async () => {
+test('feed cards render only the bottom FeedActionBar social actions', async () => {
   const post = {
     authorUserId: 'owner',
     commentCount: 3,
@@ -134,7 +151,7 @@ test('profile-history feed cards show social counts and open comments without po
   let fetchCount = 0;
   const noop = () => {};
   const card = renderFeedPostCard({
-    currentUserId: 'owner',
+    currentUserId: 'viewer',
     onComment: noop,
     onDeleteComment: noop,
     onDeletePost: noop,
@@ -142,7 +159,7 @@ test('profile-history feed cards show social counts and open comments without po
       fetchCount += 1;
       return { comments, post };
     },
-    onGiftClips: noop,
+    onInviteToTable: noop,
     onJoinTable: noop,
     onOpenProfile: noop,
     onPromote: noop,
@@ -151,28 +168,27 @@ test('profile-history feed cards show social counts and open comments without po
     onUpdateComment: noop,
     onUpdatePost: noop,
     post,
-    variant: 'ownerHistory',
+    variant: 'feed',
   });
 
   let tree = card.render();
   const initialTexts = findElements(tree, (element) => element.type === 'Text').map(textContent);
 
-  assert.ok(initialTexts.includes('12'));
-  assert.ok(initialTexts.includes('Supports'));
-  assert.ok(initialTexts.includes('3'));
-  assert.ok(initialTexts.includes('Comments'));
-  assert.ok(initialTexts.includes('4'));
-  assert.ok(initialTexts.includes('Shares'));
-  assert.equal(initialTexts.includes('Wins'), false);
-  assert.equal(initialTexts.includes('Tables'), false);
-  assert.equal(initialTexts.includes('Invites'), false);
-  assert.equal(initialTexts.includes('Clips'), false);
+  assert.equal(findElements(tree, (element) => element.props?.testID === 'feed-action-bar').length, 1);
+  assert.equal(initialTexts.filter((text) => text === 'Support').length, 1);
+  assert.equal(initialTexts.filter((text) => text === 'Comments').length, 1);
+  assert.equal(initialTexts.filter((text) => text === 'Share').length, 1);
+  assert.equal(initialTexts.includes('12'), false);
+  assert.equal(initialTexts.includes('Supports'), false);
+  assert.equal(initialTexts.includes('3'), false);
+  assert.equal(initialTexts.includes('4'), false);
+  assert.equal(initialTexts.includes('Shares'), false);
 
-  const commentsStat = findElements(
+  const commentsAction = findElements(
     tree,
-    (element) => element.type === 'Pressable' && textContent(element).includes('Comments'),
+    (element) => element.type === 'Pressable' && textContent(element) === 'Comments',
   )[0];
-  commentsStat.props.onPress();
+  commentsAction.props.onPress();
   await Promise.resolve();
   await Promise.resolve();
 
@@ -181,8 +197,4 @@ test('profile-history feed cards show social counts and open comments without po
   assert.equal(fetchCount, 1);
   assert.ok(openTexts.includes('@viewer'));
   assert.ok(openTexts.includes('Nice hand'));
-  assert.equal(
-    findElements(tree, (element) => element.type === 'TextInput' && element.props?.placeholder === 'Add a table-side comment...').length,
-    0,
-  );
 });

@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -153,33 +153,6 @@ export function FeedPostCard({
   const isInviteToTableLoading = isInvitingToTable || inviteToTableLoading;
   const showSocialActions = !isOwnerHistoryMode;
   const allowCommentComposer = showSocialActions;
-
-  const socialStats = useMemo(
-    () => [
-      {
-        accent: colors.gold,
-        count: post.supportersCount.toLocaleString(),
-        icon: "cards-heart-outline" as const,
-        key: "supports",
-        label: post.supportersCount === 1 ? "Support" : "Supports",
-      },
-      {
-        accent: colors.secondary,
-        count: post.commentCount.toLocaleString(),
-        icon: "comment-text-outline" as const,
-        key: "comments",
-        label: post.commentCount === 1 ? "Comment" : "Comments",
-      },
-      {
-        accent: colors.primary,
-        count: post.shareCount.toLocaleString(),
-        icon: "share-variant-outline" as const,
-        key: "shares",
-        label: post.shareCount === 1 ? "Share" : "Shares",
-      },
-    ],
-    [post.commentCount, post.shareCount, post.supportersCount],
-  );
 
   function guardAction(action: () => void) {
     if (actionsDisabled) {
@@ -494,40 +467,6 @@ export function FeedPostCard({
           </View>
         </View>
       ) : null}
-
-      <View style={styles.socialStatsRow}>
-        {socialStats.map((item) => {
-          const content = (
-            <>
-              <MaterialCommunityIcons color={item.accent} name={item.icon} size={18} />
-              <View style={styles.socialStatCopy}>
-                <Text numberOfLines={1} style={styles.socialStatCount}>{item.count}</Text>
-                <Text numberOfLines={1} style={styles.socialStatLabel}>{item.label}</Text>
-              </View>
-            </>
-          );
-
-          return item.key === "comments" ? (
-            <Pressable
-              accessibilityLabel={`${item.count} ${item.label}. View comments`}
-              accessibilityRole="button"
-              disabled={commentPanelLoadState === "loading"}
-              key={item.key}
-              onPress={handleToggleCommentPanel}
-              style={({ pressed }) => [
-                styles.socialStatPill,
-                pressed ? styles.socialStatPillPressed : null,
-              ]}
-            >
-              {content}
-            </Pressable>
-          ) : (
-            <View key={item.key} style={styles.socialStatPill}>
-              {content}
-            </View>
-          );
-        })}
-      </View>
 
       {showSocialActions && post.giftClipsTotal ? (
         <View style={styles.giftStats}>
@@ -1004,41 +943,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     gap: 8,
     padding: 10,
-  },
-  socialStatCopy: {
-    flex: 1,
-    gap: 2,
-    minWidth: 0,
-  },
-  socialStatCount: {
-    color: colors.text,
-    fontSize: 14,
-    fontWeight: "900",
-  },
-  socialStatLabel: {
-    color: colors.mutedText,
-    fontSize: 11,
-    fontWeight: "800",
-  },
-  socialStatPill: {
-    alignItems: 'center',
-    backgroundColor: colors.surfaces.glassPanel,
-    borderColor: 'rgba(255,255,255,0.10)',
-    borderRadius: colors.radii.lg,
-    borderWidth: 1,
-    flex: 1,
-    flexDirection: 'row',
-    gap: colors.spacing[8],
-    minWidth: 0,
-    paddingHorizontal: colors.spacing[12],
-    paddingVertical: colors.spacing[8],
-  },
-  socialStatPillPressed: {
-    opacity: 0.74,
-  },
-  socialStatsRow: {
-    flexDirection: 'row',
-    gap: colors.spacing[8],
   },
   tableContext: {
     alignItems: "center",
